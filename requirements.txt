@@ -1,0 +1,17 @@
+# Phase 1: Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+celery==5.3.4
+redis==5.0.1
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+httpx==0.25.2
+playwright==1.40.0
+google-api-python-client==2.108.0
+google-auth==2.25.2
+google-auth-oauthlib==1.1.0
+loguru==0.7.2
+supabase==2.4.0  # Run: pip install -r requirements.txt
+
+

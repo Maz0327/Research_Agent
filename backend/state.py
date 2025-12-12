@@ -1,0 +1,157 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Optional
+
+import httpx
+from loguru import logger
+from pydantic import BaseModel, Field
+
+from backend.config import get_settings
+
+
+
+settings = get_settings()
+
+
+class JobStatus(BaseModel):
+    # Supabase column is "id", but we expose it as "job_id" in the API
+    job_id: str = Field(alias="id")
+    topic: str
+    status: str
+    result: Optional[dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        populate_by_name = True
+
+
+def _rest_base_url() -> str:
+    """
+    Base URL for Supabase PostgREST.
+    Example: https://xxxx.supabase.co/rest/v1
+    """
+    if not settings.supabase_url:
+        raise RuntimeError("SUPABASE_URL is not configured in the environment.")
+
+    # Cast to string (handles both str and AnyUrl types)
+    base_url = str(settings.supabase_url)
+    return base_url.rstrip("/") + "/rest/v1"
+
+
+
+def _headers() -> dict[str, str]:
+    """
+    Headers required by Supabase REST.
+    Uses the service role key, so ONLY for backend/server-side.
+    """
+    if not settings.supabase_service_role_key:
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured in the environment.")
+
+    return {
+        "apikey": settings.supabase_service_role_key,
+        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        "Content-Type": "application/json",
+    }
+
+
+def create_job(topic: str) -> JobStatus:
+    """
+    Insert a new job row into Supabase and return the created record.
+    """
+    url = _rest_base_url() + "/jobs"
+    headers = _headers()
+    # Ask Supabase to return the inserted row
+    headers["Prefer"] = "return=representation"
+
+    payload = {
+        "topic": topic,
+        "status": "queued",
+    }
+
+    logger.info(f"Creating job in Supabase for topic={topic!r}")
+    with httpx.Client(timeout=5.0) as client:
+        resp = client.post(url, headers=headers, json=payload)
+
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPError as e:
+        logger.error(f"Failed to create job in Supabase: {e} - body={resp.text!r}")
+        raise
+
+    data = resp.json()
+    # Supabase returns a list when using "return=representation"
+    if isinstance(data, list):
+        if not data:
+            raise RuntimeError("Supabase returned an empty list when creating a job.")
+        data = data[0]
+
+    job = JobStatus.model_validate(data)
+    logger.info(f"Created job {job.job_id} in Supabase.")
+    return job
+
+
+def get_job(job_id: str) -> Optional[JobStatus]:
+    """
+    Fetch a single job by ID from Supabase.
+    Returns None if not found.
+    """
+    url = _rest_base_url() + "/jobs"
+    headers = _headers()
+    params = {
+        "id": f"eq.{job_id}",
+        "limit": 1,
+    }
+
+    with httpx.Client(timeout=5.0) as client:
+        resp = client.get(url, headers=headers, params=params)
+
+    if resp.status_code == 404:
+        return None
+
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPError as e:
+        logger.error(f"Failed to fetch job {job_id} from Supabase: {e} - body={resp.text!r}")
+        raise
+
+    data = resp.json()
+    if not data:
+        return None
+
+    job = JobStatus.model_validate(data[0])
+    return job
+
+
+def update_job_status(job_id: str, status: str, result: Optional[dict[str, Any]] = None) -> None:
+    """
+    Update status/result for an existing job.
+    """
+    url = _rest_base_url() + "/jobs"
+    headers = _headers()
+    # We don't need the updated row back here
+    headers["Prefer"] = "return=minimal"
+
+    payload: dict[str, Any] = {"status": status}
+    if result is not None:
+        payload["result"] = result
+
+    params = {
+        "id": f"eq.{job_id}",
+    }
+
+    logger.info(f"Updating job {job_id} in Supabase to status={status!r}")
+    with httpx.Client(timeout=5.0) as client:
+        resp = client.patch(url, headers=headers, params=params, json=payload)
+
+    if resp.status_code == 404:
+        logger.warning(f"Job {job_id} not found for update")
+        return
+    
+    if resp.status_code not in (200, 204):
+        logger.error(
+            f"Failed to update job {job_id} status to {status}: "
+            f"{resp.status_code} - body={resp.text!r}"
+        )
+        resp.raise_for_status()
