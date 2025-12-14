@@ -1,0 +1,79 @@
+"""In-memory job store implementation for local development."""
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+
+from loguru import logger
+
+from backend.models.job_record import Artifacts, JobRecord, Outputs
+from backend.state.interface import JobStore
+
+
+class InMemoryJobStore(JobStore):
+    """In-memory job store for local development."""
+    
+    def __init__(self):
+        """Initialize in-memory storage."""
+        self._jobs: dict[str, JobRecord] = {}
+    
+    def create_job(self, config_json: dict) -> JobRecord:
+        """Create a new job record."""
+        job_id = str(uuid.uuid4())
+        job = JobRecord(
+            job_id=job_id,
+            created_at=datetime.now(timezone.utc),
+            status="queued",
+            config_json=config_json,
+        )
+        self._jobs[job_id] = job
+        logger.info(f"Created job {job_id} in memory")
+        return job
+    
+    def get_job(self, job_id: str) -> Optional[JobRecord]:
+        """Get a job record by ID."""
+        return self._jobs.get(job_id)
+    
+    def update_job(
+        self,
+        job_id: str,
+        *,
+        status: Optional[str] = None,
+        stage: Optional[str] = None,
+        progress_percent: Optional[int] = None,
+        partial_outputs: Optional[dict] = None,
+        partial_artifacts: Optional[dict] = None,
+        warnings_append: Optional[list[str]] = None,
+    ) -> Optional[JobRecord]:
+        """Update a job record with partial updates."""
+        job = self._jobs.get(job_id)
+        if not job:
+            logger.warning(f"Job {job_id} not found for update")
+            return None
+        
+        # Update fields
+        if status is not None:
+            job.status = status
+        if stage is not None:
+            job.stage = stage
+        if progress_percent is not None:
+            job.progress_percent = progress_percent
+        
+        # Append warnings
+        if warnings_append:
+            job.warnings.extend(warnings_append)
+        
+        # Merge partial outputs
+        if partial_outputs:
+            for key, value in partial_outputs.items():
+                if hasattr(job.outputs, key) and value is not None:
+                    setattr(job.outputs, key, value)
+        
+        # Merge partial artifacts
+        if partial_artifacts:
+            for key, value in partial_artifacts.items():
+                if hasattr(job.artifacts, key) and value is not None:
+                    setattr(job.artifacts, key, value)
+        
+        logger.info(f"Updated job {job_id} in memory")
+        return job
+

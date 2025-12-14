@@ -1,17 +1,34 @@
-# Phase 1: Core dependencies
+# Core framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 celery==5.3.4
 redis==5.0.1
+
+# Configuration & environment
 python-dotenv==1.0.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
+
+# HTTP client
 httpx==0.25.2
+
+# Web scraping & browser automation
 playwright==1.40.0
+
+# Text extraction
+trafilatura==1.6.3
+python-dateutil==2.8.2
+
+# YouTube integration
+youtube-transcript-api==0.6.1
+
+# Google APIs (for Drive and Docs)
 google-api-python-client==2.108.0
 google-auth==2.25.2
 google-auth-oauthlib==1.1.0
+
+# Logging
 loguru==0.7.2
-supabase==2.4.0  # Run: pip install -r requirements.txt
 
-
+# OpenAI API
+openai==1.3.0

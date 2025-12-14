@@ -1,11 +1,11 @@
-"""YouTube Data API v3 search helper."""
+"""YouTube Data API v3 integration."""
 from typing import Optional
 
 import httpx
 from loguru import logger
 from pydantic import BaseModel
 
-from backend.config import get_settings
+from backend.config import get_settings, require_youtube
 
 
 class YouTubeVideo(BaseModel):
@@ -36,11 +36,10 @@ def search_youtube_videos(query: str, max_results: int = 5) -> list[YouTubeVideo
         >>> for video in videos:
         ...     print(f"{video.title} by {video.channel_title}")
     """
-    settings = get_settings()
-    
-    # Check if API key is configured
-    if not settings.youtube_api_key:
-        logger.warning("YouTube API key not configured. Skipping YouTube search.")
+    try:
+        settings = require_youtube()
+    except Exception as e:
+        logger.warning(f"YouTube integration not available: {e}")
         return []
     
     # Validate max_results

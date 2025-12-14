@@ -1,30 +1,13 @@
+"""Supabase implementation of job persistence."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Optional
 
 import httpx
 from loguru import logger
-from pydantic import BaseModel, Field
 
-from backend.config import get_settings
-
-
-
-settings = get_settings()
-
-
-class JobStatus(BaseModel):
-    # Supabase column is "id", but we expose it as "job_id" in the API
-    job_id: str = Field(alias="id")
-    topic: str
-    status: str
-    result: Optional[dict[str, Any]] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        populate_by_name = True
+from backend.config import require_supabase
+from backend.models.job import JobStatus
 
 
 def _rest_base_url() -> str:
@@ -32,13 +15,10 @@ def _rest_base_url() -> str:
     Base URL for Supabase PostgREST.
     Example: https://xxxx.supabase.co/rest/v1
     """
-    if not settings.supabase_url:
-        raise RuntimeError("SUPABASE_URL is not configured in the environment.")
-
+    settings = require_supabase()
     # Cast to string (handles both str and AnyUrl types)
     base_url = str(settings.supabase_url)
     return base_url.rstrip("/") + "/rest/v1"
-
 
 
 def _headers() -> dict[str, str]:
@@ -46,9 +26,7 @@ def _headers() -> dict[str, str]:
     Headers required by Supabase REST.
     Uses the service role key, so ONLY for backend/server-side.
     """
-    if not settings.supabase_service_role_key:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured in the environment.")
-
+    settings = require_supabase()
     return {
         "apikey": settings.supabase_service_role_key,
         "Authorization": f"Bearer {settings.supabase_service_role_key}",
@@ -155,3 +133,4 @@ def update_job_status(job_id: str, status: str, result: Optional[dict[str, Any]]
             f"{resp.status_code} - body={resp.text!r}"
         )
         resp.raise_for_status()
+

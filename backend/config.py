@@ -23,24 +23,41 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     
+    # General app config
     environment: str = Field(default="dev", alias="ENVIRONMENT")
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8000, alias="API_PORT")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     
-    # API Keys (optional for Phase 1)
-    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
-    perplexity_api_key: Optional[str] = Field(default=None, alias="PERPLEXITY_API_KEY")
-    youtube_api_key: Optional[str] = Field(default=None, alias="YOUTUBE_API_KEY")
-    google_service_account_json_path: Optional[str] = Field(
-        default=None, alias="GOOGLE_SERVICE_ACCOUNT_JSON_PATH"
-    )
-    google_drive_root_folder_id: Optional[str] = Field(
-        default=None, alias="GOOGLE_DRIVE_ROOT_FOLDER_ID"
-    )
+    # Supabase (optional - only needed for job persistence)
     supabase_url: Optional[str] = Field(default=None, alias="SUPABASE_URL")
     supabase_service_role_key: Optional[str] = Field(
         default=None, alias="SUPABASE_SERVICE_ROLE_KEY"
+    )
+    
+    # Slack integration
+    slack_signing_secret: Optional[str] = Field(default=None, alias="SLACK_SIGNING_SECRET")
+    slack_bot_token: Optional[str] = Field(default=None, alias="SLACK_BOT_TOKEN")
+    
+    # OpenAI API (for LLM operations)
+    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
+    
+    # Perplexity AI API
+    perplexity_api_key: Optional[str] = Field(default=None, alias="PERPLEXITY_API_KEY")
+    
+    # YouTube Data API v3
+    youtube_api_key: Optional[str] = Field(default=None, alias="YOUTUBE_API_KEY")
+    
+    # Google OAuth (for Drive and Docs access)
+    google_oauth_client_id: Optional[str] = Field(default=None, alias="GOOGLE_OAUTH_CLIENT_ID")
+    google_oauth_client_secret: Optional[str] = Field(
+        default=None, alias="GOOGLE_OAUTH_CLIENT_SECRET"
+    )
+    google_oauth_refresh_token: Optional[str] = Field(
+        default=None, alias="GOOGLE_OAUTH_REFRESH_TOKEN"
+    )
+    google_drive_root_folder_id: Optional[str] = Field(
+        default=None, alias="GOOGLE_DRIVE_ROOT_FOLDER_ID"
     )
     
     # Optional login credentials (for future phases)
@@ -55,3 +72,124 @@ def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
 
+
+# Validation helpers for different stages/features
+class MissingRequiredSettingError(RuntimeError):
+    """Raised when a required setting is missing for a specific feature."""
+    pass
+
+
+def require_supabase() -> Settings:
+    """
+    Get settings and validate Supabase configuration is present.
+    
+    Raises:
+        MissingRequiredSettingError: If Supabase settings are missing
+    """
+    settings = get_settings()
+    if not settings.supabase_url:
+        raise MissingRequiredSettingError(
+            "SUPABASE_URL is required for job persistence. "
+            "Please set it in your .env file."
+        )
+    if not settings.supabase_service_role_key:
+        raise MissingRequiredSettingError(
+            "SUPABASE_SERVICE_ROLE_KEY is required for job persistence. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_youtube() -> Settings:
+    """
+    Get settings and validate YouTube API key is present.
+    
+    Raises:
+        MissingRequiredSettingError: If YouTube API key is missing
+    """
+    settings = get_settings()
+    if not settings.youtube_api_key:
+        raise MissingRequiredSettingError(
+            "YOUTUBE_API_KEY is required for YouTube integration. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_openai() -> Settings:
+    """
+    Get settings and validate OpenAI API key is present.
+    
+    Raises:
+        MissingRequiredSettingError: If OpenAI API key is missing
+    """
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise MissingRequiredSettingError(
+            "OPENAI_API_KEY is required for LLM operations. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_perplexity() -> Settings:
+    """
+    Get settings and validate Perplexity API key is present.
+    
+    Raises:
+        MissingRequiredSettingError: If Perplexity API key is missing
+    """
+    settings = get_settings()
+    if not settings.perplexity_api_key:
+        raise MissingRequiredSettingError(
+            "PERPLEXITY_API_KEY is required for web search. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_slack() -> Settings:
+    """
+    Get settings and validate Slack configuration is present.
+    
+    Raises:
+        MissingRequiredSettingError: If Slack settings are missing
+    """
+    settings = get_settings()
+    if not settings.slack_signing_secret:
+        raise MissingRequiredSettingError(
+            "SLACK_SIGNING_SECRET is required for Slack integration. "
+            "Please set it in your .env file."
+        )
+    if not settings.slack_bot_token:
+        raise MissingRequiredSettingError(
+            "SLACK_BOT_TOKEN is required for Slack integration. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_google_oauth() -> Settings:
+    """
+    Get settings and validate Google OAuth configuration is present.
+    
+    Raises:
+        MissingRequiredSettingError: If Google OAuth settings are missing
+    """
+    settings = get_settings()
+    if not settings.google_oauth_client_id:
+        raise MissingRequiredSettingError(
+            "GOOGLE_OAUTH_CLIENT_ID is required for Google Drive/Docs integration. "
+            "Please set it in your .env file."
+        )
+    if not settings.google_oauth_client_secret:
+        raise MissingRequiredSettingError(
+            "GOOGLE_OAUTH_CLIENT_SECRET is required for Google Drive/Docs integration. "
+            "Please set it in your .env file."
+        )
+    if not settings.google_oauth_refresh_token:
+        raise MissingRequiredSettingError(
+            "GOOGLE_OAUTH_REFRESH_TOKEN is required for Google Drive/Docs integration. "
+            "Please set it in your .env file."
+        )
+    return settings
