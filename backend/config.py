@@ -2,15 +2,26 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+import os
 
 from dotenv import load_dotenv
+from loguru import logger
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Resolve repo root: backend/config.py -> backend -> repo root
+ROOT = Path(__file__).resolve().parents[1]
+env_path = ROOT / ".env"
+
 # Load .env file from project root
-env_path = Path(__file__).parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv(dotenv_path=env_path, override=False)
+
+# Sanity check: log (debug only) that .env path was attempted
+if env_path.exists():
+    logger.debug(f"Loaded .env from: {env_path}")
+else:
+    logger.debug(f".env file not found at: {env_path} (using environment variables only)")
 
 
 class Settings(BaseSettings):

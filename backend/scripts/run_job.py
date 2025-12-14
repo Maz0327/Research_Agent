@@ -6,9 +6,17 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+# Import config first to trigger dotenv load
+import backend.config  # noqa: F401
+
 from loguru import logger
 
+# Import InMemoryJobStore first (before any state operations)
+from backend.state.impl.in_memory import InMemoryJobStore
+
+# Import state modules
 from backend.state import create_job
+from backend.state.factory import get_job_store
 from backend.worker import run_research_job
 
 
@@ -40,6 +48,11 @@ Examples:
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Force InMemoryJobStore (never use Supabase, regardless of env vars)",
+    )
     
     args = parser.parse_args()
     
@@ -55,8 +68,37 @@ Examples:
     if not slack_text:
         parser.error("slack_text cannot be empty")
     
+    # Force InMemoryJobStore if --dry-run is set
+    if args.dry_run:
+        logger.info("--dry-run flag set: forcing InMemoryJobStore (Supabase will not be used)")
+        
+        def _get_job_store_dry_run():
+            """Force InMemoryJobStore for dry-run mode."""
+            logger.info("Using InMemoryJobStore (--dry-run mode)")
+            return InMemoryJobStore()
+        
+        # Monkey-patch the factory function
+        # Since backend.state imports get_job_store at module level, patching the factory module
+        # should affect all imports because Python imports by reference
+        import backend.state.factory as factory_module
+        
+        # Clear the cache first
+        factory_module.get_job_store.cache_clear()
+        
+        # Replace the function in the factory module
+        # This will affect all modules that import get_job_store from factory
+        factory_module.get_job_store = _get_job_store_dry_run
+        
+        # Also patch in backend.state module namespace since it has a direct import
+        import backend.state as state_module
+        # The state module's get_job_store is the same object reference, so patching factory should work
+        # But to be safe, let's also update state_module's namespace
+        state_module.get_job_store = _get_job_store_dry_run
+    
     print(f"\n🚀 Starting research job pipeline...")
     print(f"📝 Topic: {slack_text}\n")
+    if args.dry_run:
+        print("🔧 Dry-run mode: Using InMemoryJobStore (Supabase disabled)\n")
     
     try:
         # Create job

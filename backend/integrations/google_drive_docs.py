@@ -33,18 +33,21 @@ DOC_NAMES = [
 ]
 
 
-def _get_credentials(settings) -> Credentials:
+def build_oauth_credentials(settings) -> Credentials:
     """
-    Get Google OAuth2 credentials using refresh token.
+    Build and refresh Google OAuth2 credentials using refresh token.
+    
+    IMPORTANT: Always refreshes credentials before returning them.
+    Do not check validity before refreshing, as credentials are created with token=None.
     
     Args:
         settings: Settings object with Google OAuth config
         
     Returns:
-        Credentials object
+        Credentials object with valid access token
         
     Raises:
-        MissingRequiredSettingError: If OAuth credentials are missing
+        RuntimeError: If credential refresh fails (includes the underlying exception message)
     """
     creds = Credentials(
         token=None,
@@ -55,28 +58,36 @@ def _get_credentials(settings) -> Credentials:
         scopes=SCOPES,
     )
     
-    # Refresh the token if needed
-    if not creds.valid:
-        if creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception as e:
-                logger.error(f"Failed to refresh Google OAuth token: {e}")
-                raise RuntimeError(f"Failed to refresh OAuth token: {e}")
-        else:
-            raise RuntimeError("Invalid OAuth credentials")
+    # IMPORTANT: refresh before any validity checks
+    try:
+        creds.refresh(Request())
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        logger.error(f"Failed to refresh Google OAuth token: {error_msg}")
+        raise RuntimeError(f"Failed to refresh OAuth token: {error_msg}") from e
     
     return creds
 
 
+# Backward compatibility alias
+def _get_credentials(settings) -> Credentials:
+    """
+    Get Google OAuth2 credentials using refresh token.
+    
+    Deprecated: Use build_oauth_credentials() instead.
+    Kept for backward compatibility.
+    """
+    return build_oauth_credentials(settings)
+
+
 def _get_drive_service(creds: Credentials):
     """Get Google Drive API service."""
-    return build("drive", "v3", credentials=creds)
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
 def _get_docs_service(creds: Credentials):
     """Get Google Docs API service."""
-    return build("docs", "v1", credentials=creds)
+    return build("docs", "v1", credentials=creds, cache_discovery=False)
 
 
 def create_research_packet(
