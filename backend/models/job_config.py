@@ -7,11 +7,94 @@ from pydantic import BaseModel, Field
 
 
 class ResearchMode(str, Enum):
-    """Research mode determines the focus of the investigation."""
+    """DEPRECATED: Legacy research mode. Use DocumentaryMode instead."""
     CLAIMS_EVIDENCE = "claims_evidence"
     TIMELINE = "timeline"
     QUICK_BRIEF = "quick_brief"
     INVESTIGATION = "investigation"
+
+
+class DocumentaryMode(str, Enum):
+    """Documentary-specific research modes for hybrid system."""
+    BREAKING_NEWS = "breaking_news"      # Fast, recent events
+    INVESTIGATION = "investigation"      # Deep dive with verification
+    PROFILE = "profile"                 # Single entity focus
+    CONTROVERSY = "controversy"         # Multiple viewpoints
+
+
+def get_mode_config(mode: DocumentaryMode) -> dict:
+    """Get configuration for each documentary mode.
+
+    Args:
+        mode: Documentary mode enum value
+
+    Returns:
+        Configuration dict with mode-specific settings for:
+        - focus: Primary research objective
+        - time_window_hours: Temporal scope (None = no limit)
+        - sources: Which sources to enable and how to configure them
+        - timeline_precision: How granular the timeline should be
+        - documentary_output: Output format preference
+        - max_duration_minutes: Runtime budget
+        - max_cost_usd: API cost budget
+    """
+    configs = {
+        DocumentaryMode.BREAKING_NEWS: {
+            "focus": "recency_and_speed",
+            "time_window_hours": 72,
+            "sources": {
+                "reddit": {"enabled": True, "sort": "new", "limit": 20},
+                "perplexity": {"enabled": True, "queries": 3},
+                "youtube": {"enabled": False},  # Too slow for breaking news
+            },
+            "timeline_precision": "hourly",
+            "documentary_output": "timeline_focused",
+            "max_duration_minutes": 10,
+            "max_cost_usd": 2.0
+        },
+        DocumentaryMode.INVESTIGATION: {
+            "focus": "verification_and_connections",
+            "time_window_hours": None,  # No limit
+            "sources": {
+                "reddit": {"enabled": True, "sort": "top", "limit": 50},
+                "perplexity": {"enabled": True, "queries": 15},
+                "youtube": {"enabled": True, "max_videos": 30},
+            },
+            "timeline_precision": "exact",
+            "documentary_output": "evidence_based",
+            "validation_all_claims": True,
+            "entity_relationship_mapping": True,
+            "max_duration_minutes": 45,
+            "max_cost_usd": 15.0
+        },
+        DocumentaryMode.PROFILE: {
+            "focus": "single_entity_deep_dive",
+            "sources": {
+                "youtube": {"enabled": True, "search_entity_name": True},
+                "perplexity": {"enabled": True, "entity_focused": True},
+                "reddit": {"enabled": True, "search_mentions": True},
+            },
+            "timeline_type": "biographical",
+            "documentary_output": "character_study",
+            "relationship_mapping": True,
+            "max_duration_minutes": 30,
+            "max_cost_usd": 8.0
+        },
+        DocumentaryMode.CONTROVERSY: {
+            "focus": "balanced_perspectives",
+            "sources": {
+                "reddit": {"enabled": True, "include_controversial": True},
+                "perplexity": {"enabled": True, "get_all_sides": True},
+                "youtube": {"enabled": True, "diverse_channels": True},
+            },
+            "timeline_type": "claim_counterclaim",
+            "documentary_output": "balanced_presentation",
+            "validate_all_sides": True,
+            "max_duration_minutes": 30,
+            "max_cost_usd": 10.0
+        }
+    }
+    return configs.get(mode, configs[DocumentaryMode.INVESTIGATION])
 
 
 class TimeWindow(BaseModel):
