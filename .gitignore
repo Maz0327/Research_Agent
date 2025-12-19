@@ -3,6 +3,9 @@
 .env.*
 *.env
 
+# Exception: Allow .env.example template
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]

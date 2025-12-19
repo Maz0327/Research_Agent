@@ -58,7 +58,14 @@ class Settings(BaseSettings):
     
     # YouTube Data API v3
     youtube_api_key: Optional[str] = Field(default=None, alias="YOUTUBE_API_KEY")
-    
+
+    # Reddit API (NEW - for Phase 2.3)
+    reddit_client_id: Optional[str] = Field(default=None, alias="REDDIT_CLIENT_ID")
+    reddit_client_secret: Optional[str] = Field(default=None, alias="REDDIT_CLIENT_SECRET")
+    reddit_user_agent: Optional[str] = Field(
+        default="ResearchAgent/1.0", alias="REDDIT_USER_AGENT"
+    )
+
     # Google OAuth (for Drive and Docs access)
     google_oauth_client_id: Optional[str] = Field(default=None, alias="GOOGLE_OAUTH_CLIENT_ID")
     google_oauth_client_secret: Optional[str] = Field(
@@ -71,7 +78,21 @@ class Settings(BaseSettings):
         default=None, alias="GOOGLE_DRIVE_ROOT_FOLDER_ID"
     )
     
-    # Optional login credentials (for future phases)
+    # Cost tracking (NEW - for budget controls)
+    openai_gpt4o_input_cost: float = Field(default=5.00, alias="OPENAI_GPT4O_INPUT_COST_PER_1M")
+    openai_gpt4o_output_cost: float = Field(default=15.00, alias="OPENAI_GPT4O_OUTPUT_COST_PER_1M")
+    openai_mini_input_cost: float = Field(default=0.15, alias="OPENAI_GPT4O_MINI_INPUT_COST_PER_1M")
+    openai_mini_output_cost: float = Field(default=0.60, alias="OPENAI_GPT4O_MINI_OUTPUT_COST_PER_1M")
+    perplexity_sonar_cost: float = Field(default=0.20, alias="PERPLEXITY_SONAR_COST_PER_1M")
+    perplexity_sonar_pro_cost: float = Field(default=3.00, alias="PERPLEXITY_SONAR_PRO_COST_PER_1M")
+
+    # Model selection (NEW - for cost optimization)
+    openai_default_model: str = Field(default="gpt-4o", alias="OPENAI_DEFAULT_MODEL")
+    openai_mini_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MINI_MODEL")
+    perplexity_default_model: str = Field(default="sonar", alias="PERPLEXITY_DEFAULT_MODEL")
+    perplexity_pro_model: str = Field(default="sonar-pro", alias="PERPLEXITY_PRO_MODEL")
+
+    # Optional login credentials (legacy - will be deprecated)
     reddit_username: Optional[str] = Field(default=None, alias="REDDIT_USERNAME")
     reddit_password: Optional[str] = Field(default=None, alias="REDDIT_PASSWORD")
     twitter_username: Optional[str] = Field(default=None, alias="TWITTER_USERNAME")
@@ -183,7 +204,7 @@ def require_slack() -> Settings:
 def require_google_oauth() -> Settings:
     """
     Get settings and validate Google OAuth configuration is present.
-    
+
     Raises:
         MissingRequiredSettingError: If Google OAuth settings are missing
     """
@@ -201,6 +222,27 @@ def require_google_oauth() -> Settings:
     if not settings.google_oauth_refresh_token:
         raise MissingRequiredSettingError(
             "GOOGLE_OAUTH_REFRESH_TOKEN is required for Google Drive/Docs integration. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_reddit() -> Settings:
+    """
+    Get settings and validate Reddit API configuration is present.
+
+    Raises:
+        MissingRequiredSettingError: If Reddit API settings are missing
+    """
+    settings = get_settings()
+    if not settings.reddit_client_id:
+        raise MissingRequiredSettingError(
+            "REDDIT_CLIENT_ID is required for Reddit integration. "
+            "Please set it in your .env file."
+        )
+    if not settings.reddit_client_secret:
+        raise MissingRequiredSettingError(
+            "REDDIT_CLIENT_SECRET is required for Reddit integration. "
             "Please set it in your .env file."
         )
     return settings

@@ -22,6 +22,12 @@ python-dateutil==2.8.2
 # YouTube integration
 youtube-transcript-api==0.6.1
 
+# Reddit integration (NEW - Phase 2.3)
+praw==7.7.1
+
+# NLP for entity extraction (NEW - Phase 2.2)
+spacy==3.7.2
+
 # Google APIs (for Drive and Docs)
 google-api-python-client==2.108.0
 google-auth==2.25.2
