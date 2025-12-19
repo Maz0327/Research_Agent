@@ -11,10 +11,24 @@ from backend.integrations.perplexity_client import research_map, source_shortlis
 from backend.integrations.transcripts import fetch_transcript, TranscriptStatus
 from backend.integrations.web_capture import capture_web_content
 from backend.integrations.youtube_client import enumerate_channel_uploads
-from backend.models.job_config import JobConfig
+from backend.models.job_config import JobConfig, DocumentaryMode, get_mode_config
 from backend.pipeline.extraction import extract_claims
 from backend.pipeline.validation import validate_claims
 from backend.state import get_job, update_job
+
+# New Phase 2 imports
+from backend.pipeline.timeline import extract_timeline, generate_timeline_markdown
+from backend.pipeline.entities import EntityExtractor, generate_entities_markdown
+from backend.pipeline.angle_discovery import AngleDiscovery
+from backend.pipeline.documentary_intelligence import DocumentaryIntelligence
+
+# Reddit integration (optional)
+try:
+    from backend.integrations.reddit_client import RedditClient, extract_reddit_content
+    REDDIT_AVAILABLE = True
+except ImportError:
+    logger.warning("Reddit client not available - install praw to enable Reddit integration")
+    REDDIT_AVAILABLE = False
 
 settings = get_settings()
 
@@ -282,7 +296,54 @@ def run_research_job(
             logger.warning(f"[{job_id}] Web capture failed: {e}")
             warnings.append(f"Web capture failed: {str(e)}")
             # Continue with uncaptured sources
-        
+
+        # NEW Stage 6.5: Reddit Collection
+        logger.info(f"[{job_id}] Stage 6.5: Reddit collection")
+        update_job(job_id, stage="reddit_collection", progress_percent=58)
+
+        reddit_posts = []
+        try:
+            if REDDIT_AVAILABLE:
+                reddit_client = RedditClient()
+                reddit_posts = reddit_client.search_multiple_subreddits(
+                    query=topic,
+                    limit_per_sub=5  # 5 posts per subreddit
+                )
+
+                # Store Reddit posts
+                if reddit_posts:
+                    # Convert to markdown for processing
+                    reddit_md = extract_reddit_content(reddit_posts)
+                    outputs["reddit_discussions_md"] = reddit_md
+
+                    # Add Reddit content as sources for claim extraction
+                    reddit_source = {
+                        "url": "reddit.com/search",
+                        "title": "Reddit Discussions",
+                        "source_type": "reddit",
+                        "text": reddit_md
+                    }
+                    # Add as a source for later processing
+                    from backend.models.source_item import SourceItem
+                    reddit_source_item = SourceItem(
+                        url="https://reddit.com/search",
+                        title="Reddit Discussions",
+                        text=reddit_md,
+                        notes="Aggregated Reddit discussions"
+                    )
+                    web_sources.append(reddit_source_item)
+
+                    logger.info(f"[{job_id}] Collected {len(reddit_posts)} Reddit posts")
+                else:
+                    outputs["reddit_discussions_md"] = "# Reddit Discussions\n\nNo relevant Reddit posts found."
+            else:
+                logger.info(f"[{job_id}] Reddit integration not available")
+                outputs["reddit_discussions_md"] = "# Reddit Discussions\n\n*Reddit integration not installed*"
+        except Exception as e:
+            logger.warning(f"[{job_id}] Reddit collection failed: {e}")
+            warnings.append(f"Reddit collection failed: {str(e)}")
+            outputs["reddit_discussions_md"] = f"# Reddit Discussions\n\n*Error: {str(e)}*"
+
         # Stage 7: Extraction (quote bank + claims ledger)
         logger.info(f"[{job_id}] Stage 7: Extracting claims")
         update_job(
@@ -309,7 +370,58 @@ def run_research_job(
             outputs["quote_bank_md"] = f"# Quote Bank\n\n*Error: {str(e)}*"
             outputs["claims_ledger_md"] = f"# Claims Ledger\n\n*Error: {str(e)}*"
             claims = []
-        
+
+        # NEW Stage 7.5: Timeline Extraction
+        logger.info(f"[{job_id}] Stage 7.5: Timeline extraction")
+        update_job(job_id, stage="timeline_extraction", progress_percent=68)
+
+        timeline_events = []
+        try:
+            timeline_events = extract_timeline(transcripts, web_sources, claims)
+
+            # Store timeline
+            if timeline_events:
+                timeline_data = [event.model_dump() for event in timeline_events]
+                update_job(job_id, partial_outputs={"timeline_events": timeline_data})
+
+                # Generate timeline markdown
+                timeline_md = generate_timeline_markdown(timeline_events)
+                outputs["timeline_md"] = timeline_md
+
+                logger.info(f"[{job_id}] Extracted {len(timeline_events)} timeline events")
+            else:
+                outputs["timeline_md"] = "# Timeline\n\nNo timeline events extracted."
+        except Exception as e:
+            logger.warning(f"[{job_id}] Timeline extraction failed: {e}")
+            warnings.append(f"Timeline extraction failed: {str(e)}")
+            outputs["timeline_md"] = f"# Timeline\n\n*Error: {str(e)}*"
+
+        # NEW Stage 7.6: Entity Extraction
+        logger.info(f"[{job_id}] Stage 7.6: Entity extraction")
+        update_job(job_id, stage="entity_extraction", progress_percent=70)
+
+        entities = {}
+        try:
+            extractor = EntityExtractor()
+            entities = extractor.extract_entities(transcripts, web_sources, claims)
+
+            # Store entities
+            if entities:
+                update_job(job_id, partial_outputs={"entities": entities})
+
+                # Generate entities markdown
+                entities_md = generate_entities_markdown(entities)
+                outputs["entities_md"] = entities_md
+
+                total_entities = sum(len(entities.get(cat, [])) for cat in entities)
+                logger.info(f"[{job_id}] Extracted {total_entities} entities")
+            else:
+                outputs["entities_md"] = "# Entities\n\nNo entities extracted."
+        except Exception as e:
+            logger.warning(f"[{job_id}] Entity extraction failed: {e}")
+            warnings.append(f"Entity extraction failed: {str(e)}")
+            outputs["entities_md"] = f"# Entities\n\n*Error: {str(e)}*"
+
         # Stage 8: Validation (evidence table + missing angles)
         logger.info(f"[{job_id}] Stage 8: Validating claims")
         update_job(
@@ -332,7 +444,81 @@ def run_research_job(
             warnings.append(f"Claim validation failed: {str(e)}")
             outputs["evidence_table_md"] = f"# Evidence Table\n\n*Error: {str(e)}*"
             outputs["missing_angles_md"] = f"# Missing Angles\n\n*Error: {str(e)}*"
-        
+
+        # Prepare evidence_records variable for later use
+        evidence_records = []
+        if claims:
+            try:
+                from backend.pipeline.validation import validate_claims
+                evidence_records, _, _ = validate_claims(claims, job_config)
+            except:
+                pass
+
+        # NEW Stage 8.5: Angle Discovery
+        logger.info(f"[{job_id}] Stage 8.5: Angle discovery")
+        update_job(job_id, stage="angle_discovery", progress_percent=78)
+
+        discovered_angles = {}
+        try:
+            angle_discovery = AngleDiscovery()
+            discovered_angles = angle_discovery.discover_angles(
+                topic=topic,
+                research_data={
+                    "timeline": [e.model_dump() for e in timeline_events] if timeline_events else [],
+                    "entities": entities,
+                    "claims": claims,
+                    "sources": web_sources + transcripts
+                }
+            )
+
+            # Store discovered angles
+            if discovered_angles:
+                update_job(job_id, partial_outputs={
+                    "discovered_angles": discovered_angles.get("discovered_angles", []),
+                    "coverage_analysis": discovered_angles.get("coverage_map", {})
+                })
+
+                outputs["discovered_angles"] = discovered_angles
+                angle_count = len(discovered_angles.get("discovered_angles", []))
+                logger.info(f"[{job_id}] Discovered {angle_count} unique angles")
+            else:
+                logger.info(f"[{job_id}] No unique angles discovered")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Angle discovery failed: {e}")
+            warnings.append(f"Angle discovery failed: {str(e)}")
+
+        # NEW Stage 8.6: Documentary Intelligence Analysis
+        logger.info(f"[{job_id}] Stage 8.6: Documentary intelligence analysis")
+        update_job(job_id, stage="documentary_analysis", progress_percent=82)
+
+        documentary_analysis = {}
+        try:
+            doc_intel = DocumentaryIntelligence()
+
+            # Determine documentary type from job config
+            job = get_job(job_id)
+            pipeline_mode = job.pipeline if hasattr(job, 'pipeline') else "investigation"
+
+            # Include discovered angles in documentary analysis
+            documentary_analysis = doc_intel.analyze(
+                research_data={
+                    "timeline": [e.model_dump() for e in timeline_events] if timeline_events else [],
+                    "entities": entities,
+                    "claims": claims,
+                    "sources": web_sources + transcripts,
+                    "validation": evidence_records,
+                    "discovered_angles": discovered_angles
+                },
+                doc_type=pipeline_mode
+            )
+
+            if documentary_analysis:
+                outputs["documentary_analysis"] = documentary_analysis
+                logger.info(f"[{job_id}] Documentary analysis complete")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Documentary analysis failed: {e}")
+            warnings.append(f"Documentary analysis failed: {str(e)}")
+
         # Stage 9: Write Drive docs
         logger.info(f"[{job_id}] Stage 9: Writing Drive docs")
         update_job(
