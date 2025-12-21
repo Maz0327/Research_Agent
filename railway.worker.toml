@@ -1,0 +1,11 @@
+# Railway deployment configuration for Celery Worker
+# Deploy as a separate service in Railway
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.worker"
+
+[deploy]
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5
+numReplicas = 1

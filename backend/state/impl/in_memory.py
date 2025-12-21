@@ -16,17 +16,18 @@ class InMemoryJobStore(JobStore):
         """Initialize in-memory storage."""
         self._jobs: dict[str, JobRecord] = {}
     
-    def create_job(self, config_json: dict) -> JobRecord:
+    def create_job(self, config_json: dict, user_id: str | None = None) -> JobRecord:
         """Create a new job record."""
         job_id = str(uuid.uuid4())
         job = JobRecord(
             job_id=job_id,
+            user_id=user_id,
             created_at=datetime.now(timezone.utc),
             status="queued",
             config_json=config_json,
         )
         self._jobs[job_id] = job
-        logger.info(f"Created job {job_id} in memory")
+        logger.info(f"Created job {job_id} in memory (user: {user_id or 'anonymous'})")
         return job
     
     def get_job(self, job_id: str) -> Optional[JobRecord]:
@@ -76,4 +77,26 @@ class InMemoryJobStore(JobStore):
         
         logger.info(f"Updated job {job_id} in memory")
         return job
+
+    def list_jobs(
+        self,
+        user_id: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[JobRecord]:
+        """List jobs, optionally filtered by user_id."""
+        jobs = list(self._jobs.values())
+
+        # Filter by user_id if provided
+        if user_id is not None:
+            jobs = [job for job in jobs if job.user_id == user_id]
+
+        # Sort by created_at descending (newest first)
+        jobs.sort(key=lambda j: j.created_at, reverse=True)
+
+        # Apply pagination
+        start = offset
+        end = offset + limit
+
+        return jobs[start:end]
 

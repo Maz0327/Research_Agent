@@ -6,7 +6,7 @@ import os
 
 from dotenv import load_dotenv
 from loguru import logger
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,10 +40,20 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, alias="API_PORT")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     
+    # CORS configuration
+    frontend_origins: Optional[str] = Field(
+        default=None, alias="FRONTEND_ORIGINS",
+        description="Comma-separated list of allowed frontend origins for CORS"
+    )
+    
     # Supabase (optional - only needed for job persistence)
     supabase_url: Optional[str] = Field(default=None, alias="SUPABASE_URL")
     supabase_service_role_key: Optional[str] = Field(
         default=None, alias="SUPABASE_SERVICE_ROLE_KEY"
+    )
+    supabase_jwt_secret: Optional[str] = Field(
+        default=None, alias="SUPABASE_JWT_SECRET",
+        description="JWT secret from Supabase for verifying auth tokens"
     )
     
     # Slack integration
@@ -76,6 +86,24 @@ class Settings(BaseSettings):
     reddit_password: Optional[str] = Field(default=None, alias="REDDIT_PASSWORD")
     twitter_username: Optional[str] = Field(default=None, alias="TWITTER_USERNAME")
     twitter_password: Optional[str] = Field(default=None, alias="TWITTER_PASSWORD")
+
+    @field_validator('supabase_jwt_secret')
+    @classmethod
+    def validate_jwt_secret(cls, v: Optional[str]) -> Optional[str]:
+        """Validate JWT secret strength to prevent weak secrets."""
+        if v is None:
+            return v
+
+        if len(v) < 32:
+            logger.warning(
+                "SUPABASE_JWT_SECRET is weak (< 32 characters). "
+                "This is a security risk in production."
+            )
+            # Only raise in production environment
+            if os.getenv("ENVIRONMENT") == "production":
+                raise ValueError("JWT secret must be at least 32 characters in production")
+
+        return v
 
 
 @lru_cache()

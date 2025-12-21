@@ -14,8 +14,8 @@ from backend.models.source import SourceItem, SourceType
 from backend.utils.error_handling import sanitize_error_message
 
 # Constants
-PERPLEXITY_API_TIMEOUT = 30.0  # seconds
-PERPLEXITY_DEFAULT_MODEL = "llama-3.1-sonar-large-128k-online"
+PERPLEXITY_API_TIMEOUT = 60.0  # seconds - increased for complex queries
+PERPLEXITY_DEFAULT_MODEL = "sonar"  # Updated to current Perplexity API model (Jan 2025)
 MAX_KEY_TERMS = 20
 MAX_ANGLES = 10
 
@@ -228,44 +228,58 @@ def research_map(job: JobConfig) -> dict:
             "key_terms": job.topic.split(),
         }
     
-    query = f"""Analyze this research topic and create a research map:
-    
-Topic: {job.topic}
-Mode: {job.mode}
+    query = f"""Create a research map for this topic: {job.topic}
 
-Provide:
-1. Key research angles/perspectives to explore
-2. Important key terms, entities, and concepts
-3. A structured research plan
+Research mode: {job.mode}
 
-Format your response as markdown with clear sections."""
+Provide a list of 5-10 specific research angles to explore. Each angle should be a concrete topic or perspective, not a category or header.
+
+For example:
+- "Accelerator pedal defect recall April 2024"
+- "Trim attachment issues and consumer complaints"
+- "NHTSA investigation and response"
+
+Format your response as a numbered list of specific research angles."""
     
     try:
         response = _perplexity_search(query)
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         
-        # Extract angles (simple heuristic: look for bullet points or numbered lists)
+        # Extract angles from numbered lists and bullet points
         angles = []
         key_terms = job.topic.split()  # Basic key terms from topic
-        
-        # Try to extract angles from markdown headers and lists
-        angle_patterns = [
-            r'^###?\s+(.+?)$',  # Markdown headers
-            r'^[-*]\s+(.+?)$',  # Bullet points
-            r'^\d+\.\s+(.+?)$',  # Numbered lists
+
+        # Filter out meta-headers and section titles
+        meta_keywords = [
+            'key research', 'important key', 'structured research',
+            'research plan', 'perspectives to explore', 'terms, entities',
+            'phase 1', 'phase 2', 'step 1', 'step 2'
         ]
-        
+
+        # Extract angles from numbered lists and bullet points
+        angle_patterns = [
+            r'^\d+\.\s+(.+?)$',  # Numbered lists
+            r'^[-*]\s+(.+?)$',  # Bullet points
+        ]
+
         for line in content.split('\n'):
+            line_stripped = line.strip()
             for pattern in angle_patterns:
-                match = re.match(pattern, line.strip())
+                match = re.match(pattern, line_stripped)
                 if match:
                     angle_text = match.group(1).strip()
-                    if len(angle_text) > 5 and len(angle_text) < 100:
+                    # Filter out meta-headers and very long/short lines
+                    is_meta = any(keyword in angle_text.lower() for keyword in meta_keywords)
+                    is_valid_length = 10 < len(angle_text) < 150
+
+                    if not is_meta and is_valid_length:
+                        # Clean up quotes if present
+                        angle_text = angle_text.strip('"').strip("'")
                         angles.append(angle_text)
                         break
-        
-        # Dedupe angles
-        angles = list(dict.fromkeys(angles))  # Preserves order
+
+        # Dedupe angles while preserving order
+        angles = list(dict.fromkeys(angles))
         
         # If no angles found, create default
         if not angles:

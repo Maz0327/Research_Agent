@@ -241,6 +241,14 @@ Return a complete JobConfig JSON object matching the schema."""
             logger.error(f"Failed to parse JSON from OpenAI response: {e}")
             logger.debug(f"Response content: {content}")
             return _safe_default_config(slack_text)
+
+        # Unwrap nested config if OpenAI returned wrapped response
+        # e.g., {"jobConfig": {...}} instead of flat config
+        for wrapper_key in ["jobConfig", "job_config", "config"]:
+            if wrapper_key in config_dict and isinstance(config_dict[wrapper_key], dict):
+                logger.debug(f"Unwrapping nested config from '{wrapper_key}' key")
+                config_dict = config_dict[wrapper_key]
+                break
         
         # Merge detected channels if any
         if detected_channels:

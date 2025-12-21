@@ -9,13 +9,14 @@ class JobStore(ABC):
     """Abstract interface for job storage."""
     
     @abstractmethod
-    def create_job(self, config_json: dict) -> JobRecord:
+    def create_job(self, config_json: dict, user_id: Optional[str] = None) -> JobRecord:
         """
         Create a new job record.
-        
+
         Args:
             config_json: Job configuration as JSON dict
-            
+            user_id: Optional user ID for job ownership
+
         Returns:
             Created JobRecord with job_id
         """
@@ -48,7 +49,7 @@ class JobStore(ABC):
     ) -> Optional[JobRecord]:
         """
         Update a job record with partial updates.
-        
+
         Args:
             job_id: Job identifier
             status: New status (optional)
@@ -57,9 +58,29 @@ class JobStore(ABC):
             partial_outputs: Partial outputs dict to merge (optional)
             partial_artifacts: Partial artifacts dict to merge (optional)
             warnings_append: List of warnings to append (optional)
-            
+
         Returns:
             Updated JobRecord if found and updated, None otherwise
+        """
+        pass
+
+    @abstractmethod
+    def list_jobs(
+        self,
+        user_id: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[JobRecord]:
+        """
+        List jobs, optionally filtered by user_id.
+
+        Args:
+            user_id: Optional user ID to filter by (None for all jobs)
+            limit: Maximum number of jobs to return
+            offset: Number of jobs to skip (for pagination)
+
+        Returns:
+            List of JobRecords, sorted by created_at descending
         """
         pass
 

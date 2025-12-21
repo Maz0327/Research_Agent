@@ -15,6 +15,12 @@ from backend.models.job_config import JobConfig, DocumentaryMode, get_mode_confi
 from backend.pipeline.extraction import extract_claims
 from backend.pipeline.validation import validate_claims
 from backend.state import get_job, update_job
+from backend.services.error_logger import log_exception
+
+# NEW v2 API integrations
+from backend.pipeline.search import unified_search
+from backend.pipeline.content_extraction import extract_content_batch
+from backend.pipeline.validation_v2 import validate_claims_v2
 
 # New Phase 2 imports
 from backend.pipeline.timeline import extract_timeline, generate_timeline_markdown
@@ -46,6 +52,8 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    # Fix deprecation warning for Celery 5.3+/6.0 compatibility
+    broker_connection_retry_on_startup=True,
     task_routes={
         "backend.worker.run_research_job": {"queue": "research"},
     },
@@ -269,27 +277,93 @@ def run_research_job(
             warnings.append(f"Transcript fetching failed: {str(e)}")
             transcripts = []
         
-        # Stage 6: Web capture
-        logger.info(f"[{job_id}] Stage 6: Capturing web content")
+        # Stage 6: Web capture (v2 with Jina → Trafilatura → Playwright fallback)
+        logger.info(f"[{job_id}] Stage 6: Capturing web content (v2 with Jina)")
         update_job(
             job_id,
             stage="web_capture",
             progress_percent=55,
         )
-        
+
         try:
             if web_sources:
-                captured_sources = capture_web_content(web_sources)
-                # Count successful captures
-                successful_captures = sum(1 for s in captured_sources if s.text)
-                logger.info(f"[{job_id}] Captured {successful_captures}/{len(captured_sources)} web sources")
-                
+                # Try v2 extraction first (Jina → Trafilatura → Playwright)
+                try:
+                    logger.info(f"[{job_id}] Attempting v2 extraction (Jina/Trafilatura)...")
+                    from backend.models.source import SourceItem
+
+                    # Extract URLs from web_sources
+                    urls_to_extract = [s if isinstance(s, str) else s.url for s in web_sources]
+
+                    # Use v2 batch extraction
+                    extraction_results = extract_content_batch(urls_to_extract)
+
+                    # Convert results to SourceItem objects
+                    from backend.models.source import SourceType
+                    captured_sources = []
+                    jina_success = 0
+                    for result in extraction_results:
+                        if result.get("content") and len(result.get("content", "")) > 100:
+                            source = SourceItem(
+                                url=result["url"],
+                                title=result.get("title", ""),
+                                source_type=SourceType.WEB,  # Added required field
+                                text=result["content"],
+                                notes=f"Extracted via {result.get('api', 'unknown')}"
+                            )
+                            captured_sources.append(source)
+                            if result.get("api") == "jina":
+                                jina_success += 1
+                        else:
+                            # Failed extraction - mark for Playwright fallback
+                            source = SourceItem(
+                                url=result["url"],
+                                title="",
+                                source_type=SourceType.WEB,  # Added required field
+                                text="",
+                                notes="Extraction failed - needs Playwright fallback"
+                            )
+                            captured_sources.append(source)
+
+                    successful_captures = sum(1 for s in captured_sources if s.text)
+                    logger.info(f"[{job_id}] V2 extracted {successful_captures}/{len(captured_sources)} sources ({jina_success} via Jina)")
+
+                    # For sources that failed v2, try Playwright as fallback
+                    failed_sources = [s for s in captured_sources if not s.text]
+                    if failed_sources:
+                        logger.info(f"[{job_id}] Trying Playwright fallback for {len(failed_sources)} failed sources...")
+                        try:
+                            playwright_sources = capture_web_content([s.url for s in failed_sources])
+                            # Replace failed sources with Playwright results
+                            playwright_dict = {s.url: s for s in playwright_sources}
+                            captured_sources = [
+                                playwright_dict.get(s.url, s) if not s.text else s
+                                for s in captured_sources
+                            ]
+                            playwright_success = sum(1 for s in playwright_sources if s.text)
+                            logger.info(f"[{job_id}] Playwright recovered {playwright_success}/{len(failed_sources)} sources")
+                        except Exception as pw_error:
+                            logger.warning(f"[{job_id}] Playwright fallback failed: {pw_error}")
+                            warnings.append(f"Playwright fallback failed: {str(pw_error)}")
+
+                    web_sources = captured_sources
+                    final_success = sum(1 for s in captured_sources if s.text)
+                    logger.info(f"[{job_id}] Total captured: {final_success}/{len(captured_sources)} web sources")
+
+                except Exception as v2_error:
+                    logger.warning(f"[{job_id}] V2 extraction failed, falling back to Playwright only: {v2_error}")
+                    warnings.append(f"V2 extraction failed, using Playwright: {str(v2_error)}")
+
+                    # Fallback: Use old Playwright-only capture
+                    captured_sources = capture_web_content(web_sources)
+                    successful_captures = sum(1 for s in captured_sources if s.text)
+                    logger.info(f"[{job_id}] Captured {successful_captures}/{len(captured_sources)} web sources (Playwright fallback)")
+                    web_sources = captured_sources
+
                 # Collect any capture warnings
-                for source in captured_sources:
+                for source in web_sources:
                     if source.notes and "failed" in source.notes.lower():
                         warnings.append(f"Web capture failed for: {source.url[:50]}...")
-                
-                web_sources = captured_sources
             else:
                 logger.info(f"[{job_id}] No web sources to capture")
         except Exception as e:
@@ -324,10 +398,11 @@ def run_research_job(
                         "text": reddit_md
                     }
                     # Add as a source for later processing
-                    from backend.models.source_item import SourceItem
+                    from backend.models.source import SourceItem, SourceType
                     reddit_source_item = SourceItem(
                         url="https://reddit.com/search",
                         title="Reddit Discussions",
+                        source_type=SourceType.REDDIT,  # Added required field
                         text=reddit_md,
                         notes="Aggregated Reddit discussions"
                     )
@@ -423,36 +498,54 @@ def run_research_job(
             outputs["entities_md"] = f"# Entities\n\n*Error: {str(e)}*"
 
         # Stage 8: Validation (evidence table + missing angles)
-        logger.info(f"[{job_id}] Stage 8: Validating claims")
+        logger.info(f"[{job_id}] Stage 8: Validating claims (v2 multi-stage)")
         update_job(
             job_id,
             stage="claim_validation",
             progress_percent=75,
         )
-        
+
+        evidence_records = []
         try:
             if claims:
-                evidence_records, evidence_table_md, missing_angles_md = validate_claims(claims, job_config)
-                outputs["evidence_table_md"] = evidence_table_md
-                outputs["missing_angles_md"] = missing_angles_md
-                logger.info(f"[{job_id}] Validated {len(evidence_records)} claims")
+                # Use v2 multi-stage validator (ClaimBuster → Google FC → Perplexity)
+                max_perplexity = job_config.budgets.max_claims_to_validate if hasattr(job_config.budgets, 'max_claims_to_validate') else 10
+                evidence_records, cost_breakdown = validate_claims_v2(
+                    claims,
+                    topic,
+                    max_perplexity_calls=max_perplexity
+                )
+
+                # Generate output markdown (use old format for compatibility)
+                # NOTE: This reuses the formatting logic from the old validate_claims
+                # We just pass the evidence_records through the formatter
+                try:
+                    _, evidence_table_md, missing_angles_md = validate_claims(claims, job_config)
+                    outputs["evidence_table_md"] = evidence_table_md
+                    outputs["missing_angles_md"] = missing_angles_md
+                except:
+                    # Fallback: Generate simple table if old formatter fails
+                    outputs["evidence_table_md"] = _generate_evidence_table_md(evidence_records)
+                    outputs["missing_angles_md"] = "# Missing Angles\n\n*Analysis not available*"
+
+                logger.info(f"[{job_id}] Validated {len(evidence_records)} claims (cost: ${cost_breakdown.get('total', 0):.2f})")
             else:
                 outputs["evidence_table_md"] = "# Evidence Table\n\n*No claims to validate*"
                 outputs["missing_angles_md"] = "# Missing Angles\n\n*No claims available for analysis*"
         except Exception as e:
-            logger.warning(f"[{job_id}] Claim validation failed: {e}")
-            warnings.append(f"Claim validation failed: {str(e)}")
-            outputs["evidence_table_md"] = f"# Evidence Table\n\n*Error: {str(e)}*"
-            outputs["missing_angles_md"] = f"# Missing Angles\n\n*Error: {str(e)}*"
+            logger.warning(f"[{job_id}] Claim validation v2 failed, falling back to v1: {e}")
+            warnings.append(f"Claim validation v2 failed, using v1: {str(e)}")
 
-        # Prepare evidence_records variable for later use
-        evidence_records = []
-        if claims:
+            # Fallback to old validation
             try:
-                from backend.pipeline.validation import validate_claims
-                evidence_records, _, _ = validate_claims(claims, job_config)
-            except:
-                pass
+                evidence_records, evidence_table_md, missing_angles_md = validate_claims(claims, job_config)
+                outputs["evidence_table_md"] = evidence_table_md
+                outputs["missing_angles_md"] = missing_angles_md
+                logger.info(f"[{job_id}] Validated {len(evidence_records)} claims (v1 fallback)")
+            except Exception as e2:
+                logger.error(f"[{job_id}] Both v2 and v1 validation failed: {e2}")
+                outputs["evidence_table_md"] = f"# Evidence Table\n\n*Error: {str(e2)}*"
+                outputs["missing_angles_md"] = f"# Missing Angles\n\n*Error: {str(e2)}*"
 
         # NEW Stage 8.5: Angle Discovery
         logger.info(f"[{job_id}] Stage 8.5: Angle discovery")
@@ -547,7 +640,21 @@ def run_research_job(
             }
             
             folder_name = job_config.output.drive_folder_name or f"Research: {job_config.topic}"
-            drive_result = create_research_packet(folder_name, doc_contents)
+
+            # Get user info from job for Drive sharing
+            job = get_job(job_id)
+            user_email = None
+            user_id_for_drive = None
+            if job and job.config_json:
+                user_email = job.config_json.get("user_email")
+                user_id_for_drive = job.config_json.get("user_id")
+
+            drive_result = create_research_packet(
+                folder_name,
+                doc_contents,
+                user_email=user_email,
+                user_id=user_id_for_drive,
+            )
             folder_url = drive_result["folder_url"]
             doc_urls = drive_result["doc_urls"]
             
@@ -615,7 +722,25 @@ def run_research_job(
         
     except Exception as e:
         logger.exception(f"Fatal error in research job {job_id}: {e}")
-        
+
+        # Log error to database for admin tracking
+        job = get_job(job_id)
+        user_id = None
+        user_email = None
+        current_stage = "unknown"
+        if job:
+            user_id = job.user_id
+            user_email = job.config_json.get("user_email")
+            current_stage = job.stage or "unknown"
+
+        log_exception(
+            exception=e,
+            job_id=job_id,
+            user_id=user_id,
+            user_email=user_email,
+            stage=current_stage,
+        )
+
         # Update job status to failed
         update_job(
             job_id,
@@ -624,13 +749,13 @@ def run_research_job(
             progress_percent=0,
             warnings_append=warnings + [f"Fatal error: {str(e)}"],
         )
-        
+
         # Post error message to Slack
         _post_slack_message(
             slack_payload,
             f"❌ Research job `{job_id}` failed: {str(e)}",
         )
-        
+
         return {
             "job_id": job_id,
             "status": "failed",
@@ -701,16 +826,16 @@ def _generate_transcripts_md(transcripts: list) -> str:
 def _generate_web_extracts_md(web_sources: list) -> str:
     """
     Generate web extracts markdown document.
-    
+
     Args:
         web_sources: List of SourceItem objects with captured content
-        
+
     Returns:
         Web extracts markdown string
     """
     if not web_sources:
         return "# Web Extracts\n\n*No web sources available.*"
-    
+
     lines = ["# Web Extracts", ""]
     for source in web_sources:
         lines.append(f"## {source.title}")
@@ -725,5 +850,155 @@ def _generate_web_extracts_md(web_sources: list) -> str:
         if source.notes:
             lines.append(f"\n*Note: {source.notes}*")
         lines.append("\n---\n")
-    
+
     return "\n".join(lines)
+
+
+# =============================================================================
+# Transcript Extraction Task
+# =============================================================================
+
+@celery_app.task(name="backend.worker.run_transcript_job")
+def run_transcript_job(job_id: str) -> dict:
+    """
+    Celery task for async transcript extraction.
+
+    Processes large batches of YouTube videos (>5) in the background.
+    Updates job progress as each video is processed.
+
+    Args:
+        job_id: Unique identifier for the transcript job
+
+    Returns:
+        Dict with job_id, status, and doc_url
+    """
+    from datetime import datetime
+    from backend.services.transcript_service import (
+        extract_single_transcript,
+        format_transcripts_for_doc,
+    )
+    from backend.integrations.google_drive_docs import create_transcript_doc
+    from backend.models.job_record import Artifacts
+
+    logger.info(f"[{job_id}] Starting transcript extraction job")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Job not found")
+        return {"job_id": job_id, "status": "failed", "error": "Job not found"}
+
+    video_urls = job.config_json.get("video_urls", [])
+    use_whisper = job.config_json.get("use_whisper_fallback", True)
+    doc_title = job.config_json.get("doc_title")
+    preferred_languages = job.config_json.get("preferred_languages", ["en"])
+
+    total = len(video_urls)
+    logger.info(f"[{job_id}] Processing {total} videos")
+
+    # Update status to running
+    update_job(job_id, status="running", stage="extracting_transcripts", progress_percent=5)
+
+    transcripts = []
+    warnings = []
+
+    # Process each video
+    for i, url in enumerate(video_urls):
+        # Update progress (5% start, 85% for extraction, 10% for doc generation)
+        progress = 5 + int(((i + 1) / total) * 80)
+
+        try:
+            result = extract_single_transcript(
+                url,
+                use_whisper=use_whisper,
+                preferred_languages=preferred_languages,
+            )
+            transcripts.append(result)
+
+            if result.status != "available":
+                warnings.append(f"Transcript unavailable for {url}: {result.error_message}")
+
+            logger.info(f"[{job_id}] Processed {i + 1}/{total}: {result.status}")
+
+        except Exception as e:
+            logger.error(f"[{job_id}] Error processing {url}: {e}")
+            warnings.append(f"Error processing {url}: {str(e)}")
+            from backend.models.transcript_job import TranscriptResultItem
+            from backend.integrations.transcripts import _extract_video_id
+            transcripts.append(TranscriptResultItem(
+                video_id=_extract_video_id(url) or "",
+                video_url=url,
+                status="error",
+                source="failed",
+                error_message=str(e),
+            ))
+
+        # Update job progress
+        update_job(
+            job_id,
+            progress_percent=progress,
+            config_json={**job.config_json, "transcripts_completed": i + 1},
+        )
+
+    # Stage: Generate Google Doc
+    logger.info(f"[{job_id}] Generating Google Doc")
+    update_job(job_id, stage="generating_document", progress_percent=90)
+
+    try:
+        if not doc_title:
+            doc_title = f"YouTube Transcripts - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+        content = format_transcripts_for_doc(transcripts)
+
+        # Get user info from job for Drive sharing
+        user_email = None
+        user_id_for_drive = None
+        if job and job.config_json:
+            user_email = job.config_json.get("user_email")
+            user_id_for_drive = job.config_json.get("user_id")
+
+        drive_result = create_transcript_doc(
+            doc_title,
+            content,
+            user_email=user_email,
+            user_id=user_id_for_drive,
+        )
+
+        # Update job with success
+        artifacts = Artifacts(
+            drive_folder_url=drive_result["folder_url"],
+            doc_urls=[drive_result["doc_url"]],
+        )
+
+        update_job(
+            job_id,
+            status="completed",
+            progress_percent=100,
+            stage="completed",
+            artifacts=artifacts,
+            warnings=warnings,
+        )
+
+        logger.info(f"[{job_id}] Transcript job completed: {drive_result['doc_url']}")
+
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "doc_url": drive_result["doc_url"],
+            "folder_url": drive_result["folder_url"],
+        }
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Failed to create Google Doc: {e}")
+        warnings.append(f"Failed to create Google Doc: {str(e)}")
+
+        update_job(
+            job_id,
+            status="failed",
+            warnings=warnings,
+        )
+
+        return {
+            "job_id": job_id,
+            "status": "failed",
+            "error": str(e),
+        }

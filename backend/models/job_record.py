@@ -25,6 +25,7 @@ class Outputs(BaseModel):
 class JobRecord(BaseModel):
     """Complete job record for storage."""
     job_id: str = Field(..., description="Unique job identifier")
+    user_id: Optional[str] = Field(None, description="User ID (from Supabase auth)")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Job creation timestamp")
     status: str = Field(default="queued", description="Job status (queued, running, completed, failed)")
     stage: Optional[str] = Field(None, description="Current pipeline stage")

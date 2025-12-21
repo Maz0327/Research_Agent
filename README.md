@@ -1,156 +1,227 @@
-# Research Agent - Phase 1 Skeleton
+# Research Agent
 
-A cloud-based research backend for aggregating content from Reddit, Twitter, articles, YouTube, and more.
+A cloud-based research backend for aggregating content from Reddit, YouTube, articles, and other sources. Processes research topics through a multi-stage pipeline with AI-powered planning, web scraping, transcript extraction, claim validation, and Google Drive document generation.
 
-## Phase 1: Project Skeleton
+## Features
 
-This phase provides a minimal working skeleton with:
-- FastAPI HTTP API
-- Celery worker with stub research job task
-- Playwright scraper stub for Reddit
-- Configuration management with Pydantic
-- Basic job queuing and status tracking
+- **Multi-mode Research Pipelines**: Quick, Full, Breaking News, Investigation, Profile, and Controversy modes
+- **AI-Powered Planning**: OpenAI-based research planning and claim extraction
+- **Source Aggregation**: YouTube transcripts, web articles, Reddit posts
+- **Claim Validation**: Multi-source claim verification with evidence scoring
+- **Google Drive Integration**: Automatic document generation and sharing
+- **User Authentication**: Supabase-based auth with per-user job isolation
+- **Admin Dashboard**: User management, job monitoring, error tracking
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         PRODUCTION                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────┐         ┌─────────────────────────────────┐│
+│  │    VERCEL       │         │           RAILWAY               ││
+│  │                 │         │                                 ││
+│  │  ┌───────────┐  │  HTTPS  │  ┌─────────┐    ┌───────────┐  ││
+│  │  │  Next.js  │◄─┼────────►│  │   API   │◄──►│   Redis   │  ││
+│  │  │  Frontend │  │         │  │ FastAPI │    │           │  ││
+│  │  └───────────┘  │         │  └────┬────┘    └───────────┘  ││
+│  │                 │         │       │                         ││
+│  └─────────────────┘         │  ┌────▼────┐                    ││
+│                              │  │  Worker │                    ││
+│                              │  │  Celery │                    ││
+│                              │  └─────────┘                    ││
+│                              └─────────────────────────────────┘│
+│                                         │                        │
+│                              ┌──────────▼──────────┐            │
+│                              │     SUPABASE        │            │
+│                              │   (PostgreSQL)      │            │
+│                              └─────────────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Prerequisites
 
 - Python 3.11+
+- Node.js 18+
 - Redis (for Celery broker/backend)
-- Virtual environment (recommended)
-
-## Setup
-
-### 1. Create and activate virtual environment
-
-```bash
-python3.11 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Install Playwright browser
-
-```bash
-playwright install chromium
-```
-
-### 4. Configure environment
-
-Copy the example environment file and edit as needed:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` to set your Redis URL and other configuration. For Phase 1, the defaults should work if Redis is running locally.
-
-### 5. Start Redis
-
-Make sure Redis is running on `localhost:6379` (or update `REDIS_URL` in `.env`):
-
-```bash
-# macOS (with Homebrew)
-brew services start redis
-
-# Or run directly
-redis-server
-```
-
-### 6. Start Celery worker
-
-In a separate terminal:
-
-```bash
-celery -A backend.worker worker --loglevel=INFO
-```
-
-### 7. Start the API server
-
-In another terminal:
-
-```bash
-uvicorn backend.app.main:app --reload
-```
-
-The API will be available at `http://localhost:8000`
-
-API documentation (Swagger UI) at: `http://localhost:8000/docs`
-
-## Testing Phase 1
-
-### 1. Health check
-
-```bash
-curl http://localhost:8000/health
-```
-
-Expected response:
-```json
-{
-  "status": "ok",
-  "environment": "dev"
-}
-```
-
-### 2. Create a research job
-
-```bash
-curl -X POST http://localhost:8000/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "Test topic"}'
-```
-
-Expected response:
-```json
-{
-  "job_id": "uuid-here",
-  "topic": "Test topic",
-  "status": "queued",
-  "result": null
-}
-```
-
-### 3. Check job status
-
-```bash
-curl http://localhost:8000/jobs/{job_id}
-```
-
-Replace `{job_id}` with the UUID returned from the previous request.
+- Supabase project (for database and auth)
 
 ## Project Structure
 
 ```
 Research_Agent/
 ├── backend/
-│   ├── __init__.py
-│   ├── config.py              # Settings loader with Pydantic
-│   ├── state.py               # Shared job state management
-│   ├── worker.py              # Celery app and tasks
 │   ├── app/
-│   │   ├── __init__.py
-│   │   └── main.py            # FastAPI application
-│   └── scrapers/
-│       ├── __init__.py
-│       └── reddit_scraper.py  # Playwright scraper stub
-├── .env.example               # Environment variable template
-├── requirements.txt           # Python dependencies
-└── README.md                  # This file
+│   │   ├── main.py              # FastAPI application (27 routes)
+│   │   └── routes.py            # Additional routers
+│   ├── auth/
+│   │   ├── __init__.py          # Auth models and utilities
+│   │   ├── dependencies.py      # FastAPI auth dependencies
+│   │   └── admin.py             # Admin role management
+│   ├── integrations/
+│   │   ├── openai_client.py     # OpenAI API for planning/extraction
+│   │   ├── perplexity_client.py # Perplexity for research/validation
+│   │   ├── youtube_client.py    # YouTube Data API
+│   │   ├── google_drive_docs.py # Google Drive/Docs integration
+│   │   ├── exa_client.py        # Exa.ai semantic search
+│   │   ├── brave_search_client.py # Brave Search API
+│   │   ├── jina_reader_client.py  # Jina Reader for content extraction
+│   │   ├── claimbuster_client.py  # ClaimBuster fact-checking
+│   │   ├── reddit_client.py     # Reddit API integration
+│   │   └── ...                  # Other integrations
+│   ├── pipeline/
+│   │   ├── extraction.py        # Claim extraction
+│   │   ├── validation.py        # Claim validation
+│   │   ├── timeline.py          # Timeline event extraction
+│   │   ├── entities.py          # Entity extraction
+│   │   ├── angle_discovery.py   # Documentary angle discovery
+│   │   └── documentary_intelligence.py # Documentary blueprint generation
+│   ├── models/
+│   │   ├── job.py               # API request/response models
+│   │   ├── job_record.py        # Database job model
+│   │   ├── job_config.py        # Pipeline configuration
+│   │   ├── user_settings.py     # User settings model
+│   │   └── ...                  # Other models
+│   ├── state/
+│   │   ├── __init__.py          # State management exports
+│   │   ├── factory.py           # Job store factory
+│   │   ├── settings_store.py    # User settings CRUD
+│   │   └── impl/                # Store implementations
+│   ├── services/
+│   │   ├── transcript_service.py # Transcript processing
+│   │   └── error_logger.py      # Error logging service
+│   ├── migrations/              # SQL migrations (001-010)
+│   ├── config.py                # Settings with Pydantic
+│   └── worker.py                # Celery worker and tasks
+├── frontend/
+│   ├── pages/
+│   │   ├── index.tsx            # Landing page
+│   │   ├── dashboard.tsx        # Job dashboard
+│   │   ├── settings.tsx         # User settings
+│   │   ├── login.tsx            # Authentication
+│   │   ├── transcripts.tsx      # Transcript extraction
+│   │   └── admin/               # Admin pages
+│   ├── components/              # React components
+│   └── store/                   # Zustand state stores
+├── .env.example                 # Environment template
+├── requirements.txt             # Python dependencies
+├── Dockerfile                   # API container
+├── Dockerfile.worker            # Worker container
+├── docker-compose.yml           # Local development
+└── DEPLOYMENT_GUIDE.md          # Production deployment guide
 ```
 
-## Future Phases
+## Setup
 
-- **Phase 2:** Planner + YouTube + transcript pipeline (OpenAI Whisper + YouTube)
-- **Phase 3:** Reddit/Twitter/Article scraping via Playwright, plus JSON structuring
-- **Phase 4:** Packet assembly + Google Drive upload + basic front-end dashboard
+### Backend Setup
 
-## Notes
+```bash
+# Create virtual environment
+python3.11 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-- Job state is currently stored in-memory (`JOB_STORE` dict in `backend/state.py`). This will be replaced with Supabase/Postgres in later phases.
-- The Celery task returns a stub result. Real research pipeline logic will be added in later phases.
-- The Reddit scraper is a placeholder. Full implementation will come in Phase 3.
+# Install dependencies
+pip install -r requirements.txt
 
+# Install Playwright browser
+playwright install chromium
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys and credentials
+```
+
+### Frontend Setup
+
+```bash
+cd frontend
+npm install
+```
+
+## Running Locally
+
+### Start Backend
+
+```bash
+# Terminal 1: Start Redis
+redis-server
+
+# Terminal 2: Start Celery worker
+source venv/bin/activate
+celery -A backend.worker worker --loglevel=INFO
+
+# Terminal 3: Start API server
+source venv/bin/activate
+uvicorn backend.app.main:app --reload
+```
+
+API available at `http://localhost:8000` (Swagger docs at `/docs`)
+
+### Start Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+Frontend available at `http://localhost:3000`
+
+## API Endpoints
+
+### Authentication
+- `GET /auth/me` - Get current user info
+
+### User Settings
+- `GET /settings` - Get user settings
+- `PUT /settings` - Update user settings
+- `POST /settings/validate-folder` - Validate Google Drive folder
+- `GET /settings/check-username` - Check username availability
+
+### Research Jobs
+- `POST /jobs` - Create research job
+- `GET /jobs` - List user's jobs
+- `GET /jobs/{job_id}` - Get job status
+- `POST /jobs/{job_id}/cancel` - Cancel job
+
+### Transcript Extraction
+- `POST /transcripts` - Extract YouTube transcripts
+- `GET /transcripts/{job_id}` - Get transcript job status
+
+### Admin (Requires admin role)
+- `GET /admin/check` - Check admin status
+- `GET /admin/stats` - Dashboard statistics
+- `GET /admin/users` - List users
+- `GET /admin/jobs` - List all jobs
+- `GET /admin/errors` - List error logs
+- And more...
+
+## Environment Variables
+
+See `.env.example` for the complete list. Key variables:
+
+| Variable | Description |
+|----------|-------------|
+| `REDIS_URL` | Redis connection string |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `SUPABASE_JWT_SECRET` | JWT secret for auth |
+| `OPENAI_API_KEY` | OpenAI API key |
+| `PERPLEXITY_API_KEY` | Perplexity API key |
+| `GOOGLE_OAUTH_*` | Google OAuth credentials |
+| `FRONTEND_ORIGINS` | Allowed CORS origins |
+
+## Deployment
+
+See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for production deployment to Railway and Vercel.
+
+## Documentation
+
+- `CLAUDE.md` - Development guide for Claude Code
+- `DEPLOYMENT_GUIDE.md` - Production deployment instructions
+- `SETTINGS_DESIGN.md` - Settings page design document
+- `TECHNICAL_DEBT_REPORT.md` - Technical debt analysis
+
+## License
+
+Proprietary - All rights reserved.

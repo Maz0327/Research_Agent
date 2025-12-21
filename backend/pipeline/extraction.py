@@ -1,4 +1,5 @@
 """Claim and quote extraction from transcripts and web sources."""
+import gc
 import re
 import uuid
 from collections import defaultdict
@@ -8,10 +9,49 @@ from loguru import logger
 from openai import OpenAI
 from pydantic import ValidationError
 
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    logger.warning("psutil not installed. Memory monitoring disabled. Install with: pip install psutil")
+
 from backend.config import require_openai, MissingRequiredSettingError
 from backend.integrations.transcripts import TranscriptItem
 from backend.models.claim import Claim, ClaimType, Citation
 from backend.models.source import SourceItem
+
+
+# Memory thresholds for extraction
+MEMORY_WARNING_THRESHOLD = 75  # Log warning at 75% memory usage
+MEMORY_CRITICAL_THRESHOLD = 85  # Stop processing at 85% memory usage
+
+
+def _check_memory_pressure() -> tuple[bool, float]:
+    """
+    Check if system memory is under pressure.
+
+    Returns:
+        Tuple of (is_critical, memory_percent).
+        is_critical is True if memory usage exceeds MEMORY_CRITICAL_THRESHOLD.
+    """
+    if not PSUTIL_AVAILABLE:
+        return False, 0.0
+
+    try:
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+
+        if memory_percent >= MEMORY_CRITICAL_THRESHOLD:
+            logger.warning(f"Memory critical: {memory_percent:.1f}% used. Stopping extraction.")
+            return True, memory_percent
+        elif memory_percent >= MEMORY_WARNING_THRESHOLD:
+            logger.info(f"Memory warning: {memory_percent:.1f}% used. Consider reducing batch size.")
+
+        return False, memory_percent
+    except Exception as e:
+        logger.debug(f"Failed to check memory: {e}")
+        return False, 0.0
 
 
 # Approximate words per minute for transcripts (average speaking rate)
@@ -382,17 +422,21 @@ def _dedupe_claims(claims: list[Claim]) -> list[Claim]:
 def extract_claims(
     transcripts: list[TranscriptItem],
     web_sources: list[SourceItem],
+    max_chunks: int = 50,   # Reduced from 100 to prevent memory exhaustion
+    batch_size: int = 5,    # Reduced from 10 for more frequent memory cleanup
 ) -> tuple[list[Claim], str, str]:
     """
-    Extract claims from transcripts and web sources.
-    
+    Extract claims from transcripts and web sources with memory-efficient batching.
+
     Args:
         transcripts: List of transcript items to extract from
         web_sources: List of web source items to extract from
-        
+        max_chunks: Maximum total chunks to process (prevents memory exhaustion)
+        batch_size: Number of chunks to process before deduplicating and clearing memory
+
     Returns:
         Tuple of (claims list, quote_bank_md, claims_ledger_md)
-        
+
     Raises:
         MissingRequiredSettingError: If OPENAI_API_KEY is not configured
     """
@@ -402,26 +446,56 @@ def extract_claims(
     except MissingRequiredSettingError:
         logger.warning("OpenAI API key not configured. Returning empty extraction results.")
         return [], "# Quote Bank\n\n*OpenAI API key required for claim extraction.*", "# Claims Ledger\n\n*OpenAI API key required.*"
-    
+
     all_claims: list[Claim] = []
-    
+    chunks_processed = 0
+    batch_claims: list[Claim] = []
+
+    logger.info(f"Starting claim extraction from {len(transcripts)} transcripts and {len(web_sources)} web sources")
+    logger.info(f"Memory optimization: max_chunks={max_chunks}, batch_size={batch_size}")
+
     # Process transcripts
-    for transcript in transcripts:
+    for transcript_idx, transcript in enumerate(transcripts):
+        if chunks_processed >= max_chunks:
+            logger.warning(f"Reached max_chunks limit ({max_chunks}). Stopping transcript processing.")
+            break
+
+        # Check memory pressure before processing
+        is_critical, mem_pct = _check_memory_pressure()
+        if is_critical:
+            logger.warning(f"Memory critical ({mem_pct:.1f}%). Stopping transcript processing early.")
+            break
+
         if not transcript.text or transcript.status != "available":
             continue
-        
+
+        logger.info(f"Processing transcript {transcript_idx + 1}/{len(transcripts)}: {transcript.video_url}")
         chunks = _chunk_transcript_text(transcript.text)
-        
-        for chunk_text, start_idx, end_idx in chunks:
+        logger.info(f"  Generated {len(chunks)} chunks from transcript")
+
+        for chunk_idx, (chunk_text, start_idx, end_idx) in enumerate(chunks):
+            if chunks_processed >= max_chunks:
+                logger.warning(f"Reached max_chunks limit ({max_chunks}). Stopping chunk processing.")
+                break
+
+            # Check memory pressure before each chunk
+            is_critical, _ = _check_memory_pressure()
+            if is_critical:
+                logger.warning("Memory critical. Stopping chunk processing early.")
+                break
+
             # Extract candidates
             candidates = _extract_claim_candidates(chunk_text)
-            
+
             if not candidates:
+                chunks_processed += 1
                 continue
-            
+
+            logger.debug(f"  Chunk {chunk_idx + 1}/{len(chunks)}: {len(candidates)} candidates")
+
             # Canonicalize with OpenAI
             claims = _canonicalize_claims_with_openai(candidates, chunk_text, api_key)
-            
+
             # Add citations to claims
             for claim in claims:
                 # Add transcript citation
@@ -432,26 +506,65 @@ def extract_claims(
                 if not claim.citations:
                     claim.citations = []
                 claim.citations.append(citation)
-            
-            all_claims.extend(claims)
-    
+
+            batch_claims.extend(claims)
+            chunks_processed += 1
+
+            # Cleanup after each chunk to prevent memory buildup
+            del candidates, claims
+            gc.collect()
+
+            # Batch processing: deduplicate and merge every batch_size chunks (reduced threshold)
+            if len(batch_claims) >= batch_size * 3:  # Reduced from batch_size * 5
+                logger.info(f"  Batch deduplication: {len(batch_claims)} claims in batch")
+                batch_deduped = _dedupe_claims(batch_claims)
+                all_claims.extend(batch_deduped)
+                batch_claims = []  # Clear batch memory
+                gc.collect()  # Force garbage collection to free memory
+                logger.info(f"  After dedup: {len(batch_deduped)} unique claims. Total: {len(all_claims)}")
+
     # Process web sources
-    for source in web_sources:
+    for source_idx, source in enumerate(web_sources):
+        if chunks_processed >= max_chunks:
+            logger.warning(f"Reached max_chunks limit ({max_chunks}). Stopping web source processing.")
+            break
+
+        # Check memory pressure before processing
+        is_critical, mem_pct = _check_memory_pressure()
+        if is_critical:
+            logger.warning(f"Memory critical ({mem_pct:.1f}%). Stopping web source processing early.")
+            break
+
         if not source.text:
             continue
-        
+
+        logger.info(f"Processing web source {source_idx + 1}/{len(web_sources)}: {source.url}")
         chunks = _chunk_web_text(source.text)
-        
-        for chunk_text, start_idx, end_idx in chunks:
+        logger.info(f"  Generated {len(chunks)} chunks from web source")
+
+        for chunk_idx, (chunk_text, start_idx, end_idx) in enumerate(chunks):
+            if chunks_processed >= max_chunks:
+                logger.warning(f"Reached max_chunks limit ({max_chunks}). Stopping chunk processing.")
+                break
+
+            # Check memory pressure before each chunk
+            is_critical, _ = _check_memory_pressure()
+            if is_critical:
+                logger.warning("Memory critical. Stopping chunk processing early.")
+                break
+
             # Extract candidates
             candidates = _extract_claim_candidates(chunk_text)
-            
+
             if not candidates:
+                chunks_processed += 1
                 continue
-            
+
+            logger.debug(f"  Chunk {chunk_idx + 1}/{len(chunks)}: {len(candidates)} candidates")
+
             # Canonicalize with OpenAI
             claims = _canonicalize_claims_with_openai(candidates, chunk_text, api_key)
-            
+
             # Add citations to claims
             for claim in claims:
                 citation = Citation(
@@ -461,16 +574,41 @@ def extract_claims(
                 if not claim.citations:
                     claim.citations = []
                 claim.citations.append(citation)
-            
-            all_claims.extend(claims)
-    
-    # Deduplicate claims
+
+            batch_claims.extend(claims)
+            chunks_processed += 1
+
+            # Cleanup after each chunk to prevent memory buildup
+            del candidates, claims
+            gc.collect()
+
+            # Batch processing: deduplicate and merge every batch_size chunks (reduced threshold)
+            if len(batch_claims) >= batch_size * 3:
+                logger.info(f"  Batch deduplication: {len(batch_claims)} claims in batch")
+                batch_deduped = _dedupe_claims(batch_claims)
+                all_claims.extend(batch_deduped)
+                batch_claims = []  # Clear batch memory
+                gc.collect()  # Force garbage collection to free memory
+                logger.info(f"  After dedup: {len(batch_deduped)} unique claims. Total: {len(all_claims)}")
+
+    # Process remaining batch claims
+    if batch_claims:
+        logger.info(f"Final batch deduplication: {len(batch_claims)} claims in batch")
+        batch_deduped = _dedupe_claims(batch_claims)
+        all_claims.extend(batch_deduped)
+        batch_claims = []
+        gc.collect()  # Force garbage collection to free memory
+        logger.info(f"After final dedup: {len(batch_deduped)} unique claims. Total: {len(all_claims)}")
+
+    # Final deduplicate across all batches
+    logger.info(f"Final global deduplication: {len(all_claims)} claims before final dedup")
     deduped_claims = _dedupe_claims(all_claims)
-    
+    logger.info(f"Extraction complete: {len(deduped_claims)} unique claims extracted from {chunks_processed} chunks")
+
     # Generate markdown outputs
     quote_bank_md = _generate_quote_bank_md(deduped_claims)
     claims_ledger_md = _generate_claims_ledger_md(deduped_claims)
-    
+
     return deduped_claims, quote_bank_md, claims_ledger_md
 
 

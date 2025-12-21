@@ -93,21 +93,25 @@ def _get_docs_service(creds: Credentials):
 def create_research_packet(
     folder_name: str,
     doc_contents: dict[str, str],
+    user_email: str | None = None,
+    user_id: str | None = None,
 ) -> dict[str, str]:
     """
     Create a research packet in Google Drive with documents.
-    
+
     Args:
         folder_name: Name of the folder to create
         doc_contents: Dict mapping doc names to markdown/text content
                       Keys should match DOC_NAMES (e.g., "00_MASTER_INDEX")
-        
+        user_email: Optional user email to share folder with
+        user_id: Optional user ID to organize folders by user
+
     Returns:
         Dict with:
         - "folder_url": URL of the created folder
         - "doc_urls": Dict mapping doc names to URLs
         - "manifest_url": URL of manifest.json file
-        
+
     Raises:
         MissingRequiredSettingError: If Google OAuth credentials are missing
         RuntimeError: If API operations fail
@@ -122,29 +126,82 @@ def create_research_packet(
         creds = _get_credentials(settings)
         drive_service = _get_drive_service(creds)
         docs_service = _get_docs_service(creds)
-        
+
         # Determine parent folder
         parent_folder_id = settings.google_drive_root_folder_id or "root"
-        
-        # Create folder
+
+        # Create per-user subfolder if user_id provided
+        if user_id:
+            user_folder_metadata = {
+                "name": f"user-{user_id[:8]}",  # Use first 8 chars of user_id
+                "mimeType": "application/vnd.google-apps.folder",
+            }
+            if parent_folder_id != "root":
+                user_folder_metadata["parents"] = [parent_folder_id]
+
+            # Check if user folder already exists
+            query = f"name='{user_folder_metadata['name']}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+            if parent_folder_id != "root":
+                query += f" and '{parent_folder_id}' in parents"
+
+            results = drive_service.files().list(
+                q=query,
+                fields="files(id, webViewLink)",
+                pageSize=1,
+            ).execute()
+
+            existing_folders = results.get("files", [])
+            if existing_folders:
+                # User folder exists, use it
+                parent_folder_id = existing_folders[0].get("id")
+                logger.info(f"Using existing user folder: {existing_folders[0].get('webViewLink')}")
+            else:
+                # Create new user folder
+                logger.info(f"Creating user folder for user_id: {user_id[:8]}")
+                user_folder = drive_service.files().create(
+                    body=user_folder_metadata,
+                    fields="id, webViewLink",
+                ).execute()
+                parent_folder_id = user_folder.get("id")
+                logger.info(f"Created user folder: {user_folder.get('webViewLink')}")
+
+        # Create research folder
         folder_metadata = {
             "name": folder_name,
             "mimeType": "application/vnd.google-apps.folder",
         }
-        
+
         if parent_folder_id != "root":
             folder_metadata["parents"] = [parent_folder_id]
-        
+
         logger.info(f"Creating folder '{folder_name}' in Drive")
         folder = drive_service.files().create(
             body=folder_metadata,
             fields="id, webViewLink",
         ).execute()
-        
+
         folder_id = folder.get("id")
         folder_url = folder.get("webViewLink")
-        
+
         logger.info(f"Created folder: {folder_url}")
+
+        # Share folder with user if email provided
+        if user_email:
+            try:
+                permission = {
+                    "type": "user",
+                    "role": "writer",  # User can edit documents
+                    "emailAddress": user_email,
+                }
+                drive_service.permissions().create(
+                    fileId=folder_id,
+                    body=permission,
+                    sendNotificationEmail=True,  # Notify user
+                ).execute()
+                logger.info(f"Shared folder with {user_email}")
+            except HttpError as e:
+                logger.warning(f"Failed to share folder with {user_email}: {e}")
+                # Continue even if sharing fails
         
         # Create documents
         doc_urls: dict[str, str] = {}
@@ -245,3 +302,166 @@ def create_research_packet(
         logger.exception(f"Unexpected error creating research packet: {e}")
         raise
 
+
+def create_transcript_doc(
+    title: str,
+    content: str,
+    user_email: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, str]:
+    """
+    Create a Google Doc with transcript content.
+
+    Creates a folder and a single document with the provided content.
+
+    Args:
+        title: Title for the document
+        content: Plain text content to insert
+        user_email: Optional user email to share folder with
+        user_id: Optional user ID to organize folders by user
+
+    Returns:
+        Dict with:
+        - "folder_url": URL of the created folder
+        - "doc_url": URL of the created document
+
+    Raises:
+        MissingRequiredSettingError: If Google OAuth credentials are missing
+        RuntimeError: If API operations fail
+    """
+    try:
+        settings = require_google_oauth()
+    except MissingRequiredSettingError as e:
+        logger.warning(f"Google OAuth not configured: {e}")
+        raise
+
+    try:
+        creds = _get_credentials(settings)
+        drive_service = _get_drive_service(creds)
+        docs_service = _get_docs_service(creds)
+
+        # Determine parent folder
+        parent_folder_id = settings.google_drive_root_folder_id or "root"
+
+        # Create per-user subfolder if user_id provided
+        if user_id:
+            user_folder_metadata = {
+                "name": f"user-{user_id[:8]}",
+                "mimeType": "application/vnd.google-apps.folder",
+            }
+            if parent_folder_id != "root":
+                user_folder_metadata["parents"] = [parent_folder_id]
+
+            # Check if user folder already exists
+            query = f"name='{user_folder_metadata['name']}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+            if parent_folder_id != "root":
+                query += f" and '{parent_folder_id}' in parents"
+
+            results = drive_service.files().list(
+                q=query,
+                fields="files(id, webViewLink)",
+                pageSize=1,
+            ).execute()
+
+            existing_folders = results.get("files", [])
+            if existing_folders:
+                parent_folder_id = existing_folders[0].get("id")
+                logger.info(f"Using existing user folder: {existing_folders[0].get('webViewLink')}")
+            else:
+                logger.info(f"Creating user folder for user_id: {user_id[:8]}")
+                user_folder = drive_service.files().create(
+                    body=user_folder_metadata,
+                    fields="id, webViewLink",
+                ).execute()
+                parent_folder_id = user_folder.get("id")
+                logger.info(f"Created user folder: {user_folder.get('webViewLink')}")
+
+        # Create folder with timestamp
+        from datetime import datetime
+        folder_name = f"Transcripts - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+        folder_metadata = {
+            "name": folder_name,
+            "mimeType": "application/vnd.google-apps.folder",
+        }
+
+        if parent_folder_id != "root":
+            folder_metadata["parents"] = [parent_folder_id]
+
+        logger.info(f"Creating folder '{folder_name}' in Drive")
+        folder = drive_service.files().create(
+            body=folder_metadata,
+            fields="id, webViewLink",
+        ).execute()
+
+        folder_id = folder.get("id")
+        folder_url = folder.get("webViewLink")
+
+        logger.info(f"Created folder: {folder_url}")
+
+        # Share folder with user if email provided
+        if user_email:
+            try:
+                permission = {
+                    "type": "user",
+                    "role": "writer",
+                    "emailAddress": user_email,
+                }
+                drive_service.permissions().create(
+                    fileId=folder_id,
+                    body=permission,
+                    sendNotificationEmail=True,
+                ).execute()
+                logger.info(f"Shared folder with {user_email}")
+            except HttpError as e:
+                logger.warning(f"Failed to share folder with {user_email}: {e}")
+
+        # Create document
+        doc_metadata = {
+            "name": title,
+            "mimeType": "application/vnd.google-apps.document",
+            "parents": [folder_id],
+        }
+
+        logger.info(f"Creating document: {title}")
+        doc = drive_service.files().create(
+            body=doc_metadata,
+            fields="id, webViewLink",
+        ).execute()
+
+        doc_id = doc.get("id")
+        doc_url = doc.get("webViewLink")
+
+        # Insert content
+        if content:
+            requests = [
+                {
+                    "insertText": {
+                        "location": {"index": 1},
+                        "text": content,
+                    }
+                }
+            ]
+
+            try:
+                docs_service.documents().batchUpdate(
+                    documentId=doc_id,
+                    body={"requests": requests},
+                ).execute()
+                logger.info(f"Inserted content into {title}")
+            except HttpError as e:
+                logger.warning(f"Failed to insert content into {title}: {e}")
+
+        logger.info(f"Created transcript doc: {doc_url}")
+
+        return {
+            "folder_url": folder_url,
+            "doc_url": doc_url,
+        }
+
+    except HttpError as e:
+        logger.exception(f"Google API error: {e}")
+        raise RuntimeError(f"Google API error: {e}")
+    except Exception as e:
+        logger.exception(f"Unexpected error creating transcript doc: {e}")
+        raise

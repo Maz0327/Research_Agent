@@ -12,22 +12,28 @@ __all__ = [
     "get_job",
     "update_job",
     "update_job_status",  # Backward compatibility
+    "list_jobs",
 ]
 
 
-def create_job(config_json: dict | None = None, topic: str | None = None) -> JobRecord:
+def create_job(
+    config_json: dict | None = None,
+    topic: str | None = None,
+    user_id: str | None = None,
+) -> JobRecord:
     """
     Create a new job with the given configuration.
-    
+
     Args:
         config_json: Job configuration as JSON dict (preferred)
         topic: Legacy topic string (will be wrapped in config_json if provided)
-        
+        user_id: Optional user ID for job ownership
+
     Returns:
         Created JobRecord
     """
     store = get_job_store()
-    
+
     # Backward compatibility: if topic is provided, wrap it in config_json
     if topic:
         if config_json:
@@ -36,8 +42,8 @@ def create_job(config_json: dict | None = None, topic: str | None = None) -> Job
             config_json = {"topic": topic}
     elif not config_json:
         config_json = {}
-    
-    return store.create_job(config_json)
+
+    return store.create_job(config_json, user_id=user_id)
 
 
 def get_job(job_id: str) -> JobRecord | None:
@@ -95,7 +101,7 @@ def update_job(
 def update_job_status(job_id: str, status: str, result: dict | None = None) -> None:
     """
     Update job status (backward compatibility wrapper).
-    
+
     This is kept for compatibility with existing code.
     New code should use update_job() instead.
     """
@@ -105,5 +111,25 @@ def update_job_status(job_id: str, status: str, result: dict | None = None) -> N
     if result:
         # Store result in outputs for backward compatibility
         partial_outputs = {"legacy_result": result}
-    
+
     store.update_job(job_id, status=status, partial_outputs=partial_outputs)
+
+
+def list_jobs(
+    user_id: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[JobRecord]:
+    """
+    List jobs, optionally filtered by user_id.
+
+    Args:
+        user_id: Optional user ID to filter by
+        limit: Maximum number of jobs to return
+        offset: Number of jobs to skip (for pagination)
+
+    Returns:
+        List of JobRecords, sorted by created_at descending
+    """
+    store = get_job_store()
+    return store.list_jobs(user_id=user_id, limit=limit, offset=offset)

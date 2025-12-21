@@ -45,7 +45,7 @@ Focus on finding independent sources (news, official reports, fact-checks) that 
 Return evidence URLs in your response."""
     
     try:
-        response = perplexity_client._perplexity_search(query, model="llama-3.1-sonar-large-128k-online")
+        response = perplexity_client._perplexity_search(query, model="sonar")
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         
         # Extract URLs from response
@@ -158,7 +158,7 @@ Task:
 Provide a structured analysis with clear recommendations."""
     
     try:
-        response = perplexity_client._perplexity_search(query, model="llama-3.1-sonar-large-128k-online")
+        response = perplexity_client._perplexity_search(query, model="sonar")
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         return content
     except Exception as e:

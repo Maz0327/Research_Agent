@@ -1,0 +1,234 @@
+"""OpenAI Whisper API client for YouTube audio transcription."""
+import os
+import re
+import tempfile
+from pathlib import Path
+from typing import Dict, Optional
+import subprocess
+from loguru import logger
+import openai
+
+
+class WhisperTranscriptionClient:
+    """
+    OpenAI Whisper API for transcribing YouTube videos without captions.
+
+    This is TIER 2 of the transcript system.
+    - Cost: $0.006/minute
+    - Only use when youtube-transcript-api fails (Tier 1)
+    - Downloads audio with yt-dlp, then transcribes
+
+    DO NOT skip Tier 1. Always try native captions first!
+    """
+
+    def __init__(self):
+        """Initialize Whisper client."""
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("OPENAI_API_KEY required for Whisper transcription")
+        self.client = openai.OpenAI(api_key=self.api_key)
+        self.cost_per_minute = 0.006
+
+    @staticmethod
+    def _validate_video_id(video_id: str) -> str:
+        """
+        Validate YouTube video ID format to prevent command injection.
+
+        YouTube video IDs are 11 characters: alphanumeric, dash, and underscore.
+
+        Args:
+            video_id: YouTube video ID to validate
+
+        Returns:
+            Validated video ID
+
+        Raises:
+            ValueError: If video_id format is invalid
+        """
+        if not re.match(r'^[A-Za-z0-9_-]{11}$', video_id):
+            raise ValueError(f"Invalid YouTube video ID format: {video_id}")
+        return video_id
+
+    def download_audio(self, video_id: str, output_dir: Optional[str] = None) -> str:
+        """
+        Download audio from YouTube video using yt-dlp.
+
+        Args:
+            video_id: YouTube video ID
+            output_dir: Directory to save audio (uses temp if not specified)
+
+        Returns:
+            Path to downloaded audio file
+
+        Raises:
+            ValueError: If video_id format is invalid
+        """
+        # Validate video ID format to prevent command injection
+        video_id = self._validate_video_id(video_id)
+
+        if output_dir is None:
+            output_dir = tempfile.mkdtemp()
+
+        output_path = Path(output_dir) / f"{video_id}.mp3"
+
+        try:
+            logger.info(f"Downloading audio for {video_id}...")
+
+            # Use yt-dlp to download audio only
+            cmd = [
+                "yt-dlp",
+                "-x",  # Extract audio
+                "--audio-format", "mp3",
+                "--audio-quality", "128K",
+                "-o", str(output_path),
+                f"https://www.youtube.com/watch?v={video_id}",
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 min timeout
+            )
+
+            if result.returncode != 0:
+                logger.error(f"yt-dlp failed: {result.stderr}")
+                raise RuntimeError(f"yt-dlp failed: {result.stderr}")
+
+            logger.info(f"Audio downloaded: {output_path}")
+            return str(output_path)
+
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Audio download timed out")
+        except Exception as e:
+            raise RuntimeError(f"Failed to download audio: {e}")
+
+    def transcribe(
+        self,
+        audio_path: str,
+        language: str = "en",
+    ) -> Dict:
+        """
+        Transcribe audio file using Whisper API.
+
+        Args:
+            audio_path: Path to audio file
+            language: Language code (en, es, fr, etc.)
+
+        Returns:
+            Dict with transcript and metadata
+        """
+        try:
+            logger.info(f"Transcribing with Whisper: {audio_path}")
+
+            # Get audio duration for cost estimation
+            duration_minutes = self._get_audio_duration(audio_path)
+
+            with open(audio_path, "rb") as audio_file:
+                response = self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language=language,
+                    response_format="verbose_json",  # Includes timestamps
+                )
+
+            # Extract segments with timestamps
+            segments = []
+            if hasattr(response, 'segments'):
+                for seg in response.segments:
+                    segments.append({
+                        "start": seg.get("start", 0),
+                        "end": seg.get("end", 0),
+                        "text": seg.get("text", ""),
+                    })
+
+            cost = duration_minutes * self.cost_per_minute
+
+            logger.info(f"Whisper transcription complete: {len(segments)} segments, ${cost:.4f}")
+
+            return {
+                "text": response.text,
+                "segments": segments,
+                "language": language,
+                "duration_minutes": duration_minutes,
+                "method": "whisper",
+                "cost": cost,
+            }
+
+        except Exception as e:
+            logger.error(f"Whisper transcription failed: {e}")
+            raise
+
+    def _get_audio_duration(self, audio_path: str) -> float:
+        """Get audio duration in minutes."""
+        try:
+            # Try using ffprobe (part of ffmpeg)
+            cmd = [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                audio_path
+            ]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                duration_seconds = float(result.stdout.strip())
+                return duration_seconds / 60.0
+        except:
+            pass
+
+        # Fallback: estimate from file size (~128kbps)
+        file_size = os.path.getsize(audio_path)
+        return (file_size / 16000) / 60.0  # Rough estimate
+
+    def transcribe_youtube(
+        self,
+        video_id: str,
+        max_duration_minutes: float = 60.0,
+    ) -> Dict:
+        """
+        Full pipeline: download audio and transcribe.
+
+        This is the main function. Use it for Tier 2 transcription.
+
+        Args:
+            video_id: YouTube video ID
+            max_duration_minutes: Maximum video length to transcribe
+
+        Returns:
+            Dict with transcript and cost
+        """
+        try:
+            # Download audio
+            audio_path = self.download_audio(video_id)
+
+            # Check duration
+            duration = self._get_audio_duration(audio_path)
+            if duration > max_duration_minutes:
+                raise ValueError(f"Video too long: {duration:.1f}m > {max_duration_minutes}m limit")
+
+            # Transcribe
+            result = self.transcribe(audio_path)
+            result["video_id"] = video_id
+
+            # Cleanup
+            try:
+                os.remove(audio_path)
+            except:
+                pass
+
+            return result
+
+        except Exception as e:
+            logger.error(f"YouTube transcription failed for {video_id}: {e}")
+            raise
+
+
+def transcribe_with_whisper(video_id: str, max_duration: float = 60.0) -> Dict:
+    """
+    Transcribe YouTube video with Whisper API.
+
+    Use this as Tier 2 fallback when youtube-transcript-api fails.
+    """
+    client = WhisperTranscriptionClient()
+    return client.transcribe_youtube(video_id, max_duration)
