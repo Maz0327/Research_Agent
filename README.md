@@ -2,6 +2,15 @@
 
 A cloud-based research backend for aggregating content from Reddit, YouTube, articles, and other sources. Processes research topics through a multi-stage pipeline with AI-powered planning, web scraping, transcript extraction, claim validation, and Google Drive document generation.
 
+## Production Status
+
+| Service | Status | URL |
+|---------|--------|-----|
+| **API** | ✅ Live | https://api-production-1c52.up.railway.app |
+| **Worker** | ✅ Live | Celery worker (internal) |
+| **Redis** | ✅ Live | redis.railway.internal:6379 |
+| **Frontend** | 🔄 Pending | Vercel deployment pending |
+
 ## Features
 
 - **Multi-mode Research Pipelines**: Quick, Full, Breaking News, Investigation, Profile, and Controversy modes
@@ -106,8 +115,8 @@ Research_Agent/
 │   └── store/                   # Zustand state stores
 ├── .env.example                 # Environment template
 ├── requirements.txt             # Python dependencies
-├── Dockerfile                   # API container
-├── Dockerfile.worker            # Worker container
+├── Dockerfile                   # Unified container (API + Worker)
+├── entrypoint.sh                # Service selector (SERVICE_TYPE env var)
 ├── docker-compose.yml           # Local development
 └── DEPLOYMENT_GUIDE.md          # Production deployment guide
 ```

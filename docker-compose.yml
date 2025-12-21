@@ -23,14 +23,15 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # Celery Worker
+  # Celery Worker (uses unified Dockerfile with SERVICE_TYPE)
   worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile
     env_file:
       - .env
     environment:
+      - SERVICE_TYPE=worker
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       redis:

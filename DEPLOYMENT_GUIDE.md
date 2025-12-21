@@ -1,8 +1,8 @@
 # Research Agent Deployment Guide
 
-**Version:** 1.0
-**Date:** December 20, 2024
-**Status:** Production-Ready
+**Version:** 1.1
+**Date:** December 21, 2024
+**Status:** Deployed to Production
 
 This guide provides step-by-step instructions for deploying the Research Agent to production using Vercel (frontend) and Railway (backend).
 
@@ -93,6 +93,17 @@ vercel --version
 | Redis | Railway | 512 MB | Message broker |
 | Database | Supabase | Existing | PostgreSQL storage |
 
+### Current Production Deployment
+
+| Service | Status | URL/Details |
+|---------|--------|-------------|
+| **API** | ✅ Live | https://api-production-1c52.up.railway.app |
+| **Worker** | ✅ Live | Running Celery with 2 concurrent workers |
+| **Redis** | ✅ Live | redis.railway.internal:6379 |
+| **Frontend** | 🔄 Pending | Vercel deployment |
+
+**Railway Project ID:** `9d40e7f3-4b60-4456-8a56-9ade9a9c3321`
+
 ---
 
 ## 3. Prepare for Deployment
@@ -110,16 +121,18 @@ git push origin main
 
 ```bash
 # Check Docker files are present
-ls -la Dockerfile Dockerfile.worker docker-compose.yml frontend/Dockerfile
+ls -la Dockerfile entrypoint.sh docker-compose.yml frontend/Dockerfile
 ```
 
 Expected output:
 ```
--rw-r--r--  Dockerfile
--rw-r--r--  Dockerfile.worker
+-rw-r--r--  Dockerfile           # Unified container for API and Worker
+-rw-r--r--  entrypoint.sh        # Service type selector script
 -rw-r--r--  docker-compose.yml
 -rw-r--r--  frontend/Dockerfile
 ```
+
+**Note:** We use a unified Dockerfile approach. The `entrypoint.sh` script checks the `SERVICE_TYPE` environment variable to determine whether to run the API (Uvicorn) or Worker (Celery).
 
 ### Step 3.3: Create .dockerignore
 
@@ -252,20 +265,25 @@ railway up --service api
 
 ### Step 4.5: Deploy Worker Service
 
+The Worker uses the **same Dockerfile** as the API but runs Celery instead of Uvicorn. This is controlled by the `SERVICE_TYPE` environment variable.
+
 ```bash
 # Create worker service
 railway service create worker
 
-# Set worker to use different Dockerfile
-# Go to Railway Dashboard → worker service → Settings → Build
-# Set "Dockerfile Path" to: Dockerfile.worker
+# Set SERVICE_TYPE to run Celery instead of API
+railway variables --set "SERVICE_TYPE=worker" --service worker
 
-# Or use CLI to set environment variable
-railway variables set RAILWAY_DOCKERFILE_PATH=Dockerfile.worker --service worker
+# The worker will automatically use the same Dockerfile
+# but entrypoint.sh will start Celery based on SERVICE_TYPE=worker
 
-# Deploy worker
+# Deploy worker (or it auto-deploys from GitHub)
 railway up --service worker
 ```
+
+**How It Works:**
+- `SERVICE_TYPE=api` (default) → runs `uvicorn backend.app.main:app`
+- `SERVICE_TYPE=worker` → runs `celery -A backend.worker worker` with a health endpoint
 
 ### Step 4.6: Configure API Environment Variables
 
@@ -290,11 +308,18 @@ FRONTEND_ORIGINS=https://your-app.vercel.app  # Update after Vercel deploy
 
 Go to Railway Dashboard → `worker` service → **Variables** tab:
 
-Copy the **same variables** from API service, plus:
+Copy the **same variables** from API service, plus the SERVICE_TYPE variable:
 
 ```bash
-# Worker needs same env vars as API
-# Use "Reference" feature to copy from api service
+# Required: This tells entrypoint.sh to run Celery
+SERVICE_TYPE=worker
+
+# Copy all other env vars from API service:
+# - REDIS_URL
+# - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# - OPENAI_API_KEY, PERPLEXITY_API_KEY
+# - GOOGLE_OAUTH_* credentials
+# Use Railway's "Reference" feature to copy from api service
 ```
 
 ### Step 4.8: Configure Worker Resources
@@ -303,7 +328,7 @@ Go to Railway Dashboard → `worker` service → **Settings**:
 
 1. **Memory:** Set to 2048 MB (2 GB)
 2. **Restart Policy:** On Failure
-3. **Health Check:** Disable (workers don't have HTTP endpoints)
+3. **Health Check:** `/health` endpoint works (entrypoint.sh runs a health server on PORT)
 
 ### Step 4.9: Get API URL
 
@@ -312,7 +337,9 @@ After deployment completes:
 1. Go to Railway Dashboard → `api` service
 2. Click **"Settings"** → **"Networking"**
 3. Click **"Generate Domain"**
-4. Copy the URL (e.g., `https://research-agent-api.up.railway.app`)
+4. Copy the URL
+
+**Current Production URL:** `https://api-production-1c52.up.railway.app`
 
 ---
 
@@ -421,7 +448,7 @@ NEXT_PUBLIC_API_URL=https://research-agent-api.up.railway.app
 
 ```bash
 # Health check
-curl https://research-agent-api.up.railway.app/health
+curl https://api-production-1c52.up.railway.app/health
 
 # Expected response:
 # {"status":"ok","environment":"production"}
@@ -431,7 +458,7 @@ curl https://research-agent-api.up.railway.app/health
 
 Open in browser:
 ```
-https://research-agent-api.up.railway.app/docs
+https://api-production-1c52.up.railway.app/docs
 ```
 
 You should see the Swagger documentation.
@@ -456,7 +483,7 @@ You should see the Research Agent dashboard.
 
 ```bash
 # Create a test job
-curl -X POST https://research-agent-api.up.railway.app/jobs \
+curl -X POST https://api-production-1c52.up.railway.app/jobs \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"prompt": "Test research topic", "pipeline": "quick"}'
@@ -611,13 +638,14 @@ curl -X POST https://research-agent-api.up.railway.app/jobs \
 ## Quick Reference Commands
 
 ```bash
-# Railway
-railway login                    # Authenticate
-railway up --service api         # Deploy API
-railway up --service worker      # Deploy Worker
-railway logs --service api       # View API logs
-railway logs --service worker    # View Worker logs
-railway variables --service api  # List variables
+# Railway (Project ID: 9d40e7f3-4b60-4456-8a56-9ade9a9c3321)
+railway link -p 9d40e7f3-4b60-4456-8a56-9ade9a9c3321  # Link to project
+railway service API              # Switch to API service
+railway service Worker           # Switch to Worker service
+railway logs -n 50               # View last 50 logs
+railway variables                # List variables
+railway variables --set "KEY=value"  # Set variable
+railway status                   # Check project status
 
 # Vercel
 vercel login                     # Authenticate
@@ -626,9 +654,9 @@ vercel --prod                   # Deploy production
 vercel logs                     # View logs
 vercel env ls                   # List variables
 
-# Testing
-curl https://api-url/health     # Health check
-curl https://api-url/docs       # API docs
+# Testing (Production)
+curl https://api-production-1c52.up.railway.app/health  # Health check
+curl https://api-production-1c52.up.railway.app/docs    # API docs (browser)
 ```
 
 ---

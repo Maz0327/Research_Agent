@@ -10,7 +10,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co http://localhost:8000 http://localhost:3000",
+      "connect-src 'self' https://*.supabase.co https://*.up.railway.app http://localhost:8000 http://localhost:3000",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
