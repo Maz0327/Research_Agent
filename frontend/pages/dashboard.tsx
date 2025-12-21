@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
-import { ProtectedRoute } from '../components/AuthProvider';
+import { ProtectedRoute, useAuth } from '../components/AuthProvider';
 import { useJobsStore } from '../store/jobs';
 
 const pipelines = [
@@ -42,11 +42,14 @@ function DashboardContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const { jobs, isLoading, fetchJobs, createJob, refreshJob } = useJobsStore();
+  const { user } = useAuth();
 
-  // Fetch jobs on mount
+  // Fetch jobs on mount and when user changes
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (user) {
+      fetchJobs();
+    }
+  }, [fetchJobs, user]);
 
   // Polling for running jobs
   useEffect(() => {

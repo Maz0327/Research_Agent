@@ -6,6 +6,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/router';
 import { supabase, signOut as supabaseSignOut, getAccessToken } from '../lib/supabase';
+import { useJobsStore } from '../store/jobs';
+import { useSettingsStore } from '../store/settings';
 
 interface AuthContextType {
   user: User | null;
@@ -97,6 +99,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const handleSignOut = async () => {
     await supabaseSignOut();
     setIsAdmin(false);
+    // Clear stores on logout
+    useJobsStore.getState().clearJobs();
     router.push('/login');
   };
 

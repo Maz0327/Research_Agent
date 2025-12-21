@@ -29,6 +29,7 @@ interface JobsState {
   createJob: (prompt: string, pipeline: string) => Promise<string>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
+  clearJobs: () => void;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -42,21 +43,31 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const token = await getAccessToken();
+
+      // If no token, user is not authenticated - don't fetch
+      if (!token) {
+        set({ jobs: [], isLoading: false });
+        return;
+      }
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
       const response = await fetch(`${API_URL}/jobs`, { headers });
 
       if (!response.ok) {
+        // If 401, clear jobs and don't show error (user needs to re-login)
+        if (response.status === 401) {
+          set({ jobs: [], isLoading: false });
+          return;
+        }
         throw new Error('Failed to fetch jobs');
       }
 
       const data = await response.json();
-      set({ jobs: data.jobs, isLoading: false });
+      set({ jobs: data.jobs || [], isLoading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch jobs',
@@ -185,5 +196,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       console.error('Failed to cancel job:', error);
       throw error;
     }
+  },
+
+  clearJobs: () => {
+    set({ jobs: [], error: null });
   },
 }));
