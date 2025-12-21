@@ -6,7 +6,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Research Agent is a cloud-based research backend that aggregates content from Reddit, Twitter, articles, YouTube, and other sources. It processes research topics through a multi-stage pipeline that includes AI-powered planning, web scraping, transcript extraction, claim validation, and Google Drive document generation.
 
-**Current Phase:** Multi-phase project (Phase 1-4 complete, active development ongoing)
+**Current Phase:** Production Deployment (Phase 1-4 complete, deploying to Railway)
+
+## Production Deployment Status (December 2024)
+
+### Railway Project
+- **Project ID:** `60023fa4-e900-4049-8dde-d90a43c295ad`
+- **Environment:** production
+
+### Services Deployed
+
+| Service | Status | URL/Notes |
+|---------|--------|-----------|
+| **API (Research_Agent)** | ✅ LIVE | https://researchagent-production-2d94.up.railway.app |
+| **Worker** | ⚠️ IN PROGRESS | Needs Dockerfile.worker configuration |
+| **Redis** | ✅ Running | Internal: redis.railway.internal:6379 |
+
+### Remaining Deployment Tasks
+1. **Worker Service**: Configure Builder to "Dockerfile" and set path to `Dockerfile.worker`
+2. **FRONTEND_ORIGINS**: Update to include Vercel domain once frontend is deployed
+3. **Frontend (Vercel)**: Deploy Next.js frontend to Vercel
+
+### Key Commands
+```bash
+# Link to Railway project
+railway link -p 60023fa4-e900-4049-8dde-d90a43c295ad
+
+# Check status
+railway status
+railway service status
+
+# View logs
+railway logs -n 50
+
+# Switch between services
+railway service Research_Agent
+railway service Worker
+
+# Deploy
+railway up
+```
 
 ## Architecture
 
@@ -63,8 +102,7 @@ Key Pydantic models in `backend/models/`:
 
 ### Integrations (`backend/integrations/`)
 
-External service integrations:
-
+**Core Integrations:**
 - `openai_client.py`: Job planning and claim extraction using GPT-4
 - `perplexity_client.py`: Research mapping, source discovery, and claim validation
 - `youtube_client.py`: Channel enumeration and video metadata
@@ -72,6 +110,17 @@ External service integrations:
 - `web_capture.py`: Playwright-based web scraping with Trafilatura text extraction
 - `google_drive_docs.py`: Google Drive folder and Docs creation
 - `slack.py`: Slack webhook integration for notifications
+
+**V2 API Integrations (added December 2024):**
+- `exa_client.py`: Exa.ai semantic search
+- `brave_search_client.py`: Brave Search API
+- `jina_reader_client.py`: Jina Reader for content extraction
+- `claimbuster_client.py`: ClaimBuster fact-checking API
+- `google_factcheck_client.py`: Google Fact Check Tools API
+- `gdelt_client.py`: GDELT news/events API
+- `semantic_scholar_client.py`: Academic paper search
+- `whisper_client.py`: OpenAI Whisper transcription
+- `reddit_client.py`: Reddit API (PRAW)
 
 ## Development Commands
 
