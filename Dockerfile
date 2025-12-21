@@ -48,6 +48,10 @@ RUN playwright install chromium
 # Copy application code
 COPY backend/ ./backend/
 
+# Copy worker entrypoint script (for Worker service)
+COPY worker_entrypoint.sh /app/worker_entrypoint.sh
+RUN chmod +x /app/worker_entrypoint.sh
+
 # Expose port
 EXPOSE 8000
 
