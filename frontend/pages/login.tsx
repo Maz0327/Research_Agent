@@ -1,8 +1,10 @@
 /**
  * Login page with Google OAuth and email magic link options.
+ * Dark mode design with gradient accents.
  */
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { motion } from 'framer-motion';
 import { signInWithGoogle, signInWithMagicLink } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 
@@ -56,26 +58,45 @@ export default function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-lg text-gray-600">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
+        <div className="flex items-center gap-3 text-lg text-gray-400">
+          <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Loading...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-lg bg-white p-8 shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-4">
+      {/* Background gradient effects */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-md"
+      >
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur-xl p-8 shadow-2xl">
           <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Research Agent</h1>
-            <p className="mt-2 text-gray-600">Sign in to your account</p>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              Research Agent
+            </h1>
+            <p className="mt-2 text-gray-400">Sign in to your account</p>
           </div>
 
           {/* Google OAuth Button */}
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-gray-300 bg-white px-4 py-3 text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-200 transition-all duration-200 hover:bg-gray-700 hover:border-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -99,9 +120,9 @@ export default function LoginPage() {
           </button>
 
           <div className="my-6 flex items-center">
-            <div className="flex-grow border-t border-gray-300"></div>
+            <div className="flex-grow border-t border-gray-700"></div>
             <span className="mx-4 text-sm text-gray-500">or</span>
-            <div className="flex-grow border-t border-gray-300"></div>
+            <div className="flex-grow border-t border-gray-700"></div>
           </div>
 
           {/* Email Magic Link Form */}
@@ -109,7 +130,7 @@ export default function LoginPage() {
             <div className="mb-4">
               <label
                 htmlFor="email"
-                className="mb-1 block text-sm font-medium text-gray-700"
+                className="mb-1.5 block text-sm font-medium text-gray-400"
               >
                 Email address
               </label>
@@ -119,7 +140,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-md border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 disabled={loading}
               />
             </div>
@@ -127,30 +148,42 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-md bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-3.5 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
-              {loading ? 'Sending...' : 'Send Magic Link'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Sending...
+                </span>
+              ) : (
+                'Send Magic Link'
+              )}
             </button>
           </form>
 
           {/* Message Display */}
           {message && (
-            <div
-              className={`mt-4 rounded-md p-3 text-sm ${
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mt-4 rounded-xl p-4 text-sm ${
                 message.type === 'success'
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-red-50 text-red-700'
+                  ? 'border border-green-500/30 bg-green-900/30 text-green-300'
+                  : 'border border-red-500/30 bg-red-900/30 text-red-300'
               }`}
             >
               {message.text}
-            </div>
+            </motion.div>
           )}
 
           <p className="mt-6 text-center text-sm text-gray-500">
             By signing in, you agree to our Terms of Service and Privacy Policy.
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

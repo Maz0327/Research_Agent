@@ -55,6 +55,10 @@ class Settings(BaseSettings):
         default=None, alias="SUPABASE_JWT_SECRET",
         description="JWT secret from Supabase for verifying auth tokens"
     )
+    supabase_jwt_audience: str = Field(
+        default="authenticated", alias="SUPABASE_JWT_AUDIENCE",
+        description="Expected JWT audience claim (default: 'authenticated' for Supabase)"
+    )
     
     # Slack integration
     slack_signing_secret: Optional[str] = Field(default=None, alias="SLACK_SIGNING_SECRET")

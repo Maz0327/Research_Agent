@@ -1,11 +1,17 @@
-import { useState, FormEvent, useEffect } from "react";
-import Head from "next/head";
-import Link from "next/link";
+/**
+ * YouTube Transcript Extractor page.
+ * Dark mode design with modern styling.
+ */
+import { useState, FormEvent, useEffect } from 'react';
+import Head from 'next/head';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import Layout from '../components/Layout';
 
 interface TranscriptResult {
   video_id: string;
   video_url: string;
-  status: "available" | "missing" | "error";
+  status: 'available' | 'missing' | 'error';
   source: string;
   text?: string;
   error_message?: string;
@@ -31,7 +37,7 @@ interface AsyncResponse {
 
 interface JobStatus {
   job_id: string;
-  status: "queued" | "running" | "completed" | "failed";
+  status: 'queued' | 'running' | 'completed' | 'failed';
   progress_percent: number;
   transcripts_completed: number;
   transcripts_total: number;
@@ -42,9 +48,9 @@ interface JobStatus {
 }
 
 export default function TranscriptsPage() {
-  const [videoUrls, setVideoUrls] = useState("");
+  const [videoUrls, setVideoUrls] = useState('');
   const [useWhisperFallback, setUseWhisperFallback] = useState(true);
-  const [docTitle, setDocTitle] = useState("");
+  const [docTitle, setDocTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResponse | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -56,7 +62,7 @@ export default function TranscriptsPage() {
     return input
       .split(/[\n,]/)
       .map((url) => url.trim())
-      .filter((url) => url.length > 0 && (url.includes("youtube") || url.includes("youtu.be")));
+      .filter((url) => url.length > 0 && (url.includes('youtube') || url.includes('youtu.be')));
   };
 
   const urlCount = parseUrls(videoUrls).length;
@@ -74,11 +80,11 @@ export default function TranscriptsPage() {
         const status: JobStatus = await response.json();
         setJobStatus(status);
 
-        if (status.status === "completed" || status.status === "failed") {
+        if (status.status === 'completed' || status.status === 'failed') {
           clearInterval(pollInterval);
         }
       } catch (err) {
-        console.error("Polling error:", err);
+        console.error('Polling error:', err);
       }
     }, 2000);
 
@@ -90,7 +96,7 @@ export default function TranscriptsPage() {
     const urls = parseUrls(videoUrls);
 
     if (urls.length === 0) {
-      setError("Please enter at least one valid YouTube URL");
+      setError('Please enter at least one valid YouTube URL');
       return;
     }
 
@@ -101,9 +107,9 @@ export default function TranscriptsPage() {
     setJobStatus(null);
 
     try {
-      const response = await fetch("/api/transcripts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/transcripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           video_urls: urls,
           use_whisper_fallback: useWhisperFallback,
@@ -112,7 +118,7 @@ export default function TranscriptsPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Unknown error" }));
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
         throw new Error(errorData.detail || `HTTP ${response.status}`);
       }
 
@@ -123,7 +129,7 @@ export default function TranscriptsPage() {
         setJobId(data.job_id);
         setJobStatus({
           job_id: data.job_id,
-          status: "queued",
+          status: 'queued',
           progress_percent: 0,
           transcripts_completed: 0,
           transcripts_total: data.total_videos,
@@ -134,13 +140,13 @@ export default function TranscriptsPage() {
         setSyncResult(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit");
+      setError(err instanceof Error ? err.message : 'Failed to submit');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isComplete = syncResult?.success || jobStatus?.status === "completed";
+  const isComplete = syncResult?.success || jobStatus?.status === 'completed';
   const docUrl = syncResult?.doc_url || jobStatus?.doc_url;
   const folderUrl = syncResult?.folder_url || jobStatus?.folder_url;
 
@@ -152,21 +158,33 @@ export default function TranscriptsPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white shadow-md rounded-lg p-8">
-            {/* Header with back link */}
-            <div className="flex items-center justify-between mb-8">
-              <h1 className="text-3xl font-bold text-gray-900">YouTube Transcript Extractor</h1>
-              <Link href="/" className="text-sm text-blue-600 hover:text-blue-800">
-                Back to Research
-              </Link>
-            </div>
+      <Layout>
+        <div className="mx-auto max-w-3xl">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              YouTube Transcript Extractor
+            </h1>
+            <p className="mt-2 text-gray-400">
+              Extract transcripts from YouTube videos and save them to Google Drive
+            </p>
+          </motion.div>
 
+          {/* Form Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-lg"
+          >
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* URL Textarea */}
               <div>
-                <label htmlFor="urls" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="urls" className="block text-sm font-medium text-gray-400 mb-2">
                   YouTube Video URLs (one per line)
                 </label>
                 <textarea
@@ -175,12 +193,12 @@ export default function TranscriptsPage() {
                   rows={8}
                   value={videoUrls}
                   onChange={(e) => setVideoUrls(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 font-mono text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/...&#10;..."
                 />
-                <p className="mt-1 text-sm text-gray-500">
-                  {urlCount} valid YouTube URL{urlCount !== 1 ? "s" : ""} detected
-                  {urlCount > 5 && " (will process in background)"}
+                <p className="mt-2 text-sm text-gray-500">
+                  {urlCount} valid YouTube URL{urlCount !== 1 ? 's' : ''} detected
+                  {urlCount > 5 && ' (will process in background)'}
                 </p>
               </div>
 
@@ -192,15 +210,15 @@ export default function TranscriptsPage() {
                     id="whisper"
                     checked={useWhisperFallback}
                     onChange={(e) => setUseWhisperFallback(e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
                   />
-                  <label htmlFor="whisper" className="ml-2 text-sm text-gray-700">
+                  <label htmlFor="whisper" className="ml-3 text-sm text-gray-300">
                     Use Whisper AI for videos without captions ($0.006/min)
                   </label>
                 </div>
 
                 <div>
-                  <label htmlFor="docTitle" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="docTitle" className="block text-sm font-medium text-gray-400 mb-2">
                     Document Title (optional)
                   </label>
                   <input
@@ -208,7 +226,7 @@ export default function TranscriptsPage() {
                     id="docTitle"
                     value={docTitle}
                     onChange={(e) => setDocTitle(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     placeholder="My Transcripts"
                   />
                 </div>
@@ -218,105 +236,158 @@ export default function TranscriptsPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || urlCount === 0}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
               >
-                {isSubmitting ? "Processing..." : `Extract Transcripts (${urlCount} video${urlCount !== 1 ? "s" : ""})`}
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  `Extract Transcripts (${urlCount} video${urlCount !== 1 ? 's' : ''})`
+                )}
               </button>
             </form>
+          </motion.div>
 
-            {/* Error Display */}
-            {error && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-800">
+          {/* Error Display */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 rounded-xl border border-red-500/30 bg-red-900/30 p-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
+                  <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <p className="text-sm text-red-300">
                   <strong>Error:</strong> {error}
                 </p>
               </div>
-            )}
+            </motion.div>
+          )}
 
-            {/* Progress Bar for Async Jobs */}
-            {jobStatus && !isComplete && (
-              <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-md">
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    {jobStatus.status === "queued" ? "Queued..." : "Processing..."}
-                  </span>
-                  <span className="text-sm text-gray-600">{jobStatus.progress_percent}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div
-                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                    style={{ width: `${jobStatus.progress_percent}%` }}
-                  />
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  {jobStatus.transcripts_completed} of {jobStatus.transcripts_total} videos processed
-                </p>
+          {/* Progress Bar for Async Jobs */}
+          {jobStatus && !isComplete && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 rounded-xl border border-gray-800 bg-gray-900 p-6"
+            >
+              <div className="flex justify-between mb-3">
+                <span className="text-sm font-medium text-gray-300">
+                  {jobStatus.status === 'queued' ? 'Queued...' : 'Processing...'}
+                </span>
+                <span className="text-sm font-medium text-blue-400">{jobStatus.progress_percent}%</span>
               </div>
-            )}
+              <div className="w-full h-2 rounded-full bg-gray-800 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${jobStatus.progress_percent}%` }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                />
+              </div>
+              <p className="text-sm text-gray-500 mt-3">
+                {jobStatus.transcripts_completed} of {jobStatus.transcripts_total} videos processed
+              </p>
+            </motion.div>
+          )}
 
-            {/* Success Result */}
-            {isComplete && docUrl && (
-              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-                <h2 className="text-lg font-semibold text-green-800 mb-3">Transcripts Ready!</h2>
-                <div className="space-y-2">
-                  <a
-                    href={docUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-blue-600 hover:text-blue-800 underline"
-                  >
-                    Open Google Doc
-                  </a>
-                  {folderUrl && (
-                    <a
-                      href={folderUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-blue-600 hover:text-blue-800 underline text-sm"
-                    >
-                      Open Drive Folder
-                    </a>
+          {/* Success Result */}
+          {isComplete && docUrl && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 rounded-xl border border-green-500/30 bg-green-900/30 p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <svg className="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-green-300">Transcripts Ready!</p>
+                    <p className="text-sm text-green-400/70">Your documents are ready in Google Drive</p>
+                  </div>
+                </div>
+                <a
+                  href={docUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-500"
+                >
+                  Open Doc
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+
+              {folderUrl && (
+                <a
+                  href={folderUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block mt-3 text-sm text-blue-400 hover:text-blue-300 transition"
+                >
+                  Open Drive Folder
+                </a>
+              )}
+
+              {syncResult && (
+                <div className="mt-4 pt-4 border-t border-green-500/30">
+                  <p className="text-sm text-green-300">
+                    Successfully extracted: {syncResult.successful_count} / {syncResult.total_videos}
+                  </p>
+                  {syncResult.failed_count > 0 && (
+                    <p className="text-sm text-yellow-400 mt-1">
+                      Failed/Missing: {syncResult.failed_count}
+                    </p>
                   )}
                 </div>
+              )}
+            </motion.div>
+          )}
 
-                {syncResult && (
-                  <div className="mt-4 pt-4 border-t border-green-200">
-                    <p className="text-sm text-green-700">
-                      Successfully extracted: {syncResult.successful_count} / {syncResult.total_videos}
-                    </p>
-                    {syncResult.failed_count > 0 && (
-                      <p className="text-sm text-yellow-700">
-                        Failed/Missing: {syncResult.failed_count}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Failed Job */}
+          {jobStatus?.status === 'failed' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 rounded-xl border border-red-500/30 bg-red-900/30 p-6"
+            >
+              <h2 className="text-lg font-semibold text-red-300 mb-2">Job Failed</h2>
+              <p className="text-sm text-red-400">{jobStatus.error || 'Unknown error occurred'}</p>
+            </motion.div>
+          )}
 
-            {/* Failed Job */}
-            {jobStatus?.status === "failed" && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <h2 className="text-lg font-semibold text-red-800 mb-2">Job Failed</h2>
-                <p className="text-sm text-red-700">{jobStatus.error || "Unknown error occurred"}</p>
-              </div>
-            )}
-
-            {/* Warnings */}
-            {((syncResult?.warnings && syncResult.warnings.length > 0) ||
-              (jobStatus?.warnings && jobStatus.warnings.length > 0)) && (
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                <h3 className="text-sm font-semibold text-yellow-800 mb-2">Warnings</h3>
-                <ul className="text-sm text-yellow-700 space-y-1">
-                  {(syncResult?.warnings || jobStatus?.warnings || []).map((w, i) => (
-                    <li key={i}>• {w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          {/* Warnings */}
+          {((syncResult?.warnings && syncResult.warnings.length > 0) ||
+            (jobStatus?.warnings && jobStatus.warnings.length > 0)) && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 rounded-xl border border-yellow-500/30 bg-yellow-900/30 p-6"
+            >
+              <h3 className="text-sm font-semibold text-yellow-300 mb-2">Warnings</h3>
+              <ul className="text-sm text-yellow-400 space-y-1">
+                {(syncResult?.warnings || jobStatus?.warnings || []).map((w, i) => (
+                  <li key={i}>• {w}</li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
         </div>
-      </main>
+      </Layout>
     </>
   );
 }

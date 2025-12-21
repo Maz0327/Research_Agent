@@ -159,6 +159,70 @@ def _safe_default_config(topic: str) -> JobConfig:
     )
 
 
+def generate_short_title(prompt: str) -> str:
+    """
+    Generate a concise 3-6 word title from a verbose research prompt.
+
+    Uses GPT-4o-mini to condense long prompts into short, descriptive titles.
+
+    Args:
+        prompt: The original research prompt (can be long/verbose)
+
+    Returns:
+        Short title (3-6 words) summarizing the research topic
+
+    Examples:
+        "Carlos Ghone former ceo of nissan story of his escape from japan"
+        -> "Nissan CEO Escape Story"
+
+        "What is the latest research on artificial intelligence safety and alignment"
+        -> "AI Safety Research"
+    """
+    try:
+        settings = require_openai()
+    except MissingRequiredSettingError:
+        logger.warning("OpenAI API key not configured. Using truncated prompt as title.")
+        # Fallback: first 6 words of prompt
+        words = prompt.strip().split()[:6]
+        return " ".join(words).title()
+
+    client = OpenAI(api_key=settings.openai_api_key)
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a title generator. Given a research topic or prompt, create a concise title of 3-6 words. Use title case. Be descriptive but brief. Return ONLY the title, nothing else."
+                },
+                {
+                    "role": "user",
+                    "content": f"Create a short title for this research topic:\n\n{prompt}"
+                },
+            ],
+            temperature=0.3,
+            max_tokens=50,
+        )
+
+        title = response.choices[0].message.content
+        if title:
+            # Clean up the title - remove quotes, extra whitespace
+            title = title.strip().strip('"\'')
+            # Limit to 60 chars max
+            if len(title) > 60:
+                title = title[:57] + "..."
+            logger.info(f"Generated title: '{title}' from prompt: '{prompt[:50]}...'")
+            return title
+        else:
+            raise ValueError("Empty response from OpenAI")
+
+    except Exception as e:
+        logger.warning(f"Failed to generate title: {e}. Using truncated prompt.")
+        words = prompt.strip().split()[:6]
+        return " ".join(words).title()
+
+
 def plan_job(slack_text: str) -> JobConfig:
     """
     Use OpenAI to plan a research job from Slack text input.

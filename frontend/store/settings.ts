@@ -73,9 +73,9 @@ interface SettingsState {
   updateSettings: (updates: Partial<UserSettings>) => Promise<void>;
   validateFolder: (folderUrl: string) => Promise<FolderValidation>;
   checkUsername: (username: string) => Promise<UsernameCheck>;
-  addFolder: (folder: FolderValidation) => void;
-  removeFolder: (folderId: string) => void;
-  setDefaultFolder: (folderId: string) => void;
+  addFolder: (folder: FolderValidation) => Promise<void>;
+  removeFolder: (folderId: string) => Promise<void>;
+  setDefaultFolder: (folderId: string) => Promise<void>;
   clearError: () => void;
   clearSaveSuccess: () => void;
 }
@@ -257,8 +257,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
-  addFolder: (folder: FolderValidation) => {
-    const { settings } = get();
+  addFolder: async (folder: FolderValidation) => {
+    const { settings, updateSettings } = get();
     if (!settings || !folder.valid || !folder.folder_id) return;
 
     // Check if we already have 3 folders
@@ -282,18 +282,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       added_at: new Date().toISOString(),
     };
 
-    set({
-      settings: {
-        ...settings,
-        drive_folders: [...settings.drive_folders, newFolder],
-        default_folder_id: isFirst ? folder.folder_id : settings.default_folder_id,
-      },
-      folderValidation: null,
+    const newFolders = [...settings.drive_folders, newFolder];
+    const newDefaultId = isFirst ? folder.folder_id : settings.default_folder_id;
+
+    // Persist to backend
+    await updateSettings({
+      drive_folders: newFolders,
+      default_folder_id: newDefaultId,
     });
+
+    set({ folderValidation: null });
   },
 
-  removeFolder: (folderId: string) => {
-    const { settings } = get();
+  removeFolder: async (folderId: string) => {
+    const { settings, updateSettings } = get();
     if (!settings) return;
 
     const updatedFolders = settings.drive_folders.filter((f) => f.folder_id !== folderId);
@@ -308,17 +310,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       });
     }
 
-    set({
-      settings: {
-        ...settings,
-        drive_folders: updatedFolders,
-        default_folder_id: newDefaultId,
-      },
+    // Persist to backend
+    await updateSettings({
+      drive_folders: updatedFolders,
+      default_folder_id: newDefaultId,
     });
   },
 
-  setDefaultFolder: (folderId: string) => {
-    const { settings } = get();
+  setDefaultFolder: async (folderId: string) => {
+    const { settings, updateSettings } = get();
     if (!settings) return;
 
     const updatedFolders = settings.drive_folders.map((f) => ({
@@ -326,12 +326,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       is_default: f.folder_id === folderId,
     }));
 
-    set({
-      settings: {
-        ...settings,
-        drive_folders: updatedFolders,
-        default_folder_id: folderId,
-      },
+    // Persist to backend
+    await updateSettings({
+      drive_folders: updatedFolders,
+      default_folder_id: folderId,
     });
   },
 

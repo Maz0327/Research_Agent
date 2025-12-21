@@ -20,16 +20,23 @@ class Outputs(BaseModel):
     claims_ledger_md: Optional[str] = Field(None, description="Claims ledger markdown")
     evidence_table_md: Optional[str] = Field(None, description="Evidence table markdown")
     missing_angles_md: Optional[str] = Field(None, description="Missing angles markdown")
+    timeline_md: Optional[str] = Field(None, description="Timeline markdown")
+    entities_md: Optional[str] = Field(None, description="Entities markdown")
+    reddit_discussions_md: Optional[str] = Field(None, description="Reddit discussions markdown")
 
 
 class JobRecord(BaseModel):
     """Complete job record for storage."""
     job_id: str = Field(..., description="Unique job identifier")
     user_id: Optional[str] = Field(None, description="User ID (from Supabase auth)")
+    title: Optional[str] = Field(None, description="AI-generated short title for the job")
+    pipeline: str = Field(default="investigation", description="Pipeline mode (quick, full, breaking_news, investigation, profile, controversy)")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Job creation timestamp")
-    status: str = Field(default="queued", description="Job status (queued, running, completed, failed)")
+    status: str = Field(default="queued", description="Job status (queued, running, completed, failed, cancelled)")
     stage: Optional[str] = Field(None, description="Current pipeline stage")
+    stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
     progress_percent: int = Field(default=0, ge=0, le=100, description="Progress percentage")
+    error: Optional[str] = Field(None, description="Error message if job failed")
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
     warnings: list[str] = Field(default_factory=list, description="List of warnings encountered")
     artifacts: Artifacts = Field(default_factory=Artifacts, description="Job artifacts")
@@ -39,6 +46,7 @@ class JobRecord(BaseModel):
         json_schema_extra = {
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
+                "pipeline": "investigation",
                 "created_at": "2024-01-15T10:30:00Z",
                 "status": "running",
                 "stage": "gathering_sources",
@@ -58,4 +66,3 @@ class JobRecord(BaseModel):
                 },
             }
         }
-

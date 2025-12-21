@@ -3,10 +3,14 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from loguru import logger
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+# Maximum request body size (10 MB)
+MAX_REQUEST_SIZE_BYTES = 10 * 1024 * 1024
 
 from backend.app.routes import router as slack_router
 from backend.auth import AuthUser
@@ -67,6 +71,27 @@ if cors_origins:
 else:
     logger.warning("FRONTEND_ORIGINS not set - CORS middleware not configured")
 
+# Request body size limit middleware
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    """Reject requests with bodies larger than MAX_REQUEST_SIZE_BYTES."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_SIZE_BYTES:
+                logger.warning(
+                    f"Request rejected: body size {content_length} exceeds limit "
+                    f"{MAX_REQUEST_SIZE_BYTES} bytes"
+                )
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request body too large"},
+                )
+        except ValueError:
+            pass  # Invalid content-length header, let the request through
+    return await call_next(request)
+
+
 # Add security headers middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -76,6 +101,8 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Cache-Control"] = "no-store"  # Prevent caching of sensitive data
+    response.headers["Content-Security-Policy"] = "default-src 'self'"  # Basic CSP
 
     # Only add HSTS in production
     if settings.environment == "production":
@@ -211,11 +238,35 @@ async def validate_folder_endpoint(
 
     # Try to access the folder using Google Drive API
     try:
+        from googleapiclient.errors import HttpError
         from backend.integrations.google_drive_docs import build_oauth_credentials, _get_drive_service
-        from backend.config import require_google_oauth
+        from backend.config import require_google_oauth, MissingRequiredSettingError
 
-        settings = require_google_oauth()
-        creds = build_oauth_credentials(settings)
+        # Check OAuth is configured
+        try:
+            settings = require_google_oauth()
+        except MissingRequiredSettingError as e:
+            logger.error(f"OAuth not configured: {e}")
+            return FolderValidationResponse(
+                valid=False,
+                folder_id=folder_id,
+                accessible=False,
+                error="Google Drive not configured. Contact admin to set up OAuth credentials."
+            )
+
+        # Build credentials
+        try:
+            creds = build_oauth_credentials(settings)
+            logger.info(f"OAuth credentials built successfully, valid={creds.valid}")
+        except Exception as cred_error:
+            logger.exception(f"Failed to build OAuth credentials: {type(cred_error).__name__}: {cred_error}")
+            return FolderValidationResponse(
+                valid=False,
+                folder_id=folder_id,
+                accessible=False,
+                error=f"OAuth credentials error: {type(cred_error).__name__}. Check server logs."
+            )
+
         drive_service = _get_drive_service(creds)
 
         # Get folder metadata
@@ -232,6 +283,7 @@ async def validate_folder_endpoint(
                 error="URL does not point to a folder"
             )
 
+        logger.info(f"Folder validated successfully: {folder.get('name')} ({folder_id})")
         return FolderValidationResponse(
             valid=True,
             folder_id=folder_id,
@@ -239,16 +291,17 @@ async def validate_folder_endpoint(
             accessible=True
         )
 
-    except Exception as e:
-        error_msg = str(e)
-        if "404" in error_msg or "not found" in error_msg.lower():
-            error_msg = "Folder not found. Please check the URL and ensure the folder is shared."
-        elif "403" in error_msg or "permission" in error_msg.lower():
-            error_msg = "Cannot access folder. Please share it with the service account."
-        else:
-            error_msg = "Could not validate folder. Please try again."
+    except HttpError as e:
+        # Handle specific Google API errors
+        status_code = e.resp.status if hasattr(e, 'resp') else 'unknown'
+        logger.error(f"Drive API HttpError for folder {folder_id}: status={status_code}, reason={e.reason if hasattr(e, 'reason') else str(e)}")
 
-        logger.warning(f"Folder validation failed for user {user.user_id}: {e}")
+        if status_code == 404:
+            error_msg = "Folder not found. Please check the URL and ensure the folder exists."
+        elif status_code == 403:
+            error_msg = "Cannot access folder. Please share it with your account or make it accessible."
+        else:
+            error_msg = f"Google Drive API error ({status_code}). Please try again."
 
         return FolderValidationResponse(
             valid=False,
@@ -256,6 +309,40 @@ async def validate_folder_endpoint(
             accessible=False,
             error=error_msg
         )
+
+    except Exception as e:
+        # Log the ACTUAL error for debugging
+        logger.exception(f"Unexpected error validating folder {folder_id} for user {user.user_id}: {type(e).__name__}: {e}")
+
+        return FolderValidationResponse(
+            valid=False,
+            folder_id=folder_id,
+            accessible=False,
+            error=f"Validation error: {type(e).__name__}. Check server logs for details."
+        )
+
+
+@app.get("/settings/oauth-status")
+@limiter.limit("10/minute")
+async def get_oauth_status(
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+):
+    """
+    Check if Google OAuth is properly configured.
+
+    Returns the status of Google Drive integration.
+
+    Requires authentication.
+    """
+    from backend.integrations.google_drive_docs import validate_oauth_config
+
+    is_valid, message = validate_oauth_config()
+
+    return {
+        "connected": is_valid,
+        "message": message,
+    }
 
 
 @app.get("/settings/check-username", response_model=UsernameCheckResponse)

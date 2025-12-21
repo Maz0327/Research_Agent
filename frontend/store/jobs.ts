@@ -7,8 +7,11 @@ import { getAccessToken } from '../lib/supabase';
 export interface Job {
   id: string;
   prompt: string;
+  title?: string;  // AI-generated short title
   pipeline: string;
   status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  stage?: string;  // Current pipeline stage
+  stage_started_at?: string;  // When current stage started (for ETA)
   progress_percent: number;
   artifacts?: {
     drive_folder_url?: string;
@@ -135,7 +138,10 @@ export const useJobsStore = create<JobsState>((set, get) => ({
             ? {
                 ...job,
                 status: data.status,
+                stage: data.stage,
+                stage_started_at: data.stage_started_at,
                 progress_percent: data.progress_percent,
+                title: data.title,
                 artifacts: data.artifacts,
                 error: data.error,
               }

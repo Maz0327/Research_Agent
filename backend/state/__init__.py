@@ -66,22 +66,24 @@ def update_job(
     status: str | None = None,
     stage: str | None = None,
     progress_percent: int | None = None,
+    title: str | None = None,
     partial_outputs: dict | None = None,
     partial_artifacts: dict | None = None,
     warnings_append: list[str] | None = None,
 ) -> JobRecord | None:
     """
     Update a job with partial updates.
-    
+
     Args:
         job_id: Job identifier
         status: New status (optional)
         stage: New stage (optional)
         progress_percent: New progress percentage (optional)
+        title: AI-generated short title (optional)
         partial_outputs: Partial outputs dict to merge (optional)
         partial_artifacts: Partial artifacts dict to merge (optional)
         warnings_append: List of warnings to append (optional)
-        
+
     Returns:
         Updated JobRecord if found, None otherwise
     """
@@ -91,6 +93,7 @@ def update_job(
         status=status,
         stage=stage,
         progress_percent=progress_percent,
+        title=title,
         partial_outputs=partial_outputs,
         partial_artifacts=partial_artifacts,
         warnings_append=warnings_append,

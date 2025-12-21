@@ -1,4 +1,5 @@
 """Celery worker configuration and task definitions."""
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from celery import Celery
@@ -6,7 +7,7 @@ from loguru import logger
 
 from backend.config import get_settings
 from backend.integrations.google_drive_docs import create_research_packet
-from backend.integrations.openai_client import plan_job
+from backend.integrations.openai_client import plan_job, generate_short_title
 from backend.integrations.perplexity_client import research_map, source_shortlist
 from backend.integrations.transcripts import fetch_transcript, TranscriptStatus
 from backend.integrations.web_capture import capture_web_content
@@ -142,11 +143,22 @@ def run_research_job(
             if not config_dict or "topic" not in config_dict:
                 raise ValueError("Invalid job_config structure: missing required fields")
             
-            # Save config to job
+            # Generate short title for the job
+            try:
+                short_title = generate_short_title(topic)
+                logger.info(f"[{job_id}] Generated title: '{short_title}'")
+            except Exception as title_error:
+                logger.warning(f"[{job_id}] Failed to generate title: {title_error}")
+                # Fallback to first 6 words
+                short_title = " ".join(topic.split()[:6]).title()
+                warnings.append(f"Title generation failed, using fallback: {short_title}")
+
+            # Save config and title to job
             job = get_job(job_id)
             if job:
                 update_job(
                     job_id,
+                    title=short_title,
                     partial_outputs={"config_json": config_dict},
                 )
             logger.info(f"[{job_id}] Planned job: {job_config.topic}, mode={job_config.mode}")
@@ -850,6 +862,69 @@ def _generate_web_extracts_md(web_sources: list) -> str:
         if source.notes:
             lines.append(f"\n*Note: {source.notes}*")
         lines.append("\n---\n")
+
+    return "\n".join(lines)
+
+
+def _generate_evidence_table_md(evidence_records: list) -> str:
+    """
+    Generate evidence table markdown document.
+
+    Args:
+        evidence_records: List of EvidenceRecord objects
+
+    Returns:
+        Evidence table markdown string
+    """
+    if not evidence_records:
+        return "# Evidence Table\n\n*No evidence records available.*"
+
+    lines = [
+        "# Evidence Table",
+        "",
+        "| Claim ID | Status | Evidence For | Evidence Against | Notes |",
+        "|----------|--------|--------------|------------------|-------|",
+    ]
+
+    for record in evidence_records:
+        claim_id = record.claim_id if hasattr(record, 'claim_id') else str(record.get('claim_id', 'N/A'))
+        status = record.status.value if hasattr(record, 'status') else str(record.get('status', 'Unproven'))
+
+        # Format evidence for
+        evidence_for = []
+        for_list = record.evidence_for if hasattr(record, 'evidence_for') else record.get('evidence_for', [])
+        for citation in for_list:
+            url = citation.url if hasattr(citation, 'url') else citation.get('url', '')
+            if url:
+                evidence_for.append(f"[Link]({url})")
+        evidence_for_str = ", ".join(evidence_for) if evidence_for else "-"
+
+        # Format evidence against
+        evidence_against = []
+        against_list = record.evidence_against if hasattr(record, 'evidence_against') else record.get('evidence_against', [])
+        for citation in against_list:
+            url = citation.url if hasattr(citation, 'url') else citation.get('url', '')
+            if url:
+                evidence_against.append(f"[Link]({url})")
+        evidence_against_str = ", ".join(evidence_against) if evidence_against else "-"
+
+        # Format notes (truncate and escape pipes)
+        notes = record.notes if hasattr(record, 'notes') else record.get('notes', '')
+        notes_str = (notes or "-")[:100].replace("|", "\\|").replace("\n", " ")
+
+        lines.append(f"| {claim_id} | {status} | {evidence_for_str} | {evidence_against_str} | {notes_str} |")
+
+    lines.append("")
+    lines.append(f"**Total claims validated:** {len(evidence_records)}")
+
+    # Summary statistics
+    verified = sum(1 for r in evidence_records if (r.status.value if hasattr(r, 'status') else r.get('status', '')) == 'Verified')
+    debunked = sum(1 for r in evidence_records if (r.status.value if hasattr(r, 'status') else r.get('status', '')) == 'Debunked')
+    unproven = sum(1 for r in evidence_records if (r.status.value if hasattr(r, 'status') else r.get('status', '')) == 'Unproven')
+
+    lines.append(f"- Verified: {verified}")
+    lines.append(f"- Debunked: {debunked}")
+    lines.append(f"- Unproven: {unproven}")
 
     return "\n".join(lines)
 

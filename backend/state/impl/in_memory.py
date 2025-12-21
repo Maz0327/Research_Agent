@@ -19,9 +19,12 @@ class InMemoryJobStore(JobStore):
     def create_job(self, config_json: dict, user_id: str | None = None) -> JobRecord:
         """Create a new job record."""
         job_id = str(uuid.uuid4())
+        # Extract pipeline from config_json
+        pipeline = config_json.get("pipeline", "investigation")
         job = JobRecord(
             job_id=job_id,
             user_id=user_id,
+            pipeline=pipeline,
             created_at=datetime.now(timezone.utc),
             status="queued",
             config_json=config_json,
@@ -41,41 +44,61 @@ class InMemoryJobStore(JobStore):
         status: Optional[str] = None,
         stage: Optional[str] = None,
         progress_percent: Optional[int] = None,
+        title: Optional[str] = None,
+        error: Optional[str] = None,
         partial_outputs: Optional[dict] = None,
         partial_artifacts: Optional[dict] = None,
         warnings_append: Optional[list[str]] = None,
+        config_json: Optional[dict] = None,
+        artifacts: Optional[Artifacts] = None,
+        warnings: Optional[list[str]] = None,
     ) -> Optional[JobRecord]:
         """Update a job record with partial updates."""
         job = self._jobs.get(job_id)
         if not job:
             logger.warning(f"Job {job_id} not found for update")
             return None
-        
-        # Update fields
+
+        # Update simple fields
         if status is not None:
             job.status = status
         if stage is not None:
+            # Track when stage changed for ETA calculation
+            if job.stage != stage:
+                job.stage_started_at = datetime.now(timezone.utc)
             job.stage = stage
         if progress_percent is not None:
             job.progress_percent = progress_percent
-        
-        # Append warnings
+        if title is not None:
+            job.title = title
+        if error is not None:
+            job.error = error
+        if config_json is not None:
+            job.config_json = config_json
+
+        # Full replacements
+        if artifacts is not None:
+            job.artifacts = artifacts
+        if warnings is not None:
+            job.warnings = warnings
+
+        # Append warnings (merge operation)
         if warnings_append:
             job.warnings.extend(warnings_append)
-        
+
         # Merge partial outputs
         if partial_outputs:
             for key, value in partial_outputs.items():
                 if hasattr(job.outputs, key) and value is not None:
                     setattr(job.outputs, key, value)
-        
+
         # Merge partial artifacts
         if partial_artifacts:
             for key, value in partial_artifacts.items():
                 if hasattr(job.artifacts, key) and value is not None:
                     setattr(job.artifacts, key, value)
-        
-        logger.info(f"Updated job {job_id} in memory")
+
+        logger.debug(f"Updated job {job_id} in memory")
         return job
 
     def list_jobs(

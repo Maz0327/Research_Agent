@@ -58,7 +58,7 @@ def verify_jwt(token: str) -> AuthUser:
             token,
             settings.supabase_jwt_secret,
             algorithms=["HS256"],
-            audience="authenticated",  # Supabase sets this for authenticated users
+            audience=settings.supabase_jwt_audience,  # Configurable audience
         )
 
         # Extract user ID from 'sub' claim

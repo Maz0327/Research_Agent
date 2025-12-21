@@ -12,8 +12,8 @@ from backend.models.job_record import Artifacts, JobRecord, Outputs
 from backend.state.interface import JobStore
 from backend.utils.error_handling import sanitize_error_message
 
-# Constants
-SUPABASE_API_TIMEOUT = 5.0  # seconds
+# Constants - increased timeout for large updates
+SUPABASE_API_TIMEOUT = 15.0  # seconds (increased from 5.0)
 
 
 def _rest_base_url() -> str:
@@ -68,15 +68,22 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
         claims_ledger_md=outputs_data.get("claims_ledger_md"),
         evidence_table_md=outputs_data.get("evidence_table_md"),
         missing_angles_md=outputs_data.get("missing_angles_md"),
+        timeline_md=outputs_data.get("timeline_md"),
+        entities_md=outputs_data.get("entities_md"),
+        reddit_discussions_md=outputs_data.get("reddit_discussions_md"),
     )
 
     return JobRecord(
         job_id=row["id"],
         user_id=row.get("user_id"),
+        title=row.get("title"),
+        pipeline=row.get("pipeline", "investigation"),
         created_at=_parse_datetime(row.get("created_at")) or datetime.now(timezone.utc),
         status=row.get("status", "queued"),
         stage=row.get("stage"),
+        stage_started_at=_parse_datetime(row.get("stage_started_at")),
         progress_percent=row.get("progress_percent", 0),
+        error=row.get("error"),
         config_json=row.get("config_json") or {},
         warnings=row.get("warnings") or [],
         artifacts=artifacts,
@@ -112,7 +119,7 @@ class SupabaseJobStore(JobStore):
             payload["user_id"] = user_id
 
         logger.info("Creating job in Supabase with config_json keys=%s (user: %s)", list(config_json.keys()), user_id or "anonymous")
-        logger.debug("Supabase job insert payload: %r", payload)
+        logger.debug("Supabase job insert payload keys: %s", list(payload.keys()))
 
         with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as client:
             resp = client.post(url, headers=headers, json=payload)
@@ -174,55 +181,89 @@ class SupabaseJobStore(JobStore):
         status: Optional[str] = None,
         stage: Optional[str] = None,
         progress_percent: Optional[int] = None,
+        title: Optional[str] = None,
+        error: Optional[str] = None,
         partial_outputs: Optional[dict] = None,
         partial_artifacts: Optional[dict] = None,
         warnings_append: Optional[list[str]] = None,
+        config_json: Optional[dict] = None,
+        artifacts: Optional[Artifacts] = None,
+        warnings: Optional[list[str]] = None,
     ) -> Optional[JobRecord]:
-        """Update a job record in Supabase."""
-        # First get the current job to merge updates
-        current_job = self.get_job(job_id)
-        if not current_job:
-            logger.warning(f"Job {job_id} not found for update")
-            return None
+        """
+        Update a job record in Supabase using atomic operations where possible.
 
-        # Build update payload
+        This method minimizes race conditions by:
+        1. Only fetching current state when needed for merging
+        2. Using PATCH for atomic field updates
+        3. Avoiding unnecessary reads when only setting simple fields
+        """
+        # Build update payload - simple fields don't need current state
         payload: dict[str, Any] = {}
 
         if status is not None:
             payload["status"] = status
-        if stage is not None:
-            payload["stage"] = stage
         if progress_percent is not None:
             payload["progress_percent"] = progress_percent
+        if title is not None:
+            payload["title"] = title
+        if error is not None:
+            payload["error"] = error
 
-        # Append warnings
-        if warnings_append:
-            new_warnings = current_job.warnings + warnings_append
-            payload["warnings"] = new_warnings
+        # Stage update with timestamp tracking
+        if stage is not None:
+            payload["stage"] = stage
+            # Always update stage_started_at when stage changes
+            # The caller should only pass stage when it actually changes
+            payload["stage_started_at"] = datetime.now(timezone.utc).isoformat()
 
-        # Merge partial outputs
-        if partial_outputs:
-            outputs_dict = current_job.outputs.model_dump(exclude_none=True)
-            outputs_dict.update(partial_outputs)
-            payload["outputs"] = outputs_dict
+        # Handle full replacements (no merge needed)
+        if artifacts is not None:
+            payload["artifacts"] = artifacts.model_dump(exclude_none=True)
+        if warnings is not None:
+            payload["warnings"] = warnings
+        if config_json is not None:
+            payload["config_json"] = config_json
 
-        # Merge partial artifacts
-        if partial_artifacts:
-            artifacts_dict = current_job.artifacts.model_dump(exclude_none=True)
-            artifacts_dict.update(partial_artifacts)
-            payload["artifacts"] = artifacts_dict
+        # For merge operations, we need to fetch current state
+        needs_current_state = bool(partial_outputs or partial_artifacts or warnings_append)
+        current_job = None
+
+        if needs_current_state:
+            current_job = self.get_job(job_id)
+            if not current_job:
+                logger.warning(f"Job {job_id} not found for update")
+                return None
+
+            # Append warnings (merge with existing)
+            if warnings_append:
+                new_warnings = (current_job.warnings or []) + warnings_append
+                payload["warnings"] = new_warnings
+
+            # Merge partial outputs
+            if partial_outputs:
+                outputs_dict = current_job.outputs.model_dump(exclude_none=True)
+                outputs_dict.update(partial_outputs)
+                payload["outputs"] = outputs_dict
+
+            # Merge partial artifacts
+            if partial_artifacts:
+                artifacts_dict = current_job.artifacts.model_dump(exclude_none=True)
+                artifacts_dict.update(partial_artifacts)
+                payload["artifacts"] = artifacts_dict
 
         if not payload:
-            # No changes, return current job
-            return current_job
+            # No changes, fetch and return current job if we don't have it
+            if current_job:
+                return current_job
+            return self.get_job(job_id)
 
         url = _rest_base_url() + "/jobs"
         headers = _headers()
         headers["Prefer"] = "return=representation"
         params = {"id": f"eq.{job_id}"}
 
-        logger.info(f"Updating job {job_id} in Supabase with keys=%s", list(payload.keys()))
-        logger.debug("Supabase job update payload: %r", payload)
+        logger.debug(f"Updating job {job_id} in Supabase with keys: {list(payload.keys())}")
 
         with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as client:
             resp = client.patch(url, headers=headers, params=params, json=payload)
@@ -291,5 +332,5 @@ class SupabaseJobStore(JobStore):
             return []
 
         jobs = [_record_from_db_row(row) for row in data]
-        logger.info(f"Listed {len(jobs)} jobs from Supabase")
+        logger.debug(f"Listed {len(jobs)} jobs from Supabase")
         return jobs

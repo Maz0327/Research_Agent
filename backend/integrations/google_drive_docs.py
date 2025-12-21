@@ -73,11 +73,47 @@ def build_oauth_credentials(settings) -> Credentials:
 def _get_credentials(settings) -> Credentials:
     """
     Get Google OAuth2 credentials using refresh token.
-    
+
     Deprecated: Use build_oauth_credentials() instead.
     Kept for backward compatibility.
     """
     return build_oauth_credentials(settings)
+
+
+def validate_oauth_config() -> tuple[bool, str]:
+    """
+    Check if Google OAuth is properly configured and credentials are valid.
+
+    Returns:
+        Tuple of (is_valid, message) where message explains the status or error
+    """
+    from backend.config import get_settings
+
+    settings = get_settings()
+
+    # Check required settings
+    if not settings.google_oauth_client_id:
+        return False, "GOOGLE_OAUTH_CLIENT_ID not configured"
+    if not settings.google_oauth_client_secret:
+        return False, "GOOGLE_OAUTH_CLIENT_SECRET not configured"
+    if not settings.google_oauth_refresh_token:
+        return False, "GOOGLE_OAUTH_REFRESH_TOKEN not configured"
+
+    # Try to refresh credentials
+    try:
+        creds = build_oauth_credentials(settings)
+        if creds.valid:
+            return True, "Google Drive connected successfully"
+        else:
+            return False, "OAuth credentials exist but are invalid"
+    except Exception as e:
+        error_msg = str(e)
+        if "invalid_grant" in error_msg.lower():
+            return False, "OAuth refresh token expired. Please re-authorize."
+        elif "invalid_client" in error_msg.lower():
+            return False, "OAuth client credentials are invalid."
+        else:
+            return False, f"OAuth error: {type(e).__name__}"
 
 
 def _get_drive_service(creds: Credentials):
@@ -88,6 +124,77 @@ def _get_drive_service(creds: Credentials):
 def _get_docs_service(creds: Credentials):
     """Get Google Docs API service."""
     return build("docs", "v1", credentials=creds, cache_discovery=False)
+
+
+def _escape_drive_query(value: str) -> str:
+    """
+    Escape a string for use in Google Drive query strings.
+
+    Single quotes must be escaped with a backslash in Drive API queries.
+    See: https://developers.google.com/drive/api/v3/search-files
+
+    Args:
+        value: The string to escape
+
+    Returns:
+        Escaped string safe for use in Drive queries
+    """
+    # Escape backslashes first, then single quotes
+    return value.replace("\\", "\\\\").replace("'", "\\'")
+
+
+def _get_or_create_user_folder(
+    drive_service,
+    user_id: str,
+    parent_folder_id: str,
+) -> str:
+    """
+    Get or create a user-specific subfolder in Google Drive.
+
+    Args:
+        drive_service: Google Drive API service
+        user_id: User ID (first 8 chars used for folder name)
+        parent_folder_id: ID of parent folder ("root" for root)
+
+    Returns:
+        Folder ID of the user folder
+    """
+    user_folder_name = f"user-{user_id[:8]}"
+    escaped_name = _escape_drive_query(user_folder_name)
+
+    # Build query with properly escaped name
+    query = f"name='{escaped_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    if parent_folder_id != "root":
+        query += f" and '{parent_folder_id}' in parents"
+
+    results = drive_service.files().list(
+        q=query,
+        fields="files(id, webViewLink)",
+        pageSize=1,
+    ).execute()
+
+    existing_folders = results.get("files", [])
+    if existing_folders:
+        folder_id = existing_folders[0].get("id")
+        logger.info(f"Using existing user folder: {existing_folders[0].get('webViewLink')}")
+        return folder_id
+
+    # Create new user folder
+    user_folder_metadata = {
+        "name": user_folder_name,
+        "mimeType": "application/vnd.google-apps.folder",
+    }
+    if parent_folder_id != "root":
+        user_folder_metadata["parents"] = [parent_folder_id]
+
+    logger.info(f"Creating user folder for user_id: {user_id[:8]}")
+    user_folder = drive_service.files().create(
+        body=user_folder_metadata,
+        fields="id, webViewLink",
+    ).execute()
+
+    logger.info(f"Created user folder: {user_folder.get('webViewLink')}")
+    return user_folder.get("id")
 
 
 def create_research_packet(
@@ -132,38 +239,9 @@ def create_research_packet(
 
         # Create per-user subfolder if user_id provided
         if user_id:
-            user_folder_metadata = {
-                "name": f"user-{user_id[:8]}",  # Use first 8 chars of user_id
-                "mimeType": "application/vnd.google-apps.folder",
-            }
-            if parent_folder_id != "root":
-                user_folder_metadata["parents"] = [parent_folder_id]
-
-            # Check if user folder already exists
-            query = f"name='{user_folder_metadata['name']}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-            if parent_folder_id != "root":
-                query += f" and '{parent_folder_id}' in parents"
-
-            results = drive_service.files().list(
-                q=query,
-                fields="files(id, webViewLink)",
-                pageSize=1,
-            ).execute()
-
-            existing_folders = results.get("files", [])
-            if existing_folders:
-                # User folder exists, use it
-                parent_folder_id = existing_folders[0].get("id")
-                logger.info(f"Using existing user folder: {existing_folders[0].get('webViewLink')}")
-            else:
-                # Create new user folder
-                logger.info(f"Creating user folder for user_id: {user_id[:8]}")
-                user_folder = drive_service.files().create(
-                    body=user_folder_metadata,
-                    fields="id, webViewLink",
-                ).execute()
-                parent_folder_id = user_folder.get("id")
-                logger.info(f"Created user folder: {user_folder.get('webViewLink')}")
+            parent_folder_id = _get_or_create_user_folder(
+                drive_service, user_id, parent_folder_id
+            )
 
         # Create research folder
         folder_metadata = {
@@ -345,36 +423,9 @@ def create_transcript_doc(
 
         # Create per-user subfolder if user_id provided
         if user_id:
-            user_folder_metadata = {
-                "name": f"user-{user_id[:8]}",
-                "mimeType": "application/vnd.google-apps.folder",
-            }
-            if parent_folder_id != "root":
-                user_folder_metadata["parents"] = [parent_folder_id]
-
-            # Check if user folder already exists
-            query = f"name='{user_folder_metadata['name']}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-            if parent_folder_id != "root":
-                query += f" and '{parent_folder_id}' in parents"
-
-            results = drive_service.files().list(
-                q=query,
-                fields="files(id, webViewLink)",
-                pageSize=1,
-            ).execute()
-
-            existing_folders = results.get("files", [])
-            if existing_folders:
-                parent_folder_id = existing_folders[0].get("id")
-                logger.info(f"Using existing user folder: {existing_folders[0].get('webViewLink')}")
-            else:
-                logger.info(f"Creating user folder for user_id: {user_id[:8]}")
-                user_folder = drive_service.files().create(
-                    body=user_folder_metadata,
-                    fields="id, webViewLink",
-                ).execute()
-                parent_folder_id = user_folder.get("id")
-                logger.info(f"Created user folder: {user_folder.get('webViewLink')}")
+            parent_folder_id = _get_or_create_user_folder(
+                drive_service, user_id, parent_folder_id
+            )
 
         # Create folder with timestamp
         from datetime import datetime

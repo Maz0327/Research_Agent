@@ -1,5 +1,6 @@
 /**
  * Skeleton loading component for content placeholders.
+ * Dark mode styling with shimmer effect.
  */
 import { motion } from 'framer-motion';
 
@@ -26,9 +27,9 @@ export default function Skeleton({
 }: SkeletonProps) {
   return (
     <motion.div
-      className={`bg-gray-200 dark:bg-gray-700 ${roundedClasses[rounded]} ${className}`}
+      className={`bg-gray-800 ${roundedClasses[rounded]} ${className}`}
       style={{ width, height }}
-      animate={{ opacity: [0.5, 1, 0.5] }}
+      animate={{ opacity: [0.4, 0.7, 0.4] }}
       transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
     />
   );
@@ -50,7 +51,7 @@ export function SkeletonText({ lines = 3 }: { lines?: number }) {
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <Skeleton height={24} width="70%" className="mb-2" />

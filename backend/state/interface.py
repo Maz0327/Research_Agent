@@ -2,12 +2,12 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from backend.models.job_record import JobRecord
+from backend.models.job_record import Artifacts, JobRecord
 
 
 class JobStore(ABC):
     """Abstract interface for job storage."""
-    
+
     @abstractmethod
     def create_job(self, config_json: dict, user_id: Optional[str] = None) -> JobRecord:
         """
@@ -21,20 +21,20 @@ class JobStore(ABC):
             Created JobRecord with job_id
         """
         pass
-    
+
     @abstractmethod
     def get_job(self, job_id: str) -> Optional[JobRecord]:
         """
         Get a job record by ID.
-        
+
         Args:
             job_id: Job identifier
-            
+
         Returns:
             JobRecord if found, None otherwise
         """
         pass
-    
+
     @abstractmethod
     def update_job(
         self,
@@ -43,9 +43,14 @@ class JobStore(ABC):
         status: Optional[str] = None,
         stage: Optional[str] = None,
         progress_percent: Optional[int] = None,
+        title: Optional[str] = None,
+        error: Optional[str] = None,
         partial_outputs: Optional[dict] = None,
         partial_artifacts: Optional[dict] = None,
         warnings_append: Optional[list[str]] = None,
+        config_json: Optional[dict] = None,
+        artifacts: Optional[Artifacts] = None,
+        warnings: Optional[list[str]] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record with partial updates.
@@ -55,9 +60,14 @@ class JobStore(ABC):
             status: New status (optional)
             stage: New stage (optional)
             progress_percent: New progress percentage (optional)
+            title: AI-generated short title (optional)
+            error: Error message for failed jobs (optional)
             partial_outputs: Partial outputs dict to merge (optional)
             partial_artifacts: Partial artifacts dict to merge (optional)
             warnings_append: List of warnings to append (optional)
+            config_json: Full config_json replacement (optional)
+            artifacts: Full artifacts replacement (optional)
+            warnings: Full warnings replacement (optional)
 
         Returns:
             Updated JobRecord if found and updated, None otherwise
@@ -83,4 +93,3 @@ class JobStore(ABC):
             List of JobRecords, sorted by created_at descending
         """
         pass
-
