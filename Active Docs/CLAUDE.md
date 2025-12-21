@@ -19,6 +19,7 @@ Research Agent is a cloud-based research backend that aggregates content from Re
 
 | Service | Status | URL/Notes |
 |---------|--------|-----------|
+| **Frontend** | ✅ LIVE | https://research-agent-kohl.vercel.app |
 | **API** | ✅ LIVE | https://api-production-1c52.up.railway.app |
 | **Worker** | ✅ LIVE | Running Celery worker |
 | **Redis** | ✅ Running | Internal: redis.railway.internal:6379 |
@@ -27,10 +28,7 @@ Research Agent is a cloud-based research backend that aggregates content from Re
 - **Unified Dockerfile**: Both API and Worker use the same Dockerfile
 - **SERVICE_TYPE Variable**: Set `SERVICE_TYPE=worker` to run Celery, otherwise runs API
 - **entrypoint.sh**: Handles service type selection at runtime
-
-### Remaining Deployment Tasks
-1. **FRONTEND_ORIGINS**: Update to include Vercel domain once frontend is deployed
-2. **Frontend (Vercel)**: Deploy Next.js frontend to Vercel
+- **CORS**: FRONTEND_ORIGINS set to Vercel domain
 
 ### Key Commands
 ```bash

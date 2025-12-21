@@ -6,10 +6,10 @@ A cloud-based research backend for aggregating content from Reddit, YouTube, art
 
 | Service | Status | URL |
 |---------|--------|-----|
+| **Frontend** | ✅ Live | https://research-agent-kohl.vercel.app |
 | **API** | ✅ Live | https://api-production-1c52.up.railway.app |
 | **Worker** | ✅ Live | Celery worker (internal) |
 | **Redis** | ✅ Live | redis.railway.internal:6379 |
-| **Frontend** | 🔄 Pending | Vercel deployment pending |
 
 ## Features
 
