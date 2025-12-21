@@ -54,4 +54,6 @@ EXPOSE 8000
 # Note: Railway handles healthchecks externally via railway.toml
 
 # Run the API server (Railway provides PORT env var)
-CMD uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Using shell form to support ${PORT} variable substitution
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
