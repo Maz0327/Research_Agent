@@ -72,17 +72,22 @@ The backend is a distributed system with three main components:
   - Validation helpers for feature-specific settings (e.g., `require_supabase()`, `require_youtube()`)
   - All API keys and credentials are loaded from environment variables
 
-- **Pipeline Stages**: The research pipeline (`backend/worker.py:run_research_job`) runs 10 sequential stages:
+- **Pipeline Stages**: The research pipeline (`backend/worker.py:run_research_job`) runs 15 sequential stages:
   1. Initialization
-  2. Planning (OpenAI - generates JobConfig)
+  2. Planning (OpenAI - generates JobConfig and short title)
   3. Research mapping (Perplexity - identifies angles and key terms)
   4. Source discovery (Perplexity - finds relevant URLs)
   5. YouTube enumeration (YouTube Data API - finds relevant videos)
   6. Transcript fetching (youtube-transcript-api)
   7. Web capture (Playwright + Trafilatura)
-  8. Claim extraction (OpenAI - generates quote bank and claims ledger)
-  9. Claim validation (Perplexity - validates claims with evidence)
-  10. Drive document generation (Google Drive + Docs APIs)
+  8. Reddit collection (PRAW - collects relevant discussions)
+  9. Claim extraction (OpenAI - generates quote bank and claims ledger)
+  10. Timeline extraction (OpenAI - extracts chronological events)
+  11. Entity extraction (OpenAI - identifies key people/orgs/places)
+  12. Claim validation (Perplexity - validates claims with evidence)
+  13. Angle discovery (OpenAI - finds unique documentary angles)
+  14. Documentary analysis (OpenAI - generates documentary blueprint)
+  15. Drive upload (Google Drive + Docs APIs)
 
 - **Error Handling**: Graceful degradation - stages can fail without stopping the entire pipeline. Warnings are collected in `JobRecord.warnings` and partial results are still saved.
 
@@ -90,7 +95,17 @@ The backend is a distributed system with three main components:
 
 - **Framework**: Next.js 14 with TypeScript
 - **Pages Router**: Uses `pages/` directory structure (not App Router)
-- **Styling**: Tailwind CSS with custom configuration
+- **Styling**: Tailwind CSS with dark mode focus, custom animations
+- **State Management**: Zustand stores for jobs and settings
+- **UI Components** (`frontend/components/ui/`):
+  - `AnimatedButton`: Button with hover/press animations and loading state
+  - `GlowCard`: Dark mode card with hover glow effects
+  - `GradientText`: Gradient text for headings
+  - `ProgressRing`: Animated circular progress indicator
+  - `Skeleton`: Shimmer loading placeholder
+  - `StageIndicator`: Pipeline stage progress indicator
+- **Hooks** (`frontend/hooks/`):
+  - `useETA`: Stage-based ETA calculation with accurate time estimates
 
 ### Data Models
 
@@ -239,8 +254,18 @@ See `.env.example` for complete list. Critical ones:
 
 - `REDIS_URL`: Redis connection string (required)
 - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`: Job persistence (optional, uses in-memory if not set)
+- `SUPABASE_JWT_SECRET`: JWT secret for verifying auth tokens
+- `SUPABASE_JWT_AUDIENCE`: JWT audience claim (default: "authenticated")
 - `OPENAI_API_KEY`: Required for planning and extraction stages
 - `PERPLEXITY_API_KEY`: Required for research mapping and validation
 - `YOUTUBE_API_KEY`: Optional, for YouTube integration
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN`: Optional, for Drive uploads
 - `SLACK_SIGNING_SECRET`, `SLACK_BOT_TOKEN`: Optional, for Slack notifications
+
+## Security Features
+
+- **Request Size Limits**: 10MB maximum request body size
+- **Security Headers**: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, CSP, HSTS (production)
+- **Rate Limiting**: slowapi-based rate limiting on sensitive endpoints
+- **JWT Validation**: Configurable audience claim verification
+- **Drive Query Escaping**: Protection against query injection in Google Drive API calls

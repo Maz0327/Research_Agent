@@ -13,13 +13,28 @@ A cloud-based research backend for aggregating content from Reddit, YouTube, art
 
 ## Features
 
+### Research Capabilities
 - **Multi-mode Research Pipelines**: Quick, Full, Breaking News, Investigation, Profile, and Controversy modes
 - **AI-Powered Planning**: OpenAI-based research planning and claim extraction
-- **Source Aggregation**: YouTube transcripts, web articles, Reddit posts
+- **Source Aggregation**: YouTube transcripts, web articles, Reddit discussions
 - **Claim Validation**: Multi-source claim verification with evidence scoring
+- **Timeline Extraction**: Automatic extraction of chronological events
+- **Entity Extraction**: Identification of key people, organizations, and places
+- **Angle Discovery**: AI-powered discovery of unique documentary angles
 - **Google Drive Integration**: Automatic document generation and sharing
+
+### User Experience
+- **Dark Mode UI**: Modern dark-mode-first design with glow effects and animations
+- **Real-time Progress**: Stage-based ETA calculation with accurate time estimates
+- **Expanding Job Cards**: Inline job details without page navigation
+- **AI-Generated Titles**: Concise titles generated from verbose prompts
 - **User Authentication**: Supabase-based auth with per-user job isolation
+- **Multi-folder Support**: Link up to 3 Google Drive folders per user
+
+### Admin Features
 - **Admin Dashboard**: User management, job monitoring, error tracking
+- **Error Logging**: Centralized error tracking with stack traces
+- **Job Management**: View and manage all user jobs
 
 ## Architecture
 
@@ -111,7 +126,18 @@ Research_Agent/
 │   │   ├── login.tsx            # Authentication
 │   │   ├── transcripts.tsx      # Transcript extraction
 │   │   └── admin/               # Admin pages
-│   ├── components/              # React components
+│   ├── components/
+│   │   ├── JobCard.tsx          # Expandable job card
+│   │   ├── Layout.tsx           # Main layout with sidebar
+│   │   └── ui/                  # UI component library
+│   │       ├── AnimatedButton.tsx
+│   │       ├── GlowCard.tsx
+│   │       ├── GradientText.tsx
+│   │       ├── ProgressRing.tsx
+│   │       ├── Skeleton.tsx
+│   │       └── StageIndicator.tsx
+│   ├── hooks/
+│   │   └── useETA.ts            # Stage-based ETA calculation
 │   └── store/                   # Zustand state stores
 ├── .env.example                 # Environment template
 ├── requirements.txt             # Python dependencies
@@ -186,6 +212,7 @@ Frontend available at `http://localhost:3000`
 - `PUT /settings` - Update user settings
 - `POST /settings/validate-folder` - Validate Google Drive folder
 - `GET /settings/check-username` - Check username availability
+- `GET /settings/oauth-status` - Check Google OAuth connection status
 
 ### Research Jobs
 - `POST /jobs` - Create research job
@@ -215,6 +242,7 @@ See `.env.example` for the complete list. Key variables:
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `SUPABASE_JWT_SECRET` | JWT secret for auth |
+| `SUPABASE_JWT_AUDIENCE` | JWT audience claim (default: "authenticated") |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `PERPLEXITY_API_KEY` | Perplexity API key |
 | `GOOGLE_OAUTH_*` | Google OAuth credentials |
