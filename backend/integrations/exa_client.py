@@ -27,10 +27,10 @@ class ExaSearchClient:
         if not EXA_AVAILABLE:
             raise ImportError("exa-py library not installed")
 
-        # Try different environment variable names
-        api_key = os.getenv("EXA_API_KEY") or os.getenv("EXA.AI_SECRET_KEY")
+        # Try different environment variable names (EXAAI_ prefix for Railway compatibility)
+        api_key = os.getenv("EXA_API_KEY") or os.getenv("EXAAI_SECRET_KEY") or os.getenv("EXA.AI_SECRET_KEY")
         if not api_key:
-            raise ValueError("EXA_API_KEY or EXA.AI_SECRET_KEY environment variable is required")
+            raise ValueError("EXA_API_KEY or EXAAI_SECRET_KEY environment variable is required")
 
         self.client = Exa(api_key=api_key)
         self.cost_per_search = 0.001  # Approximate cost tracking
