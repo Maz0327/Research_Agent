@@ -6,31 +6,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Research Agent is a cloud-based research backend that aggregates content from Reddit, Twitter, articles, YouTube, and other sources. It processes research topics through a multi-stage pipeline that includes AI-powered planning, web scraping, transcript extraction, claim validation, and Google Drive document generation.
 
-**Current Phase:** Production Deployment (Phase 1-4 complete, deploying to Railway)
+**Current Phase:** Production Deployment (Phase 1-4 complete, deployed to Railway)
 
 ## Production Deployment Status (December 2024)
 
 ### Railway Project
-- **Project ID:** `60023fa4-e900-4049-8dde-d90a43c295ad`
+- **Project ID:** `9d40e7f3-4b60-4456-8a56-9ade9a9c3321`
+- **Project Name:** Research_Agent_Project_v2
 - **Environment:** production
 
 ### Services Deployed
 
 | Service | Status | URL/Notes |
 |---------|--------|-----------|
-| **API (Research_Agent)** | ✅ LIVE | https://researchagent-production-2d94.up.railway.app |
-| **Worker** | ⚠️ IN PROGRESS | Needs Dockerfile.worker configuration |
+| **API** | ✅ LIVE | https://api-production-1c52.up.railway.app |
+| **Worker** | ✅ LIVE | Running Celery worker |
 | **Redis** | ✅ Running | Internal: redis.railway.internal:6379 |
 
+### Architecture Notes
+- **Unified Dockerfile**: Both API and Worker use the same Dockerfile
+- **SERVICE_TYPE Variable**: Set `SERVICE_TYPE=worker` to run Celery, otherwise runs API
+- **entrypoint.sh**: Handles service type selection at runtime
+
 ### Remaining Deployment Tasks
-1. **Worker Service**: Configure Builder to "Dockerfile" and set path to `Dockerfile.worker`
-2. **FRONTEND_ORIGINS**: Update to include Vercel domain once frontend is deployed
-3. **Frontend (Vercel)**: Deploy Next.js frontend to Vercel
+1. **FRONTEND_ORIGINS**: Update to include Vercel domain once frontend is deployed
+2. **Frontend (Vercel)**: Deploy Next.js frontend to Vercel
 
 ### Key Commands
 ```bash
 # Link to Railway project
-railway link -p 60023fa4-e900-4049-8dde-d90a43c295ad
+railway link -p 9d40e7f3-4b60-4456-8a56-9ade9a9c3321
 
 # Check status
 railway status
@@ -40,11 +45,11 @@ railway service status
 railway logs -n 50
 
 # Switch between services
-railway service Research_Agent
+railway service API
 railway service Worker
 
-# Deploy
-railway up
+# Set variables
+railway variables --set "KEY=value"
 ```
 
 ## Architecture
