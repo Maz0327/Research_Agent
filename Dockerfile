@@ -48,16 +48,15 @@ RUN playwright install chromium
 # Copy application code
 COPY backend/ ./backend/
 
-# Copy worker entrypoint script (for Worker service)
-COPY worker_entrypoint.sh /app/worker_entrypoint.sh
-RUN chmod +x /app/worker_entrypoint.sh
+# Copy unified entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Expose port
 EXPOSE 8000
 
-# Note: Railway handles healthchecks externally via railway.toml
+# Default to API service (set SERVICE_TYPE=worker for Celery)
+ENV SERVICE_TYPE=api
 
-# Run the API server (Railway provides PORT env var)
-# Using shell form to support ${PORT} variable substitution
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Use unified entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
