@@ -48,5 +48,9 @@ RUN playwright install chromium
 # Copy application code
 COPY backend/ ./backend/
 
-# Run Celery worker
-CMD ["celery", "-A", "backend.worker", "worker", "--loglevel=INFO", "--concurrency=2"]
+# Copy worker entrypoint script
+COPY worker_entrypoint.sh /app/worker_entrypoint.sh
+RUN chmod +x /app/worker_entrypoint.sh
+
+# Run Celery worker with health endpoint for Railway
+CMD ["/app/worker_entrypoint.sh"]
