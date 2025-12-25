@@ -64,6 +64,22 @@ def stage_1_planning(ctx: PipelineContext) -> None:
         if not config_dict or "topic" not in config_dict:
             raise ValueError("Invalid job_config structure: missing required fields")
 
+        # Load niche overlay if specified
+        if ctx.job_config.niche:
+            try:
+                from backend.pipeline.niche_loader import merge_mode_and_niche, is_valid_niche
+                if is_valid_niche(ctx.job_config.niche):
+                    ctx.niche_config = merge_mode_and_niche(
+                        mode=ctx.job_config.mode.value,
+                        niche=ctx.job_config.niche
+                    )
+                    logger.info(f"[{ctx.job_id}] Loaded niche overlay: {ctx.job_config.niche}")
+                else:
+                    ctx.add_warning(f"Unknown niche '{ctx.job_config.niche}', ignoring")
+            except Exception as niche_error:
+                logger.warning(f"[{ctx.job_id}] Failed to load niche: {niche_error}")
+                ctx.add_warning(f"Niche loading failed: {str(niche_error)}")
+
         # Generate short title
         try:
             ctx.short_title = generate_short_title(ctx.topic)
@@ -118,7 +134,7 @@ def stage_2_research_mapping(ctx: PipelineContext) -> None:
 # =============================================================================
 
 def stage_3_source_shortlist(ctx: PipelineContext) -> None:
-    """Generate source shortlist using Perplexity."""
+    """Generate source shortlist using Perplexity and GDELT (for breaking_news)."""
     from backend.integrations.perplexity_client import source_shortlist
 
     logger.info(f"[{ctx.job_id}] Stage 3: Generating source shortlist")
@@ -131,9 +147,69 @@ def stage_3_source_shortlist(ctx: PipelineContext) -> None:
             ctx.add_warning("No research angles available - using topic as fallback")
             ctx.angles = ["general"]
 
-        result = source_shortlist(ctx.job_config, ctx.angles, ctx.key_terms)
+        # Add niche query expansions if configured
+        expanded_key_terms = list(ctx.key_terms)
+        if ctx.niche_config:
+            query_additions = ctx.niche_config.get("query_additions", [])
+            if query_additions:
+                # Expand queries with topic substitution
+                for query in query_additions:
+                    expanded = query.replace("{topic}", ctx.topic)
+                    expanded_key_terms.append(expanded)
+                logger.info(f"[{ctx.job_id}] Added {len(query_additions)} niche queries")
+
+            # Add priority keywords
+            priority_keywords = ctx.niche_config.get("priority_keywords", [])
+            if priority_keywords:
+                expanded_key_terms.extend(priority_keywords)
+
+        result = source_shortlist(ctx.job_config, ctx.angles, expanded_key_terms)
         ctx.web_sources = result.get("urls", []) or []
         ctx.set_output("source_shortlist_md", result.get("shortlist_md", ""))
+
+        # For breaking_news mode, also search GDELT for recent news
+        if ctx.job_config.mode.value in ("breaking_news", "BREAKING_NEWS"):
+            try:
+                from backend.integrations.gdelt_client import search_news_gdelt
+                from backend.models.source import SourceItem, SourceType
+
+                logger.info(f"[{ctx.job_id}] Fetching GDELT news for breaking_news mode")
+
+                # Search GDELT with short timespan for recency
+                gdelt_articles = search_news_gdelt(
+                    query=ctx.topic,
+                    timespan="24h",
+                    max_records=20
+                )
+
+                # Convert GDELT results to SourceItems
+                gdelt_sources = []
+                for article in gdelt_articles:
+                    if article.get("url"):
+                        source = SourceItem(
+                            url=article["url"],
+                            title=article.get("title", ""),
+                            source_type=SourceType.NEWS,
+                            text="",  # Will be filled in web capture
+                            published_at=article.get("published_date"),
+                            notes=f"GDELT: {article.get('source', 'unknown')}"
+                        )
+                        gdelt_sources.append(source)
+
+                if gdelt_sources:
+                    ctx.web_sources.extend(gdelt_sources)
+                    logger.info(f"[{ctx.job_id}] Added {len(gdelt_sources)} GDELT news sources")
+
+                    # Append to shortlist markdown
+                    gdelt_md = "\n\n## GDELT News Sources\n\n"
+                    for src in gdelt_sources[:10]:
+                        gdelt_md += f"- [{src.title or 'Untitled'}]({src.url})\n"
+                    current_md = ctx.outputs.get("source_shortlist_md", "")
+                    ctx.set_output("source_shortlist_md", current_md + gdelt_md)
+
+            except Exception as gdelt_error:
+                logger.warning(f"[{ctx.job_id}] GDELT search failed: {gdelt_error}")
+                ctx.add_warning(f"GDELT news search failed: {str(gdelt_error)}")
 
         # Enforce budget cap
         if ctx.web_sources:
@@ -528,8 +604,9 @@ def stage_8_5_angle_discovery(ctx: PipelineContext) -> None:
 # =============================================================================
 
 def stage_8_6_documentary_intelligence(ctx: PipelineContext) -> None:
-    """Analyze research data for documentary production."""
+    """Analyze research data for documentary production and generate dual output."""
     from backend.pipeline.documentary_intelligence import DocumentaryIntelligence
+    from backend.pipeline.dual_output import format_dual_output
 
     logger.info(f"[{ctx.job_id}] Stage 8.6: Documentary intelligence analysis")
     update_job(ctx.job_id, stage="documentary_analysis", progress_percent=82)
@@ -539,21 +616,37 @@ def stage_8_6_documentary_intelligence(ctx: PipelineContext) -> None:
         job = get_job(ctx.job_id)
         pipeline_mode = job.pipeline if hasattr(job, 'pipeline') else "investigation"
 
+        research_data = {
+            "timeline": [e.model_dump() for e in ctx.timeline_events] if ctx.timeline_events else [],
+            "entities": ctx.entities,
+            "claims": ctx.claims,
+            "sources": ctx.web_sources + ctx.transcripts,
+            "validation": ctx.evidence_records,
+            "discovered_angles": ctx.discovered_angles
+        }
+
         ctx.documentary_analysis = doc_intel.analyze(
-            research_data={
-                "timeline": [e.model_dump() for e in ctx.timeline_events] if ctx.timeline_events else [],
-                "entities": ctx.entities,
-                "claims": ctx.claims,
-                "sources": ctx.web_sources + ctx.transcripts,
-                "validation": ctx.evidence_records,
-                "discovered_angles": ctx.discovered_angles
-            },
+            research_data=research_data,
             doc_type=pipeline_mode
         )
 
         if ctx.documentary_analysis:
             ctx.outputs["documentary_analysis"] = ctx.documentary_analysis
             logger.info(f"[{ctx.job_id}] Documentary analysis complete")
+
+            # Generate dual output: NotebookLM packet + Documentary blueprint
+            try:
+                dual_output = format_dual_output(
+                    research_data=research_data,
+                    documentary_analysis=ctx.documentary_analysis,
+                    title=ctx.short_title or ctx.topic,
+                )
+                ctx.set_output("notebooklm_packet_md", dual_output["notebooklm_md"])
+                ctx.set_output("documentary_blueprint_md", dual_output["documentary_md"])
+                logger.info(f"[{ctx.job_id}] Generated dual output (NotebookLM + Documentary)")
+            except Exception as dual_error:
+                logger.warning(f"[{ctx.job_id}] Dual output generation failed: {dual_error}")
+                ctx.add_warning(f"Dual output generation failed: {str(dual_error)}")
 
     except Exception as e:
         logger.warning(f"[{ctx.job_id}] Documentary analysis failed: {e}")
@@ -586,6 +679,12 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
             "08_EVIDENCE_TABLE": ctx.outputs.get("evidence_table_md", ""),
             "09_MISSING_ANGLES": ctx.outputs.get("missing_angles_md", ""),
         }
+
+        # Add dual output documents if available
+        if ctx.outputs.get("notebooklm_packet_md"):
+            doc_contents["10_NOTEBOOKLM_PACKET"] = ctx.outputs["notebooklm_packet_md"]
+        if ctx.outputs.get("documentary_blueprint_md"):
+            doc_contents["11_DOCUMENTARY_BLUEPRINT"] = ctx.outputs["documentary_blueprint_md"]
 
         folder_name = ctx.job_config.output.drive_folder_name or f"Research: {ctx.job_config.topic}"
 

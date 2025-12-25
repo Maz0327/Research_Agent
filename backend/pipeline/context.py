@@ -21,6 +21,9 @@ class PipelineContext:
     job_config: Optional[JobConfig] = None
     short_title: str = ""
 
+    # Niche configuration (set in Stage 1 if niche specified)
+    niche_config: Optional[dict] = None  # Merged mode+niche config
+
     # Stage 2: Research mapping
     angles: list = field(default_factory=list)
     key_terms: list = field(default_factory=list)

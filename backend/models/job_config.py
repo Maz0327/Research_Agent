@@ -196,6 +196,10 @@ class JobConfig(BaseModel):
         description="Research mode determines investigation focus",
     )
     topic: str = Field(..., description="Research topic/question")
+    niche: Optional[str] = Field(
+        default=None,
+        description="Niche overlay for specialized research (e.g., 'downfalls', 'mysteries')"
+    )
     time_window: TimeWindow = Field(
         default_factory=TimeWindow, description="Time window for filtering sources"
     )
