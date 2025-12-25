@@ -1,6 +1,6 @@
 """Jina AI Reader - fast content extraction to LLM-ready markdown."""
 import os
-from typing import Dict, Optional, List
+from typing import Dict, List
 import httpx
 from loguru import logger
 

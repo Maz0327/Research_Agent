@@ -1,6 +1,5 @@
 """Claim validation using Perplexity AI."""
 import re
-from typing import Optional
 
 from loguru import logger
 

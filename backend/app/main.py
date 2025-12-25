@@ -9,9 +9,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-# Maximum request body size (10 MB)
-MAX_REQUEST_SIZE_BYTES = 10 * 1024 * 1024
-
 from backend.app.routes import router as slack_router
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user, get_optional_user, require_admin
@@ -29,12 +26,14 @@ from backend.models.user_settings import (
     UserSettingsResponse,
     FolderValidationRequest,
     FolderValidationResponse,
-    UsernameCheckRequest,
     UsernameCheckResponse,
 )
 from backend.state import create_job, get_job, update_job, list_jobs
 from backend.state.settings_store import get_or_create_settings, update_user_settings
 from backend.worker import run_research_job, run_transcript_job
+
+# Maximum request body size (10 MB)
+MAX_REQUEST_SIZE_BYTES = 10 * 1024 * 1024
 
 settings = get_settings()
 
@@ -922,7 +921,7 @@ async def get_admin_stats(user: AuthUser = Depends(require_admin)):
     Returns:
         Statistics including total users, jobs, and error counts
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime
     from backend.state.impl.supabase_store import get_supabase_client
 
     try:

@@ -1,11 +1,9 @@
 """Unified content extraction with Jina Reader."""
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from loguru import logger
 
 from backend.integrations.jina_reader_client import (
-    JinaReaderClient,
-    extract_with_jina,
-    extract_batch_with_jina
+    JinaReaderClient
 )
 
 # Keep Trafilatura as fallback

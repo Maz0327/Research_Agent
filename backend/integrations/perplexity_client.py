@@ -219,7 +219,7 @@ def research_map(job: JobConfig) -> dict:
         Dict with 'research_map_md', 'angles', 'key_terms'
     """
     try:
-        settings = require_perplexity()
+        require_perplexity()
     except MissingRequiredSettingError:
         logger.warning("Perplexity API key not configured. Returning basic research map.")
         return {
@@ -335,7 +335,7 @@ def source_shortlist(
         Dict with 'urls' (list of SourceItem) and 'shortlist_md' (markdown)
     """
     try:
-        settings = require_perplexity()
+        require_perplexity()
     except MissingRequiredSettingError:
         logger.warning("Perplexity API key not configured. Returning empty shortlist.")
         return {

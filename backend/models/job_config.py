@@ -1,7 +1,7 @@
 """Job configuration models."""
 from datetime import date
 from enum import Enum
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 

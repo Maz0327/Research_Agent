@@ -16,7 +16,6 @@ from backend.state.impl.in_memory import InMemoryJobStore
 
 # Import state modules
 from backend.state import create_job
-from backend.state.factory import get_job_store
 from backend.worker import run_research_job
 
 
@@ -95,7 +94,7 @@ Examples:
         # But to be safe, let's also update state_module's namespace
         state_module.get_job_store = _get_job_store_dry_run
     
-    print(f"\n🚀 Starting research job pipeline...")
+    print("\n🚀 Starting research job pipeline...")
     print(f"📝 Topic: {slack_text}\n")
     if args.dry_run:
         print("🔧 Dry-run mode: Using InMemoryJobStore (Supabase disabled)\n")
@@ -123,7 +122,7 @@ Examples:
         if result.get("status") == "completed":
             folder_url = result.get("folder_url")
             if folder_url:
-                print(f"✅ Job completed successfully!")
+                print("✅ Job completed successfully!")
                 print(f"📁 Drive folder: {folder_url}")
                 print(f"📊 Claims extracted: {result.get('claims_count', 0)}")
                 print(f"📚 Sources: {result.get('sources_count', 0)} web, {result.get('youtube_videos_count', 0)} YouTube videos")
@@ -131,8 +130,8 @@ Examples:
                 if result.get("warnings_count", 0) > 0:
                     print(f"⚠️  Warnings: {result.get('warnings_count')} (check job details)")
             else:
-                print(f"⚠️  Job completed but Drive upload failed")
-                print(f"   Check job details for results")
+                print("⚠️  Job completed but Drive upload failed")
+                print("   Check job details for results")
         else:
             print(f"❌ Job failed: {result.get('error', 'Unknown error')}")
             sys.exit(1)

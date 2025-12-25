@@ -91,6 +91,28 @@ class Settings(BaseSettings):
     twitter_username: Optional[str] = Field(default=None, alias="TWITTER_USERNAME")
     twitter_password: Optional[str] = Field(default=None, alias="TWITTER_PASSWORD")
 
+    # PRD v4.3: Tavily API (PRIMARY search)
+    tavily_api_key: Optional[str] = Field(
+        default=None, alias="TAVILY_API_KEY",
+        description="Tavily API key for web search and extraction (PRIMARY)"
+    )
+
+    # PRD v4.3: Supadata API (PRIMARY transcription)
+    supadata_api_key: Optional[str] = Field(
+        default=None, alias="SUPADATA_API_KEY",
+        description="Supadata API key for multi-platform transcription (PRIMARY)"
+    )
+
+    # PRD v4.3: Feature flags
+    enable_quality_gate: bool = Field(
+        default=True, alias="ENABLE_QUALITY_GATE",
+        description="Enable Quality Gate filtering between discovery and extraction"
+    )
+    enable_niches: bool = Field(
+        default=True, alias="ENABLE_NICHES",
+        description="Enable niche overlay system for specialized research modes"
+    )
+
     @field_validator('supabase_jwt_secret')
     @classmethod
     def validate_jwt_secret(cls, v: Optional[str]) -> Optional[str]:
@@ -215,7 +237,7 @@ def require_slack() -> Settings:
 def require_google_oauth() -> Settings:
     """
     Get settings and validate Google OAuth configuration is present.
-    
+
     Raises:
         MissingRequiredSettingError: If Google OAuth settings are missing
     """
@@ -233,6 +255,42 @@ def require_google_oauth() -> Settings:
     if not settings.google_oauth_refresh_token:
         raise MissingRequiredSettingError(
             "GOOGLE_OAUTH_REFRESH_TOKEN is required for Google Drive/Docs integration. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_tavily() -> Settings:
+    """
+    Get settings and validate Tavily API key is present.
+
+    PRD v4.3: Tavily is the PRIMARY search API.
+
+    Raises:
+        MissingRequiredSettingError: If Tavily API key is missing
+    """
+    settings = get_settings()
+    if not settings.tavily_api_key:
+        raise MissingRequiredSettingError(
+            "TAVILY_API_KEY is required for web search (PRIMARY). "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_supadata() -> Settings:
+    """
+    Get settings and validate Supadata API key is present.
+
+    PRD v4.3: Supadata is the PRIMARY transcription API.
+
+    Raises:
+        MissingRequiredSettingError: If Supadata API key is missing
+    """
+    settings = get_settings()
+    if not settings.supadata_api_key:
+        raise MissingRequiredSettingError(
+            "SUPADATA_API_KEY is required for transcription (PRIMARY). "
             "Please set it in your .env file."
         )
     return settings

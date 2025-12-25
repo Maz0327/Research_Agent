@@ -1,4 +1,15 @@
-"""Transcript fetching for YouTube videos."""
+"""Transcript fetching for YouTube and multi-platform videos.
+
+PRD v4.3: Supadata is the PRIMARY transcription source.
+Fallback chain: Supadata → youtube-transcript-api → Whisper
+
+Supports:
+- YouTube (via Supadata, youtube-transcript-api, Whisper)
+- TikTok (via Supadata)
+- Instagram (via Supadata)
+- Twitter/X (via Supadata)
+- Facebook (via Supadata)
+"""
 import re
 from enum import Enum
 from typing import Optional
@@ -11,6 +22,14 @@ from youtube_transcript_api._errors import (
     TranscriptsDisabled,
     VideoUnavailable,
     YouTubeRequestFailed,
+)
+
+# Import Supadata client (PRIMARY per PRD v4.3)
+from backend.integrations.supadata_client import (
+    SupadataClient,
+    SupadataError,
+    TranscriptMode,
+    is_supadata_available,
 )
 
 
@@ -29,7 +48,64 @@ class TranscriptItem(BaseModel):
     status: TranscriptStatus = TranscriptStatus.MISSING
     language: Optional[str] = None
     error_message: Optional[str] = None
-    source: str = "youtube_transcript_api"  # "youtube_transcript_api" or "whisper"
+    source: str = "youtube_transcript_api"  # supadata_native, supadata_ai, youtube_transcript_api, whisper
+    platform: str = "youtube"  # youtube, tiktok, instagram, twitter, facebook
+    cost_credits: float = 0.0  # API cost tracking
+
+
+def _detect_platform(url: str) -> str:
+    """Detect platform from URL."""
+    url_lower = url.lower()
+    if "youtube.com" in url_lower or "youtu.be" in url_lower:
+        return "youtube"
+    elif "tiktok.com" in url_lower:
+        return "tiktok"
+    elif "instagram.com" in url_lower:
+        return "instagram"
+    elif "twitter.com" in url_lower or "x.com" in url_lower:
+        return "twitter"
+    elif "facebook.com" in url_lower or "fb.watch" in url_lower:
+        return "facebook"
+    return "unknown"
+
+
+def _fetch_with_supadata(
+    video_url: str,
+    mode: TranscriptMode = TranscriptMode.NATIVE,
+) -> tuple[Optional[str], Optional[str], Optional[str], float]:
+    """
+    Fetch transcript using Supadata API (PRIMARY per PRD v4.3).
+
+    Args:
+        video_url: Video URL (any supported platform)
+        mode: Transcript mode (native or generate)
+
+    Returns:
+        Tuple of (text, language, error_message, cost_credits)
+    """
+    if not is_supadata_available():
+        return None, None, "Supadata not configured", 0.0
+
+    try:
+        client = SupadataClient()
+        result = client.get_transcript(video_url, mode=mode)
+
+        text = result.get("text")
+        if text:
+            return (
+                text,
+                result.get("lang", "en"),
+                None,
+                result.get("cost_credits", 1.0),
+            )
+        else:
+            return None, None, "Empty transcript returned", 0.0
+
+    except SupadataError as e:
+        return None, None, f"Supadata error: {e}", 0.0
+    except Exception as e:
+        logger.exception(f"Supadata unexpected error: {e}")
+        return None, None, f"Supadata unexpected error: {e}", 0.0
 
 
 def _extract_video_id(video_url_or_id: str) -> Optional[str]:
@@ -241,4 +317,171 @@ def fetch_transcript(
         status=TranscriptStatus.MISSING,
         error_message=error_message,
     )
+
+
+def fetch_transcript_v2(
+    video_url: str,
+    preferred_languages: Optional[list[str]] = None,
+    use_whisper_fallback: bool = True,
+) -> TranscriptItem:
+    """
+    Fetch transcript using PRD v4.3 fallback chain.
+
+    Priority chain:
+    1. Supadata native (existing captions) - cheapest
+    2. Supadata AI (generate transcript) - more expensive
+    3. youtube-transcript-api (YouTube only, fallback) - free
+    4. Whisper (final fallback, costly)
+
+    Args:
+        video_url: Video URL (YouTube, TikTok, Instagram, Twitter, Facebook)
+        preferred_languages: List of language codes to try (default: ['en'])
+        use_whisper_fallback: Whether to use Whisper as final fallback
+
+    Returns:
+        TranscriptItem with transcript text if available
+
+    Example:
+        >>> transcript = fetch_transcript_v2("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        >>> if transcript.status == TranscriptStatus.AVAILABLE:
+        ...     print(f"Got transcript via {transcript.source}")
+    """
+    if preferred_languages is None:
+        preferred_languages = ['en']
+
+    platform = _detect_platform(video_url)
+    video_id = _extract_video_id(video_url) if platform == "youtube" else ""
+
+    errors = []
+
+    # Tier 1: Supadata native (existing captions)
+    logger.info(f"Tier 1: Trying Supadata native for {video_url[:50]}...")
+    text, language, error, cost = _fetch_with_supadata(video_url, TranscriptMode.NATIVE)
+
+    if text:
+        logger.info(f"Supadata native success for {video_url[:50]}")
+        return TranscriptItem(
+            video_id=video_id,
+            video_url=video_url,
+            text=text,
+            status=TranscriptStatus.AVAILABLE,
+            language=language,
+            source="supadata_native",
+            platform=platform,
+            cost_credits=cost,
+        )
+    else:
+        if error:
+            errors.append(f"supadata_native: {error}")
+
+    # Tier 2: Supadata AI generation
+    logger.info(f"Tier 2: Trying Supadata AI for {video_url[:50]}...")
+    text, language, error, cost = _fetch_with_supadata(video_url, TranscriptMode.GENERATE)
+
+    if text:
+        logger.info(f"Supadata AI success for {video_url[:50]}")
+        return TranscriptItem(
+            video_id=video_id,
+            video_url=video_url,
+            text=text,
+            status=TranscriptStatus.AVAILABLE,
+            language=language,
+            source="supadata_ai",
+            platform=platform,
+            cost_credits=cost,
+        )
+    else:
+        if error:
+            errors.append(f"supadata_ai: {error}")
+
+    # Tier 3: youtube-transcript-api (YouTube only)
+    if platform == "youtube" and video_id:
+        logger.info(f"Tier 3: Trying youtube-transcript-api for {video_id}...")
+        text, language, error = _fetch_with_youtube_transcript_api(video_id, preferred_languages)
+
+        if text:
+            logger.info(f"youtube-transcript-api success for {video_id}")
+            return TranscriptItem(
+                video_id=video_id,
+                video_url=video_url,
+                text=text,
+                status=TranscriptStatus.AVAILABLE,
+                language=language,
+                source="youtube_transcript_api",
+                platform=platform,
+                cost_credits=0.0,  # Free
+            )
+        else:
+            if error:
+                errors.append(f"youtube_transcript_api: {error}")
+
+    # Tier 4: Whisper (final fallback, YouTube only)
+    if use_whisper_fallback and platform == "youtube" and video_id:
+        logger.info(f"Tier 4: Trying Whisper for {video_id}...")
+        try:
+            from backend.integrations.whisper_client import transcribe_with_whisper
+
+            result = transcribe_with_whisper(video_id)
+            if result and result.get("text"):
+                logger.info(f"Whisper success for {video_id}")
+                return TranscriptItem(
+                    video_id=video_id,
+                    video_url=video_url,
+                    text=result["text"],
+                    status=TranscriptStatus.AVAILABLE,
+                    language=result.get("language", "en"),
+                    source="whisper",
+                    platform=platform,
+                    cost_credits=result.get("cost", 0.0) / 0.006,  # Convert $ to credits approx
+                )
+        except Exception as e:
+            errors.append(f"whisper: {e}")
+            logger.warning(f"Whisper failed for {video_id}: {e}")
+
+    # All tiers failed
+    error_summary = "; ".join(errors) if errors else "All transcription methods failed"
+    logger.warning(f"All transcription tiers failed for {video_url[:50]}: {error_summary}")
+
+    return TranscriptItem(
+        video_id=video_id,
+        video_url=video_url,
+        status=TranscriptStatus.MISSING,
+        error_message=error_summary,
+        platform=platform,
+    )
+
+
+def fetch_transcripts_batch(
+    video_urls: list[str],
+    preferred_languages: Optional[list[str]] = None,
+) -> list[TranscriptItem]:
+    """
+    Fetch transcripts for multiple videos.
+
+    Uses fetch_transcript_v2 for each video with the PRD v4.3 fallback chain.
+
+    Args:
+        video_urls: List of video URLs
+        preferred_languages: Preferred languages
+
+    Returns:
+        List of TranscriptItem results
+    """
+    results = []
+
+    for url in video_urls:
+        try:
+            result = fetch_transcript_v2(url, preferred_languages)
+            results.append(result)
+        except Exception as e:
+            logger.error(f"Failed to fetch transcript for {url}: {e}")
+            results.append(TranscriptItem(
+                video_id="",
+                video_url=url,
+                status=TranscriptStatus.ERROR,
+                error_message=str(e),
+                platform=_detect_platform(url),
+            ))
+
+    return results
 

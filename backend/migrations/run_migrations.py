@@ -3,7 +3,6 @@
 Migration runner for Supabase database.
 Executes SQL migrations in order.
 """
-import os
 import sys
 from pathlib import Path
 
@@ -32,7 +31,7 @@ def run_migrations():
     print(f"Found {len(migration_files)} migration files.")
 
     # Get Supabase client
-    supabase = get_supabase_client()
+    get_supabase_client()
 
     # Note: Supabase Python client doesn't support raw SQL execution
     # We need to run these manually via Supabase Dashboard SQL Editor

@@ -267,8 +267,8 @@ class DocumentaryIntelligence:
                 "relevance": f"{mentions} mentions",
                 "suggested_questions": [
                     f"What is your response to claims about {name}?",
-                    f"Can you clarify your role in these events?",
-                    f"What evidence supports your position?"
+                    "Can you clarify your role in these events?",
+                    "What evidence supports your position?"
                 ],
                 "priority": "high" if mentions > 20 else "medium" if mentions > 10 else "low"
             })

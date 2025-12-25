@@ -6,7 +6,6 @@ from loguru import logger
 
 from backend.config import get_settings
 from backend.integrations.transcripts import (
-    TranscriptItem,
     TranscriptStatus,
     fetch_transcript,
     _extract_video_id,

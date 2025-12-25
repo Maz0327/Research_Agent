@@ -1,6 +1,6 @@
 """YouTube Data API v3 client for deterministic channel upload enumeration."""
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -213,7 +213,7 @@ def _get_channel_uploads(
                     snippet = item.get("snippet", {})
                     details = videos_details.get(video_id, {})
                     content_details = details.get("contentDetails", {})
-                    status = details.get("status", {})
+                    details.get("status", {})
                     
                     # Parse published date
                     published_str = snippet.get("publishedAt", "")

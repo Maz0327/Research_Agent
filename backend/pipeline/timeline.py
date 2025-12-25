@@ -1,7 +1,7 @@
 """Timeline extraction from sources."""
 import re
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Optional
 from loguru import logger
 from pydantic import BaseModel, Field
 import dateparser
@@ -125,7 +125,7 @@ def normalize_date(date_str: str, precision: str) -> Optional[str]:
                 parsed = dateparser.parse(date_str)
                 if parsed:
                     return parsed.strftime('%Y-%m-%d')
-            except:
+            except (ValueError, TypeError):
                 pass
 
     # Handle absolute dates using dateparser

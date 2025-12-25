@@ -81,7 +81,7 @@ def post_slack_message(
         with httpx.Client(timeout=SLACK_API_TIMEOUT) as client:
             resp = client.post(response_url, json=payload)
             resp.raise_for_status()
-            logger.info(f"Posted Slack message to response_url")
+            logger.info("Posted Slack message to response_url")
             return True
     except Exception as e:
         logger.error(f"Failed to post Slack message: {e}")

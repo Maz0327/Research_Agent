@@ -174,7 +174,7 @@ class WhisperTranscriptionClient:
             if result.returncode == 0:
                 duration_seconds = float(result.stdout.strip())
                 return duration_seconds / 60.0
-        except:
+        except (subprocess.SubprocessError, ValueError, OSError):
             pass
 
         # Fallback: estimate from file size (~128kbps)
@@ -214,7 +214,7 @@ class WhisperTranscriptionClient:
             # Cleanup
             try:
                 os.remove(audio_path)
-            except:
+            except OSError:
                 pass
 
             return result

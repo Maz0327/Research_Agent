@@ -1,14 +1,12 @@
 """Multi-stage claim validation with cost optimization."""
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from loguru import logger
 
 from backend.integrations.claimbuster_client import (
-    ClaimBusterClient,
-    filter_check_worthy_claims
+    ClaimBusterClient
 )
 from backend.integrations.google_factcheck_client import (
     GoogleFactCheckClient,
-    find_existing_factchecks,
     claim_already_checked
 )
 from backend.integrations.perplexity_client import _perplexity_search

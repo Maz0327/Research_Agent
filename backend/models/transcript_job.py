@@ -1,6 +1,6 @@
 """Transcript job request/response models."""
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 import re
 
 from pydantic import BaseModel, Field, field_validator

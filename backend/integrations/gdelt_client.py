@@ -1,7 +1,5 @@
 """GDELT Project API client - FREE news discovery at scale."""
-import os
 from typing import List, Dict, Optional, Any
-from datetime import datetime, timedelta
 import httpx
 from loguru import logger
 

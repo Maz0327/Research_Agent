@@ -5,7 +5,7 @@ import httpx
 from loguru import logger
 from pydantic import BaseModel
 
-from backend.config import get_settings, require_youtube
+from backend.config import require_youtube
 
 
 class YouTubeVideo(BaseModel):
@@ -47,7 +47,7 @@ def search_youtube_videos(query: str, max_results: int = 5) -> list[YouTubeVideo
         logger.warning(f"Invalid max_results: {max_results}. Using default: 5")
         max_results = 5
     elif max_results > 50:
-        logger.warning(f"max_results exceeds API limit (50). Clamping to 50")
+        logger.warning("max_results exceeds API limit (50). Clamping to 50")
         max_results = 50
     
     try:

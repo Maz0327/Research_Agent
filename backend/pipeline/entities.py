@@ -1,7 +1,6 @@
 """Entity extraction from sources."""
 import re
-from collections import defaultdict, Counter
-from typing import Dict, List, Set
+from typing import Dict
 from loguru import logger
 
 
@@ -10,7 +9,7 @@ try:
     import spacy
     try:
         nlp = spacy.load("en_core_web_sm")
-    except:
+    except OSError:
         logger.warning("spaCy model not found. Using regex fallback. Install with: python -m spacy download en_core_web_sm")
         nlp = None
 except ImportError:
@@ -188,7 +187,7 @@ class EntityExtractor:
 def generate_entities_markdown(entities: Dict) -> str:
     """Generate markdown summary of entities."""
     lines = ["# Entities\n"]
-    lines.append(f"*Extracted from all sources and ranked by mentions*\n")
+    lines.append("*Extracted from all sources and ranked by mentions*\n")
 
     for category in ["people", "organizations", "locations"]:
         entity_list = entities.get(category, [])

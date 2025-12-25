@@ -257,7 +257,7 @@ def plan_job(slack_text: str) -> JobConfig:
     start_date, end_date = _parse_date_window(slack_text)
     
     # Get JSON schema from JobConfig
-    config_schema = JobConfig.model_json_schema()
+    JobConfig.model_json_schema()
     
     # Create OpenAI client
     client = OpenAI(api_key=settings.openai_api_key)

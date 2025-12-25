@@ -3,7 +3,6 @@ import gc
 import re
 import uuid
 from collections import defaultdict
-from typing import Optional
 
 from loguru import logger
 from openai import OpenAI
@@ -18,7 +17,7 @@ except ImportError:
 
 from backend.config import require_openai, MissingRequiredSettingError
 from backend.integrations.transcripts import TranscriptItem
-from backend.models.claim import Claim, ClaimType, Citation
+from backend.models.claim import Claim, Citation
 from backend.models.source import SourceItem
 
 
@@ -656,7 +655,7 @@ def _generate_quote_bank_md(claims: list[Claim]) -> str:
                 
                 citation_block = " | ".join(citation_strs)
                 lines.append(f"> {claim.verbatim_quote}")
-                lines.append(f"")
+                lines.append("")
                 lines.append(f"*Citation: {citation_block}*")
                 lines.append("")
     
@@ -675,7 +674,7 @@ def _generate_quote_bank_md(claims: list[Claim]) -> str:
                 
                 citation_block = " | ".join(citation_strs)
                 lines.append(f"> {claim.verbatim_quote}")
-                lines.append(f"")
+                lines.append("")
                 lines.append(f"*Citation: {citation_block}*")
                 lines.append("")
     

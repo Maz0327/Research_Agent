@@ -1,9 +1,9 @@
 """Unified search module with multi-API fallback."""
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from loguru import logger
 
-from backend.integrations.exa_client import ExaSearchClient, search_with_exa
-from backend.integrations.brave_search_client import BraveSearchClient, search_with_brave
+from backend.integrations.exa_client import ExaSearchClient
+from backend.integrations.brave_search_client import BraveSearchClient
 from backend.integrations.perplexity_client import _perplexity_search  # Existing
 
 

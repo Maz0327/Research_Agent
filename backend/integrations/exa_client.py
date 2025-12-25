@@ -11,7 +11,6 @@ except ImportError:
     EXA_AVAILABLE = False
     logger.warning("exa-py not installed. Install with: pip install exa-py")
 
-from backend.config import get_settings
 
 
 class ExaSearchClient:
