@@ -3,6 +3,42 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp"
+    },
+    "tavily": {
+      "command": "npx",
+      "args": ["-y", "@tavily/mcp@latest"],
+      "env": {
+        "TAVILY_API_KEY": "${TAVILY_API}"
+      }
+    },
+    "exa": {
+      "command": "npx",
+      "args": ["-y", "exa-mcp-server"],
+      "env": {
+        "EXA_API_KEY": "${EXAAI_SECRET_KEY}"
+      }
+    },
+    "perplexity": {
+      "command": "npx",
+      "args": ["-y", "perplexity-mcp"],
+      "env": {
+        "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/brave-search-mcp"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_SEARCH_API_KEY}"
+      }
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/fetch-mcp"]
     }
   }
 }

@@ -5,7 +5,7 @@ from typing import Optional
 
 from loguru import logger
 
-from backend.models.job_record import Artifacts, JobRecord, Outputs
+from backend.models.job_record import Artifacts, JobRecord
 from backend.state.interface import JobStore
 
 

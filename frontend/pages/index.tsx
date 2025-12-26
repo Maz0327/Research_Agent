@@ -1,6 +1,7 @@
 /**
  * Landing page - redirects to dashboard if authenticated.
  * Dark mode design with gradient accents and modern styling.
+ * WCAG 2.1 AA compliant with semantic landmarks.
  */
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -8,6 +9,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuth } from '../components/AuthProvider';
+import { SkipLink } from '../components/SkipLink';
+import { PublicHeader } from '../components/PublicHeader';
 
 export default function Home() {
   const router = useRouter();
@@ -46,21 +49,26 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="min-h-screen bg-[#0a0a0a] text-gray-100">
+      <SkipLink />
+
+      <div className="min-h-screen bg-dark-bg-primary text-gray-100">
         {/* Background gradient effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-3xl" />
         </div>
 
-        {/* Hero Section */}
-        <div className="relative mx-auto max-w-5xl px-4 py-24 text-center sm:px-6 lg:px-8">
+        <PublicHeader />
+
+        <main id="main-content" role="main">
+          {/* Hero Section */}
+          <section aria-labelledby="hero-heading" className="relative mx-auto max-w-5xl px-4 py-24 text-center sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
+            <h1 id="hero-heading" className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
               <span className="block text-gray-100">Research Agent</span>
               <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 for Documentary Creators
@@ -87,16 +95,16 @@ export default function Home() {
               </Link>
             </div>
           </motion.div>
-        </div>
+          </section>
 
-        {/* Features Section */}
-        <div className="relative mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+          {/* Features Section */}
+          <section aria-labelledby="features-heading" className="relative mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.6 }}
           >
-            <h2 className="mb-12 text-center text-3xl font-bold text-gray-100">Features</h2>
+            <h2 id="features-heading" className="mb-12 text-center text-3xl font-bold text-gray-100">Features</h2>
 
             <div className="grid gap-6 md:grid-cols-3">
               <motion.div
@@ -184,15 +192,16 @@ export default function Home() {
               </motion.div>
             </div>
           </motion.div>
-        </div>
+          </section>
+        </main>
 
         {/* Footer */}
-        <footer className="relative border-t border-gray-800 py-8">
+        <footer role="contentinfo" className="relative border-t border-gray-800 py-8">
           <p className="text-center text-sm text-gray-500">
             Research Agent - Built for Documentary Creators
           </p>
         </footer>
-      </main>
+      </div>
     </>
   );
 }

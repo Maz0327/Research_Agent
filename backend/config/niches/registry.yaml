@@ -1,0 +1,27 @@
+# Niche Registry
+# PRD v4.3: Available niche overlays for specialized research modes
+#
+# Each niche modifies:
+# - query_additions: Extra search queries appended to mode queries
+# - source_floors: Override source type minimums
+# - synthesis: Additional synthesis options
+# - narrative_format: Output format style
+
+niches:
+  - name: downfalls
+    enabled: true
+    description: "Scandal timelines, drama, public reactions, rumor vs fact analysis"
+    config_file: downfalls.yaml
+
+  - name: mysteries
+    enabled: true
+    description: "Evidence analysis, debunking, theories, pro/con perspectives"
+    config_file: mysteries.yaml
+
+# Default settings when no niche is selected
+defaults:
+  baseline_reserve_percent: 0  # No baseline reserve without niche
+
+# Niche-specific settings
+niche_settings:
+  baseline_reserve_percent: 25  # Reserve 25% slots for crossover results when niche active

@@ -69,3 +69,23 @@ supabase>=2.0.0
 
 # YAML parsing (for niche configs)
 pyyaml>=6.0
+
+# === ML OPTIMIZATION LIBRARIES ===
+
+# MinHash LSH for O(n) claim deduplication
+datasketch>=1.6.0
+
+# BM25 for source relevance scoring
+rank-bm25>=0.2.2
+
+# spaCy transformer model (optional, 500MB)
+# Run: python -m spacy download en_core_web_trf
+spacy>=3.7.0
+
+# === NEW LLM INTEGRATIONS ===
+
+# Google Gemini 2.5 Flash/Pro
+google-generativeai>=0.8.0
+
+# Anthropic Claude Sonnet (for complex synthesis)
+anthropic>=0.39.0

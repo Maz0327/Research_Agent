@@ -1,16 +1,20 @@
-"""Transcript extraction service."""
+"""Transcript extraction service.
+
+CLOUD-COMPATIBLE (Dec 2025):
+- Uses Supadata as primary (works on cloud IPs)
+- Whisper as fallback
+- youtube-transcript-api REMOVED (fails on Railway, AWS, GCP)
+"""
 from datetime import datetime
 from typing import Optional
 
 from loguru import logger
 
-from backend.config import get_settings
 from backend.integrations.transcripts import (
     TranscriptStatus,
-    fetch_transcript,
+    fetch_transcript_v2,  # Cloud-compatible version
     _extract_video_id,
 )
-from backend.integrations.whisper_client import transcribe_with_whisper
 from backend.models.transcript_job import TranscriptResultItem
 
 
@@ -20,12 +24,17 @@ def extract_single_transcript(
     preferred_languages: list[str] = None,
 ) -> TranscriptResultItem:
     """
-    Extract transcript from a single YouTube video.
+    Extract transcript from a single video.
 
-    Uses youtube-transcript-api first, then Whisper as fallback.
+    CLOUD-COMPATIBLE (Dec 2025):
+    1. Supadata native (existing captions)
+    2. Supadata AI (generate transcript)
+    3. Whisper (final fallback)
+
+    NOTE: youtube-transcript-api REMOVED - fails on cloud IPs
 
     Args:
-        video_url: YouTube video URL
+        video_url: Video URL (YouTube, TikTok, Instagram, etc.)
         use_whisper: Whether to use Whisper fallback
         preferred_languages: Preferred transcript languages
 
@@ -35,47 +44,27 @@ def extract_single_transcript(
     if preferred_languages is None:
         preferred_languages = ["en"]
 
-    settings = get_settings()
-
     # Extract video ID for logging
     video_id = _extract_video_id(video_url) or ""
 
-    # Try Tier 1: youtube-transcript-api
-    transcript = fetch_transcript(
+    # Use cloud-compatible fetch_transcript_v2
+    transcript = fetch_transcript_v2(
         video_url,
-        use_whisper=False,  # Handle Whisper separately for better control
         preferred_languages=preferred_languages,
+        use_whisper_fallback=use_whisper,
     )
 
     if transcript.status == TranscriptStatus.AVAILABLE:
-        logger.info(f"Transcript fetched via youtube-transcript-api: {video_id}")
+        logger.info(f"Transcript fetched via {transcript.source}: {video_id}")
         return TranscriptResultItem(
             video_id=transcript.video_id,
             video_url=transcript.video_url,
             status="available",
-            source="youtube_transcript_api",
+            source=transcript.source,
             text=transcript.text,
         )
 
-    # Tier 1 failed - try Whisper if enabled
-    if use_whisper and settings.openai_api_key:
-        logger.info(f"Trying Whisper fallback for {video_id}")
-        try:
-            whisper_result = transcribe_with_whisper(video_id)
-            if whisper_result.get("text"):
-                logger.info(f"Whisper transcription successful: {video_id} (cost: ${whisper_result.get('cost', 0):.4f})")
-                return TranscriptResultItem(
-                    video_id=video_id,
-                    video_url=video_url,
-                    status="available",
-                    source="whisper",
-                    text=whisper_result["text"],
-                    duration_seconds=int(whisper_result.get("duration_minutes", 0) * 60),
-                )
-        except Exception as e:
-            logger.warning(f"Whisper fallback failed for {video_id}: {e}")
-
-    # Both tiers failed
+    # All tiers failed
     return TranscriptResultItem(
         video_id=video_id,
         video_url=video_url,

@@ -255,14 +255,20 @@ def stage_4_youtube_enumeration(ctx: PipelineContext) -> None:
 
 
 # =============================================================================
-# Stage 5: Transcript Fetching
+# Stage 5: Transcript Fetching (Cloud-Compatible)
 # =============================================================================
 
 def stage_5_transcripts(ctx: PipelineContext) -> None:
-    """Fetch transcripts for YouTube videos."""
-    from backend.integrations.transcripts import fetch_transcript, TranscriptStatus
+    """Fetch transcripts for YouTube videos.
 
-    logger.info(f"[{ctx.job_id}] Stage 5: Fetching transcripts")
+    CLOUD-COMPATIBLE (Dec 2025):
+    - Uses Supadata as primary (works on cloud IPs)
+    - Whisper as fallback
+    - youtube-transcript-api REMOVED (fails on Railway, AWS, GCP)
+    """
+    from backend.integrations.transcripts import fetch_transcript_v2, TranscriptStatus
+
+    logger.info(f"[{ctx.job_id}] Stage 5: Fetching transcripts (via Supadata)")
     update_job(ctx.job_id, stage="transcript_fetching", progress_percent=45)
 
     total_minutes = 0
@@ -278,10 +284,12 @@ def stage_5_transcripts(ctx: PipelineContext) -> None:
                     break
 
                 try:
-                    transcript = fetch_transcript(video.url)
+                    # Use cloud-compatible fetch_transcript_v2 (Supadata → Whisper)
+                    transcript = fetch_transcript_v2(video.url)
                     if transcript.status == TranscriptStatus.AVAILABLE:
                         ctx.transcripts.append(transcript)
                         total_minutes += video_minutes
+                        logger.debug(f"[{ctx.job_id}] Transcript via {transcript.source}: {video.title}")
                     else:
                         ctx.add_warning(f"Transcript missing for video: {video.title}")
                 except Exception as e:

@@ -91,10 +91,36 @@ class Settings(BaseSettings):
     twitter_username: Optional[str] = Field(default=None, alias="TWITTER_USERNAME")
     twitter_password: Optional[str] = Field(default=None, alias="TWITTER_PASSWORD")
 
-    # PRD v4.3: Tavily API (PRIMARY search)
+    # Tavily API (FALLBACK search - demoted due to 10% 502 error rate)
     tavily_api_key: Optional[str] = Field(
         default=None, alias="TAVILY_API_KEY",
-        description="Tavily API key for web search and extraction (PRIMARY)"
+        description="Tavily API key for web search (FALLBACK - 10% error rate)"
+    )
+
+    # === RESEARCH-VALIDATED API STACK (Dec 2025) ===
+
+    # Exa.ai (PRIMARY semantic search - 94.9% accuracy)
+    exa_api_key: Optional[str] = Field(
+        default=None, alias="EXA_API_KEY",
+        description="Exa API key for semantic search (PRIMARY - 94.9% accuracy)"
+    )
+
+    # Serper (BACKUP keyword search - $1/1k, 93.5% success)
+    serper_api_key: Optional[str] = Field(
+        default=None, alias="SERPER_API_KEY",
+        description="Serper API key for backup keyword search ($1/1k)"
+    )
+
+    # Google Gemini API (Planning + Vision)
+    google_api_key: Optional[str] = Field(
+        default=None, alias="GOOGLE_API_KEY",
+        description="Google API key for Gemini 2.5 Flash/Pro (planning, vision)"
+    )
+
+    # Anthropic Claude API (Complex synthesis)
+    anthropic_api_key: Optional[str] = Field(
+        default=None, alias="ANTHROPIC_API_KEY",
+        description="Anthropic API key for Claude Sonnet (complex synthesis)"
     )
 
     # PRD v4.3: Supadata API (PRIMARY transcription)
@@ -291,6 +317,81 @@ def require_supadata() -> Settings:
     if not settings.supadata_api_key:
         raise MissingRequiredSettingError(
             "SUPADATA_API_KEY is required for transcription (PRIMARY). "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+# === RESEARCH-VALIDATED API STACK HELPERS (Dec 2025) ===
+
+
+def require_exa() -> Settings:
+    """
+    Get settings and validate Exa API key is present.
+
+    Exa is the PRIMARY semantic search (94.9% accuracy).
+
+    Raises:
+        MissingRequiredSettingError: If Exa API key is missing
+    """
+    settings = get_settings()
+    if not settings.exa_api_key:
+        raise MissingRequiredSettingError(
+            "EXA_API_KEY is required for semantic search (PRIMARY). "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_serper() -> Settings:
+    """
+    Get settings and validate Serper API key is present.
+
+    Serper is the BACKUP keyword search ($1/1k).
+
+    Raises:
+        MissingRequiredSettingError: If Serper API key is missing
+    """
+    settings = get_settings()
+    if not settings.serper_api_key:
+        raise MissingRequiredSettingError(
+            "SERPER_API_KEY is required for backup keyword search. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_gemini() -> Settings:
+    """
+    Get settings and validate Google API key is present for Gemini.
+
+    Gemini 2.5 Flash/Pro is used for planning and vision tasks.
+
+    Raises:
+        MissingRequiredSettingError: If Google API key is missing
+    """
+    settings = get_settings()
+    if not settings.google_api_key:
+        raise MissingRequiredSettingError(
+            "GOOGLE_API_KEY is required for Gemini planning/vision. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_anthropic() -> Settings:
+    """
+    Get settings and validate Anthropic API key is present.
+
+    Claude Sonnet is used for complex synthesis tasks.
+
+    Raises:
+        MissingRequiredSettingError: If Anthropic API key is missing
+    """
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise MissingRequiredSettingError(
+            "ANTHROPIC_API_KEY is required for Claude synthesis. "
             "Please set it in your .env file."
         )
     return settings

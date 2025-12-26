@@ -1,10 +1,11 @@
 """Transcript fetching for YouTube and multi-platform videos.
 
-PRD v4.3: Supadata is the PRIMARY transcription source.
-Fallback chain: Supadata → youtube-transcript-api → Whisper
+CLOUD-COMPATIBLE STACK (Dec 2025):
+- youtube-transcript-api REMOVED - fails on cloud IPs (Railway, AWS, etc.)
+- Fallback chain: Supadata → Whisper
 
 Supports:
-- YouTube (via Supadata, youtube-transcript-api, Whisper)
+- YouTube (via Supadata, Whisper)
 - TikTok (via Supadata)
 - Instagram (via Supadata)
 - Twitter/X (via Supadata)
@@ -16,13 +17,22 @@ from typing import Optional
 
 from loguru import logger
 from pydantic import BaseModel
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api._errors import (
-    NoTranscriptFound,
-    TranscriptsDisabled,
-    VideoUnavailable,
-    YouTubeRequestFailed,
-)
+
+# youtube-transcript-api DISABLED - fails on cloud IPs (Railway, AWS, GCP)
+# Keeping import for local development fallback only
+YOUTUBE_TRANSCRIPT_API_AVAILABLE = False
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    from youtube_transcript_api._errors import (
+        NoTranscriptFound,
+        TranscriptsDisabled,
+        VideoUnavailable,
+        YouTubeRequestFailed,
+    )
+    # DISABLED: Even if available, don't use on cloud
+    # YOUTUBE_TRANSCRIPT_API_AVAILABLE = True
+except ImportError:
+    pass
 
 # Import Supadata client (PRIMARY per PRD v4.3)
 from backend.integrations.supadata_client import (
@@ -325,13 +335,14 @@ def fetch_transcript_v2(
     use_whisper_fallback: bool = True,
 ) -> TranscriptItem:
     """
-    Fetch transcript using PRD v4.3 fallback chain.
+    Fetch transcript using cloud-compatible fallback chain.
 
-    Priority chain:
-    1. Supadata native (existing captions) - cheapest
-    2. Supadata AI (generate transcript) - more expensive
-    3. youtube-transcript-api (YouTube only, fallback) - free
-    4. Whisper (final fallback, costly)
+    CLOUD-COMPATIBLE (Dec 2025):
+    1. Supadata native (existing captions) - cheapest, works on cloud
+    2. Supadata AI (generate transcript) - more expensive, works on cloud
+    3. Whisper (final fallback, costly) - works on cloud
+
+    NOTE: youtube-transcript-api REMOVED - fails on cloud IPs (Railway, AWS, GCP)
 
     Args:
         video_url: Video URL (YouTube, TikTok, Instagram, Twitter, Facebook)
@@ -394,30 +405,14 @@ def fetch_transcript_v2(
         if error:
             errors.append(f"supadata_ai: {error}")
 
-    # Tier 3: youtube-transcript-api (YouTube only)
-    if platform == "youtube" and video_id:
-        logger.info(f"Tier 3: Trying youtube-transcript-api for {video_id}...")
-        text, language, error = _fetch_with_youtube_transcript_api(video_id, preferred_languages)
+    # Tier 3: youtube-transcript-api - DISABLED (fails on cloud IPs)
+    # See: https://github.com/jdepoix/youtube-transcript-api/issues/303
+    # The library gets blocked by YouTube when running on Railway, AWS, GCP, etc.
+    # Kept here for reference but not executed.
 
-        if text:
-            logger.info(f"youtube-transcript-api success for {video_id}")
-            return TranscriptItem(
-                video_id=video_id,
-                video_url=video_url,
-                text=text,
-                status=TranscriptStatus.AVAILABLE,
-                language=language,
-                source="youtube_transcript_api",
-                platform=platform,
-                cost_credits=0.0,  # Free
-            )
-        else:
-            if error:
-                errors.append(f"youtube_transcript_api: {error}")
-
-    # Tier 4: Whisper (final fallback, YouTube only)
+    # Tier 3: Whisper (final fallback, YouTube only)
     if use_whisper_fallback and platform == "youtube" and video_id:
-        logger.info(f"Tier 4: Trying Whisper for {video_id}...")
+        logger.info(f"Tier 3: Trying Whisper for {video_id}...")
         try:
             from backend.integrations.whisper_client import transcribe_with_whisper
 

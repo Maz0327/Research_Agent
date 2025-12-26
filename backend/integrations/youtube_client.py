@@ -1,4 +1,11 @@
-"""YouTube Data API v3 client for deterministic channel upload enumeration."""
+"""YouTube Data API v3 client for deterministic channel upload enumeration.
+
+NOTE: This uses the official YouTube Data API v3 (requires YOUTUBE_API_KEY).
+This is DIFFERENT from youtube-transcript-api which is blocked on cloud IPs.
+
+The Data API v3 works on cloud infrastructure but has quota limits.
+If YOUTUBE_API_KEY is not set, enumeration will be skipped gracefully.
+"""
 import re
 from datetime import datetime, timezone
 from typing import Optional

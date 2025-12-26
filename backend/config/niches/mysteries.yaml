@@ -1,0 +1,70 @@
+# Mysteries Niche Configuration
+# PRD v4.3: Myths, ARGs, conspiracy analysis, pro/con evidence
+#
+# Use case: Researching unsolved cases, internet mysteries, conspiracy theories
+# Priority: Video (documentaries), academic (debunking), balanced perspectives
+
+niche:
+  name: mysteries
+  description: "Evidence analysis, debunking, theories, pro/con perspectives"
+
+  # Additional queries appended to mode queries
+  # {topic} is replaced with the research topic
+  query_additions:
+    - "{topic} evidence"
+    - "{topic} debunked"
+    - "{topic} origin"
+    - "{topic} theory"
+    - "{topic} skeptic analysis"
+    - "{topic} explained"
+    - "{topic} investigation"
+    - "{topic} documentary"
+    - "{topic} solved"
+    - "{topic} unsolved"
+
+  # Override source floors for this niche
+  # Higher video (documentaries) and academic (debunking)
+  source_floors:
+    web: 2
+    news: 1
+    video: 6       # YouTube documentaries are primary
+    academic: 2    # Skeptic/debunker content
+    discussion: 2  # Community theories
+
+  # Synthesis configuration
+  synthesis:
+    perspective_pairs: true        # Present believer vs skeptic views
+    evidence_categorization: true  # Categorize evidence strength
+    timeline_of_theories: true     # How theories evolved
+    source_credibility_notes: true # Note source reliability
+
+  # Output format style
+  narrative_format: mystery_case_file
+
+  # Priority keywords for relevance scoring
+  priority_keywords:
+    - mystery
+    - evidence
+    - theory
+    - debunked
+    - explained
+    - investigation
+    - unsolved
+    - solved
+    - documentary
+    - analysis
+    - skeptic
+    - believer
+    - proof
+    - hoax
+
+  # Domain preferences for this niche
+  preferred_domains:
+    - youtube.com
+    - reddit.com
+    - snopes.com
+    - wikipedia.org
+    - arxiv.org
+    - jstor.org
+    - skeptic.com
+    - metabunk.org

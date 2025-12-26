@@ -9,11 +9,46 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Dark mode focused color palette
+        // Dark mode focused color palette (WCAG-compliant)
         dark: {
-          primary: '#0f0f0f',
+          bg: {
+            primary: '#121212',    // Main background (softer than #0a0a0a)
+            secondary: '#1a1a1a',  // Card backgrounds
+            tertiary: '#262626',   // Elevated surfaces
+            hover: '#2d2d2d',      // Hover states
+          },
+          border: {
+            primary: '#333333',    // Default borders
+            secondary: '#404040',  // Hover borders
+            accent: '#4a5568',     // Active borders
+          },
+          text: {
+            primary: '#f5f5f5',    // Primary text (15.4:1 ratio)
+            secondary: '#d1d5db',  // Secondary text (10.5:1)
+            muted: '#9ca3af',      // Muted text (7.5:1)
+            disabled: '#6b7280',   // Disabled (4.6:1)
+          },
+          // Legacy aliases for backward compatibility
+          primary: '#121212',
           secondary: '#1a1a1a',
           tertiary: '#262626',
+        },
+        accent: {
+          blue: {
+            DEFAULT: '#3b82f6',
+            light: '#60a5fa',
+            dark: '#2563eb',
+          },
+          purple: {
+            DEFAULT: '#8b5cf6',
+            light: '#a78bfa',
+            dark: '#7c3aed',
+          },
+          green: {
+            DEFAULT: '#22c55e',
+            light: '#4ade80',
+            dark: '#16a34a',
+          },
         },
       },
       animation: {
@@ -62,6 +97,12 @@ module.exports = {
   },
   plugins: [],
 };
+
+
+
+
+
+
 
 
 

@@ -12,6 +12,7 @@ Key features:
 - Source type diversity with configurable floors and caps
 - Whitelist for trusted domains (no limits)
 - Soft-reject category (keeps sources as references)
+- BM25 relevance scoring (Dec 2025 optimization)
 
 Execution time target: <5 seconds
 """
@@ -21,6 +22,13 @@ from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from collections import defaultdict
 from loguru import logger
+
+try:
+    from rank_bm25 import BM25Okapi
+    BM25_AVAILABLE = True
+except ImportError:
+    BM25_AVAILABLE = False
+    logger.warning("rank-bm25 not installed. BM25 scoring disabled. Install with: pip install rank-bm25")
 
 
 # =============================================================================
@@ -207,6 +215,7 @@ def quality_gate(
     sources: List[Dict],
     mode: str = "full",
     niche: Optional[str] = None,
+    query_terms: Optional[List[str]] = None,
 ) -> QualityGateOutput:
     """
     Main Quality Gate function.
@@ -222,6 +231,7 @@ def quality_gate(
         sources: List of discovered sources (dicts with url, title, snippet, etc.)
         mode: Pipeline mode (quick, full, investigation, etc.)
         niche: Optional niche overlay (downfalls, mysteries, etc.)
+        query_terms: Optional list of query terms for BM25 relevance scoring
 
     Returns:
         QualityGateOutput with approved, soft_rejected, hard_rejected sources and stats
@@ -242,12 +252,25 @@ def quality_gate(
     unique_sources = _deduplicate(source_objects)
     output.stats.after_dedup = len(unique_sources)
 
+    # Step 2.5: Calculate BM25 scores if query terms provided (Dec 2025 optimization)
+    bm25_scores: Dict[str, float] = {}
+    if query_terms and BM25_AVAILABLE:
+        bm25_scores = _calculate_bm25_scores(unique_sources, query_terms)
+        logger.info(f"BM25 scoring applied with {len(query_terms)} query terms")
+
     # Step 3: Calculate quality scores
     for source in unique_sources:
         source.quality_score = _calculate_quality_score(source)
+
+        # Add BM25 relevance bonus (up to 0.2)
+        bm25_bonus = 0.0
+        if source.canonical_url in bm25_scores:
+            bm25_bonus = min(0.2, bm25_scores[source.canonical_url] * 0.2)
+
         source.final_score = (
             QUALITY_GATE_CONFIG["relevance_weight"] * source.relevance_score +
-            QUALITY_GATE_CONFIG["quality_weight"] * source.quality_score
+            QUALITY_GATE_CONFIG["quality_weight"] * source.quality_score +
+            bm25_bonus
         )
 
     # Step 4: Hard reject clear spam (junk patterns, invalid URLs)
@@ -369,6 +392,57 @@ def _calculate_quality_score(source: Source) -> float:
         score -= 0.1
 
     return max(0.0, min(1.0, score))
+
+
+def _calculate_bm25_scores(
+    sources: List["Source"],
+    query_terms: List[str],
+) -> Dict[str, float]:
+    """
+    Calculate BM25 relevance scores for sources.
+
+    Research-validated optimization (Dec 2025):
+    - Uses BM25Okapi for topic relevance scoring
+    - Adds up to 0.2 bonus to quality score for highly relevant sources
+
+    Args:
+        sources: List of Source objects
+        query_terms: List of query terms to match against
+
+    Returns:
+        Dict mapping canonical_url to normalized BM25 score (0.0-1.0)
+    """
+    if not BM25_AVAILABLE or not query_terms or not sources:
+        return {}
+
+    try:
+        # Tokenize source content (title + snippet)
+        corpus = []
+        for source in sources:
+            text = f"{source.title or ''} {source.snippet or ''}".lower()
+            corpus.append(text.split())
+
+        # Build BM25 index
+        bm25 = BM25Okapi(corpus)
+
+        # Score against query terms
+        scores = bm25.get_scores(query_terms)
+
+        # Normalize scores to 0.0-1.0
+        max_score = max(scores) if scores.max() > 0 else 1.0
+        normalized_scores = scores / max_score if max_score > 0 else scores
+
+        # Map to URLs
+        result = {}
+        for i, source in enumerate(sources):
+            result[source.canonical_url] = float(normalized_scores[i])
+
+        logger.debug(f"BM25 scoring: {len(sources)} sources, query={query_terms[:3]}")
+        return result
+
+    except Exception as e:
+        logger.warning(f"BM25 scoring failed: {e}")
+        return {}
 
 
 def _check_hard_rejection(source: Source) -> Optional[str]:
@@ -531,13 +605,20 @@ def run_quality_gate(
     sources: List[Dict],
     mode: str = "full",
     niche: Optional[str] = None,
+    query_terms: Optional[List[str]] = None,
 ) -> Dict:
     """
     Run Quality Gate and return results as dictionary.
 
     Convenience wrapper for pipeline integration.
+
+    Args:
+        sources: List of discovered sources
+        mode: Pipeline mode
+        niche: Optional niche overlay
+        query_terms: Optional list of query terms for BM25 relevance scoring
     """
-    output = quality_gate(sources, mode, niche)
+    output = quality_gate(sources, mode, niche, query_terms)
 
     return {
         "approved": [_source_to_dict(s) for s in output.approved],

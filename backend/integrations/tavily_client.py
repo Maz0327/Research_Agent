@@ -1,6 +1,10 @@
 """Tavily API client for web search and content extraction.
 
-Tavily is the PRIMARY search API for PRD v4.3, replacing Exa.
+DEMOTED TO FALLBACK (Dec 2025):
+- 10% 502 error rate documented in production
+- Use Exa (94.9% accuracy) or Perplexity (358ms) as primary
+- Keep Tavily as last-resort fallback
+
 Provides both search and extraction in a single API.
 
 Pricing (validated Dec 2024):
@@ -29,8 +33,10 @@ class TavilyClient:
     """
     Tavily API client for web search and content extraction.
 
-    This is the PRIMARY search API for PRD v4.3.
-    Use it FIRST before falling back to Exa or Brave.
+    DEMOTED TO FALLBACK (Dec 2025):
+    - 10% 502 error rate in production
+    - Use Exa or Perplexity as primary instead
+    - Only use when other APIs fail
     """
 
     def __init__(self):

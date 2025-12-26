@@ -1,0 +1,67 @@
+# Downfalls Niche Configuration
+# PRD v4.3: Scandal timelines, public reactions, rumor vs fact
+#
+# Use case: Researching controversies, cancellations, public figure scandals
+# Priority: Video evidence (receipts), discussion (reactions), news (coverage)
+
+niche:
+  name: downfalls
+  description: "Scandal timelines, drama, public reactions, rumor vs fact analysis"
+
+  # Additional queries appended to mode queries
+  # {topic} is replaced with the research topic
+  query_additions:
+    - "{topic} controversy timeline"
+    - "{topic} allegations"
+    - "{topic} response statement"
+    - "{topic} reddit drama"
+    - "{topic} apology"
+    - "{topic} exposed"
+    - "{topic} cancelled"
+    - "{topic} backlash"
+    - "{topic} scandal breakdown"
+
+  # Override source floors for this niche
+  # Higher video/discussion for receipts and reactions
+  source_floors:
+    web: 2
+    news: 3
+    video: 5       # Higher - video receipts are primary evidence
+    academic: 0    # Rarely relevant for drama
+    discussion: 4  # Reddit/forum reactions matter
+
+  # Synthesis configuration
+  synthesis:
+    force_timeline: true           # Always generate chronological timeline
+    rumor_labeling: true           # Label claims as verified/rumor/disputed
+    include_reactions: true        # Include public reaction summaries
+    track_narrative_changes: true  # Note how story evolved over time
+
+  # Output format style
+  narrative_format: timeline_with_reactions
+
+  # Priority keywords for relevance scoring
+  priority_keywords:
+    - controversy
+    - scandal
+    - allegation
+    - response
+    - apology
+    - backlash
+    - cancelled
+    - exposed
+    - drama
+    - receipts
+    - evidence
+    - timeline
+
+  # Domain preferences for this niche
+  preferred_domains:
+    - reddit.com
+    - twitter.com
+    - youtube.com
+    - tiktok.com
+    - tmz.com
+    - dailymail.co.uk
+    - variety.com
+    - hollywoodreporter.com

@@ -254,10 +254,19 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for production deployment to Rail
 
 ## Documentation
 
-- `CLAUDE.md` - Development guide for Claude Code
+### Core Documentation
+- **[PRD v6.0](Active%20Docs/PRD_v6.md)** - Authoritative product specification (research-validated)
+- **[CLAUDE.md](CLAUDE.md)** - Development guide for Claude Code
+- **[Architecture](docs/architecture.md)** - System architecture overview
+- **[Code Standards](docs/code-standards.md)** - Coding conventions
+
+### Deployment & Operations
 - `DEPLOYMENT_GUIDE.md` - Production deployment instructions
 - `SETTINGS_DESIGN.md` - Settings page design document
 - `TECHNICAL_DEBT_REPORT.md` - Technical debt analysis
+
+### Archived
+- See `Archive Docs/` for superseded PRDs (v2, v3, v4.3, v5.0)
 
 ## License
 

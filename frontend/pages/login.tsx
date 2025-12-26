@@ -1,12 +1,16 @@
 /**
  * Login page with Google OAuth and email magic link options.
  * Dark mode design with gradient accents.
+ * WCAG 2.1 AA compliant with semantic landmarks.
  */
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import { motion } from 'framer-motion';
 import { signInWithGoogle, signInWithMagicLink } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
+import { SkipLink } from '../components/SkipLink';
+import { PublicHeader } from '../components/PublicHeader';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -71,26 +75,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a] px-4">
-      {/* Background gradient effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
+    <>
+      <Head>
+        <title>Sign In - Research Agent</title>
+        <meta name="description" content="Sign in to Research Agent" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md"
-      >
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur-xl p-8 shadow-2xl">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Research Agent
-            </h1>
-            <p className="mt-2 text-gray-400">Sign in to your account</p>
-          </div>
+      <SkipLink />
+
+      <div className="min-h-screen bg-dark-bg-primary">
+        {/* Background gradient effects */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
+        </div>
+
+        <PublicHeader showHomeLink />
+
+        <main id="main-content" role="main" className="flex min-h-[calc(100vh-73px)] items-center justify-center px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative w-full max-w-md"
+          >
+            <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur-xl p-8 shadow-2xl">
+              <div className="mb-8 text-center">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Research Agent
+                </h1>
+                <p className="mt-2 text-gray-400">Sign in to your account</p>
+              </div>
 
           {/* Google OAuth Button */}
           <button
@@ -179,11 +195,13 @@ export default function LoginPage() {
             </motion.div>
           )}
 
-          <p className="mt-6 text-center text-sm text-gray-500">
-            By signing in, you agree to our Terms of Service and Privacy Policy.
-          </p>
-        </div>
-      </motion.div>
-    </div>
+              <p className="mt-6 text-center text-sm text-gray-500">
+                By signing in, you agree to our Terms of Service and Privacy Policy.
+              </p>
+            </div>
+          </motion.div>
+        </main>
+      </div>
+    </>
   );
 }
