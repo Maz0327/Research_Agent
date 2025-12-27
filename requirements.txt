@@ -84,8 +84,16 @@ spacy>=3.7.0
 
 # === NEW LLM INTEGRATIONS ===
 
-# Google Gemini 2.5 Flash/Pro
-google-generativeai>=0.8.0
+# Google Gemini 2.5 Flash/Pro (new SDK - replaces deprecated google-generativeai)
+google-genai>=1.0.0
 
 # Anthropic Claude Sonnet (for complex synthesis)
 anthropic>=0.39.0
+
+# === SEARCH & TRANSCRIPT APIs ===
+
+# Tavily AI - RAG-optimized search
+tavily-python>=0.5.0
+
+# Supadata - YouTube transcript extraction
+supadata>=1.4.0

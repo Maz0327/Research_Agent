@@ -1,5 +1,7 @@
 """Google Gemini API client for planning and vision tasks.
 
+Uses the new google-genai SDK (replaces deprecated google-generativeai).
+
 Research-validated stack (Dec 2025):
 - Gemini 2.5 Flash: $0.30/$2.50 per M tokens - used for planning, query gen
 - Gemini 2.5 Pro: $1.25/$10 per M tokens - used for vision/PDF, validation, synthesis
@@ -11,15 +13,18 @@ from typing import Optional, Any
 from loguru import logger
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    logger.warning("google-generativeai not installed. Install with: pip install google-generativeai")
+    logger.warning("google-genai not installed. Install with: pip install google-genai")
 
 
 class GeminiClient:
     """Client for Google Gemini 2.5 Flash/Pro.
+
+    Uses the new google-genai SDK for better performance and features.
 
     Used for:
     - Planning with thinking mode (Flash)
@@ -35,9 +40,9 @@ class GeminiClient:
     }
 
     def __init__(self):
-        """Initialize Gemini client."""
+        """Initialize Gemini client with new SDK."""
         if not GEMINI_AVAILABLE:
-            raise ImportError("google-generativeai library not installed")
+            raise ImportError("google-genai library not installed")
 
         from backend.config import get_settings
         settings = get_settings()
@@ -45,7 +50,7 @@ class GeminiClient:
         if not settings.google_api_key:
             raise ValueError("GOOGLE_API_KEY environment variable is required")
 
-        genai.configure(api_key=settings.google_api_key)
+        self._client = genai.Client(api_key=settings.google_api_key)
         self._api_key = settings.google_api_key
 
     def generate(
@@ -71,19 +76,18 @@ class GeminiClient:
         try:
             logger.info(f"Gemini {model}: {prompt[:50]}...")
 
-            # Configure model
-            generation_config = {
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-            }
-
-            model_instance = genai.GenerativeModel(
-                model,
+            # Build config
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
                 system_instruction=system_instruction,
-                generation_config=generation_config,
             )
 
-            response = model_instance.generate_content(prompt)
+            response = self._client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=config,
+            )
             text = response.text
 
             # Estimate cost (rough approximation)
@@ -124,19 +128,18 @@ class GeminiClient:
         try:
             logger.info(f"Gemini {model} thinking: {prompt[:50]}...")
 
-            model_instance = genai.GenerativeModel(
-                model,
+            # Build config with thinking mode
+            config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
+                thinking_config=types.ThinkingConfig(
+                    thinking_budget=thinking_budget
+                ),
             )
 
-            # Configure thinking mode
-            generation_config = {
-                "thinking_config": {"thinking_budget": thinking_budget}
-            }
-
-            response = model_instance.generate_content(
-                prompt,
-                generation_config=generation_config,
+            response = self._client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=config,
             )
 
             text = response.text
@@ -204,14 +207,16 @@ class GeminiClient:
             }
             mime_type = mime_types.get(suffix, "image/jpeg")
 
-            # Create image part
-            image_part = {
-                "mime_type": mime_type,
-                "data": base64.b64encode(image_data).decode("utf-8"),
-            }
+            # Create image part using new SDK
+            image_part = types.Part.from_bytes(
+                data=image_data,
+                mime_type=mime_type,
+            )
 
-            model_instance = genai.GenerativeModel(model)
-            response = model_instance.generate_content([prompt, image_part])
+            response = self._client.models.generate_content(
+                model=model,
+                contents=[prompt, image_part],
+            )
             text = response.text
 
             # Estimate cost (images count as ~258 tokens)
@@ -257,16 +262,21 @@ class GeminiClient:
             with open(pdf_path, "rb") as f:
                 pdf_data = f.read()
 
-            # Upload file to Gemini
-            uploaded_file = genai.upload_file(pdf_path, mime_type="application/pdf")
+            # Upload file to Gemini using new SDK
+            uploaded_file = self._client.files.upload(
+                file=pdf_path,
+                config=types.UploadFileConfig(mime_type="application/pdf"),
+            )
 
-            model_instance = genai.GenerativeModel(model)
-            response = model_instance.generate_content([prompt, uploaded_file])
+            response = self._client.models.generate_content(
+                model=model,
+                contents=[prompt, uploaded_file],
+            )
             text = response.text
 
             # Clean up uploaded file
             try:
-                genai.delete_file(uploaded_file.name)
+                self._client.files.delete(name=uploaded_file.name)
             except Exception:
                 pass
 
