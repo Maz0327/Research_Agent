@@ -70,6 +70,34 @@ if cors_origins:
 else:
     logger.warning("FRONTEND_ORIGINS not set - CORS middleware not configured")
 
+
+# Global exception handler to ensure CORS headers on 500 errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Handle unhandled exceptions with proper CORS headers.
+
+    FastAPI's CORSMiddleware doesn't add headers to unhandled 500 errors,
+    causing browsers to show CORS errors instead of the actual error.
+    """
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+
+    # Get origin from request
+    origin = request.headers.get("origin", "")
+
+    # Build response with CORS headers
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error": str(exc)},
+    )
+
+    # Add CORS headers if origin is allowed
+    if origin and cors_origins and origin in cors_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+
+    return response
+
 # Request body size limit middleware
 @app.middleware("http")
 async def limit_request_size(request: Request, call_next):
