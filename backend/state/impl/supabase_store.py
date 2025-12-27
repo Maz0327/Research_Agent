@@ -274,6 +274,41 @@ class SupabaseJobStore(JobStore):
 
         try:
             resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            # Log detailed error info for debugging
+            error_body = ""
+            try:
+                error_body = resp.text
+            except Exception:
+                pass
+            logger.error(
+                "Failed to update job %s: %s | Response: %s | Payload keys: %s",
+                job_id,
+                sanitize_error_message(e),
+                error_body[:500] if error_body else "N/A",
+                list(payload.keys()),
+            )
+
+            # If it's a 400 error and we sent stage_started_at, retry without it
+            # This handles cases where migration 011 hasn't been applied
+            if resp.status_code == 400 and "stage_started_at" in payload:
+                logger.warning(
+                    "Retrying update without stage_started_at (column may not exist)"
+                )
+                retry_payload = {k: v for k, v in payload.items() if k != "stage_started_at"}
+                if retry_payload:
+                    with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as retry_client:
+                        retry_resp = retry_client.patch(
+                            url, headers=headers, params=params, json=retry_payload
+                        )
+                        if retry_resp.status_code < 400:
+                            data = retry_resp.json()
+                            if isinstance(data, list):
+                                if not data:
+                                    return None
+                                data = data[0]
+                            return _record_from_db_row(data)
+            raise
         except httpx.HTTPError as e:
             logger.error(
                 "Failed to update job %s: %s",
