@@ -555,7 +555,7 @@ async def create_job_endpoint(
     # Enqueue Celery task
     logger.info(f"Enqueuing research job {job.job_id} for prompt: {prompt[:50]}... (pipeline: {job_request.pipeline}, user: {user_id or 'anonymous'})")
     run_research_job.delay(job.job_id, prompt)
-    
+
     return CreateJobResponse(job_id=job.job_id)
 
 
@@ -662,11 +662,11 @@ async def get_job_status(
                 status_code=403,
                 detail="Access denied",
             )
-    
+
     # Extract prompt and pipeline from config_json
     prompt = job.config_json.get("prompt") or job.config_json.get("topic", "")
     pipeline = job.config_json.get("pipeline", "full")
-    
+
     # Extract error from warnings if status is failed
     error = None
     if job.status == "failed":
@@ -677,7 +677,7 @@ async def get_job_status(
         elif job.warnings:
             # Fallback to last warning
             error = job.warnings[-1]
-    
+
     # Convert artifacts to dict (will be None if empty)
     artifacts_dict = None
     if job.artifacts:
@@ -685,7 +685,7 @@ async def get_job_status(
         # Return None if artifacts dict is empty
         if not artifacts_dict:
             artifacts_dict = None
-    
+
     return JobStatusResponse(
         job_id=job.job_id,  # Will be aliased to "id" in response
         prompt=prompt,
