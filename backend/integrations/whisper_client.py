@@ -8,6 +8,9 @@ import subprocess
 from loguru import logger
 import openai
 
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
+
 
 class WhisperTranscriptionClient:
     """
@@ -101,8 +104,10 @@ class WhisperTranscriptionClient:
         except subprocess.TimeoutExpired:
             raise RuntimeError("Audio download timed out")
         except Exception as e:
-            raise RuntimeError(f"Failed to download audio: {e}")
+            sanitized = sanitize_error_message(e, include_type=False)
+            raise RuntimeError(f"Failed to download audio: {sanitized}")
 
+    @with_rate_limit("whisper")
     def transcribe(
         self,
         audio_path: str,
@@ -156,8 +161,9 @@ class WhisperTranscriptionClient:
             }
 
         except Exception as e:
-            logger.error(f"Whisper transcription failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Whisper transcription failed: {sanitized}")
+            raise RuntimeError(f"Whisper transcription failed: {sanitized}") from e
 
     def _get_audio_duration(self, audio_path: str) -> float:
         """Get audio duration in minutes."""
@@ -220,8 +226,9 @@ class WhisperTranscriptionClient:
             return result
 
         except Exception as e:
-            logger.error(f"YouTube transcription failed for {video_id}: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"YouTube transcription failed for {video_id}: {sanitized}")
+            raise RuntimeError(f"YouTube transcription failed: {sanitized}") from e
 
 
 def transcribe_with_whisper(video_id: str, max_duration: float = 60.0) -> Dict:

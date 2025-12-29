@@ -1,8 +1,11 @@
 """Pipeline context for research job execution."""
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from backend.models.job_config import JobConfig
+
+if TYPE_CHECKING:
+    from backend.pipeline.cost_tracker import CostTracker
 
 
 @dataclass
@@ -21,8 +24,12 @@ class PipelineContext:
     job_config: Optional[JobConfig] = None
     short_title: str = ""
 
+    # Cost tracking (initialized in Stage 0)
+    cost_tracker: Optional["CostTracker"] = None
+
     # Niche configuration (set in Stage 1 if niche specified)
-    niche_config: Optional[dict] = None  # Merged mode+niche config
+    # Default to empty dict to prevent NoneType errors in downstream stages
+    niche_config: dict = field(default_factory=dict)
 
     # Stage 2: Research mapping
     angles: list = field(default_factory=list)
@@ -62,6 +69,9 @@ class PipelineContext:
     folder_url: Optional[str] = None
     doc_urls: dict = field(default_factory=dict)
 
+    # Quality Gate stats (set after Stage 3)
+    quality_gate_stats: Optional[dict] = None
+
     # Accumulated outputs (markdown documents)
     outputs: dict = field(default_factory=dict)
 
@@ -75,3 +85,14 @@ class PipelineContext:
     def set_output(self, key: str, value: str) -> None:
         """Set an output markdown document."""
         self.outputs[key] = value
+
+    def add_cost(self, api_name: str, amount: float, units: int = 1) -> None:
+        """Track cost for an API call."""
+        if self.cost_tracker:
+            self.cost_tracker.add_cost(api_name, amount, units)
+
+    def get_cost_summary(self) -> dict:
+        """Get cost tracking summary."""
+        if self.cost_tracker:
+            return self.cost_tracker.get_summary()
+        return {}

@@ -67,9 +67,12 @@ export default function TranscriptsPage() {
 
   const urlCount = parseUrls(videoUrls).length;
 
-  // Poll for job status
+  // Poll for job status with error limits
   useEffect(() => {
     if (!jobId) return;
+
+    let errorCount = 0;
+    const MAX_POLL_ERRORS = 5;
 
     const pollInterval = setInterval(async () => {
       try {
@@ -79,12 +82,20 @@ export default function TranscriptsPage() {
         }
         const status: JobStatus = await response.json();
         setJobStatus(status);
+        errorCount = 0; // Reset error count on success
 
         if (status.status === 'completed' || status.status === 'failed') {
           clearInterval(pollInterval);
         }
       } catch (err) {
-        console.error('Polling error:', err);
+        errorCount++;
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Polling error:', err);
+        }
+        if (errorCount >= MAX_POLL_ERRORS) {
+          clearInterval(pollInterval);
+          setError('Failed to fetch job status after multiple attempts. Please refresh the page.');
+        }
       }
     }, 2000);
 

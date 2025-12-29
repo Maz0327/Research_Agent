@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '../../components/AdminLayout';
-import { AdminProtectedRoute } from '../../components/AuthProvider';
+import { AdminProtectedRoute, useAuth } from '../../components/AuthProvider';
 import { useAdminStore, AdminUser } from '../../store/admin';
 import Skeleton from '../../components/ui/Skeleton';
 
@@ -107,6 +107,7 @@ function Pagination({
 }
 
 function AdminUsersContent() {
+  const { user, isAdmin } = useAuth();
   const {
     users,
     isLoadingUsers,
@@ -118,9 +119,12 @@ function AdminUsersContent() {
     unbanUser,
   } = useAdminStore();
 
+  // Gate data fetching on auth completion
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    if (user && isAdmin) {
+      fetchUsers();
+    }
+  }, [fetchUsers, user, isAdmin]);
 
   const totalPages = Math.ceil(totalUsers / pageSize);
 

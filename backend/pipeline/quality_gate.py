@@ -422,6 +422,11 @@ def _calculate_bm25_scores(
             text = f"{source.title or ''} {source.snippet or ''}".lower()
             corpus.append(text.split())
 
+        # Guard against empty corpus (all sources have empty title/snippet)
+        if not any(tokens for tokens in corpus):
+            logger.debug("BM25 skipped: empty corpus (no text content)")
+            return {}
+
         # Build BM25 index
         bm25 = BM25Okapi(corpus)
 

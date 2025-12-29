@@ -12,6 +12,7 @@ from backend.config import require_perplexity, MissingRequiredSettingError
 from backend.models.job_config import JobConfig
 from backend.models.source import SourceItem, SourceType
 from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit, record_request, record_success
 
 # Constants
 PERPLEXITY_API_TIMEOUT = 60.0  # seconds - increased for complex queries
@@ -20,17 +21,20 @@ MAX_KEY_TERMS = 20
 MAX_ANGLES = 10
 
 
+@with_rate_limit("perplexity")
 def _perplexity_search(query: str, model: str = PERPLEXITY_DEFAULT_MODEL) -> dict:
     """
     Make a search request to Perplexity API.
-    
+
+    Rate limited with exponential backoff to prevent quota exhaustion.
+
     Args:
         query: Search query string
         model: Perplexity model to use
-        
+
     Returns:
         API response as dict
-        
+
     Raises:
         MissingRequiredSettingError: If Perplexity API key is missing
         httpx.HTTPError: If API request fails

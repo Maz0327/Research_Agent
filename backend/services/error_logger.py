@@ -5,10 +5,11 @@ Logs errors to the database with user-friendly messages and technical details.
 """
 from enum import Enum
 from typing import Optional
-from datetime import datetime
 import traceback
 
 from loguru import logger
+
+from backend.utils.datetime_utils import utc_now_iso
 
 
 class ErrorCategory(str, Enum):
@@ -137,7 +138,7 @@ def log_error(
             "stage": stage,
             "endpoint": endpoint,
             "request_data": sanitized_request,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": utc_now_iso(),
             "resolved": False,
         }).execute()
 

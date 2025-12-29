@@ -25,22 +25,93 @@ class Outputs(BaseModel):
     reddit_discussions_md: Optional[str] = Field(None, description="Reddit discussions markdown")
 
 
+class QualityGateStats(BaseModel):
+    """Quality gate statistics for source filtering."""
+    total_sources: Optional[int] = Field(None, description="Total sources before filtering")
+    passed_sources: Optional[int] = Field(None, description="Sources that passed quality gate")
+    filtered_sources: Optional[int] = Field(None, description="Sources filtered out")
+    filter_reasons: Optional[dict[str, int]] = Field(None, description="Count of each filter reason")
+
+
+class AngleInfo(BaseModel):
+    """Information about a discovered angle."""
+    angle_name: Optional[str] = Field(None, description="Name of the angle")
+    description: Optional[str] = Field(None, description="Description of the angle")
+    confidence: Optional[float] = Field(None, description="Confidence score 0-1")
+    supporting_sources: Optional[list[str]] = Field(None, description="URLs supporting this angle")
+
+
+class CoverageAnalysis(BaseModel):
+    """Analysis of topic coverage."""
+    covered_aspects: Optional[list[str]] = Field(None, description="Aspects with good coverage")
+    missing_aspects: Optional[list[str]] = Field(None, description="Aspects needing more research")
+    coverage_score: Optional[float] = Field(None, description="Overall coverage score 0-1")
+
+
+class ApiCosts(BaseModel):
+    """API cost tracking per service."""
+    openai: Optional[float] = Field(None, description="OpenAI API costs in USD")
+    perplexity: Optional[float] = Field(None, description="Perplexity API costs in USD")
+    tavily: Optional[float] = Field(None, description="Tavily API costs/credits")
+    whisper: Optional[float] = Field(None, description="Whisper API costs in USD")
+    supadata: Optional[float] = Field(None, description="Supadata API credits")
+    gemini: Optional[float] = Field(None, description="Gemini API costs in USD")
+    total: Optional[float] = Field(None, description="Total costs in USD")
+
+
 class JobRecord(BaseModel):
-    """Complete job record for storage."""
+    """Complete job record for storage.
+
+    This model corresponds to the 'jobs' table in the database.
+    All fields are kept in sync with database migrations.
+    """
+    # Core identifiers
     job_id: str = Field(..., description="Unique job identifier")
     user_id: Optional[str] = Field(None, description="User ID (from Supabase auth)")
     title: Optional[str] = Field(None, description="AI-generated short title for the job")
-    pipeline: str = Field(default="investigation", description="Pipeline mode (quick, full, breaking_news, investigation, profile, controversy)")
+    pipeline: str = Field(default="investigation", description="Pipeline mode")
+    niche: Optional[str] = Field(None, description="Niche overlay applied to job")
+
+    # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Job creation timestamp")
+    stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
+
+    # Status and progress
     status: str = Field(default="queued", description="Job status (queued, running, completed, failed, cancelled)")
     stage: Optional[str] = Field(None, description="Current pipeline stage")
-    stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
     progress_percent: int = Field(default=0, ge=0, le=100, description="Progress percentage")
     error: Optional[str] = Field(None, description="Error message if job failed")
-    config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
     warnings: list[str] = Field(default_factory=list, description="List of warnings encountered")
-    artifacts: Artifacts = Field(default_factory=Artifacts, description="Job artifacts")
-    outputs: Outputs = Field(default_factory=Outputs, description="Research outputs")
+
+    # Configuration
+    config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
+    manual_guidance: Optional[dict[str, Any]] = Field(None, description="Manual guidance/overrides")
+
+    # Extracted data
+    timeline_events: Optional[list[dict[str, Any]]] = Field(None, description="Extracted timeline events")
+    entities: Optional[dict[str, Any]] = Field(None, description="Extracted entities (people, orgs, etc.)")
+    reddit_posts: Optional[list[dict[str, Any]]] = Field(None, description="Collected Reddit posts")
+
+    # Angle discovery
+    discovered_angles: Optional[list[dict[str, Any]]] = Field(None, description="Discovered angles/perspectives")
+    coverage_analysis: Optional[dict[str, Any]] = Field(None, description="Topic coverage analysis")
+    recommended_angle: Optional[dict[str, Any]] = Field(None, description="AI-recommended angle")
+
+    # Quality gate
+    quality_gate_stats: Optional[dict[str, Any]] = Field(None, description="Quality gate filtering stats")
+
+    # Metrics
+    total_sources: Optional[int] = Field(None, description="Total sources collected")
+    total_claims: Optional[int] = Field(None, description="Total claims extracted")
+    api_costs: Optional[dict[str, Any]] = Field(None, description="API costs per service")
+
+    # Output URLs
+    notebooklm_packet_url: Optional[str] = Field(None, description="NotebookLM packet Google Doc URL")
+    documentary_blueprint_url: Optional[str] = Field(None, description="Documentary blueprint Google Doc URL")
+
+    # Artifacts and outputs
+    artifacts: Optional[Artifacts] = Field(None, description="Job artifacts")
+    outputs: Optional[Outputs] = Field(None, description="Research outputs")
 
     class Config:
         json_schema_extra = {

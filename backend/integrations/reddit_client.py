@@ -4,6 +4,9 @@ from typing import List, Dict
 from datetime import datetime
 from loguru import logger
 
+from backend.config import require_reddit, MissingRequiredSettingError
+from backend.utils.error_handling import sanitize_error_message
+
 try:
     import praw
     from prawcore.exceptions import ResponseException, RequestException
@@ -17,20 +20,22 @@ class RedditClient:
     """Reddit API client for fetching posts and comments."""
 
     def __init__(self):
-        """Initialize Reddit client with credentials."""
+        """Initialize Reddit client with credentials.
+
+        Raises:
+            ImportError: If PRAW library is not installed
+            MissingRequiredSettingError: If Reddit credentials are missing
+        """
         if not PRAW_AVAILABLE:
             raise ImportError("PRAW library is required. Install with: pip install praw")
 
-        client_id = os.getenv("REDDIT_CLIENT_ID")
-        client_secret = os.getenv("REDDIT_CLIENT_SECRET")
+        # Use centralized config with validation
+        settings = require_reddit()
         user_agent = os.getenv("REDDIT_USER_AGENT", "ResearchAgent/1.0")
 
-        if not client_id or not client_secret:
-            raise ValueError("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET must be set in environment")
-
         self.reddit = praw.Reddit(
-            client_id=client_id,
-            client_secret=client_secret,
+            client_id=settings.reddit_client_id,
+            client_secret=settings.reddit_client_secret,
             user_agent=user_agent
         )
         self.reddit.read_only = True  # We only need read access
@@ -89,17 +94,21 @@ class RedditClient:
                                 "created_utc": datetime.fromtimestamp(comment.created_utc).isoformat() if hasattr(comment, 'created_utc') else None
                             })
                 except Exception as e:
-                    logger.debug(f"Error fetching comments for post {submission.id}: {e}")
+                    sanitized = sanitize_error_message(e, include_type=False)
+                    logger.debug(f"Error fetching comments for post {submission.id}: {sanitized}")
 
                 posts.append(post_data)
                 logger.debug(f"Fetched post: {post_data['title'][:50]}...")
 
         except ResponseException as e:
-            logger.error(f"Reddit API error searching r/{subreddit_name}: {e}")
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Reddit API error searching r/{subreddit_name}: {sanitized}")
         except RequestException as e:
-            logger.error(f"Reddit request error searching r/{subreddit_name}: {e}")
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Reddit request error searching r/{subreddit_name}: {sanitized}")
         except Exception as e:
-            logger.error(f"Error fetching Reddit posts from r/{subreddit_name}: {e}")
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Error fetching Reddit posts from r/{subreddit_name}: {sanitized}")
 
         logger.info(f"Fetched {len(posts)} posts from r/{subreddit_name}")
         return posts
@@ -114,14 +123,14 @@ class RedditClient:
     ) -> List[Dict]:
         """Search multiple subreddits for a query."""
         if not subreddits:
-            # Default subreddits for news/politics
-            subreddits = [
-                "politics",
-                "news",
-                "worldnews",
-                "OutOfTheLoop",
-                "NeutralPolitics"
-            ]
+            # Get default subreddits from config
+            from backend.config import get_settings
+            try:
+                settings = get_settings()
+                subreddits = settings.get_default_subreddits()
+            except Exception:
+                # Fallback if config loading fails
+                subreddits = ["politics", "news", "worldnews", "OutOfTheLoop", "NeutralPolitics"]
 
         all_posts = []
         for sub in subreddits:
@@ -136,7 +145,8 @@ class RedditClient:
                 )
                 all_posts.extend(posts)
             except Exception as e:
-                logger.warning(f"Failed to search r/{sub}: {e}")
+                sanitized = sanitize_error_message(e, include_type=False)
+                logger.warning(f"Failed to search r/{sub}: {sanitized}")
                 continue
 
         logger.info(f"Total Reddit posts fetched: {len(all_posts)} from {len(subreddits)} subreddits")
@@ -170,7 +180,8 @@ class RedditClient:
                 posts.append(post_data)
 
         except Exception as e:
-            logger.error(f"Error fetching hot posts from r/{subreddit_name}: {e}")
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Error fetching hot posts from r/{subreddit_name}: {sanitized}")
 
         return posts
 

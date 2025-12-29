@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { supabase, signOut as supabaseSignOut, getAccessToken } from '../lib/supabase';
 import { useJobsStore } from '../store/jobs';
 import { useSettingsStore } from '../store/settings';
+import { API_URL } from '../lib/constants';
 
 interface AuthContextType {
   user: User | null;
@@ -36,8 +37,6 @@ export function useAuth() {
 interface AuthProviderProps {
   children: React.ReactNode;
 }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);

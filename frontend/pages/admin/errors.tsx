@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminLayout from '../../components/AdminLayout';
-import { AdminProtectedRoute } from '../../components/AuthProvider';
+import { AdminProtectedRoute, useAuth } from '../../components/AuthProvider';
 import { useAdminStore, ErrorLog } from '../../store/admin';
 import Skeleton from '../../components/ui/Skeleton';
 
@@ -181,6 +181,7 @@ function Pagination({
 
 function AdminErrorsContent() {
   const router = useRouter();
+  const { user, isAdmin } = useAuth();
   const {
     errorLogs,
     isLoadingErrors,
@@ -196,12 +197,15 @@ function AdminErrorsContent() {
     router.query.resolved === 'false' ? 'false' : ''
   );
 
+  // Gate data fetching on auth completion
   useEffect(() => {
-    const filters: { category?: string; resolved?: boolean } = {};
-    if (categoryFilter) filters.category = categoryFilter;
-    if (resolvedFilter) filters.resolved = resolvedFilter === 'true';
-    fetchErrorLogs(1, filters);
-  }, [fetchErrorLogs, categoryFilter, resolvedFilter]);
+    if (user && isAdmin) {
+      const filters: { category?: string; resolved?: boolean } = {};
+      if (categoryFilter) filters.category = categoryFilter;
+      if (resolvedFilter) filters.resolved = resolvedFilter === 'true';
+      fetchErrorLogs(1, filters);
+    }
+  }, [fetchErrorLogs, categoryFilter, resolvedFilter, user, isAdmin]);
 
   const handlePageChange = (page: number) => {
     const filters: { category?: string; resolved?: boolean } = {};

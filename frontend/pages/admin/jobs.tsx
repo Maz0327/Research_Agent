@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import AdminLayout from '../../components/AdminLayout';
-import { AdminProtectedRoute } from '../../components/AuthProvider';
+import { AdminProtectedRoute, useAuth } from '../../components/AuthProvider';
 import { useAdminStore, AdminJob } from '../../store/admin';
 import Skeleton from '../../components/ui/Skeleton';
 
@@ -127,6 +127,7 @@ function Pagination({
 
 function AdminJobsContent() {
   const router = useRouter();
+  const { user, isAdmin } = useAuth();
   const {
     jobs,
     isLoadingJobs,
@@ -142,9 +143,12 @@ function AdminJobsContent() {
     (router.query.status as string) || ''
   );
 
+  // Gate data fetching on auth completion
   useEffect(() => {
-    fetchJobs(1, { status: statusFilter || undefined });
-  }, [fetchJobs, statusFilter]);
+    if (user && isAdmin) {
+      fetchJobs(1, { status: statusFilter || undefined });
+    }
+  }, [fetchJobs, statusFilter, user, isAdmin]);
 
   const handlePageChange = (page: number) => {
     fetchJobs(page, { status: statusFilter || undefined });

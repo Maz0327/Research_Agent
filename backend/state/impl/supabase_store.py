@@ -1,19 +1,35 @@
-"""Supabase job store implementation."""
+"""Supabase job store implementation with atomic JSONB operations."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any, Optional
 
 import httpx
 from loguru import logger
+from supabase import create_client, Client
 
 from backend.config import get_settings
 from backend.models.job_record import Artifacts, JobRecord, Outputs
 from backend.state.interface import JobStore
 from backend.utils.error_handling import sanitize_error_message
+from backend.utils.validators import validate_uuid, ValidationError
 
-# Constants - increased timeout for large updates
-SUPABASE_API_TIMEOUT = 15.0  # seconds (increased from 5.0)
+# Constants
+SUPABASE_API_TIMEOUT = 15.0  # seconds
+
+
+@lru_cache()
+def _get_supabase_client() -> Client:
+    """Get singleton Supabase client for RPC calls."""
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured")
+    return create_client(
+        str(settings.supabase_url),
+        settings.supabase_service_role_key,
+    )
 
 
 def _rest_base_url() -> str:
@@ -92,7 +108,20 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
 
 
 class SupabaseJobStore(JobStore):
-    """Supabase job store implementation."""
+    """Supabase job store implementation with atomic JSONB operations."""
+
+    def __init__(self) -> None:
+        """Initialize the store with HTTP client for connection pooling."""
+        self._http_client: Optional[httpx.Client] = None
+
+    def _get_http_client(self) -> httpx.Client:
+        """Get or create HTTP client with connection pooling."""
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.Client(
+                timeout=SUPABASE_API_TIMEOUT,
+                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+            )
+        return self._http_client
 
     def create_job(self, config_json: dict, user_id: str | None = None) -> JobRecord:
         """Create a new job record in Supabase."""
@@ -101,14 +130,12 @@ class SupabaseJobStore(JobStore):
         headers["Prefer"] = "return=representation"
 
         # Extract pipeline from config_json for the database column
-        # Support both old (quick/full) and new (documentary modes) pipeline values
         pipeline = config_json.get("pipeline", "investigation")
 
         payload: dict[str, Any] = {
             "status": "queued",
-            "pipeline": pipeline,  # Add pipeline as separate column for database constraint
+            "pipeline": pipeline,
             "config_json": config_json,
-            # these are initialized empty so later updates can safely merge into them
             "warnings": [],
             "artifacts": {},
             "outputs": {},
@@ -116,21 +143,27 @@ class SupabaseJobStore(JobStore):
 
         # Add user_id if provided (for job ownership)
         if user_id:
-            payload["user_id"] = user_id
+            # Validate user_id format
+            try:
+                user_id = validate_uuid(user_id, "user_id")
+                payload["user_id"] = user_id
+            except ValidationError as e:
+                logger.error(f"Invalid user_id format in create_job: {e}")
+                raise ValueError(f"Invalid user_id: {e}") from e
 
-        logger.info("Creating job in Supabase with config_json keys=%s (user: %s)", list(config_json.keys()), user_id or "anonymous")
-        logger.debug("Supabase job insert payload keys: %s", list(payload.keys()))
+        logger.info(
+            "Creating job in Supabase with config_json keys=%s (user: %s)",
+            list(config_json.keys()),
+            user_id or "anonymous",
+        )
 
-        with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as client:
-            resp = client.post(url, headers=headers, json=payload)
+        client = self._get_http_client()
+        resp = client.post(url, headers=headers, json=payload)
 
         try:
             resp.raise_for_status()
         except httpx.HTTPError as e:
-            logger.error(
-                "Failed to create job in Supabase: %s",
-                sanitize_error_message(e),
-            )
+            logger.error("Failed to create job in Supabase: %s", sanitize_error_message(e))
             raise
 
         data = resp.json()
@@ -144,7 +177,24 @@ class SupabaseJobStore(JobStore):
         return job
 
     def get_job(self, job_id: str) -> Optional[JobRecord]:
-        """Get a job record by ID from Supabase."""
+        """Get a job record by ID from Supabase.
+
+        Args:
+            job_id: The UUID of the job to retrieve
+
+        Returns:
+            JobRecord if found, None if not found
+
+        Raises:
+            ValidationError: If job_id is not a valid UUID format
+        """
+        # Validate UUID format - raise exception instead of returning None
+        try:
+            job_id = validate_uuid(job_id, "job_id")
+        except ValidationError as e:
+            logger.warning(f"Invalid job_id format in get_job: {e}")
+            raise  # Re-raise ValidationError instead of returning None
+
         url = _rest_base_url() + "/jobs"
         headers = _headers()
         params = {
@@ -152,8 +202,8 @@ class SupabaseJobStore(JobStore):
             "limit": 1,
         }
 
-        with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as client:
-            resp = client.get(url, headers=headers, params=params)
+        client = self._get_http_client()
+        resp = client.get(url, headers=headers, params=params)
 
         if resp.status_code == 404:
             return None
@@ -191,14 +241,145 @@ class SupabaseJobStore(JobStore):
         warnings: Optional[list[str]] = None,
     ) -> Optional[JobRecord]:
         """
-        Update a job record in Supabase using atomic operations where possible.
+        Update a job record in Supabase using atomic operations.
 
-        This method minimizes race conditions by:
-        1. Only fetching current state when needed for merging
-        2. Using PATCH for atomic field updates
-        3. Avoiding unnecessary reads when only setting simple fields
+        Uses PostgreSQL RPC functions for atomic JSONB merges to prevent race conditions.
+        Falls back to non-atomic behavior if RPC is not available.
+
+        Args:
+            job_id: UUID of the job to update
+            status: New status value
+            stage: New stage value (also updates stage_started_at)
+            progress_percent: New progress percentage (0-100)
+            title: New job title
+            error: Error message if job failed
+            partial_outputs: JSONB dict to merge into outputs (atomic)
+            partial_artifacts: JSONB dict to merge into artifacts (atomic)
+            warnings_append: List of warnings to append (atomic)
+            config_json: Full replacement of config_json
+            artifacts: Full replacement of artifacts
+            warnings: Full replacement of warnings
+
+        Returns:
+            Updated JobRecord or None if job not found
+
+        Raises:
+            ValidationError: If job_id is not a valid UUID format
         """
-        # Build update payload - simple fields don't need current state
+        # Validate UUID format
+        try:
+            job_id = validate_uuid(job_id, "job_id")
+        except ValidationError as e:
+            logger.warning(f"Invalid job_id format in update_job: {e}")
+            raise
+
+        # Check if we need atomic merge operations
+        needs_atomic = bool(partial_outputs or partial_artifacts or warnings_append)
+
+        if needs_atomic:
+            return self._update_job_atomic(
+                job_id=job_id,
+                status=status,
+                stage=stage,
+                progress_percent=progress_percent,
+                title=title,
+                error=error,
+                partial_outputs=partial_outputs,
+                partial_artifacts=partial_artifacts,
+                warnings_append=warnings_append,
+            )
+        else:
+            return self._update_job_simple(
+                job_id=job_id,
+                status=status,
+                stage=stage,
+                progress_percent=progress_percent,
+                title=title,
+                error=error,
+                config_json=config_json,
+                artifacts=artifacts,
+                warnings=warnings,
+            )
+
+    def _update_job_atomic(
+        self,
+        job_id: str,
+        *,
+        status: Optional[str] = None,
+        stage: Optional[str] = None,
+        progress_percent: Optional[int] = None,
+        title: Optional[str] = None,
+        error: Optional[str] = None,
+        partial_outputs: Optional[dict] = None,
+        partial_artifacts: Optional[dict] = None,
+        warnings_append: Optional[list[str]] = None,
+    ) -> Optional[JobRecord]:
+        """Update job using atomic RPC function for JSONB merges."""
+        try:
+            client = _get_supabase_client()
+
+            # Prepare RPC parameters
+            rpc_params = {
+                "p_job_id": job_id,
+                "p_status": status,
+                "p_stage": stage,
+                "p_progress_percent": progress_percent,
+                "p_title": title,
+                "p_error": error,
+                "p_partial_outputs": json.dumps(partial_outputs) if partial_outputs else None,
+                "p_partial_artifacts": json.dumps(partial_artifacts) if partial_artifacts else None,
+                "p_warnings_append": json.dumps(warnings_append) if warnings_append else None,
+                "p_update_stage_timestamp": stage is not None,
+            }
+
+            logger.debug(f"Calling atomic_update_job RPC for job {job_id}")
+            result = client.rpc("atomic_update_job", rpc_params).execute()
+
+            if not result.data:
+                logger.warning(f"Job {job_id} not found for atomic update")
+                return None
+
+            # RPC returns a single row, not a list
+            row = result.data if isinstance(result.data, dict) else result.data[0]
+            return _record_from_db_row(row)
+
+        except Exception as e:
+            # Log the error and fall back to non-atomic update
+            logger.warning(
+                f"Atomic update failed for job {job_id}, falling back to non-atomic: {sanitize_error_message(e)}"
+            )
+            return self._update_job_fallback(
+                job_id=job_id,
+                status=status,
+                stage=stage,
+                progress_percent=progress_percent,
+                title=title,
+                error=error,
+                partial_outputs=partial_outputs,
+                partial_artifacts=partial_artifacts,
+                warnings_append=warnings_append,
+            )
+
+    def _update_job_fallback(
+        self,
+        job_id: str,
+        *,
+        status: Optional[str] = None,
+        stage: Optional[str] = None,
+        progress_percent: Optional[int] = None,
+        title: Optional[str] = None,
+        error: Optional[str] = None,
+        partial_outputs: Optional[dict] = None,
+        partial_artifacts: Optional[dict] = None,
+        warnings_append: Optional[list[str]] = None,
+    ) -> Optional[JobRecord]:
+        """
+        Fallback update method using READ-MERGE-WRITE pattern.
+
+        WARNING: This method has race conditions. Use only as fallback when
+        atomic RPC is unavailable (e.g., migration not applied).
+        """
+        # Build payload for simple fields
         payload: dict[str, Any] = {}
 
         if status is not None:
@@ -209,15 +390,63 @@ class SupabaseJobStore(JobStore):
             payload["title"] = title
         if error is not None:
             payload["error"] = error
-
-        # Stage update with timestamp tracking
         if stage is not None:
             payload["stage"] = stage
-            # Always update stage_started_at when stage changes
-            # The caller should only pass stage when it actually changes
             payload["stage_started_at"] = datetime.now(timezone.utc).isoformat()
 
-        # Handle full replacements (no merge needed)
+        # For merge operations, fetch current state (race condition here)
+        if partial_outputs or partial_artifacts or warnings_append:
+            current_job = self.get_job(job_id)
+            if not current_job:
+                logger.warning(f"Job {job_id} not found for update")
+                return None
+
+            if warnings_append:
+                new_warnings = (current_job.warnings or []) + warnings_append
+                payload["warnings"] = new_warnings
+
+            if partial_outputs:
+                outputs_dict = current_job.outputs.model_dump(exclude_none=True)
+                outputs_dict.update(partial_outputs)
+                payload["outputs"] = outputs_dict
+
+            if partial_artifacts:
+                artifacts_dict = current_job.artifacts.model_dump(exclude_none=True)
+                artifacts_dict.update(partial_artifacts)
+                payload["artifacts"] = artifacts_dict
+
+        if not payload:
+            return self.get_job(job_id)
+
+        return self._patch_job(job_id, payload)
+
+    def _update_job_simple(
+        self,
+        job_id: str,
+        *,
+        status: Optional[str] = None,
+        stage: Optional[str] = None,
+        progress_percent: Optional[int] = None,
+        title: Optional[str] = None,
+        error: Optional[str] = None,
+        config_json: Optional[dict] = None,
+        artifacts: Optional[Artifacts] = None,
+        warnings: Optional[list[str]] = None,
+    ) -> Optional[JobRecord]:
+        """Update job with simple field replacements (no merge needed)."""
+        payload: dict[str, Any] = {}
+
+        if status is not None:
+            payload["status"] = status
+        if progress_percent is not None:
+            payload["progress_percent"] = progress_percent
+        if title is not None:
+            payload["title"] = title
+        if error is not None:
+            payload["error"] = error
+        if stage is not None:
+            payload["stage"] = stage
+            payload["stage_started_at"] = datetime.now(timezone.utc).isoformat()
         if artifacts is not None:
             payload["artifacts"] = artifacts.model_dump(exclude_none=True)
         if warnings is not None:
@@ -225,39 +454,13 @@ class SupabaseJobStore(JobStore):
         if config_json is not None:
             payload["config_json"] = config_json
 
-        # For merge operations, we need to fetch current state
-        needs_current_state = bool(partial_outputs or partial_artifacts or warnings_append)
-        current_job = None
-
-        if needs_current_state:
-            current_job = self.get_job(job_id)
-            if not current_job:
-                logger.warning(f"Job {job_id} not found for update")
-                return None
-
-            # Append warnings (merge with existing)
-            if warnings_append:
-                new_warnings = (current_job.warnings or []) + warnings_append
-                payload["warnings"] = new_warnings
-
-            # Merge partial outputs
-            if partial_outputs:
-                outputs_dict = current_job.outputs.model_dump(exclude_none=True)
-                outputs_dict.update(partial_outputs)
-                payload["outputs"] = outputs_dict
-
-            # Merge partial artifacts
-            if partial_artifacts:
-                artifacts_dict = current_job.artifacts.model_dump(exclude_none=True)
-                artifacts_dict.update(partial_artifacts)
-                payload["artifacts"] = artifacts_dict
-
         if not payload:
-            # No changes, fetch and return current job if we don't have it
-            if current_job:
-                return current_job
             return self.get_job(job_id)
 
+        return self._patch_job(job_id, payload)
+
+    def _patch_job(self, job_id: str, payload: dict[str, Any]) -> Optional[JobRecord]:
+        """Execute PATCH request to update job."""
         url = _rest_base_url() + "/jobs"
         headers = _headers()
         headers["Prefer"] = "return=representation"
@@ -265,8 +468,8 @@ class SupabaseJobStore(JobStore):
 
         logger.debug(f"Updating job {job_id} in Supabase with keys: {list(payload.keys())}")
 
-        with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as client:
-            resp = client.patch(url, headers=headers, params=params, json=payload)
+        client = self._get_http_client()
+        resp = client.patch(url, headers=headers, params=params, json=payload)
 
         if resp.status_code == 404:
             logger.warning(f"Job {job_id} not found for update")
@@ -275,7 +478,6 @@ class SupabaseJobStore(JobStore):
         try:
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
-            # Log detailed error info for debugging
             error_body = ""
             try:
                 error_body = resp.text
@@ -290,31 +492,21 @@ class SupabaseJobStore(JobStore):
             )
 
             # If it's a 400 error and we sent stage_started_at, retry without it
-            # This handles cases where migration 011 hasn't been applied
             if resp.status_code == 400 and "stage_started_at" in payload:
-                logger.warning(
-                    "Retrying update without stage_started_at (column may not exist)"
-                )
+                logger.warning("Retrying update without stage_started_at (column may not exist)")
                 retry_payload = {k: v for k, v in payload.items() if k != "stage_started_at"}
                 if retry_payload:
-                    with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as retry_client:
-                        retry_resp = retry_client.patch(
-                            url, headers=headers, params=params, json=retry_payload
-                        )
-                        if retry_resp.status_code < 400:
-                            data = retry_resp.json()
-                            if isinstance(data, list):
-                                if not data:
-                                    return None
-                                data = data[0]
-                            return _record_from_db_row(data)
+                    retry_resp = client.patch(url, headers=headers, params=params, json=retry_payload)
+                    if retry_resp.status_code < 400:
+                        data = retry_resp.json()
+                        if isinstance(data, list):
+                            if not data:
+                                return None
+                            data = data[0]
+                        return _record_from_db_row(data)
             raise
         except httpx.HTTPError as e:
-            logger.error(
-                "Failed to update job %s: %s",
-                job_id,
-                sanitize_error_message(e),
-            )
+            logger.error("Failed to update job %s: %s", job_id, sanitize_error_message(e))
             raise
 
         data = resp.json()
@@ -330,35 +522,65 @@ class SupabaseJobStore(JobStore):
         user_id: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
+        status: Optional[str] = None,
+        pipeline: Optional[str] = None,
     ) -> list[JobRecord]:
-        """List jobs, optionally filtered by user_id."""
+        """List jobs with optional filtering.
+
+        Args:
+            user_id: Filter by user ID (UUID)
+            limit: Maximum number of jobs to return
+            offset: Number of jobs to skip
+            status: Filter by job status (queued, running, completed, failed, cancelled)
+            pipeline: Filter by pipeline type
+
+        Returns:
+            List of JobRecord objects
+
+        Raises:
+            ValidationError: If user_id is provided but not a valid UUID
+        """
         url = _rest_base_url() + "/jobs"
         headers = _headers()
 
-        # Build query parameters
-        params = {
-            "order": "created_at.desc",  # Sort by created_at descending
+        params: dict[str, Any] = {
+            "order": "created_at.desc",
             "limit": limit,
             "offset": offset,
         }
 
-        # Filter by user_id if provided
-        # Note: RLS policies will also enforce user filtering on the database side
+        # Validate and add user_id filter
         if user_id is not None:
-            params["user_id"] = f"eq.{user_id}"
+            try:
+                user_id = validate_uuid(user_id, "user_id")
+                params["user_id"] = f"eq.{user_id}"
+            except ValidationError as e:
+                logger.warning(f"Invalid user_id format in list_jobs: {e}")
+                raise
+
+        # Add status filter
+        if status is not None:
+            valid_statuses = {"queued", "running", "completed", "failed", "cancelled"}
+            if status not in valid_statuses:
+                raise ValueError(f"Invalid status: {status}. Must be one of {valid_statuses}")
+            params["status"] = f"eq.{status}"
+
+        # Add pipeline filter
+        if pipeline is not None:
+            valid_pipelines = {"quick", "full", "breaking_news", "investigation", "profile", "controversy"}
+            if pipeline not in valid_pipelines:
+                raise ValueError(f"Invalid pipeline: {pipeline}. Must be one of {valid_pipelines}")
+            params["pipeline"] = f"eq.{pipeline}"
 
         logger.debug(f"Listing jobs with params: {params}")
 
-        with httpx.Client(timeout=SUPABASE_API_TIMEOUT) as client:
-            resp = client.get(url, headers=headers, params=params)
+        client = self._get_http_client()
+        resp = client.get(url, headers=headers, params=params)
 
         try:
             resp.raise_for_status()
         except httpx.HTTPError as e:
-            logger.error(
-                "Failed to list jobs from Supabase: %s",
-                sanitize_error_message(e),
-            )
+            logger.error("Failed to list jobs from Supabase: %s", sanitize_error_message(e))
             raise
 
         data = resp.json()
@@ -369,3 +591,13 @@ class SupabaseJobStore(JobStore):
         jobs = [_record_from_db_row(row) for row in data]
         logger.debug(f"Listed {len(jobs)} jobs from Supabase")
         return jobs
+
+    def close(self) -> None:
+        """Close HTTP client connection."""
+        if self._http_client and not self._http_client.is_closed:
+            self._http_client.close()
+            self._http_client = None
+
+    def __del__(self) -> None:
+        """Cleanup on garbage collection."""
+        self.close()

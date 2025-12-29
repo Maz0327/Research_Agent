@@ -72,7 +72,7 @@ class TranscriptResultItem(BaseModel):
     video_url: str
     title: Optional[str] = None
     status: Literal["available", "missing", "error"]
-    source: Literal["youtube_transcript_api", "whisper", "failed"]
+    source: Literal["supadata_native", "supadata_ai", "whisper", "failed"]
     text: Optional[str] = None
     error_message: Optional[str] = None
     duration_seconds: Optional[int] = None

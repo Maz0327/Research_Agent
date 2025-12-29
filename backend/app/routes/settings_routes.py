@@ -4,8 +4,10 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 
+from backend.app.rate_limiter import limiter, RATE_LIMITS
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user
+from backend.auth.ban_check import get_active_user
 from backend.config import require_google_oauth, MissingRequiredSettingError
 from backend.models.user_settings import (
     UserSettingsUpdate,
@@ -24,17 +26,18 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 @router.get("", response_model=UserSettingsResponse)
-async def get_settings_endpoint(user: AuthUser = Depends(get_current_user)):
+async def get_settings_endpoint(user: AuthUser = Depends(get_active_user)):
     """Get the current user's settings. Creates default settings if none exist."""
     settings = get_or_create_settings(user.user_id)
     return UserSettingsResponse.from_settings(settings)
 
 
 @router.put("", response_model=UserSettingsResponse)
+@limiter.limit(RATE_LIMITS["settings_update"])
 async def update_settings_endpoint(
     request: Request,
     settings_update: UserSettingsUpdate,
-    user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_active_user),
 ):
     """Update the current user's settings. Only provided fields will be updated."""
     updated = update_user_settings(user.user_id, settings_update)
@@ -54,10 +57,11 @@ async def update_settings_endpoint(
 
 
 @router.post("/validate-folder", response_model=FolderValidationResponse)
+@limiter.limit(RATE_LIMITS["settings_validate_folder"])
 async def validate_folder_endpoint(
     request: Request,
     folder_request: FolderValidationRequest,
-    user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_active_user),
 ):
     """Validate that a Google Drive folder is accessible."""
     # Extract folder ID from URL
@@ -154,9 +158,10 @@ async def validate_folder_endpoint(
 
 
 @router.get("/oauth-status")
+@limiter.limit(RATE_LIMITS["settings_oauth_status"])
 async def get_oauth_status(
     request: Request,
-    user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_active_user),
 ):
     """Check if Google OAuth is properly configured."""
     from backend.integrations.google_drive_docs import validate_oauth_config
@@ -166,10 +171,11 @@ async def get_oauth_status(
 
 
 @router.get("/check-username", response_model=UsernameCheckResponse)
+@limiter.limit(RATE_LIMITS["settings_check_username"])
 async def check_username_availability(
     request: Request,
     username: str,
-    user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_active_user),
 ):
     """Check if a username is available."""
     # Normalize username

@@ -56,6 +56,8 @@ def stage_1_planning(ctx: PipelineContext) -> None:
             raise ValueError("Topic cannot be empty")
 
         ctx.job_config = plan_job(ctx.topic)
+        # Track OpenAI cost (estimate ~1K tokens for planning)
+        ctx.add_cost("openai_planning", 0.002)
 
         if not isinstance(ctx.job_config, JobConfig):
             raise ValueError(f"plan_job returned invalid type: {type(ctx.job_config)}")
@@ -122,6 +124,8 @@ def stage_2_research_mapping(ctx: PipelineContext) -> None:
         ctx.set_output("research_map_md", result.get("research_map_md", ""))
         ctx.angles = result.get("angles", [])
         ctx.key_terms = result.get("key_terms", [])
+        # Track Perplexity cost (~$0.005 per search)
+        ctx.add_cost("perplexity_research_map", 0.005)
         logger.info(f"[{ctx.job_id}] Generated research map with {len(ctx.angles)} angles")
     except Exception as e:
         logger.warning(f"[{ctx.job_id}] Research map generation failed: {e}")
@@ -166,6 +170,8 @@ def stage_3_source_shortlist(ctx: PipelineContext) -> None:
         result = source_shortlist(ctx.job_config, ctx.angles, expanded_key_terms)
         ctx.web_sources = result.get("urls", []) or []
         ctx.set_output("source_shortlist_md", result.get("shortlist_md", ""))
+        # Track Perplexity cost (~$0.005 per search)
+        ctx.add_cost("perplexity_source_shortlist", 0.005)
 
         # For breaking_news mode, also search GDELT for recent news
         if ctx.job_config.mode.value in ("breaking_news", "BREAKING_NEWS"):
@@ -226,6 +232,100 @@ def stage_3_source_shortlist(ctx: PipelineContext) -> None:
         logger.warning(f"[{ctx.job_id}] Source shortlist generation failed: {e}")
         ctx.add_warning(f"Source shortlist generation failed: {str(e)}")
         ctx.set_output("source_shortlist_md", f"# Source Shortlist\n\n*Error: {str(e)}*")
+
+
+# =============================================================================
+# Stage 3.5: Quality Gate (Source Filtering)
+# =============================================================================
+
+def stage_3_5_quality_gate(ctx: PipelineContext) -> None:
+    """Apply Quality Gate to filter and score discovered sources."""
+    from backend.pipeline.quality_gate import run_quality_gate
+
+    logger.info(f"[{ctx.job_id}] Stage 3.5: Applying Quality Gate")
+    update_job(ctx.job_id, stage="quality_gate", progress_percent=30)
+
+    if not ctx.web_sources:
+        logger.info(f"[{ctx.job_id}] No sources to filter")
+        return
+
+    try:
+        # Convert sources to dicts for quality gate
+        source_dicts = []
+        for source in ctx.web_sources:
+            if isinstance(source, dict):
+                source_dicts.append(source)
+            elif hasattr(source, 'url'):
+                source_dicts.append({
+                    'url': source.url,
+                    'title': getattr(source, 'title', ''),
+                    'snippet': getattr(source, 'text', ''),
+                    'source_type': getattr(source, 'source_type', 'web'),
+                })
+            else:
+                source_dicts.append({'url': str(source)})
+
+        # Get mode from job config
+        mode = ctx.job_config.mode.value if ctx.job_config else "full"
+        niche = ctx.job_config.niche if ctx.job_config else None
+
+        # Run Quality Gate with key terms for BM25 scoring
+        result = run_quality_gate(
+            sources=source_dicts,
+            mode=mode,
+            niche=niche,
+            query_terms=ctx.key_terms if ctx.key_terms else None,
+        )
+
+        # Store stats
+        ctx.quality_gate_stats = result.get("stats", {})
+
+        # Convert approved sources back to SourceItems
+        from backend.models.source import SourceItem, SourceType
+
+        approved_sources = []
+        for src in result.get("approved", []):
+            source_type_str = src.get("source_type", "web")
+            try:
+                source_type = SourceType(source_type_str)
+            except ValueError:
+                source_type = SourceType.WEB
+
+            approved_sources.append(SourceItem(
+                url=src["url"],
+                title=src.get("title", ""),
+                source_type=source_type,
+                text=src.get("snippet", ""),
+                notes=f"QG score: {src.get('final_score', 0):.2f}"
+            ))
+
+        # Replace web_sources with filtered list
+        original_count = len(ctx.web_sources)
+        ctx.web_sources = approved_sources
+
+        # Add soft-rejected as reference links in outputs
+        soft_rejected = result.get("soft_rejected", [])
+        if soft_rejected:
+            ref_links = "\n\n## Reference Links (Not Extracted)\n\n"
+            for src in soft_rejected[:10]:
+                ref_links += f"- [{src.get('title', src['url'][:50])}]({src['url']})\n"
+            current_shortlist = ctx.outputs.get("source_shortlist_md", "")
+            ctx.set_output("source_shortlist_md", current_shortlist + ref_links)
+
+        stats = ctx.quality_gate_stats
+        logger.info(
+            f"[{ctx.job_id}] Quality Gate: {original_count} → {len(approved_sources)} sources "
+            f"(approved: {stats.get('approved_count', 0)}, "
+            f"soft-rejected: {stats.get('soft_rejected_count', 0)}, "
+            f"hard-rejected: {stats.get('rejected_count', 0)})"
+        )
+
+        # Track cost (Quality Gate is deterministic, no API cost)
+        ctx.add_cost("quality_gate", 0.0)
+
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Quality Gate failed, continuing without filtering: {e}")
+        ctx.add_warning(f"Quality Gate failed: {str(e)}")
 
 
 # =============================================================================
@@ -450,6 +550,8 @@ def stage_7_extraction(ctx: PipelineContext) -> None:
             ctx.claims, quote_bank_md, claims_ledger_md = extract_claims(ctx.transcripts, ctx.web_sources)
             ctx.set_output("quote_bank_md", quote_bank_md)
             ctx.set_output("claims_ledger_md", claims_ledger_md)
+            # Track OpenAI cost (estimate ~2K tokens for extraction)
+            ctx.add_cost("openai_claim_extraction", 0.003)
             logger.info(f"[{ctx.job_id}] Extracted {len(ctx.claims)} claims")
         else:
             ctx.set_output("quote_bank_md", "# Quote Bank\n\n*No content available for extraction*")
@@ -541,6 +643,10 @@ def stage_8_validation(ctx: PipelineContext) -> None:
             ctx.topic,
             max_perplexity_calls=max_perplexity
         )
+        # Track validation costs from v2 breakdown
+        if cost_breakdown:
+            ctx.add_cost("perplexity_validation", cost_breakdown.get("perplexity", 0))
+            ctx.add_cost("openai_validation", cost_breakdown.get("openai", 0))
 
         try:
             _, evidence_table_md, missing_angles_md = validate_claims(ctx.claims, ctx.job_config)
@@ -735,12 +841,23 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
 def stage_10_completion(ctx: PipelineContext) -> dict:
     """Mark job complete and send notifications."""
     logger.info(f"[{ctx.job_id}] Stage 10: Completing job")
+
+    # Get cost summary for final output
+    cost_summary = ctx.get_cost_summary()
+
+    # Add cost and quality gate stats to outputs
+    final_outputs = dict(ctx.outputs)
+    if cost_summary:
+        final_outputs["cost_summary"] = cost_summary
+    if ctx.quality_gate_stats:
+        final_outputs["quality_gate_stats"] = ctx.quality_gate_stats
+
     update_job(
         ctx.job_id,
         status="completed",
         stage="completed",
         progress_percent=100,
-        partial_outputs=ctx.outputs,
+        partial_outputs=final_outputs,
         warnings_append=ctx.warnings,
     )
 
@@ -773,7 +890,9 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
         "sources_count": len(ctx.web_sources),
         "youtube_videos_count": len(ctx.youtube_videos),
         "warnings_count": len(ctx.warnings),
+        "cost_summary": cost_summary,
+        "quality_gate_stats": ctx.quality_gate_stats,
     }
 
-    logger.info(f"Research job {ctx.job_id} completed successfully")
+    logger.info(f"Research job {ctx.job_id} completed successfully (cost: ${cost_summary.get('total_cost', 0):.4f})")
     return result

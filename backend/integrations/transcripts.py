@@ -18,21 +18,9 @@ from typing import Optional
 from loguru import logger
 from pydantic import BaseModel
 
-# youtube-transcript-api DISABLED - fails on cloud IPs (Railway, AWS, GCP)
-# Keeping import for local development fallback only
-YOUTUBE_TRANSCRIPT_API_AVAILABLE = False
-try:
-    from youtube_transcript_api import YouTubeTranscriptApi
-    from youtube_transcript_api._errors import (
-        NoTranscriptFound,
-        TranscriptsDisabled,
-        VideoUnavailable,
-        YouTubeRequestFailed,
-    )
-    # DISABLED: Even if available, don't use on cloud
-    # YOUTUBE_TRANSCRIPT_API_AVAILABLE = True
-except ImportError:
-    pass
+# NOTE: youtube-transcript-api REMOVED - fails on cloud IPs (Railway, AWS, GCP)
+# See: https://github.com/jdepoix/youtube-transcript-api/issues/303
+# Fallback chain: Supadata → Whisper (no youtube-transcript-api)
 
 # Import Supadata client (PRIMARY per PRD v4.3)
 from backend.integrations.supadata_client import (
@@ -58,7 +46,7 @@ class TranscriptItem(BaseModel):
     status: TranscriptStatus = TranscriptStatus.MISSING
     language: Optional[str] = None
     error_message: Optional[str] = None
-    source: str = "youtube_transcript_api"  # supadata_native, supadata_ai, youtube_transcript_api, whisper
+    source: str = "supadata_native"  # supadata_native, supadata_ai, whisper
     platform: str = "youtube"  # youtube, tiktok, instagram, twitter, facebook
     cost_credits: float = 0.0  # API cost tracking
 
@@ -153,49 +141,6 @@ def _extract_video_id(video_url_or_id: str) -> Optional[str]:
     return None
 
 
-def _fetch_with_youtube_transcript_api(video_id: str, languages: Optional[list[str]] = None) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """
-    Fetch transcript using youtube-transcript-api.
-    
-    Args:
-        video_id: YouTube video ID
-        languages: Preferred languages (default: ['en'])
-        
-    Returns:
-        Tuple of (text, language, error_message)
-        If successful: (text, language, None)
-        If failed: (None, None, error_message)
-    """
-    if languages is None:
-        languages = ['en']
-    
-    try:
-        # Try to get transcript
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=languages)
-        
-        # Concatenate all transcript entries into a single text
-        text_parts = []
-        for entry in transcript_list:
-            text_parts.append(entry.get('text', ''))
-        
-        text = ' '.join(text_parts)
-        language = transcript_list[0].get('language', languages[0]) if transcript_list else languages[0]
-        
-        return text, language, None
-    
-    except NoTranscriptFound:
-        return None, None, "No transcript found for this video"
-    except TranscriptsDisabled:
-        return None, None, "Transcripts are disabled for this video"
-    except VideoUnavailable:
-        return None, None, "Video is unavailable"
-    except YouTubeRequestFailed as e:
-        return None, None, f"YouTube API request failed: {str(e)}"
-    except Exception as e:
-        logger.exception(f"Unexpected error fetching transcript for {video_id}: {e}")
-        return None, None, f"Unexpected error: {str(e)}"
-
-
 def _fetch_with_whisper(
     video_id: str,
     video_url: str,
@@ -235,97 +180,29 @@ def fetch_transcript(
 ) -> TranscriptItem:
     """
     Fetch transcript for a YouTube video.
-    
-    Uses youtube-transcript-api first. If transcript is missing, marks status=missing
-    and returns without failing. Whisper API is available as a hook but disabled by default.
-    
+
+    DEPRECATED: Use fetch_transcript_v2 instead. This function now delegates to v2.
+
     Args:
         video_url_or_id: YouTube video URL or video ID
-        use_whisper: Whether to use Whisper API if youtube-transcript-api fails (default: False)
-        whisper_api_key: OpenAI API key for Whisper (optional, required if use_whisper=True)
+        use_whisper: Whether to use Whisper as fallback (default: False)
+        whisper_api_key: Unused (kept for backward compatibility)
         preferred_languages: List of language codes to try (default: ['en'])
-        
+
     Returns:
         TranscriptItem with transcript text if available, or status=missing if not
-        
-    Example:
-        >>> transcript = fetch_transcript("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-        >>> if transcript.status == TranscriptStatus.AVAILABLE:
-        ...     print(f"Transcript: {transcript.text[:100]}...")
-        >>> else:
-        ...     print(f"Transcript missing: {transcript.error_message}")
     """
-    # Extract video ID
-    video_id = _extract_video_id(video_url_or_id)
-    if not video_id:
-        return TranscriptItem(
-            video_id="",
-            video_url=video_url_or_id,
-            status=TranscriptStatus.ERROR,
-            error_message="Could not extract video ID from input",
-        )
-    
-    # Build video URL if input was just an ID
+    # Build full URL if video ID was passed
     if not video_url_or_id.startswith("http"):
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        video_url = f"https://www.youtube.com/watch?v={video_url_or_id}"
     else:
         video_url = video_url_or_id
-    
-    # Try youtube-transcript-api first
-    text, language, error_message = _fetch_with_youtube_transcript_api(video_id, preferred_languages)
-    
-    if text:
-        logger.info(f"Successfully fetched transcript for video {video_id} (language: {language})")
-        return TranscriptItem(
-            video_id=video_id,
-            video_url=video_url,
-            text=text,
-            status=TranscriptStatus.AVAILABLE,
-            language=language,
-            source="youtube_transcript_api",
-        )
-    
-    # Transcript not available via youtube-transcript-api
-    logger.warning(f"Transcript not available via youtube-transcript-api for video {video_id}: {error_message}")
-    
-    # If Whisper is enabled, try it
-    if use_whisper:
-        if not whisper_api_key:
-            logger.warning("Whisper is enabled but no API key provided")
-            return TranscriptItem(
-                video_id=video_id,
-                video_url=video_url,
-                status=TranscriptStatus.MISSING,
-                error_message=f"youtube-transcript-api failed: {error_message}. Whisper enabled but no API key.",
-            )
-        
-        whisper_text, whisper_language, whisper_error = _fetch_with_whisper(video_id, video_url, whisper_api_key)
-        
-        if whisper_text:
-            logger.info(f"Successfully fetched transcript via Whisper for video {video_id}")
-            return TranscriptItem(
-                video_id=video_id,
-                video_url=video_url,
-                text=whisper_text,
-                status=TranscriptStatus.AVAILABLE,
-                language=whisper_language,
-                source="whisper",
-            )
-        else:
-            logger.warning(f"Whisper also failed for video {video_id}: {whisper_error}")
-            return TranscriptItem(
-                video_id=video_id,
-                video_url=video_url,
-                status=TranscriptStatus.MISSING,
-                error_message=f"Both methods failed. youtube-transcript-api: {error_message}. Whisper: {whisper_error}",
-            )
-    
-    # Transcript missing, but that's okay - return with status=missing
-    return TranscriptItem(
-        video_id=video_id,
+
+    # Delegate to cloud-compatible v2 implementation
+    return fetch_transcript_v2(
         video_url=video_url,
-        status=TranscriptStatus.MISSING,
-        error_message=error_message,
+        preferred_languages=preferred_languages,
+        use_whisper_fallback=use_whisper,
     )
 
 

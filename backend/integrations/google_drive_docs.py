@@ -11,6 +11,8 @@ from googleapiclient.http import MediaIoBaseUpload
 from loguru import logger
 
 from backend.config import require_google_oauth, MissingRequiredSettingError
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
 
 # Google API scopes
 SCOPES = [
@@ -62,9 +64,9 @@ def build_oauth_credentials(settings) -> Credentials:
     try:
         creds.refresh(Request())
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {str(e)}"
-        logger.error(f"Failed to refresh Google OAuth token: {error_msg}")
-        raise RuntimeError(f"Failed to refresh OAuth token: {error_msg}") from e
+        sanitized = sanitize_error_message(e, include_type=True)
+        logger.error(f"Failed to refresh Google OAuth token: {sanitized}")
+        raise RuntimeError(f"Failed to refresh OAuth token: {sanitized}") from e
     
     return creds
 
@@ -197,6 +199,7 @@ def _get_or_create_user_folder(
     return user_folder.get("id")
 
 
+@with_rate_limit("google_drive")
 def create_research_packet(
     folder_name: str,
     doc_contents: dict[str, str],
@@ -381,6 +384,7 @@ def create_research_packet(
         raise
 
 
+@with_rate_limit("google_drive")
 def create_transcript_doc(
     title: str,
     content: str,

@@ -1,18 +1,37 @@
 """Research jobs API routes."""
+import re
 import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 
+from backend.app.rate_limiter import limiter, RATE_LIMITS
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user, get_optional_user
+from backend.auth.ban_check import get_active_user, get_optional_active_user
 from backend.auth.admin import is_admin
 from backend.models.job import CreateJobRequest, CreateJobResponse, JobStatusResponse
 from backend.state import create_job, get_job, update_job, list_jobs
+from backend.utils.validators import ValidationError
 from backend.worker import run_research_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+# Input validation constants
+MAX_PROMPT_LENGTH = 2000  # Maximum characters for prompt
+MAX_SUBREDDITS = 10  # Maximum number of custom subreddits
+SUBREDDIT_PATTERN = re.compile(r'^[a-zA-Z0-9_]{2,21}$')  # Valid subreddit name pattern
+
+# Allowed keys for job options (security: prevent arbitrary config injection)
+ALLOWED_JOB_OPTIONS = {
+    "source_count",      # Number of sources to collect
+    "depth",             # Research depth level
+    "custom_subreddits", # Override default subreddits
+    "time_window_hours", # Time window for breaking_news mode
+    "entity_focus",      # Specific entity to focus on
+    "niche",             # Niche overlay to apply
+}
 
 # Pipeline budget configurations
 PIPELINE_BUDGETS = {
@@ -55,17 +74,46 @@ PIPELINE_BUDGETS = {
 }
 
 
+def _validate_subreddits(subreddits: list) -> list[str]:
+    """Validate and sanitize list of subreddit names."""
+    if not isinstance(subreddits, list):
+        raise ValueError("custom_subreddits must be a list")
+    if len(subreddits) > MAX_SUBREDDITS:
+        raise ValueError(f"Maximum {MAX_SUBREDDITS} custom subreddits allowed")
+
+    validated = []
+    for sr in subreddits:
+        if not isinstance(sr, str):
+            raise ValueError(f"Invalid subreddit name type: {type(sr).__name__}")
+        sr_clean = sr.strip().lower()
+        # Remove r/ prefix if present
+        if sr_clean.startswith("r/"):
+            sr_clean = sr_clean[2:]
+        if not SUBREDDIT_PATTERN.match(sr_clean):
+            raise ValueError(f"Invalid subreddit name: '{sr}'. Must be 2-21 alphanumeric characters or underscores.")
+        validated.append(sr_clean)
+    return validated
+
+
 @router.post("", response_model=CreateJobResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
 async def create_job_endpoint(
     request: Request,
     job_request: CreateJobRequest,
-    user: Optional[AuthUser] = Depends(get_optional_user),
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """Create a new research job."""
     # Validate and clean prompt
     prompt = job_request.prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+
+    # Validate prompt length
+    if len(prompt) > MAX_PROMPT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters"
+        )
 
     # Build config_json
     config_json = {
@@ -81,8 +129,32 @@ async def create_job_endpoint(
         if pipeline in ("breaking_news", "investigation", "profile", "controversy"):
             config_json["mode"] = pipeline
 
-    # Merge additional options
+    # Merge additional options (validated against allowlist)
     if job_request.options:
+        invalid_keys = set(job_request.options.keys()) - ALLOWED_JOB_OPTIONS
+        if invalid_keys:
+            logger.warning(
+                "Invalid job options rejected",
+                extra={
+                    "invalid_keys": list(invalid_keys),
+                    "user_id": user.user_id if user else None,
+                    "event": "invalid_job_options",
+                }
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid options: {', '.join(sorted(invalid_keys))}. "
+                       f"Allowed options: {', '.join(sorted(ALLOWED_JOB_OPTIONS))}"
+            )
+
+        # Validate custom_subreddits if provided
+        if "custom_subreddits" in job_request.options:
+            try:
+                validated_subreddits = _validate_subreddits(job_request.options["custom_subreddits"])
+                job_request.options["custom_subreddits"] = validated_subreddits
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+
         config_json.update(job_request.options)
 
     # Store user info for Drive sharing
@@ -116,9 +188,10 @@ async def create_job_endpoint(
 
 
 @router.get("")
+@limiter.limit(RATE_LIMITS["jobs_list"])
 async def list_jobs_endpoint(
     request: Request,
-    user: Optional[AuthUser] = Depends(get_optional_user),
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
     limit: int = 50,
     offset: int = 0,
 ):
@@ -151,10 +224,11 @@ async def list_jobs_endpoint(
 
 
 @router.get("/{job_id}", response_model=JobStatusResponse)
+@limiter.limit(RATE_LIMITS["jobs_get"])
 async def get_job_status(
     request: Request,
     job_id: str,
-    user: Optional[AuthUser] = Depends(get_optional_user),
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """Get the status of a research job."""
     # Validate job_id format
@@ -210,10 +284,11 @@ async def get_job_status(
 
 
 @router.post("/{job_id}/cancel")
+@limiter.limit(RATE_LIMITS["jobs_cancel"])
 async def cancel_job(
     request: Request,
     job_id: str,
-    user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(get_active_user),
 ):
     """Cancel a running or queued research job."""
     # Validate job_id format

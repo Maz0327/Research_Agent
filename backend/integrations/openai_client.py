@@ -13,6 +13,8 @@ from openai import OpenAI
 from pydantic import ValidationError
 
 from backend.config import require_openai, MissingRequiredSettingError
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
 from backend.models.job_config import (
     BudgetsConfig,
     JobConfig,
@@ -159,11 +161,13 @@ def _safe_default_config(topic: str) -> JobConfig:
     )
 
 
+@with_rate_limit("openai")
 def generate_short_title(prompt: str) -> str:
     """
     Generate a concise 3-6 word title from a verbose research prompt.
 
     Uses GPT-4o-mini to condense long prompts into short, descriptive titles.
+    Rate limited with exponential backoff to prevent quota exhaustion.
 
     Args:
         prompt: The original research prompt (can be long/verbose)
@@ -218,24 +222,27 @@ def generate_short_title(prompt: str) -> str:
             raise ValueError("Empty response from OpenAI")
 
     except Exception as e:
-        logger.warning(f"Failed to generate title: {e}. Using truncated prompt.")
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.warning(f"Failed to generate title: {sanitized}. Using truncated prompt.")
         words = prompt.strip().split()[:6]
         return " ".join(words).title()
 
 
+@with_rate_limit("openai")
 def plan_job(slack_text: str) -> JobConfig:
     """
     Use OpenAI to plan a research job from Slack text input.
-    
+
     This function uses structured output to generate a JobConfig from natural language.
     It detects YouTube channels, infers date windows, and applies conservative defaults.
-    
+    Rate limited with exponential backoff to prevent quota exhaustion.
+
     Args:
         slack_text: Natural language request from Slack
-        
+
     Returns:
         JobConfig object with all parameters configured
-        
+
     Raises:
         MissingRequiredSettingError: If OPENAI_API_KEY is not configured
         ValueError: If slack_text is empty or invalid
@@ -353,11 +360,13 @@ Return a complete JobConfig JSON object matching the schema."""
             logger.info(f"Successfully planned job for topic: {config.topic}")
             return config
         except ValidationError as e:
-            logger.error(f"Validation error in planned config: {e}")
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Validation error in planned config: {sanitized}")
             logger.debug(f"Config dict: {config_dict}")
             return _safe_default_config(slack_text)
-    
+
     except Exception as e:
-        logger.exception(f"Failed to plan job with OpenAI: {e}")
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.exception(f"Failed to plan job with OpenAI: {sanitized}")
         return _safe_default_config(slack_text)
 

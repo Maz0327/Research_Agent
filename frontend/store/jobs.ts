@@ -3,21 +3,38 @@
  */
 import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
+import { API_URL } from '../lib/constants';
 
+/**
+ * Job represents a research job with its status and artifacts.
+ */
 export interface Job {
+  /** Unique job identifier (UUID) */
   id: string;
+  /** Original research prompt from user */
   prompt: string;
-  title?: string;  // AI-generated short title
+  /** AI-generated short title for display */
+  title?: string;
+  /** Pipeline type (quick, full, breaking_news, investigation, profile, controversy) */
   pipeline: string;
+  /** Current job status */
   status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-  stage?: string;  // Current pipeline stage
-  stage_started_at?: string;  // When current stage started (for ETA)
+  /** Current pipeline stage name */
+  stage?: string;
+  /** When current stage started (ISO timestamp for ETA calculation) */
+  stage_started_at?: string;
+  /** Job completion percentage (0-100) */
   progress_percent: number;
+  /** Output artifacts from completed job */
   artifacts?: {
+    /** Google Drive folder URL containing research documents */
     drive_folder_url?: string;
+    /** Array of individual document URLs */
     doc_urls?: string[];
   };
+  /** Error message if job failed */
   error?: string;
+  /** Job creation timestamp (ISO format) */
   created_at: string;
 }
 
@@ -31,8 +48,6 @@ interface JobsState {
   cancelJob: (jobId: string) => Promise<void>;
   clearJobs: () => void;
 }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
@@ -58,15 +73,20 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       const response = await fetch(`${API_URL}/jobs`, { headers });
 
       if (!response.ok) {
-        // If 401, clear jobs and don't show error (user needs to re-login)
+        // If 401, clear jobs and notify user to re-login
         if (response.status === 401) {
-          set({ jobs: [], isLoading: false });
+          set({ jobs: [], isLoading: false, error: 'Session expired. Please log in again.' });
           return;
         }
         throw new Error('Failed to fetch jobs');
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('Invalid response from server');
+      }
       set({ jobs: data.jobs || [], isLoading: false });
     } catch (error) {
       set({
@@ -160,7 +180,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error('Failed to refresh job:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to refresh job:', error);
+      }
     }
   },
 
@@ -193,7 +215,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         ),
       }));
     } catch (error) {
-      console.error('Failed to cancel job:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to cancel job:', error);
+      }
       throw error;
     }
   },

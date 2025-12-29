@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import AdminLayout from '../../components/AdminLayout';
-import { AdminProtectedRoute } from '../../components/AuthProvider';
+import { AdminProtectedRoute, useAuth } from '../../components/AuthProvider';
 import { useAdminStore } from '../../store/admin';
 import Skeleton from '../../components/ui/Skeleton';
 
@@ -46,10 +46,14 @@ function StatCard({
 
 function AdminDashboardContent() {
   const { stats, isLoadingStats, fetchStats } = useAdminStore();
+  const { user, isAdmin } = useAuth();
 
+  // Gate data fetching on auth completion
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (user && isAdmin) {
+      fetchStats();
+    }
+  }, [fetchStats, user, isAdmin]);
 
   const statCards = [
     {

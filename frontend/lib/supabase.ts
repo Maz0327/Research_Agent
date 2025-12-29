@@ -6,10 +6,13 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Only warn in production - in development this is expected during initial setup
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    'Missing Supabase environment variables. Authentication will not work.'
-  );
+  if (process.env.NODE_ENV === 'production') {
+    console.warn(
+      'Missing Supabase environment variables. Authentication will not work.'
+    );
+  }
 }
 
 /**

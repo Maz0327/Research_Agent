@@ -5,8 +5,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 
+from backend.app.rate_limiter import limiter, RATE_LIMITS
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_optional_user
+from backend.auth.ban_check import get_optional_active_user
 from backend.models.transcript_job import (
     TranscriptRequest,
     TranscriptSyncResponse,
@@ -23,6 +25,7 @@ TRANSCRIPT_SYNC_THRESHOLD = 5
 
 
 @router.post("")
+@limiter.limit(RATE_LIMITS["transcripts_create"])
 async def extract_transcripts(
     request: Request,
     transcript_request: TranscriptRequest,
@@ -77,10 +80,11 @@ async def extract_transcripts(
 
 
 @router.get("/{job_id}", response_model=TranscriptJobStatusResponse)
+@limiter.limit(RATE_LIMITS["transcripts_get"])
 async def get_transcript_job_status(
     request: Request,
     job_id: str,
-    user: Optional[AuthUser] = Depends(get_optional_user),
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """Get the status of an async transcript extraction job."""
     # Validate job_id format

@@ -21,6 +21,9 @@ import os
 from typing import List, Dict, Optional, Any
 from loguru import logger
 
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
+
 try:
     from tavily import TavilyClient as TavilySDK
     TAVILY_AVAILABLE = True
@@ -53,6 +56,7 @@ class TavilyClient:
         self.cost_per_advanced_search = 2  # credits
         self.cost_per_extract = 1  # credits per URL (approx)
 
+    @with_rate_limit("tavily")
     def search(
         self,
         query: str,
@@ -66,6 +70,8 @@ class TavilyClient:
     ) -> Dict[str, Any]:
         """
         Search the web using Tavily.
+
+        Rate limited with exponential backoff to prevent quota exhaustion.
 
         Args:
             query: Search query
@@ -127,15 +133,19 @@ class TavilyClient:
             }
 
         except Exception as e:
-            logger.error(f"Tavily search failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Tavily search failed: {sanitized}")
+            raise RuntimeError(f"Tavily search failed: {sanitized}") from e
 
+    @with_rate_limit("tavily")
     def extract(
         self,
         urls: List[str],
     ) -> Dict[str, Any]:
         """
         Extract content from URLs using Tavily Extract API.
+
+        Rate limited with exponential backoff to prevent quota exhaustion.
 
         Args:
             urls: List of URLs to extract content from
@@ -173,8 +183,9 @@ class TavilyClient:
             }
 
         except Exception as e:
-            logger.error(f"Tavily extract failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Tavily extract failed: {sanitized}")
+            raise RuntimeError(f"Tavily extract failed: {sanitized}") from e
 
     def extract_batch(
         self,
@@ -203,7 +214,8 @@ class TavilyClient:
                 all_results.extend(response["results"])
                 failed_urls.extend(response.get("failed", []))
             except Exception as e:
-                logger.error(f"Batch {i // batch_size} failed: {e}")
+                sanitized = sanitize_error_message(e, include_type=False)
+                logger.error(f"Batch {i // batch_size} failed: {sanitized}")
                 failed_urls.extend(batch)
 
         return {
@@ -244,8 +256,9 @@ class TavilyClient:
             return response
 
         except Exception as e:
-            logger.error(f"Tavily search_and_extract failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Tavily search_and_extract failed: {sanitized}")
+            raise RuntimeError(f"Tavily search_and_extract failed: {sanitized}") from e
 
 
 # Convenience functions for use in pipeline
@@ -272,7 +285,8 @@ def search_with_tavily(
         )
         return response["results"]
     except Exception as e:
-        logger.error(f"Tavily search failed, returning empty: {e}")
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.error(f"Tavily search failed, returning empty: {sanitized}")
         return []
 
 
@@ -287,7 +301,8 @@ def extract_with_tavily(urls: List[str]) -> List[Dict]:
         response = client.extract_batch(urls)
         return response["results"]
     except Exception as e:
-        logger.error(f"Tavily extract failed, returning empty: {e}")
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.error(f"Tavily extract failed, returning empty: {sanitized}")
         return []
 
 

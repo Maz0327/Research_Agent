@@ -5,13 +5,15 @@ Provides dependencies for protected routes that require authentication.
 """
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Header
+from fastapi import Depends, HTTPException, Header, Request
+from loguru import logger
 
 from backend.auth import AuthError, AuthUser, extract_token_from_header, verify_jwt
 
 
 async def get_current_user(
     authorization: Optional[str] = Header(None),
+    request: Request = None,
 ) -> AuthUser:
     """
     FastAPI dependency to get the current authenticated user.
@@ -32,6 +34,15 @@ async def get_current_user(
     """
     token = extract_token_from_header(authorization)
     if not token:
+        logger.info(
+            "Authentication failed: no token",
+            extra={
+                "event": "auth_failure",
+                "reason": "no_token",
+                "ip": request.client.host if request and request.client else None,
+                "path": request.url.path if request else None,
+            }
+        )
         raise HTTPException(
             status_code=401,
             detail="Not authenticated",
@@ -40,8 +51,24 @@ async def get_current_user(
 
     try:
         user = verify_jwt(token)
+        logger.info(
+            "Authentication successful",
+            extra={
+                "event": "auth_success",
+                "user_id": user.user_id[:8] + "...",
+                "ip": request.client.host if request and request.client else None,
+            }
+        )
         return user
     except AuthError as e:
+        logger.info(
+            "Authentication failed",
+            extra={
+                "event": "auth_failure",
+                "reason": e.message,
+                "ip": request.client.host if request and request.client else None,
+            }
+        )
         raise HTTPException(
             status_code=e.status_code,
             detail=e.message,

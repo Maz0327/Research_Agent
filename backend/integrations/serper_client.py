@@ -10,6 +10,8 @@ from typing import Optional, Any
 import httpx
 from loguru import logger
 
+from backend.utils.error_handling import sanitize_error_message
+
 
 class SerperClient:
     """Client for Serper Google Search API.
@@ -100,11 +102,13 @@ class SerperClient:
             }
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"Serper HTTP error: {e.response.status_code} - {e.response.text}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Serper HTTP error: {e.response.status_code} - {sanitized}")
+            raise RuntimeError(f"Serper HTTP error: {sanitized}") from e
         except Exception as e:
-            logger.error(f"Serper search failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Serper search failed: {sanitized}")
+            raise RuntimeError(f"Serper search failed: {sanitized}") from e
 
     async def search_news(
         self,
@@ -166,8 +170,9 @@ class SerperClient:
             }
 
         except Exception as e:
-            logger.error(f"Serper news search failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Serper news search failed: {sanitized}")
+            raise RuntimeError(f"Serper news search failed: {sanitized}") from e
 
     def search_sync(
         self,
@@ -210,8 +215,9 @@ class SerperClient:
             }
 
         except Exception as e:
-            logger.error(f"Serper sync search failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Serper sync search failed: {sanitized}")
+            raise RuntimeError(f"Serper sync search failed: {sanitized}") from e
 
 
 # Convenience functions for pipeline use

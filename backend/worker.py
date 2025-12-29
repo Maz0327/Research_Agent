@@ -8,6 +8,12 @@ from backend.config import get_settings
 from backend.models.job_config import JobConfig
 from backend.state import get_job, update_job
 from backend.services.error_logger import log_exception
+from backend.pipeline.document_helpers import (
+    generate_master_index,
+    generate_transcripts_md,
+    generate_web_extracts_md,
+    generate_evidence_table_md,
+)
 
 settings = get_settings()
 
@@ -52,23 +58,30 @@ def run_research_job(
     job_id: str,
     topic: str,
     slack_payload: Optional[dict] = None,
+    enable_parallel: bool = True,
 ) -> dict:
     """
     Research job task that runs through all stages of the research pipeline.
 
-    Stages:
-    0. Initialization
+    Pipeline (with parallelization):
+    0. Initialization + Cost Tracker
     1. Planning (OpenAI)
     2. Research mapping (Perplexity)
     3. Source shortlist (Perplexity)
-    4. YouTube enumeration
-    5. Transcript fetching
-    6. Web capture (Jina → Trafilatura → Playwright)
-    6.5. Reddit collection
+    3.5. Quality Gate (Deterministic filtering)
+
+    [PARALLEL GROUP 1 - Collection]:
+    - Track A: YouTube enumeration → Transcripts
+    - Track B: Web capture
+    - Track C: Reddit collection
+
     7. Claim extraction
-    7.5. Timeline extraction
-    7.6. Entity extraction
-    8. Claim validation
+
+    [PARALLEL GROUP 2 - Extraction]:
+    - Timeline extraction
+    - Entity extraction
+    - Claim validation
+
     8.5. Angle discovery
     8.6. Documentary intelligence
     9. Drive upload
@@ -78,16 +91,19 @@ def run_research_job(
         job_id: Unique identifier for the research job
         topic: Research topic string (from Slack or API)
         slack_payload: Optional Slack payload for posting updates
+        enable_parallel: Enable parallel stage execution (default: True)
 
     Returns:
         Dictionary with research results including Drive folder URL
     """
     from backend.pipeline.context import PipelineContext
+    from backend.pipeline.cost_tracker import CostTracker
     from backend.pipeline.stages import (
         stage_0_initialize,
         stage_1_planning,
         stage_2_research_mapping,
         stage_3_source_shortlist,
+        stage_3_5_quality_gate,
         stage_4_youtube_enumeration,
         stage_5_transcripts,
         stage_6_web_capture,
@@ -102,33 +118,65 @@ def run_research_job(
         stage_10_completion,
         post_slack_message,
     )
+    from backend.pipeline.parallel_executor import (
+        run_collection_stages_parallel,
+        run_extraction_stages_parallel,
+    )
 
     logger.info(f"Starting research job {job_id} for topic: {topic}")
 
-    # Create pipeline context
+    # Create pipeline context with cost tracker
     ctx = PipelineContext(
         job_id=job_id,
         topic=topic,
         slack_payload=slack_payload,
+        cost_tracker=CostTracker(mode="full"),  # Mode updated after planning
     )
 
     try:
-        # Execute all stages sequentially
+        # Stage 0-3: Sequential initialization and discovery
         stage_0_initialize(ctx)
         stage_1_planning(ctx)
+
+        # Update cost tracker mode while preserving existing costs from stage 0-1
+        if ctx.job_config and ctx.cost_tracker:
+            ctx.cost_tracker.update_mode(ctx.job_config.mode.value)
+
         stage_2_research_mapping(ctx)
         stage_3_source_shortlist(ctx)
-        stage_4_youtube_enumeration(ctx)
-        stage_5_transcripts(ctx)
-        stage_6_web_capture(ctx)
-        stage_6_5_reddit(ctx)
+        stage_3_5_quality_gate(ctx)
+
+        # Parallel Group 1: Collection stages
+        if enable_parallel:
+            logger.info(f"[{job_id}] Running collection stages in parallel")
+            run_collection_stages_parallel(ctx)
+        else:
+            stage_4_youtube_enumeration(ctx)
+            stage_5_transcripts(ctx)
+            stage_6_web_capture(ctx)
+            stage_6_5_reddit(ctx)
+
+        # Stage 7: Claim extraction (must wait for all sources)
         stage_7_extraction(ctx)
-        stage_7_5_timeline(ctx)
-        stage_7_6_entities(ctx)
-        stage_8_validation(ctx)
+
+        # Parallel Group 2: Extraction stages
+        if enable_parallel:
+            logger.info(f"[{job_id}] Running extraction stages in parallel")
+            run_extraction_stages_parallel(ctx)
+        else:
+            stage_7_5_timeline(ctx)
+            stage_7_6_entities(ctx)
+            stage_8_validation(ctx)
+
+        # Stage 8.5+: Sequential synthesis and output
         stage_8_5_angle_discovery(ctx)
         stage_8_6_documentary_intelligence(ctx)
         stage_9_drive_upload(ctx)
+
+        # Log cost summary
+        cost_summary = ctx.get_cost_summary()
+        logger.info(f"[{job_id}] Cost summary: ${cost_summary.get('total_cost', 0):.4f}")
+
         return stage_10_completion(ctx)
 
     except Exception as e:
@@ -169,160 +217,6 @@ def run_research_job(
             "status": "failed",
             "error": str(e),
         }
-
-
-def _generate_master_index(job_config: JobConfig, outputs: dict) -> str:
-    """
-    Generate master index document markdown.
-    
-    Args:
-        job_config: Job configuration
-        outputs: Dictionary of output markdown strings
-        
-    Returns:
-        Master index markdown string
-    """
-    lines = [
-        "# Master Index",
-        "",
-        f"**Topic:** {job_config.topic}",
-        f"**Mode:** {job_config.mode.value}",
-        "",
-        "## Documents",
-        "",
-        "- [01 Research Map](#01-research-map)",
-        "- [02 Source Shortlist](#02-source-shortlist)",
-        "- [03 YouTube Index](#03-youtube-index)",
-        "- [04 Transcripts](#04-transcripts)",
-        "- [05 Web Extracts](#05-web-extracts)",
-        "- [06 Quote Bank](#06-quote-bank)",
-        "- [07 Claims Ledger](#07-claims-ledger)",
-        "- [08 Evidence Table](#08-evidence-table)",
-        "- [09 Missing Angles](#09-missing-angles)",
-        "",
-    ]
-    return "\n".join(lines)
-
-
-def _generate_transcripts_md(transcripts: list) -> str:
-    """
-    Generate transcripts markdown document.
-    
-    Args:
-        transcripts: List of TranscriptItem objects
-        
-    Returns:
-        Transcripts markdown string
-    """
-    if not transcripts:
-        return "# Transcripts\n\n*No transcripts available.*"
-    
-    lines = ["# Transcripts", ""]
-    for transcript in transcripts:
-        lines.append(f"## {transcript.video_id}")
-        lines.append(f"**URL:** {transcript.video_url}")
-        lines.append(f"**Status:** {transcript.status.value}")
-        if transcript.text:
-            lines.append(f"\n{transcript.text}\n")
-        else:
-            lines.append(f"*{transcript.error_message or 'Transcript not available'}*\n")
-        lines.append("---\n")
-    
-    return "\n".join(lines)
-
-
-def _generate_web_extracts_md(web_sources: list) -> str:
-    """
-    Generate web extracts markdown document.
-
-    Args:
-        web_sources: List of SourceItem objects with captured content
-
-    Returns:
-        Web extracts markdown string
-    """
-    if not web_sources:
-        return "# Web Extracts\n\n*No web sources available.*"
-
-    lines = ["# Web Extracts", ""]
-    for source in web_sources:
-        lines.append(f"## {source.title}")
-        lines.append(f"**URL:** {source.url}")
-        lines.append(f"**Type:** {source.source_type.value}")
-        if source.published_at:
-            lines.append(f"**Published:** {source.published_at}")
-        if source.text:
-            lines.append(f"\n{source.text[:2000]}...")  # Limit extract length
-        else:
-            lines.append("*Content not available*")
-        if source.notes:
-            lines.append(f"\n*Note: {source.notes}*")
-        lines.append("\n---\n")
-
-    return "\n".join(lines)
-
-
-def _generate_evidence_table_md(evidence_records: list) -> str:
-    """
-    Generate evidence table markdown document.
-
-    Args:
-        evidence_records: List of EvidenceRecord objects
-
-    Returns:
-        Evidence table markdown string
-    """
-    if not evidence_records:
-        return "# Evidence Table\n\n*No evidence records available.*"
-
-    lines = [
-        "# Evidence Table",
-        "",
-        "| Claim ID | Status | Evidence For | Evidence Against | Notes |",
-        "|----------|--------|--------------|------------------|-------|",
-    ]
-
-    for record in evidence_records:
-        claim_id = record.claim_id if hasattr(record, 'claim_id') else str(record.get('claim_id', 'N/A'))
-        status = record.status.value if hasattr(record, 'status') else str(record.get('status', 'Unproven'))
-
-        # Format evidence for
-        evidence_for = []
-        for_list = record.evidence_for if hasattr(record, 'evidence_for') else record.get('evidence_for', [])
-        for citation in for_list:
-            url = citation.url if hasattr(citation, 'url') else citation.get('url', '')
-            if url:
-                evidence_for.append(f"[Link]({url})")
-        evidence_for_str = ", ".join(evidence_for) if evidence_for else "-"
-
-        # Format evidence against
-        evidence_against = []
-        against_list = record.evidence_against if hasattr(record, 'evidence_against') else record.get('evidence_against', [])
-        for citation in against_list:
-            url = citation.url if hasattr(citation, 'url') else citation.get('url', '')
-            if url:
-                evidence_against.append(f"[Link]({url})")
-        evidence_against_str = ", ".join(evidence_against) if evidence_against else "-"
-
-        # Format notes (truncate and escape pipes)
-        notes = record.notes if hasattr(record, 'notes') else record.get('notes', '')
-        notes_str = (notes or "-")[:100].replace("|", "\\|").replace("\n", " ")
-
-        lines.append(f"| {claim_id} | {status} | {evidence_for_str} | {evidence_against_str} | {notes_str} |")
-
-    lines.append("")
-    lines.append(f"**Total claims validated:** {len(evidence_records)}")
-
-    # Summary statistics
-    verified = sum(1 for r in evidence_records if (r.status.value if hasattr(r, 'status') else r.get('status', '')) == 'Verified')
-    debunked = sum(1 for r in evidence_records if (r.status.value if hasattr(r, 'status') else r.get('status', '')) == 'Debunked')
-    unproven = sum(1 for r in evidence_records if (r.status.value if hasattr(r, 'status') else r.get('status', '')) == 'Unproven')
-
-    lines.append(f"- Verified: {verified}")
-    lines.append(f"- Debunked: {debunked}")
-    lines.append(f"- Unproven: {unproven}")
-
-    return "\n".join(lines)
 
 
 # =============================================================================

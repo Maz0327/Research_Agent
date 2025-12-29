@@ -1,16 +1,21 @@
 """Admin API routes."""
 import uuid
-from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
+
+from backend.utils.datetime_utils import utc_now_iso, utc_today_iso
+from backend.utils.cache import cache_get, cache_set
+
+# Maximum page size to prevent memory issues
+MAX_PAGE_SIZE = 100
 
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user, require_admin
 from backend.auth.admin import is_admin
 from backend.state import get_job, update_job
-from backend.state.impl.supabase_store import get_supabase_client
+from backend.auth.ban_check import get_supabase_client
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -23,10 +28,20 @@ async def check_admin_status(user: AuthUser = Depends(get_current_user)):
 
 @router.get("/stats")
 async def get_admin_stats(user: AuthUser = Depends(require_admin)):
-    """Get admin dashboard statistics."""
+    """Get admin dashboard statistics.
+
+    Performance: Uses Redis caching with 60-second TTL to reduce database load.
+    """
+    # Try cache first (60 second TTL for admin stats)
+    cache_key = "admin:stats"
+    cached_stats = cache_get(cache_key)
+    if cached_stats:
+        logger.debug("Admin stats served from cache")
+        return cached_stats
+
     try:
         supabase = get_supabase_client()
-        today = datetime.utcnow().date().isoformat()
+        today = utc_today_iso()
 
         # Total users
         users_result = supabase.table("user_settings").select("user_id", count="exact").execute()
@@ -56,7 +71,7 @@ async def get_admin_stats(user: AuthUser = Depends(require_admin)):
         except Exception:
             pass
 
-        return {
+        stats = {
             "total_users": total_users,
             "total_jobs": total_jobs,
             "jobs_today": jobs_today,
@@ -64,6 +79,10 @@ async def get_admin_stats(user: AuthUser = Depends(require_admin)):
             "jobs_failed_today": jobs_failed_today,
             "unresolved_errors": unresolved_errors,
         }
+
+        # Cache for 60 seconds
+        cache_set(cache_key, stats, ttl_seconds=60)
+        return stats
     except Exception as e:
         logger.error(f"Failed to fetch admin stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch statistics")
@@ -72,31 +91,78 @@ async def get_admin_stats(user: AuthUser = Depends(require_admin)):
 @router.get("/users")
 async def list_admin_users(
     user: AuthUser = Depends(require_admin),
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=MAX_PAGE_SIZE, description="Items per page (max 100)"),
 ):
-    """List all users with their statistics."""
+    """List all users with their statistics.
+
+    Performance: Uses batch queries to avoid N+1 query problem.
+    """
     try:
         supabase = get_supabase_client()
+        # Cap page_size to prevent abuse
+        page_size = min(page_size, MAX_PAGE_SIZE)
         offset = (page - 1) * page_size
 
+        # Get users with pagination
         result = supabase.table("user_settings").select(
             "user_id, username, created_at, is_banned",
             count="exact"
         ).range(offset, offset + page_size - 1).order("created_at", desc=True).execute()
 
-        users = []
-        for row in result.data or []:
-            job_count_result = supabase.table("jobs").select("id", count="exact").eq("user_id", row["user_id"]).execute()
-            admin_check = supabase.table("admin_users").select("user_id").eq("user_id", row["user_id"]).execute()
+        user_rows = result.data or []
+        if not user_rows:
+            return {
+                "users": [],
+                "total": result.count or 0,
+                "page": page,
+                "page_size": page_size,
+            }
 
+        # Extract user IDs for batch queries
+        user_ids = [row["user_id"] for row in user_rows]
+
+        # Batch query 1: Get all admin user IDs in one query
+        admin_result = supabase.table("admin_users").select(
+            "user_id"
+        ).in_("user_id", user_ids).execute()
+        admin_user_ids = {row["user_id"] for row in (admin_result.data or [])}
+
+        # Batch query 2: Get job counts using RPC function (single query)
+        # Uses migration 015's get_job_counts_by_users function
+        job_counts: dict[str, int] = {}
+        try:
+            # Call RPC function to get all job counts in one query
+            counts_result = supabase.rpc(
+                "get_job_counts_by_users",
+                {"user_ids": user_ids}
+            ).execute()
+            for row in (counts_result.data or []):
+                job_counts[row["user_id"]] = row["job_count"]
+        except Exception as e:
+            # Fallback: individual queries if RPC not available
+            logger.warning(f"RPC get_job_counts_by_users failed, using fallback: {e}")
+            try:
+                for uid in user_ids:
+                    job_count_result = supabase.table("jobs").select(
+                        "id", count="exact"
+                    ).eq("user_id", uid).execute()
+                    job_counts[uid] = job_count_result.count or 0
+            except Exception as fallback_e:
+                logger.warning(f"Fallback job count query failed: {fallback_e}")
+                job_counts = {uid: 0 for uid in user_ids}
+
+        # Build response using batched data
+        users = []
+        for row in user_rows:
+            uid = row["user_id"]
             users.append({
-                "id": row["user_id"],
-                "email": row.get("username") or f"user-{row['user_id'][:8]}",
+                "id": uid,
+                "email": row.get("username") or f"user-{uid[:8]}",
                 "created_at": row["created_at"],
                 "last_sign_in_at": None,
-                "job_count": job_count_result.count or 0,
-                "is_admin": len(admin_check.data or []) > 0,
+                "job_count": job_counts.get(uid, 0),
+                "is_admin": uid in admin_user_ids,
                 "is_banned": row.get("is_banned", False),
             })
 
@@ -336,7 +402,7 @@ async def resolve_error(
         supabase = get_supabase_client()
         supabase.table("error_logs").update({
             "resolved": True,
-            "resolved_at": datetime.utcnow().isoformat(),
+            "resolved_at": utc_now_iso(),
             "resolved_by": user.user_id,
         }).eq("id", error_id).execute()
     except Exception as e:

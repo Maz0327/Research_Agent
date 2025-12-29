@@ -3,6 +3,7 @@
  */
 import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
+import { API_URL, UI_TIMING, VALIDATION_LIMITS } from '../lib/constants';
 
 export type PipelineType = 'quick' | 'full' | 'breaking_news' | 'investigation' | 'profile' | 'controversy';
 export type SortOrder = 'newest' | 'oldest' | 'status';
@@ -80,7 +81,8 @@ interface SettingsState {
   clearSaveSuccess: () => void;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Track saveSuccess timeout to prevent memory leaks
+let saveSuccessTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 // Default settings
 const defaultSettings: UserSettings = {
@@ -172,10 +174,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const data = await response.json();
       set({ settings: data, isSaving: false, saveSuccess: true });
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
+      // Clear any existing timeout to prevent memory leaks
+      if (saveSuccessTimeoutId) {
+        clearTimeout(saveSuccessTimeoutId);
+      }
+
+      // Clear success message after configured duration
+      saveSuccessTimeoutId = setTimeout(() => {
         set({ saveSuccess: false });
-      }, 3000);
+        saveSuccessTimeoutId = null;
+      }, UI_TIMING.TOAST_DURATION);
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to save settings',
@@ -261,9 +269,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const { settings, updateSettings } = get();
     if (!settings || !folder.valid || !folder.folder_id) return;
 
-    // Check if we already have 3 folders
-    if (settings.drive_folders.length >= 3) {
-      set({ error: 'Maximum 3 folders allowed' });
+    // Check if we already have maximum folders
+    if (settings.drive_folders.length >= VALIDATION_LIMITS.MAX_DRIVE_FOLDERS) {
+      set({ error: `Maximum ${VALIDATION_LIMITS.MAX_DRIVE_FOLDERS} folders allowed` });
       return;
     }
 

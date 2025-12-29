@@ -4,6 +4,9 @@ from typing import Dict, List
 import httpx
 from loguru import logger
 
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
+
 
 class JinaReaderClient:
     """
@@ -25,6 +28,7 @@ class JinaReaderClient:
         self.timeout = 30.0
         self.cost_per_extraction = 0.0  # Free tier
 
+    @with_rate_limit("jina")
     def extract(self, url: str) -> Dict[str, str]:
         """
         Extract content from URL as markdown.
@@ -70,8 +74,9 @@ class JinaReaderClient:
             logger.warning(f"Jina timeout for {url}")
             return {"url": url, "content": "", "error": "timeout"}
         except Exception as e:
-            logger.error(f"Jina extraction failed for {url}: {e}")
-            return {"url": url, "content": "", "error": str(e)}
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Jina extraction failed for {url}: {sanitized}")
+            return {"url": url, "content": "", "error": sanitized}
 
     def extract_batch(
         self,
@@ -104,7 +109,8 @@ class JinaReaderClient:
                     "content_type": "markdown",
                 }
             except Exception as e:
-                return {"url": url, "content": "", "error": str(e)}
+                sanitized = sanitize_error_message(e, include_type=False)
+                return {"url": url, "content": "", "error": sanitized}
 
         async def extract_all():
             """Extract all URLs with concurrency limit."""

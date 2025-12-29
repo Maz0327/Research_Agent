@@ -57,7 +57,17 @@ export default function JobCard({ job, onRefresh }: JobCardProps) {
       {/* Header - Always visible */}
       <div
         className="cursor-pointer p-5"
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        aria-label={`Job: ${displayTitle}. Status: ${job.status}. Click to ${isExpanded ? 'collapse' : 'expand'} details.`}
         onClick={() => setIsExpanded(!isExpanded)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsExpanded(!isExpanded);
+          }
+        }}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">

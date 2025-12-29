@@ -12,6 +12,9 @@ from typing import Optional, Any
 
 from loguru import logger
 
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
+
 try:
     from google import genai
     from google.genai import types
@@ -53,6 +56,7 @@ class GeminiClient:
         self._client = genai.Client(api_key=settings.google_api_key)
         self._api_key = settings.google_api_key
 
+    @with_rate_limit("gemini")
     def generate(
         self,
         prompt: str,
@@ -104,9 +108,11 @@ class GeminiClient:
             }
 
         except Exception as e:
-            logger.error(f"Gemini generate failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Gemini generate failed: {sanitized}")
+            raise RuntimeError(f"Gemini generate failed: {sanitized}") from e
 
+    @with_rate_limit("gemini")
     def generate_with_thinking(
         self,
         prompt: str,
@@ -166,9 +172,11 @@ class GeminiClient:
             }
 
         except Exception as e:
-            logger.error(f"Gemini thinking failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Gemini thinking failed: {sanitized}")
+            raise RuntimeError(f"Gemini thinking failed: {sanitized}") from e
 
+    @with_rate_limit("gemini")
     def analyze_image(
         self,
         image_path: str,
@@ -233,9 +241,11 @@ class GeminiClient:
             }
 
         except Exception as e:
-            logger.error(f"Gemini vision failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Gemini vision failed: {sanitized}")
+            raise RuntimeError(f"Gemini vision failed: {sanitized}") from e
 
+    @with_rate_limit("gemini")
     def analyze_pdf(
         self,
         pdf_path: str,
@@ -295,8 +305,9 @@ class GeminiClient:
             }
 
         except Exception as e:
-            logger.error(f"Gemini PDF analysis failed: {e}")
-            raise
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Gemini PDF analysis failed: {sanitized}")
+            raise RuntimeError(f"Gemini PDF analysis failed: {sanitized}") from e
 
     def _estimate_cost(self, model: str, input_tokens: float, output_tokens: float) -> float:
         """Estimate cost in dollars."""

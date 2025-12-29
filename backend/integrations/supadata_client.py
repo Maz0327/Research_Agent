@@ -16,6 +16,9 @@ from typing import Dict, Optional, Any
 from enum import Enum
 from loguru import logger
 
+from backend.utils.error_handling import sanitize_error_message
+from backend.utils.rate_limiter import with_rate_limit
+
 try:
     import httpx
     HTTPX_AVAILABLE = True
@@ -82,6 +85,7 @@ class SupadataClient:
         else:
             raise ImportError("Either supadata or httpx package is required")
 
+    @with_rate_limit("supadata")
     def get_transcript(
         self,
         url: str,
@@ -111,8 +115,9 @@ class SupadataClient:
                 return self._get_transcript_http(url, mode, lang)
 
         except Exception as e:
-            logger.error(f"Supadata transcript failed: {e}")
-            raise SupadataError(f"Failed to get transcript: {e}") from e
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Supadata transcript failed: {sanitized}")
+            raise SupadataError(f"Failed to get transcript: {sanitized}") from e
 
     def _get_transcript_sdk(
         self,
@@ -136,7 +141,8 @@ class SupadataClient:
                 "cost_credits": 1,
             }
         except Exception as e:
-            raise SupadataError(f"SDK error: {e}") from e
+            sanitized = sanitize_error_message(e, include_type=False)
+            raise SupadataError(f"SDK error: {sanitized}") from e
 
     def _get_transcript_http(
         self,
@@ -168,7 +174,8 @@ class SupadataClient:
                 "cost_credits": 1,
             }
         except httpx.HTTPError as e:
-            raise SupadataError(f"HTTP error: {e}") from e
+            sanitized = sanitize_error_message(e, include_type=False)
+            raise SupadataError(f"HTTP error: {sanitized}") from e
 
     def get_transcript_native(self, url: str, lang: str = "en") -> Dict[str, Any]:
         """
@@ -192,6 +199,7 @@ class SupadataClient:
         """
         return self.get_transcript(url, mode=TranscriptMode.GENERATE, lang=lang)
 
+    @with_rate_limit("supadata")
     def scrape_url(self, url: str) -> Dict[str, Any]:
         """
         Scrape content from a web URL.
@@ -229,8 +237,9 @@ class SupadataClient:
                 }
 
         except Exception as e:
-            logger.error(f"Supadata scrape failed: {e}")
-            raise SupadataError(f"Failed to scrape URL: {e}") from e
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Supadata scrape failed: {sanitized}")
+            raise SupadataError(f"Failed to scrape URL: {sanitized}") from e
 
     def detect_platform(self, url: str) -> Optional[Platform]:
         """
@@ -274,7 +283,8 @@ def fetch_transcript_supadata(
         transcript_mode = TranscriptMode(mode)
         return client.get_transcript(url, mode=transcript_mode)
     except Exception as e:
-        logger.warning(f"Supadata transcript failed: {e}")
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.warning(f"Supadata transcript failed: {sanitized}")
         return None
 
 

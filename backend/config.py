@@ -139,22 +139,88 @@ class Settings(BaseSettings):
         description="Enable niche overlay system for specialized research modes"
     )
 
+    # Reddit PRAW configuration
+    reddit_client_id: Optional[str] = Field(
+        default=None, alias="REDDIT_CLIENT_ID",
+        description="Reddit API client ID for PRAW"
+    )
+    reddit_client_secret: Optional[str] = Field(
+        default=None, alias="REDDIT_CLIENT_SECRET",
+        description="Reddit API client secret for PRAW"
+    )
+    default_subreddits: str = Field(
+        default="politics,news,worldnews,OutOfTheLoop,NeutralPolitics",
+        alias="DEFAULT_SUBREDDITS",
+        description="Comma-separated list of default subreddits for research"
+    )
+
+    def get_default_subreddits(self) -> list[str]:
+        """Get list of default subreddits from config."""
+        return [s.strip() for s in self.default_subreddits.split(",") if s.strip()]
+
+    # Jina Reader configuration (FREE - no API key required)
+    jina_api_url: str = Field(
+        default="https://r.jina.ai/",
+        alias="JINA_API_URL",
+        description="Jina Reader API URL (FREE, no key required)"
+    )
+
+    # === TIMEOUT CONFIGURATION ===
+    # Centralized timeout values for HTTP requests (in seconds)
+    timeout_api_default: float = Field(
+        default=30.0, alias="TIMEOUT_API_DEFAULT",
+        description="Default timeout for API requests"
+    )
+    timeout_supabase: float = Field(
+        default=5.0, alias="TIMEOUT_SUPABASE",
+        description="Timeout for Supabase/database queries"
+    )
+    timeout_transcription: float = Field(
+        default=60.0, alias="TIMEOUT_TRANSCRIPTION",
+        description="Timeout for transcription services (Supadata)"
+    )
+    timeout_whisper: float = Field(
+        default=300.0, alias="TIMEOUT_WHISPER",
+        description="Timeout for Whisper API (local processing)"
+    )
+    timeout_factcheck: float = Field(
+        default=15.0, alias="TIMEOUT_FACTCHECK",
+        description="Timeout for fact-checking services"
+    )
+    timeout_youtube: float = Field(
+        default=10.0, alias="TIMEOUT_YOUTUBE",
+        description="Timeout for YouTube API requests"
+    )
+
     @field_validator('supabase_jwt_secret')
     @classmethod
     def validate_jwt_secret(cls, v: Optional[str]) -> Optional[str]:
-        """Validate JWT secret strength to prevent weak secrets."""
+        """Validate JWT secret strength to prevent weak secrets.
+
+        Security requirements (enforced in ALL environments):
+        - Minimum 64 characters
+        - Sufficient entropy (at least 20 unique characters)
+        """
         if v is None:
             return v
 
-        if len(v) < 32:
-            logger.warning(
-                "SUPABASE_JWT_SECRET is weak (< 32 characters). "
-                "This is a security risk in production."
+        # Enforce 64+ character minimum in ALL environments
+        if len(v) < 64:
+            raise ValueError(
+                "JWT secret must be at least 64 characters. "
+                f"Current length: {len(v)}. "
+                "Generate a secure secret with: openssl rand -base64 48"
             )
-            # Only raise in production environment
-            if os.getenv("ENVIRONMENT") == "production":
-                raise ValueError("JWT secret must be at least 32 characters in production")
 
+        # Check entropy - reject low-entropy strings (sequential/repeated patterns)
+        unique_chars = len(set(v))
+        if unique_chars < 20:
+            raise ValueError(
+                f"JWT secret has insufficient entropy ({unique_chars} unique chars). "
+                "Use a randomly generated secret with high entropy."
+            )
+
+        logger.debug("JWT secret validation passed (64+ chars, good entropy)")
         return v
 
 
@@ -392,6 +458,29 @@ def require_anthropic() -> Settings:
     if not settings.anthropic_api_key:
         raise MissingRequiredSettingError(
             "ANTHROPIC_API_KEY is required for Claude synthesis. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_reddit() -> Settings:
+    """
+    Get settings and validate Reddit PRAW credentials are present.
+
+    Reddit PRAW is used for collecting Reddit discussions and comments.
+
+    Raises:
+        MissingRequiredSettingError: If Reddit credentials are missing
+    """
+    settings = get_settings()
+    if not settings.reddit_client_id:
+        raise MissingRequiredSettingError(
+            "REDDIT_CLIENT_ID is required for Reddit PRAW integration. "
+            "Please set it in your .env file."
+        )
+    if not settings.reddit_client_secret:
+        raise MissingRequiredSettingError(
+            "REDDIT_CLIENT_SECRET is required for Reddit PRAW integration. "
             "Please set it in your .env file."
         )
     return settings

@@ -20,9 +20,6 @@ playwright==1.40.0
 trafilatura==1.6.3
 python-dateutil==2.8.2
 
-# YouTube integration
-youtube-transcript-api==0.6.1
-
 # Google APIs (for Drive and Docs)
 google-api-python-client==2.108.0
 google-auth==2.25.2

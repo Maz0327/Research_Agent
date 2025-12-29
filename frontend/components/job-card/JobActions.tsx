@@ -2,8 +2,8 @@
  * Job action buttons component (cancel, view results, etc.).
  */
 import { useState, useCallback } from 'react';
-import { getAccessToken } from '../../lib/supabase';
 import { JobStatus } from './job-card-config';
+import { useJobsStore } from '../../store/jobs';
 
 interface JobActionsProps {
   jobId: string;
@@ -20,6 +20,7 @@ export function JobActions({
 }: JobActionsProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const cancelJob = useJobsStore((state) => state.cancelJob);
 
   const handleCancel = useCallback(async () => {
     if (isCancelling) return;
@@ -28,29 +29,14 @@ export function JobActions({
     setCancelError(null);
 
     try {
-      const token = await getAccessToken();
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-      const response = await fetch(`${API_URL}/jobs/${jobId}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to cancel job');
-      }
-
+      await cancelJob(jobId);
       onRefresh?.();
     } catch (error) {
       setCancelError(error instanceof Error ? error.message : 'Failed to cancel');
     } finally {
       setIsCancelling(false);
     }
-  }, [jobId, isCancelling, onRefresh]);
+  }, [jobId, isCancelling, onRefresh, cancelJob]);
 
   const canCancel = status === 'running' || status === 'queued';
   const hasResults = status === 'completed' && driveFolderUrl;

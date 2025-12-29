@@ -2,12 +2,13 @@
  * Dashboard page showing job list and creation form.
  * Features dark mode design with modern UI/UX.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
 import { useJobsStore } from '../store/jobs';
+import { POLLING_INTERVALS } from '../lib/constants';
 
 const pipelines = [
   { value: 'quick', label: 'Quick', description: 'Fast research with basic coverage' },
@@ -51,17 +52,35 @@ function DashboardContent() {
     }
   }, [fetchJobs, user]);
 
+  // Debounced batch refresh for running jobs
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const batchRefreshJobs = useCallback((jobIds: string[]) => {
+    // Clear any pending refresh
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    // Debounce the batch refresh
+    refreshTimeoutRef.current = setTimeout(() => {
+      jobIds.forEach((id) => refreshJob(id));
+    }, 100); // 100ms debounce to batch rapid updates
+  }, [refreshJob]);
+
   // Polling for running jobs
   useEffect(() => {
     const runningJobs = jobs.filter((job) => job.status === 'running' || job.status === 'queued');
     if (runningJobs.length === 0) return;
 
     const interval = setInterval(() => {
-      runningJobs.forEach((job) => refreshJob(job.id));
-    }, 3000); // Poll every 3 seconds for more responsive updates
+      batchRefreshJobs(runningJobs.map((job) => job.id));
+    }, POLLING_INTERVALS.JOB_STATUS);
 
-    return () => clearInterval(interval);
-  }, [jobs, refreshJob]);
+    return () => {
+      clearInterval(interval);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, [jobs, batchRefreshJobs]);
 
   const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +91,9 @@ function DashboardContent() {
       await createJob(prompt, pipeline);
       setPrompt('');
     } catch (error) {
-      console.error('Failed to create job:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to create job:', error);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -82,10 +103,11 @@ function DashboardContent() {
     fetchJobs();
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    if (statusFilter === 'all') return true;
-    return job.status === statusFilter;
-  });
+  // Memoize filtered jobs to prevent unnecessary recalculations
+  const filteredJobs = useMemo(() => {
+    if (statusFilter === 'all') return jobs;
+    return jobs.filter((job) => job.status === statusFilter);
+  }, [jobs, statusFilter]);
 
   return (
     <Layout>
@@ -130,11 +152,14 @@ function DashboardContent() {
               <label className="mb-2 block text-sm font-medium text-gray-400">
                 Pipeline Mode
               </label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Select pipeline mode">
                 {pipelines.map((p) => (
                   <button
                     key={p.value}
                     type="button"
+                    role="radio"
+                    aria-checked={pipeline === p.value}
+                    aria-label={`Select ${p.label} pipeline mode: ${p.description}`}
                     onClick={() => setPipeline(p.value)}
                     className={`rounded-lg border p-3 text-left transition-all duration-200 ${
                       pipeline === p.value
