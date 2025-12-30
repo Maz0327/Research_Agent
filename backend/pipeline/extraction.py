@@ -33,6 +33,29 @@ MEMORY_WARNING_THRESHOLD = 75  # Log warning at 75% memory usage
 MEMORY_CRITICAL_THRESHOLD = 85  # Stop processing at 85% memory usage
 
 
+def _log_memory(label: str) -> float:
+    """
+    Log current memory usage for debugging.
+
+    Args:
+        label: Description of current operation
+
+    Returns:
+        Memory usage in MB
+    """
+    if not PSUTIL_AVAILABLE:
+        return 0.0
+
+    try:
+        import os
+        process = psutil.Process(os.getpid())
+        mb = process.memory_info().rss / 1024 / 1024
+        logger.info(f"[MEMORY] {label}: {mb:.1f} MB")
+        return mb
+    except Exception:
+        return 0.0
+
+
 def _check_memory_pressure() -> tuple[bool, float]:
     """
     Check if system memory is under pressure.
@@ -73,69 +96,73 @@ WEB_CHUNK_TOKENS_MAX = 2500
 TOKENS_PER_WORD = 1.3
 
 
-def _chunk_transcript_text(text: str) -> list[tuple[str, int, int]]:
+def _chunk_transcript_text(text: str):
     """
     Chunk transcript text into 1-3 minute windows (~1200-2000 words).
-    
+
+    MEMORY OPTIMIZED: Uses generator to avoid materializing all chunks.
+
     Args:
         text: Transcript text
-        
-    Returns:
-        List of tuples: (chunk_text, start_word_idx, end_word_idx)
+
+    Yields:
+        Tuples: (chunk_text, start_word_idx, end_word_idx)
     """
     words = text.split()
-    chunks = []
-    
+    total_words = len(words)
+
     start = 0
-    while start < len(words):
+    while start < total_words:
         # Target chunk size in middle of range
         target_size = (TRANSCRIPT_CHUNK_WORDS_MIN + TRANSCRIPT_CHUNK_WORDS_MAX) // 2
-        end = min(start + target_size, len(words))
-        
-        chunk_words = words[start:end]
-        chunk_text = " ".join(chunk_words)
-        chunks.append((chunk_text, start, end))
-        
-        # Overlap by ~200 words to avoid breaking sentences
-        start = end - 200
-        if start >= len(words):
+        end = min(start + target_size, total_words)
+
+        chunk_text = " ".join(words[start:end])
+        yield (chunk_text, start, end)
+
+        # Overlap by ~100 words (reduced from 200 to save memory)
+        start = end - 100
+        if start >= total_words:
             break
-    
-    return chunks
+
+    # Explicit cleanup
+    del words
 
 
-def _chunk_web_text(text: str) -> list[tuple[str, int, int]]:
+def _chunk_web_text(text: str):
     """
     Chunk web text into ~1500-2500 token segments.
-    
+
+    MEMORY OPTIMIZED: Uses generator to avoid materializing all chunks.
+
     Args:
         text: Web article text
-        
-    Returns:
-        List of tuples: (chunk_text, start_word_idx, end_word_idx)
+
+    Yields:
+        Tuples: (chunk_text, start_word_idx, end_word_idx)
     """
     words = text.split()
-    chunks = []
-    
+    total_words = len(words)
+
     # Convert token ranges to word ranges (approximate)
     words_min = int(WEB_CHUNK_TOKENS_MIN / TOKENS_PER_WORD)
     words_max = int(WEB_CHUNK_TOKENS_MAX / TOKENS_PER_WORD)
-    
+
     start = 0
-    while start < len(words):
+    while start < total_words:
         target_size = (words_min + words_max) // 2
-        end = min(start + target_size, len(words))
-        
-        chunk_words = words[start:end]
-        chunk_text = " ".join(chunk_words)
-        chunks.append((chunk_text, start, end))
-        
-        # Overlap by ~200 words
-        start = end - 200
-        if start >= len(words):
+        end = min(start + target_size, total_words)
+
+        chunk_text = " ".join(words[start:end])
+        yield (chunk_text, start, end)
+
+        # Overlap by ~100 words (reduced from 200 to save memory)
+        start = end - 100
+        if start >= total_words:
             break
-    
-    return chunks
+
+    # Explicit cleanup
+    del words
 
 
 def _extract_claim_candidates(chunk_text: str) -> list[dict]:
@@ -544,8 +571,8 @@ def _dedupe_claims(claims: list[Claim]) -> list[Claim]:
 def extract_claims(
     transcripts: list[TranscriptItem],
     web_sources: list[SourceItem],
-    max_chunks: int = 50,   # Reduced from 100 to prevent memory exhaustion
-    batch_size: int = 5,    # Reduced from 10 for more frequent memory cleanup
+    max_chunks: int = 30,   # Reduced from 50 for memory safety
+    batch_size: int = 2,    # Process 2 chunks at a time (reduced from 5)
 ) -> tuple[list[Claim], str, str]:
     """
     Extract claims from transcripts and web sources with memory-efficient batching.
@@ -587,6 +614,7 @@ def extract_claims(
     chunks_processed = 0
     batch_claims: list[Claim] = []
 
+    _log_memory("Extraction start")
     logger.info(f"Starting claim extraction from {len(transcripts)} transcripts and {len(web_sources)} web sources")
     logger.info(f"Memory optimization: max_chunks={max_chunks}, batch_size={batch_size}")
 
@@ -605,11 +633,16 @@ def extract_claims(
         if not transcript.text or transcript.status != "available":
             continue
 
+        _log_memory(f"Before transcript {transcript_idx + 1}/{len(transcripts)}")
         logger.info(f"Processing transcript {transcript_idx + 1}/{len(transcripts)}: {transcript.video_url}")
-        chunks = _chunk_transcript_text(transcript.text)
-        logger.info(f"  Generated {len(chunks)} chunks from transcript")
 
-        for chunk_idx, (chunk_text, start_idx, end_idx) in enumerate(chunks):
+        # Store text for processing, then use generator
+        transcript_text = transcript.text
+        text_len = len(transcript_text)
+        logger.info(f"  Transcript text length: {text_len} chars")
+
+        chunk_idx = 0
+        for chunk_text, start_idx, end_idx in _chunk_transcript_text(transcript_text):
             if chunks_processed >= max_chunks:
                 logger.warning(f"Reached max_chunks limit ({max_chunks}). Stopping chunk processing.")
                 break
@@ -625,12 +658,17 @@ def extract_claims(
 
             if not candidates:
                 chunks_processed += 1
+                chunk_idx += 1
+                del chunk_text  # Explicit cleanup
                 continue
 
-            logger.debug(f"  Chunk {chunk_idx + 1}/{len(chunks)}: {len(candidates)} candidates")
+            logger.debug(f"  Chunk {chunk_idx + 1}: {len(candidates)} candidates")
 
             # Canonicalize with OpenAI
             claims = _canonicalize_claims_with_openai(candidates, chunk_text, api_key)
+
+            # Cleanup chunk_text immediately after OpenAI call
+            del chunk_text
 
             # Add citations to claims
             for claim in claims:
@@ -645,19 +683,25 @@ def extract_claims(
 
             batch_claims.extend(claims)
             chunks_processed += 1
+            chunk_idx += 1
 
             # Cleanup after each chunk to prevent memory buildup
             del candidates, claims
             gc.collect()
 
-            # Batch processing: deduplicate and merge every batch_size chunks (reduced threshold)
-            if len(batch_claims) >= batch_size * 3:  # Reduced from batch_size * 5
+            # Batch processing: deduplicate and merge every batch_size chunks
+            if len(batch_claims) >= batch_size * 2:  # Reduced threshold for earlier cleanup
                 logger.info(f"  Batch deduplication: {len(batch_claims)} claims in batch")
                 batch_deduped = _dedupe_claims(batch_claims)
                 all_claims.extend(batch_deduped)
                 batch_claims = []  # Clear batch memory
                 gc.collect()  # Force garbage collection to free memory
                 logger.info(f"  After dedup: {len(batch_deduped)} unique claims. Total: {len(all_claims)}")
+
+        # Cleanup transcript text after processing all its chunks
+        del transcript_text
+        gc.collect()
+        _log_memory(f"After transcript {transcript_idx + 1}/{len(transcripts)}")
 
     # Process web sources
     for source_idx, source in enumerate(web_sources):
@@ -674,11 +718,16 @@ def extract_claims(
         if not source.text:
             continue
 
+        _log_memory(f"Before source {source_idx + 1}/{len(web_sources)}")
         logger.info(f"Processing web source {source_idx + 1}/{len(web_sources)}: {source.url}")
-        chunks = _chunk_web_text(source.text)
-        logger.info(f"  Generated {len(chunks)} chunks from web source")
 
-        for chunk_idx, (chunk_text, start_idx, end_idx) in enumerate(chunks):
+        # Store text length for logging, then process as generator
+        source_text = source.text
+        text_len = len(source_text)
+        logger.info(f"  Source text length: {text_len} chars")
+
+        chunk_idx = 0
+        for chunk_text, start_idx, end_idx in _chunk_web_text(source_text):
             if chunks_processed >= max_chunks:
                 logger.warning(f"Reached max_chunks limit ({max_chunks}). Stopping chunk processing.")
                 break
@@ -694,12 +743,17 @@ def extract_claims(
 
             if not candidates:
                 chunks_processed += 1
+                chunk_idx += 1
+                del chunk_text  # Explicit cleanup
                 continue
 
-            logger.debug(f"  Chunk {chunk_idx + 1}/{len(chunks)}: {len(candidates)} candidates")
+            logger.debug(f"  Chunk {chunk_idx + 1}: {len(candidates)} candidates")
 
             # Canonicalize with OpenAI
             claims = _canonicalize_claims_with_openai(candidates, chunk_text, api_key)
+
+            # Cleanup chunk_text immediately after OpenAI call
+            del chunk_text
 
             # Add citations to claims
             for claim in claims:
@@ -713,19 +767,25 @@ def extract_claims(
 
             batch_claims.extend(claims)
             chunks_processed += 1
+            chunk_idx += 1
 
             # Cleanup after each chunk to prevent memory buildup
             del candidates, claims
             gc.collect()
 
-            # Batch processing: deduplicate and merge every batch_size chunks (reduced threshold)
-            if len(batch_claims) >= batch_size * 3:
+            # Batch processing: deduplicate and merge every batch_size chunks
+            if len(batch_claims) >= batch_size * 2:  # Reduced threshold for earlier cleanup
                 logger.info(f"  Batch deduplication: {len(batch_claims)} claims in batch")
                 batch_deduped = _dedupe_claims(batch_claims)
                 all_claims.extend(batch_deduped)
                 batch_claims = []  # Clear batch memory
                 gc.collect()  # Force garbage collection to free memory
                 logger.info(f"  After dedup: {len(batch_deduped)} unique claims. Total: {len(all_claims)}")
+
+        # Cleanup source text after processing all its chunks
+        del source_text
+        gc.collect()
+        _log_memory(f"After source {source_idx + 1}/{len(web_sources)}")
 
     # Process remaining batch claims
     if batch_claims:
@@ -737,8 +797,15 @@ def extract_claims(
         logger.info(f"After final dedup: {len(batch_deduped)} unique claims. Total: {len(all_claims)}")
 
     # Final deduplicate across all batches
+    _log_memory("Before final dedup")
     logger.info(f"Final global deduplication: {len(all_claims)} claims before final dedup")
     deduped_claims = _dedupe_claims(all_claims)
+
+    # Cleanup intermediate data
+    del all_claims
+    gc.collect()
+
+    _log_memory("Extraction complete")
     logger.info(f"Extraction complete: {len(deduped_claims)} unique claims extracted from {chunks_processed} chunks")
 
     # Generate markdown outputs
