@@ -6,6 +6,18 @@ import { getAccessToken } from '../lib/supabase';
 import { API_URL } from '../lib/constants';
 
 /**
+ * Interpretation represents a possible meaning of an ambiguous topic.
+ */
+export interface Interpretation {
+  /** Short label for the interpretation */
+  label: string;
+  /** Detailed description of what this interpretation means */
+  description: string;
+  /** Refined topic string for this interpretation */
+  topic: string;
+}
+
+/**
  * Job represents a research job with its status and artifacts.
  */
 export interface Job {
@@ -18,7 +30,7 @@ export interface Job {
   /** Pipeline type (quick, full, breaking_news, investigation, profile, controversy) */
   pipeline: string;
   /** Current job status */
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'disambiguating';
   /** Current pipeline stage name */
   stage?: string;
   /** When current stage started (ISO timestamp for ETA calculation) */
@@ -36,6 +48,8 @@ export interface Job {
   error?: string;
   /** Job creation timestamp (ISO format) */
   created_at: string;
+  /** Possible interpretations when status is 'disambiguating' */
+  interpretations?: Interpretation[];
 }
 
 interface JobsState {
@@ -46,6 +60,7 @@ interface JobsState {
   createJob: (prompt: string, pipeline: string) => Promise<string>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
+  selectInterpretation: (jobId: string, indices: number[] | 'all') => Promise<void>;
   clearJobs: () => void;
 }
 
@@ -175,6 +190,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
                 title: data.title,
                 artifacts: data.artifacts,
                 error: data.error,
+                interpretations: data.interpretations,
               }
             : job
         ),
@@ -183,6 +199,46 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to refresh job:', error);
       }
+    }
+  },
+
+  selectInterpretation: async (jobId: string, indices: number[] | 'all') => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/select-interpretation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ indices }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to select interpretation');
+      }
+
+      // Update local state to show job is resuming
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId
+            ? { ...job, status: 'queued' as const, interpretations: undefined }
+            : job
+        ),
+      }));
+
+      // Refresh the job to get latest status
+      await get().refreshJob(jobId);
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to select interpretation:', error);
+      }
+      throw error;
     }
   },
 

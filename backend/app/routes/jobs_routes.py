@@ -11,7 +11,7 @@ from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user, get_optional_user
 from backend.auth.ban_check import get_active_user, get_optional_active_user
 from backend.auth.admin import is_admin
-from backend.models.job import CreateJobRequest, CreateJobResponse, JobStatusResponse
+from backend.models.job import CreateJobRequest, CreateJobResponse, JobStatusResponse, SelectInterpretationRequest
 from backend.state import create_job, get_job, update_job, list_jobs
 from backend.utils.validators import ValidationError
 from backend.worker import run_research_job
@@ -270,6 +270,11 @@ async def get_job_status(
         if not artifacts_dict:
             artifacts_dict = None
 
+    # Include interpretations if job is disambiguating
+    interpretations = None
+    if job.status == "disambiguating" and job.interpretations:
+        interpretations = job.interpretations
+
     return JobStatusResponse(
         job_id=job.job_id,
         prompt=prompt,
@@ -280,6 +285,7 @@ async def get_job_status(
         error=error,
         created_at=job.created_at,
         updated_at=None,
+        interpretations=interpretations,
     )
 
 
@@ -327,3 +333,98 @@ async def cancel_job(
     )
 
     return {"message": "Job cancelled successfully", "job_id": job_id}
+
+
+@router.post("/{job_id}/select-interpretation")
+@limiter.limit(RATE_LIMITS["jobs_create"])  # Reuse jobs_create rate limit
+async def select_interpretation(
+    request: Request,
+    job_id: str,
+    selection: SelectInterpretationRequest,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Select interpretation(s) for a disambiguating job and resume processing.
+
+    When a job is paused for disambiguation (status='disambiguating'),
+    this endpoint allows the user to select which interpretation(s) to research.
+    """
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required to modify this job",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be in disambiguating status
+    if job.status != "disambiguating":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job is not awaiting disambiguation. Current status: '{job.status}'"
+        )
+
+    # Job must have interpretations
+    if not job.interpretations:
+        raise HTTPException(
+            status_code=400,
+            detail="Job has no interpretations to select from"
+        )
+
+    # Determine which indices to use
+    if selection.indices == "all":
+        indices = list(range(len(job.interpretations)))
+    else:
+        # Validate indices are within bounds
+        for idx in selection.indices:
+            if idx >= len(job.interpretations):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid interpretation index: {idx}. Job has {len(job.interpretations)} interpretations."
+                )
+        indices = selection.indices
+
+    # Update job with selected interpretations and re-queue
+    prompt = job.config_json.get("prompt") or job.config_json.get("topic", "")
+    update_job(
+        job_id,
+        selected_interpretations=indices,
+        status="queued",
+        stage="resuming",
+    )
+
+    # Re-enqueue Celery task
+    logger.info(f"Re-enqueuing job {job_id} with {len(indices)} selected interpretations")
+    run_research_job.delay(job_id, prompt)
+
+    # Audit log
+    selected_labels = [job.interpretations[i].get("label", f"#{i}") for i in indices]
+    logger.info(
+        "Job resumed after disambiguation",
+        extra={
+            "job_id": job_id,
+            "user_id": user.user_id if user else "anonymous",
+            "selected_indices": indices,
+            "selected_labels": selected_labels,
+            "event": "job_disambiguation_resolved",
+        }
+    )
+
+    return {
+        "message": "Job resumed with selected interpretations",
+        "job_id": job_id,
+        "selected_interpretations": selected_labels,
+    }

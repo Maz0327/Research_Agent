@@ -10,28 +10,20 @@ Pricing (validated Dec 2024):
 - Free tier: 100 requests
 
 API Documentation: https://docs.supadata.ai/get-transcript
+
+Dec 2025: Removed SDK, using HTTP-only for reliability.
+SDK had inconsistent behavior on cloud environments (Railway, AWS)
+causing "'function' object has no attribute 'get'" errors.
 """
 import os
 from typing import Dict, Optional, Any
 from enum import Enum
+
+import httpx
 from loguru import logger
 
 from backend.utils.error_handling import sanitize_error_message
 from backend.utils.rate_limiter import with_rate_limit
-
-try:
-    import httpx
-    HTTPX_AVAILABLE = True
-except ImportError:
-    HTTPX_AVAILABLE = False
-    logger.warning("httpx not installed. Install with: pip install httpx")
-
-try:
-    from supadata import Supadata
-    SUPADATA_SDK_AVAILABLE = True
-except ImportError:
-    SUPADATA_SDK_AVAILABLE = False
-    logger.debug("supadata SDK not installed. Using HTTP fallback.")
 
 
 class TranscriptMode(str, Enum):
@@ -57,36 +49,25 @@ class SupadataError(Exception):
 
 class SupadataClient:
     """
-    Supadata API client for multi-platform transcription.
+    Supadata API client for multi-platform transcription (HTTP-only).
 
     PRIMARY source for transcripts per PRD v4.3.
-    Fallback chain: Supadata → youtube-transcript-api → Whisper
+    Fallback chain: Supadata → Whisper
     """
 
     BASE_URL = "https://api.supadata.ai/v1"
 
     def __init__(self):
-        """Initialize Supadata client."""
+        """Initialize Supadata HTTP client."""
         self.api_key = os.getenv("SUPADATA_API_KEY")
         if not self.api_key:
             raise ValueError("SUPADATA_API_KEY environment variable is required")
 
-        # Dec 2025: Prefer HTTP over SDK - SDK returns unexpected data structure
-        # on Railway/cloud environments causing "'function' object has no attribute 'get'"
-        if HTTPX_AVAILABLE:
-            self.http = httpx.Client(
-                base_url=self.BASE_URL,
-                headers={"x-api-key": self.api_key},
-                timeout=60.0,  # Transcription can take up to 60s
-            )
-            self.use_sdk = False
-            logger.debug("Supadata: Using HTTP client (preferred)")
-        elif SUPADATA_SDK_AVAILABLE:
-            self.sdk = Supadata(api_key=self.api_key)
-            self.use_sdk = True
-            logger.debug("Supadata: Using SDK client")
-        else:
-            raise ImportError("Either supadata or httpx package is required")
+        self.http = httpx.Client(
+            base_url=self.BASE_URL,
+            headers={"x-api-key": self.api_key},
+            timeout=60.0,  # Transcription can take up to 60s
+        )
 
     @with_rate_limit("supadata")
     def get_transcript(
@@ -112,58 +93,6 @@ class SupadataClient:
         try:
             logger.info(f"Supadata transcript: {url[:50]}... (mode={mode.value})")
 
-            if self.use_sdk:
-                return self._get_transcript_sdk(url, mode, lang)
-            else:
-                return self._get_transcript_http(url, mode, lang)
-
-        except Exception as e:
-            sanitized = sanitize_error_message(e, include_type=False)
-            logger.error(f"Supadata transcript failed: {sanitized}")
-            raise SupadataError(f"Failed to get transcript: {sanitized}") from e
-
-    def _get_transcript_sdk(
-        self,
-        url: str,
-        mode: TranscriptMode,
-        lang: str,
-    ) -> Dict[str, Any]:
-        """Get transcript using SDK."""
-        try:
-            result = self.sdk.transcript.get(
-                url=url,
-                mode=mode.value,
-                lang=lang,
-            )
-
-            # Handle list of segments or string
-            raw_content = result.content if hasattr(result, 'content') else result
-            if isinstance(raw_content, list):
-                text = " ".join(
-                    seg.get("text", "") for seg in raw_content if isinstance(seg, dict)
-                )
-            else:
-                text = str(raw_content) if raw_content else ""
-
-            return {
-                "text": text,
-                "url": url,
-                "method": f"supadata_{mode.value}",
-                "lang": lang,
-                "cost_credits": 1,
-            }
-        except Exception as e:
-            sanitized = sanitize_error_message(e, include_type=False)
-            raise SupadataError(f"SDK error: {sanitized}") from e
-
-    def _get_transcript_http(
-        self,
-        url: str,
-        mode: TranscriptMode,
-        lang: str,
-    ) -> Dict[str, Any]:
-        """Get transcript using HTTP API."""
-        try:
             params = {
                 "url": url,
                 "mode": mode.value,
@@ -173,7 +102,8 @@ class SupadataClient:
             response = self.http.get("/transcript", params=params)
 
             if response.status_code != 200:
-                raise SupadataError(f"API returned {response.status_code}: {response.text}")
+                error_text = response.text[:200] if response.text else "No error message"
+                raise SupadataError(f"API returned {response.status_code}: {error_text}")
 
             data = response.json()
 
@@ -184,8 +114,10 @@ class SupadataClient:
                 text = " ".join(
                     seg.get("text", "") for seg in raw_content if isinstance(seg, dict)
                 )
+            elif raw_content:
+                text = str(raw_content)
             else:
-                text = raw_content
+                text = ""
 
             return {
                 "text": text,
@@ -195,9 +127,17 @@ class SupadataClient:
                 "duration_seconds": data.get("duration"),
                 "cost_credits": 1,
             }
+
         except httpx.HTTPError as e:
             sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Supadata HTTP error: {sanitized}")
             raise SupadataError(f"HTTP error: {sanitized}") from e
+        except SupadataError:
+            raise
+        except Exception as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Supadata transcript failed: {sanitized}")
+            raise SupadataError(f"Failed to get transcript: {sanitized}") from e
 
     def get_transcript_native(self, url: str, lang: str = "en") -> Dict[str, Any]:
         """
@@ -205,8 +145,6 @@ class SupadataClient:
 
         This is the cheapest option - only fetches transcripts
         that already exist on the platform (e.g., YouTube captions).
-
-        Use this first, then fall back to generate if needed.
         """
         return self.get_transcript(url, mode=TranscriptMode.NATIVE, lang=lang)
 
@@ -226,9 +164,6 @@ class SupadataClient:
         """
         Scrape content from a web URL.
 
-        Supadata can also scrape web pages, not just videos.
-        Useful as a fallback for content extraction.
-
         Args:
             url: Web URL to scrape
 
@@ -238,26 +173,25 @@ class SupadataClient:
         try:
             logger.info(f"Supadata scrape: {url[:50]}...")
 
-            if self.use_sdk:
-                result = self.sdk.web.scrape(url=url)
-                return {
-                    "content": result.content if hasattr(result, 'content') else str(result),
-                    "url": url,
-                    "method": "supadata_scrape",
-                    "cost_credits": 1,
-                }
-            else:
-                response = self.http.get("/web/scrape", params={"url": url})
-                if response.status_code != 200:
-                    raise SupadataError(f"Scrape failed: {response.status_code}")
-                data = response.json()
-                return {
-                    "content": data.get("content"),
-                    "url": url,
-                    "method": "supadata_scrape",
-                    "cost_credits": 1,
-                }
+            response = self.http.get("/web/scrape", params={"url": url})
 
+            if response.status_code != 200:
+                raise SupadataError(f"Scrape failed: {response.status_code}")
+
+            data = response.json()
+            return {
+                "content": data.get("content"),
+                "url": url,
+                "method": "supadata_scrape",
+                "cost_credits": 1,
+            }
+
+        except httpx.HTTPError as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Supadata scrape HTTP error: {sanitized}")
+            raise SupadataError(f"HTTP error: {sanitized}") from e
+        except SupadataError:
+            raise
         except Exception as e:
             sanitized = sanitize_error_message(e, include_type=False)
             logger.error(f"Supadata scrape failed: {sanitized}")

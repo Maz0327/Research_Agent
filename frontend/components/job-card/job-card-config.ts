@@ -38,6 +38,13 @@ export const statusConfig = {
     dotColor: 'bg-orange-400',
     borderColor: 'border-orange-500/50',
   },
+  disambiguating: {
+    label: 'Needs Input',
+    bgColor: 'bg-yellow-900/50',
+    textColor: 'text-yellow-300',
+    dotColor: 'bg-yellow-400',
+    borderColor: 'border-yellow-500/50',
+  },
 } as const;
 
 export const pipelineLabels: Record<string, string> = {

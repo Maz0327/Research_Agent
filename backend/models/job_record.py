@@ -77,7 +77,7 @@ class JobRecord(BaseModel):
     stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
 
     # Status and progress
-    status: str = Field(default="queued", description="Job status (queued, running, completed, failed, cancelled)")
+    status: str = Field(default="queued", description="Job status (queued, running, disambiguating, completed, failed, cancelled)")
     stage: Optional[str] = Field(None, description="Current pipeline stage")
     progress_percent: int = Field(default=0, ge=0, le=100, description="Progress percentage")
     error: Optional[str] = Field(None, description="Error message if job failed")
@@ -86,6 +86,14 @@ class JobRecord(BaseModel):
     # Configuration
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
     manual_guidance: Optional[dict[str, Any]] = Field(None, description="Manual guidance/overrides")
+
+    # Disambiguation (Dec 2025)
+    interpretations: Optional[list[dict[str, Any]]] = Field(
+        None, description="Possible topic interpretations when ambiguous"
+    )
+    selected_interpretations: Optional[list[int]] = Field(
+        None, description="Indices of user-selected interpretations"
+    )
 
     # Extracted data
     timeline_events: Optional[list[dict[str, Any]]] = Field(None, description="Extracted timeline events")

@@ -118,6 +118,7 @@ def run_research_job(
         stage_10_completion,
         post_slack_message,
     )
+    from backend.pipeline.stages.planning import DisambiguationRequired
     from backend.pipeline.parallel_executor import (
         run_collection_stages_parallel,
         run_extraction_stages_parallel,
@@ -134,6 +135,13 @@ def run_research_job(
     )
 
     try:
+        # Check if this is a resumed job after disambiguation
+        job = get_job(job_id)
+        if job and job.selected_interpretations is not None and job.interpretations:
+            # Resumed job: process selected interpretations sequentially
+            logger.info(f"[{job_id}] Resuming after disambiguation with {len(job.selected_interpretations)} interpretations")
+            return _run_disambiguated_job(ctx, job, enable_parallel)
+
         # Stage 0-3: Sequential initialization and discovery
         stage_0_initialize(ctx)
         stage_1_planning(ctx)
@@ -179,6 +187,15 @@ def run_research_job(
 
         return stage_10_completion(ctx)
 
+    except DisambiguationRequired as e:
+        # Job paused for user disambiguation - this is not an error
+        logger.info(f"[{job_id}] Paused for disambiguation: {len(e.interpretations)} interpretations")
+        return {
+            "job_id": job_id,
+            "status": "disambiguating",
+            "interpretations": e.interpretations,
+        }
+
     except Exception as e:
         logger.exception(f"Fatal error in research job {job_id}: {e}")
 
@@ -217,6 +234,130 @@ def run_research_job(
             "status": "failed",
             "error": str(e),
         }
+
+
+def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
+    """
+    Process a job resumed after disambiguation.
+
+    Runs the pipeline for each selected interpretation sequentially,
+    aggregating results into a single output.
+
+    Args:
+        ctx: PipelineContext with job_id and basic setup
+        job: JobRecord with selected_interpretations and interpretations
+        enable_parallel: Enable parallel stage execution
+
+    Returns:
+        Dictionary with aggregated research results
+    """
+    from backend.pipeline.stages import (
+        stage_2_research_mapping,
+        stage_3_source_shortlist,
+        stage_3_5_quality_gate,
+        stage_4_youtube_enumeration,
+        stage_5_transcripts,
+        stage_6_web_capture,
+        stage_6_5_reddit,
+        stage_7_extraction,
+        stage_7_5_timeline,
+        stage_7_6_entities,
+        stage_8_validation,
+        stage_8_5_angle_discovery,
+        stage_8_6_documentary_intelligence,
+        stage_9_drive_upload,
+        stage_10_completion,
+        post_slack_message,
+    )
+    from backend.pipeline.parallel_executor import (
+        run_collection_stages_parallel,
+        run_extraction_stages_parallel,
+    )
+    from backend.integrations.openai_client import _safe_default_config
+
+    selected_indices = job.selected_interpretations or []
+    interpretations = job.interpretations or []
+
+    logger.info(f"[{ctx.job_id}] Processing {len(selected_indices)} interpretations")
+
+    # Update status to running
+    update_job(ctx.job_id, status="running", stage="processing_interpretations")
+
+    all_results = []
+
+    for i, idx in enumerate(selected_indices):
+        if idx >= len(interpretations):
+            ctx.add_warning(f"Invalid interpretation index: {idx}")
+            continue
+
+        interp = interpretations[idx]
+        refined_topic = interp.get("topic", ctx.topic)
+        label = interp.get("label", f"Interpretation {idx + 1}")
+
+        logger.info(f"[{ctx.job_id}] Processing interpretation {i + 1}/{len(selected_indices)}: {label}")
+        post_slack_message(ctx, f"📚 Researching: {label}")
+
+        # Update context with refined topic
+        ctx.topic = refined_topic
+
+        # Create job config for this interpretation
+        ctx.job_config = _safe_default_config(refined_topic)
+
+        try:
+            # Run pipeline stages for this interpretation
+            # Skip stage_0 (already initialized) and stage_1 (already planned)
+            stage_2_research_mapping(ctx)
+            stage_3_source_shortlist(ctx)
+            stage_3_5_quality_gate(ctx)
+
+            # Collection stages
+            if enable_parallel:
+                run_collection_stages_parallel(ctx)
+            else:
+                stage_4_youtube_enumeration(ctx)
+                stage_5_transcripts(ctx)
+                stage_6_web_capture(ctx)
+                stage_6_5_reddit(ctx)
+
+            # Extraction
+            stage_7_extraction(ctx)
+
+            # Extraction stages
+            if enable_parallel:
+                run_extraction_stages_parallel(ctx)
+            else:
+                stage_7_5_timeline(ctx)
+                stage_7_6_entities(ctx)
+                stage_8_validation(ctx)
+
+            # Synthesis
+            stage_8_5_angle_discovery(ctx)
+            stage_8_6_documentary_intelligence(ctx)
+
+            all_results.append({
+                "label": label,
+                "topic": refined_topic,
+                "status": "completed",
+            })
+
+        except Exception as e:
+            logger.error(f"[{ctx.job_id}] Failed to process interpretation '{label}': {e}")
+            ctx.add_warning(f"Interpretation '{label}' failed: {str(e)}")
+            all_results.append({
+                "label": label,
+                "topic": refined_topic,
+                "status": "failed",
+                "error": str(e),
+            })
+
+    # Upload combined results
+    stage_9_drive_upload(ctx)
+
+    # Log cost summary
+    cost_summary = ctx.get_cost_summary()
+    logger.info(f"[{ctx.job_id}] Cost summary: ${cost_summary.get('total_cost', 0):.4f}")
+
+    return stage_10_completion(ctx)
 
 
 # =============================================================================

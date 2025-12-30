@@ -92,5 +92,5 @@ anthropic>=0.39.0
 # Tavily AI - RAG-optimized search
 tavily-python>=0.5.0
 
-# Supadata - YouTube transcript extraction
-supadata>=1.4.0
+# Supadata - YouTube transcript extraction (HTTP-only, SDK removed Dec 2025)
+# Using httpx for direct API calls - SDK had cloud compatibility issues

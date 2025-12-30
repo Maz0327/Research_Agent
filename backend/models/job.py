@@ -77,7 +77,30 @@ class JobStatusResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if job failed")
     created_at: Optional[datetime] = Field(None, description="Job creation timestamp")
     updated_at: Optional[datetime] = Field(None, description="Job last update timestamp")
-    
+    interpretations: Optional[list[dict[str, Any]]] = Field(
+        None, description="Possible topic interpretations when status is 'disambiguating'"
+    )
+
     class Config:
         populate_by_name = True
+
+
+class SelectInterpretationRequest(BaseModel):
+    """Request model for selecting interpretation(s) for a disambiguating job."""
+    indices: list[int] | Literal["all"] = Field(
+        ...,
+        description="List of interpretation indices to research, or 'all' to research all"
+    )
+
+    @field_validator('indices')
+    @classmethod
+    def validate_indices(cls, v):
+        """Validate indices are non-negative."""
+        if isinstance(v, list):
+            for idx in v:
+                if not isinstance(idx, int) or idx < 0:
+                    raise ValueError("Indices must be non-negative integers")
+            if len(v) == 0:
+                raise ValueError("Must select at least one interpretation")
+        return v
 

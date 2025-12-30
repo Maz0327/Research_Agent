@@ -1,12 +1,29 @@
-"""Planning and research mapping stages."""
+"""Planning and research mapping stages.
+
+Dec 2025: Added disambiguation support for ambiguous topics.
+When LLM detects ambiguity, job pauses for user selection.
+"""
 from loguru import logger
 
 from backend.pipeline.context import PipelineContext
 from backend.state import get_job, update_job
 
 
+class DisambiguationRequired(Exception):
+    """Raised when job requires user disambiguation before continuing."""
+
+    def __init__(self, job_id: str, interpretations: list):
+        self.job_id = job_id
+        self.interpretations = interpretations
+        super().__init__(f"Job {job_id} requires disambiguation")
+
+
 def stage_1_planning(ctx: PipelineContext) -> None:
-    """Plan job using OpenAI to generate JobConfig."""
+    """Plan job using OpenAI to generate JobConfig.
+
+    Dec 2025: Now handles ambiguous topics by pausing for user selection.
+    If topic is ambiguous, sets status="disambiguating" and raises DisambiguationRequired.
+    """
     from backend.integrations.openai_client import plan_job, generate_short_title
     from backend.models.job_config import JobConfig
 
@@ -17,10 +34,29 @@ def stage_1_planning(ctx: PipelineContext) -> None:
         if not ctx.topic or not ctx.topic.strip():
             raise ValueError("Topic cannot be empty")
 
-        ctx.job_config = plan_job(ctx.topic)
+        # plan_job now returns dict with is_ambiguous flag
+        result = plan_job(ctx.topic)
         # Track OpenAI cost (estimate ~1K tokens for planning)
         ctx.add_cost("openai_planning", 0.002)
 
+        # Check for disambiguation
+        if result.get("is_ambiguous"):
+            interpretations = result.get("interpretations", [])
+            logger.info(f"[{ctx.job_id}] Topic is ambiguous, {len(interpretations)} interpretations found")
+
+            # Store interpretations and pause for user selection
+            update_job(
+                ctx.job_id,
+                status="disambiguating",
+                stage="awaiting_disambiguation",
+                interpretations=interpretations,
+            )
+
+            # Raise to cleanly exit pipeline
+            raise DisambiguationRequired(ctx.job_id, interpretations)
+
+        # Non-ambiguous: extract config from result
+        ctx.job_config = result.get("config")
         if not isinstance(ctx.job_config, JobConfig):
             raise ValueError(f"plan_job returned invalid type: {type(ctx.job_config)}")
 

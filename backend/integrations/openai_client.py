@@ -229,7 +229,7 @@ def generate_short_title(prompt: str) -> str:
 
 
 @with_rate_limit("openai")
-def plan_job(slack_text: str) -> JobConfig:
+def plan_job(slack_text: str) -> dict:
     """
     Use OpenAI to plan a research job from Slack text input.
 
@@ -237,11 +237,16 @@ def plan_job(slack_text: str) -> JobConfig:
     It detects YouTube channels, infers date windows, and applies conservative defaults.
     Rate limited with exponential backoff to prevent quota exhaustion.
 
+    Dec 2025: Added disambiguation support for ambiguous topics.
+
     Args:
         slack_text: Natural language request from Slack
 
     Returns:
-        JobConfig object with all parameters configured
+        Dict with one of two structures:
+        - {"is_ambiguous": False, "config": JobConfig} for clear topics
+        - {"is_ambiguous": True, "interpretations": [...]} for ambiguous topics
+          Each interpretation: {"label": str, "description": str, "topic": str}
 
     Raises:
         MissingRequiredSettingError: If OPENAI_API_KEY is not configured
@@ -250,26 +255,26 @@ def plan_job(slack_text: str) -> JobConfig:
     # Validate input
     if not slack_text or not slack_text.strip():
         raise ValueError("slack_text cannot be empty")
-    
+
     try:
         settings = require_openai()
     except MissingRequiredSettingError:
         logger.warning("OpenAI API key not configured. Returning safe default config.")
-        return _safe_default_config(slack_text.strip())
-    
+        return {"is_ambiguous": False, "config": _safe_default_config(slack_text.strip())}
+
     # Extract YouTube channels from text
     detected_channels = _extract_youtube_channels(slack_text)
-    
+
     # Parse date window from text
     start_date, end_date = _parse_date_window(slack_text)
-    
+
     # Get JSON schema from JobConfig
     JobConfig.model_json_schema()
-    
+
     # Create OpenAI client
     client = OpenAI(api_key=settings.openai_api_key)
-    
-    # Build prompt for planning
+
+    # Build prompt for planning with disambiguation support
     prompt = f"""You are a research job planner. Parse this user request and create a structured research job configuration.
 
 User request: "{slack_text}"
@@ -282,8 +287,13 @@ Guidelines:
 5. Set conservative budgets: max_web_urls=50, max_claims_to_validate=25, max_validation_links_per_claim=6
 6. Default: exclude_shorts=true, include_livestreams=true, fetch_transcripts=true
 7. Enable web and news sources by default
+8. IMPORTANT - DISAMBIGUATION: If the topic is ambiguous and could refer to multiple different things (e.g., "Barney" could mean Barney & Friends children's show OR Barney Stinson from HIMYM), return ONLY:
+   {{"is_ambiguous": true, "interpretations": [
+     {{"label": "Short Name", "description": "Brief explanation", "topic": "Refined specific topic"}}
+   ]}}
+   Include 2-3 interpretations max. Only flag as ambiguous if genuinely unclear.
 
-Return a complete JobConfig JSON object matching the schema."""
+If NOT ambiguous, return: {{"is_ambiguous": false, "config": {{...JobConfig...}}}}"""
 
     try:
         response = client.chat.completions.create(
@@ -311,16 +321,28 @@ Return a complete JobConfig JSON object matching the schema."""
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from OpenAI response: {e}")
             logger.debug(f"Response content: {content}")
-            return _safe_default_config(slack_text)
+            return {"is_ambiguous": False, "config": _safe_default_config(slack_text)}
+
+        # Check if response indicates ambiguity
+        if config_dict.get("is_ambiguous") is True:
+            interpretations = config_dict.get("interpretations", [])
+            if interpretations:
+                logger.info(f"Ambiguous topic detected: {len(interpretations)} interpretations")
+                return {"is_ambiguous": True, "interpretations": interpretations}
+            # Fallthrough if no interpretations provided
+
+        # Extract config from response (may be nested under "config" key)
+        if "config" in config_dict and isinstance(config_dict["config"], dict):
+            config_dict = config_dict["config"]
 
         # Unwrap nested config if OpenAI returned wrapped response
         # e.g., {"jobConfig": {...}} instead of flat config
-        for wrapper_key in ["jobConfig", "job_config", "config"]:
+        for wrapper_key in ["jobConfig", "job_config"]:
             if wrapper_key in config_dict and isinstance(config_dict[wrapper_key], dict):
                 logger.debug(f"Unwrapping nested config from '{wrapper_key}' key")
                 config_dict = config_dict[wrapper_key]
                 break
-        
+
         # Merge detected channels if any
         if detected_channels:
             if "youtube" not in config_dict:
@@ -332,7 +354,7 @@ Return a complete JobConfig JSON object matching the schema."""
             for channel in detected_channels:
                 if channel not in existing:
                     config_dict["youtube"]["channels"].append(channel)
-        
+
         # Merge parsed date window
         if start_date or end_date:
             if "time_window" not in config_dict:
@@ -341,13 +363,13 @@ Return a complete JobConfig JSON object matching the schema."""
                 config_dict["time_window"]["start"] = start_date.isoformat()
             if end_date:
                 config_dict["time_window"]["end"] = end_date.isoformat()
-        
+
         # Apply conservative defaults
         if "youtube" in config_dict:
             config_dict["youtube"].setdefault("exclude_shorts", True)
             config_dict["youtube"].setdefault("include_livestreams", True)
             config_dict["youtube"].setdefault("fetch_transcripts", True)
-        
+
         if "budgets" not in config_dict:
             config_dict["budgets"] = {}
         config_dict["budgets"].setdefault("max_web_urls", 50)
@@ -371,15 +393,15 @@ Return a complete JobConfig JSON object matching the schema."""
         try:
             config = JobConfig.model_validate(config_dict)
             logger.info(f"Successfully planned job for topic: {config.topic}")
-            return config
+            return {"is_ambiguous": False, "config": config}
         except ValidationError as e:
             sanitized = sanitize_error_message(e, include_type=False)
             logger.error(f"Validation error in planned config: {sanitized}")
             logger.debug(f"Config dict: {config_dict}")
-            return _safe_default_config(slack_text)
+            return {"is_ambiguous": False, "config": _safe_default_config(slack_text)}
 
     except Exception as e:
         sanitized = sanitize_error_message(e, include_type=False)
         logger.exception(f"Failed to plan job with OpenAI: {sanitized}")
-        return _safe_default_config(slack_text)
+        return {"is_ambiguous": False, "config": _safe_default_config(slack_text)}
 

@@ -13,6 +13,7 @@ import {
   ProgressBar,
   JobResults,
   JobActions,
+  DisambiguationPanel,
 } from './job-card';
 
 interface JobCardProps {
@@ -117,6 +118,16 @@ export default function JobCard({ job, onRefresh }: JobCardProps) {
 
         {job.status === 'running' && (
           <ProgressBar progress={job.progress_percent} />
+        )}
+
+        {/* Disambiguation panel - always visible when needed */}
+        {job.status === 'disambiguating' && job.interpretations && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <DisambiguationPanel
+              jobId={job.id}
+              interpretations={job.interpretations}
+            />
+          </div>
         )}
       </div>
 
