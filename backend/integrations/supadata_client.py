@@ -133,8 +133,17 @@ class SupadataClient:
                 lang=lang,
             )
 
+            # Handle list of segments or string
+            raw_content = result.content if hasattr(result, 'content') else result
+            if isinstance(raw_content, list):
+                text = " ".join(
+                    seg.get("text", "") for seg in raw_content if isinstance(seg, dict)
+                )
+            else:
+                text = str(raw_content) if raw_content else ""
+
             return {
-                "text": result.content if hasattr(result, 'content') else str(result),
+                "text": text,
                 "url": url,
                 "method": f"supadata_{mode.value}",
                 "lang": lang,
@@ -165,8 +174,18 @@ class SupadataClient:
 
             data = response.json()
 
+            # Supadata returns content as list of segments or string
+            raw_content = data.get("content") or data.get("text")
+            if isinstance(raw_content, list):
+                # Join segment texts into single string
+                text = " ".join(
+                    seg.get("text", "") for seg in raw_content if isinstance(seg, dict)
+                )
+            else:
+                text = raw_content
+
             return {
-                "text": data.get("content") or data.get("text"),
+                "text": text,
                 "url": url,
                 "method": f"supadata_{mode.value}",
                 "lang": data.get("lang", lang),
