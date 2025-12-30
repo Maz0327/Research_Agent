@@ -71,17 +71,20 @@ class SupadataClient:
         if not self.api_key:
             raise ValueError("SUPADATA_API_KEY environment variable is required")
 
-        # Try SDK first, fall back to HTTP
-        if SUPADATA_SDK_AVAILABLE:
-            self.sdk = Supadata(api_key=self.api_key)
-            self.use_sdk = True
-        elif HTTPX_AVAILABLE:
+        # Dec 2025: Prefer HTTP over SDK - SDK returns unexpected data structure
+        # on Railway/cloud environments causing "'function' object has no attribute 'get'"
+        if HTTPX_AVAILABLE:
             self.http = httpx.Client(
                 base_url=self.BASE_URL,
                 headers={"x-api-key": self.api_key},
                 timeout=60.0,  # Transcription can take up to 60s
             )
             self.use_sdk = False
+            logger.debug("Supadata: Using HTTP client (preferred)")
+        elif SUPADATA_SDK_AVAILABLE:
+            self.sdk = Supadata(api_key=self.api_key)
+            self.use_sdk = True
+            logger.debug("Supadata: Using SDK client")
         else:
             raise ImportError("Either supadata or httpx package is required")
 
