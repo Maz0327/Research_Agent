@@ -61,9 +61,8 @@ mutagen>=1.47.0
 # Reddit API
 praw>=7.7.0
 
-# Supabase integration (pin gotrue==2.8.1 to avoid proxy bug in 2.9.x)
+# Supabase integration (httpx<0.28.0 constraint prevents proxy bug)
 supabase>=2.10.0
-gotrue==2.8.1
 
 # YAML parsing (for niche configs)
 pyyaml>=6.0
