@@ -620,7 +620,7 @@ def _dedupe_claims(claims: list[Claim]) -> list[Claim]:
 def extract_claims(
     transcripts: list[TranscriptItem],
     web_sources: list[SourceItem],
-    max_chunks: int = 30,   # Reduced from 50 for memory safety
+    max_chunks: int = 100,  # Increased from 30 - was too aggressive, caused 0 claims
     batch_size: int = 2,    # Process 2 chunks at a time (reduced from 5)
 ) -> tuple[list[Claim], str, str]:
     """

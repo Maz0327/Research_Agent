@@ -104,12 +104,24 @@ def stage_8_6_documentary_intelligence(ctx: PipelineContext) -> None:
         job = get_job(ctx.job_id)
         pipeline_mode = job.pipeline if hasattr(job, 'pipeline') else "investigation"
 
+        # Convert all Pydantic models to dicts for documentary intelligence
+        def to_dict(obj):
+            if hasattr(obj, "model_dump"):
+                return obj.model_dump()
+            elif isinstance(obj, dict):
+                return obj
+            return obj
+
+        sources_as_dicts = [to_dict(s) for s in (ctx.web_sources + ctx.transcripts)]
+        claims_as_dicts = [to_dict(c) for c in ctx.claims] if ctx.claims else []
+        validation_as_dicts = [to_dict(v) for v in ctx.evidence_records] if ctx.evidence_records else []
+
         research_data = {
             "timeline": [e.model_dump() for e in ctx.timeline_events] if ctx.timeline_events else [],
             "entities": ctx.entities,
-            "claims": ctx.claims,
-            "sources": ctx.web_sources + ctx.transcripts,
-            "validation": ctx.evidence_records,
+            "claims": claims_as_dicts,
+            "sources": sources_as_dicts,
+            "validation": validation_as_dicts,
             "discovered_angles": ctx.discovered_angles
         }
 
