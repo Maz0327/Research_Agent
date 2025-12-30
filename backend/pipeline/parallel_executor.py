@@ -88,12 +88,15 @@ def _run_stage_safely(
 
 def run_collection_stages_parallel(ctx: PipelineContext) -> None:
     """
-    Run collection stages in parallel after source discovery.
+    Run collection stages with YouTube prioritized first.
 
-    Parallel tracks:
-    - Track A: YouTube → Transcripts (sequential within track)
-    - Track B: Web Capture
-    - Track C: Reddit Collection
+    Dec 2025: YouTube runs FIRST (sequentially), then web/reddit in parallel.
+    This ensures YouTube content is available for early extraction and
+    provides the most relevant video content before web sources.
+
+    Execution order:
+    1. YouTube enumeration + Transcripts (sequential, runs first)
+    2. Web Capture + Reddit (parallel, after YouTube completes)
     """
     from backend.pipeline.stages import (
         stage_4_youtube_enumeration,
@@ -102,15 +105,22 @@ def run_collection_stages_parallel(ctx: PipelineContext) -> None:
         stage_6_5_reddit,
     )
 
-    def youtube_track(ctx: PipelineContext) -> None:
-        """YouTube enumeration followed by transcript fetching."""
+    # Phase 1: YouTube FIRST (sequential) - prioritized content source
+    logger.info(f"[{ctx.job_id}] Phase 1: YouTube collection (prioritized)")
+    try:
         stage_4_youtube_enumeration(ctx)
         stage_5_transcripts(ctx)
+        logger.info(f"[{ctx.job_id}] YouTube collection complete: {len(ctx.youtube_videos)} videos, {len(ctx.transcripts)} transcripts")
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] YouTube collection failed: {e}")
+        ctx.add_warning(f"YouTube collection failed: {str(e)}")
 
-    stages = [youtube_track, stage_6_web_capture, stage_6_5_reddit]
-    names = ["youtube_track", "web_capture", "reddit_collection"]
+    # Phase 2: Web + Reddit in parallel (after YouTube)
+    logger.info(f"[{ctx.job_id}] Phase 2: Web and Reddit collection (parallel)")
+    stages = [stage_6_web_capture, stage_6_5_reddit]
+    names = ["web_capture", "reddit_collection"]
 
-    run_parallel_stages(ctx, stages, names, max_workers=3)
+    run_parallel_stages(ctx, stages, names, max_workers=2)
 
 
 def run_extraction_stages_parallel(ctx: PipelineContext) -> None:
