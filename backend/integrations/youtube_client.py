@@ -473,8 +473,147 @@ def _generate_youtube_index_md(
             title_link = f"[{video.title}]({video.url})"
             
             lines.append(f"| {date_str} | {title_link} | {duration_str} | {type_str} |")
-        
+
         lines.append("")
-    
+
     return "\n".join(lines)
 
+
+def search_youtube_videos(
+    query: str,
+    max_results: int = 10,
+    exclude_shorts: bool = True,
+) -> dict:
+    """
+    Search YouTube for videos by query (topic-based discovery).
+
+    Dec 2025: Added to enable YouTube discovery when no channels specified.
+    Uses YouTube Data API v3 search endpoint.
+
+    Args:
+        query: Search query (e.g., topic or research question)
+        max_results: Maximum videos to return (1-50)
+        exclude_shorts: Filter out videos < 60 seconds
+
+    Returns:
+        Dict with 'videos' (list of VideoItem) and 'youtube_index_md'
+    """
+    try:
+        settings = require_youtube()
+    except MissingRequiredSettingError:
+        logger.warning("YouTube API key not configured. Skipping search.")
+        return {
+            "videos": [],
+            "youtube_index_md": "# YouTube Search\n\n*YouTube API key required.*",
+        }
+
+    videos: list[VideoItem] = []
+
+    try:
+        # Search for videos
+        url = "https://www.googleapis.com/youtube/v3/search"
+        params = {
+            "part": "snippet",
+            "q": query,
+            "type": "video",
+            "maxResults": min(max_results * 2, MAX_VIDEOS_PER_REQUEST),  # Fetch extra for filtering
+            "order": "relevance",
+            "key": settings.youtube_api_key,
+        }
+
+        with httpx.Client(timeout=YOUTUBE_API_TIMEOUT) as client:
+            response = client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+        items = data.get("items", [])
+        video_ids = [item["id"]["videoId"] for item in items if "videoId" in item.get("id", {})]
+
+        if not video_ids:
+            logger.info(f"YouTube search returned no results for: {query[:50]}")
+            return {
+                "videos": [],
+                "youtube_index_md": f"# YouTube Search\n\n**Query:** {query}\n\n*No videos found.*",
+            }
+
+        # Fetch video details (duration, etc.)
+        videos_details = _get_videos_details(video_ids, settings.youtube_api_key)
+
+        for item in items:
+            video_id = item.get("id", {}).get("videoId")
+            if not video_id:
+                continue
+
+            snippet = item.get("snippet", {})
+            details = videos_details.get(video_id, {})
+            content_details = details.get("contentDetails", {})
+
+            # Parse published date
+            published_str = snippet.get("publishedAt", "")
+            try:
+                published_at = datetime.fromisoformat(published_str.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                published_at = datetime.now(timezone.utc)
+
+            # Get duration
+            duration_str = content_details.get("duration", "")
+            duration_seconds = _parse_duration_iso8601(duration_str)
+
+            # Check if short
+            is_short = duration_seconds and duration_seconds < 60
+            if is_short and exclude_shorts:
+                continue
+
+            # Check livestream status
+            live_broadcast = snippet.get("liveBroadcastContent", "none")
+            is_livestream = live_broadcast in ("live", "upcoming")
+
+            video = VideoItem(
+                video_id=video_id,
+                title=snippet.get("title", ""),
+                channel_id=snippet.get("channelId", ""),
+                channel_title=snippet.get("channelTitle", ""),
+                published_at=published_at,
+                duration_seconds=duration_seconds,
+                is_livestream=is_livestream,
+                is_short=is_short,
+            )
+            videos.append(video)
+
+            if len(videos) >= max_results:
+                break
+
+        logger.info(f"YouTube search found {len(videos)} videos for: {query[:50]}")
+
+        # Generate markdown
+        lines = [
+            "# YouTube Search Results",
+            "",
+            f"**Query:** {query}",
+            f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            f"**Videos Found:** {len(videos)}",
+            "",
+            "| # | Title | Channel | Duration |",
+            "|---|-------|---------|----------|",
+        ]
+
+        for i, video in enumerate(videos, 1):
+            duration_str = "?"
+            if video.duration_seconds:
+                mins = video.duration_seconds // 60
+                secs = video.duration_seconds % 60
+                duration_str = f"{mins}:{secs:02d}"
+            lines.append(f"| {i} | [{video.title}]({video.url}) | {video.channel_title} | {duration_str} |")
+
+        return {
+            "videos": videos,
+            "youtube_index_md": "\n".join(lines),
+        }
+
+    except Exception as e:
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.error(f"YouTube search failed: {sanitized}")
+        return {
+            "videos": [],
+            "youtube_index_md": f"# YouTube Search\n\n*Error: {sanitized}*",
+        }

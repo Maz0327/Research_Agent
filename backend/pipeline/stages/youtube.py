@@ -1,4 +1,9 @@
-"""YouTube enumeration and transcript fetching stages."""
+"""YouTube enumeration and transcript fetching stages.
+
+Dec 2025: Enhanced with topic-based search when no channels specified.
+- If channels are specified: enumerate channel uploads
+- If no channels: search YouTube by topic (auto-discovery)
+"""
 from loguru import logger
 
 from backend.pipeline.context import PipelineContext
@@ -6,24 +11,44 @@ from backend.state import update_job
 
 
 def stage_4_youtube_enumeration(ctx: PipelineContext) -> None:
-    """Enumerate YouTube channel uploads."""
-    from backend.integrations.youtube_client import enumerate_channel_uploads
+    """Enumerate YouTube videos - from channels or by topic search.
 
-    logger.info(f"[{ctx.job_id}] Stage 4: Enumerating YouTube uploads")
+    Dec 2025: Now supports auto-discovery via YouTube search when no
+    channels are specified. This ensures YouTube content is always
+    discovered based on the research topic.
+    """
+    from backend.integrations.youtube_client import (
+        enumerate_channel_uploads,
+        search_youtube_videos,
+    )
+
+    logger.info(f"[{ctx.job_id}] Stage 4: YouTube video discovery")
     update_job(ctx.job_id, stage="youtube_enumeration", progress_percent=35)
 
     try:
         if ctx.job_config.youtube.channels:
+            # Channel enumeration mode (original behavior)
+            logger.info(f"[{ctx.job_id}] Using channel enumeration for {len(ctx.job_config.youtube.channels)} channels")
             result = enumerate_channel_uploads(ctx.job_config)
             ctx.youtube_videos = result.get("videos", [])
             ctx.set_output("youtube_index_md", result.get("youtube_index_md", ""))
-            logger.info(f"[{ctx.job_id}] Enumerated {len(ctx.youtube_videos)} YouTube videos")
+            logger.info(f"[{ctx.job_id}] Enumerated {len(ctx.youtube_videos)} videos from channels")
         else:
-            ctx.set_output("youtube_index_md", "# YouTube Index\n\n*No channels specified*")
-            logger.info(f"[{ctx.job_id}] No YouTube channels specified")
+            # Topic search mode (new auto-discovery)
+            logger.info(f"[{ctx.job_id}] No channels specified, searching YouTube by topic")
+            max_videos = ctx.job_config.youtube.max_videos
+            result = search_youtube_videos(
+                query=ctx.topic,
+                max_results=max_videos,
+                exclude_shorts=ctx.job_config.youtube.exclude_shorts,
+            )
+            ctx.youtube_videos = result.get("videos", [])
+            ctx.set_output("youtube_index_md", result.get("youtube_index_md", ""))
+            logger.info(f"[{ctx.job_id}] Found {len(ctx.youtube_videos)} videos via topic search")
+
     except Exception as e:
-        logger.warning(f"[{ctx.job_id}] YouTube enumeration failed: {e}")
-        ctx.add_warning(f"YouTube enumeration failed: {str(e)}")
+        logger.warning(f"[{ctx.job_id}] YouTube discovery failed: {e}")
+        ctx.add_warning(f"YouTube discovery failed: {str(e)}")
         ctx.set_output("youtube_index_md", f"# YouTube Index\n\n*Error: {str(e)}*")
 
 
