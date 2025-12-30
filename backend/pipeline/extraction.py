@@ -210,6 +210,30 @@ def _extract_claim_candidates(chunk_text: str) -> list[dict]:
     return candidates
 
 
+def _validate_openai_key(api_key: str) -> bool:
+    """
+    Validate OpenAI API key with a minimal test call.
+
+    Args:
+        api_key: OpenAI API key to validate
+
+    Returns:
+        True if key is valid, False otherwise
+    """
+    try:
+        client = OpenAI(api_key=api_key)
+        # Minimal API call to validate key (cheap and fast)
+        client.models.list()
+        return True
+    except Exception as e:
+        logger.error(f"OpenAI API key validation failed: {e}")
+        return False
+
+
+# Cache for validated API key (avoid repeated validation calls)
+_validated_api_key: str | None = None
+
+
 def _canonicalize_claims_with_openai(
     candidates: list[dict],
     chunk_text: str,
@@ -217,18 +241,24 @@ def _canonicalize_claims_with_openai(
 ) -> list[Claim]:
     """
     Use OpenAI structured output to canonicalize claim candidates into Claim objects.
-    
+
     Args:
         candidates: List of candidate dicts with 'text'
         chunk_text: Original chunk text (for substring validation)
         api_key: OpenAI API key
-        
+
     Returns:
         List of Claim objects (filtered by substring requirement)
     """
+    global _validated_api_key
+
     if not candidates:
         return []
-    
+
+    # Skip if we already know the key is invalid
+    if _validated_api_key is False:
+        return []
+
     client = OpenAI(api_key=api_key)
     
     # Prepare candidate texts
@@ -532,12 +562,26 @@ def extract_claims(
     Raises:
         MissingRequiredSettingError: If OPENAI_API_KEY is not configured
     """
+    global _validated_api_key
+
     try:
         settings = require_openai()
         api_key = settings.openai_api_key
     except MissingRequiredSettingError:
         logger.warning("OpenAI API key not configured. Returning empty extraction results.")
         return [], "# Quote Bank\n\n*OpenAI API key required for claim extraction.*", "# Claims Ledger\n\n*OpenAI API key required.*"
+
+    # Early validation: Check API key ONCE before processing any chunks
+    # This prevents dozens of failed API calls that waste memory
+    if _validated_api_key != api_key:
+        logger.info("Validating OpenAI API key before extraction...")
+        if _validate_openai_key(api_key):
+            _validated_api_key = api_key
+            logger.info("OpenAI API key validated successfully")
+        else:
+            _validated_api_key = False  # type: ignore
+            logger.error("OpenAI API key is invalid. Skipping claim extraction.")
+            return [], "# Quote Bank\n\n*OpenAI API key is invalid. Please check your configuration.*", "# Claims Ledger\n\n*OpenAI API key invalid.*"
 
     all_claims: list[Claim] = []
     chunks_processed = 0
