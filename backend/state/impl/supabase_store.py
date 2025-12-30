@@ -71,17 +71,50 @@ def _parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def _normalize_jsonb_field(data: Any) -> dict:
+    """Normalize JSONB field to dict, handling corrupted list/string data."""
+    if data is None:
+        return {}
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list):
+        # Corrupted: merge all dict items in the list
+        merged = {}
+        for item in data:
+            if isinstance(item, dict):
+                merged.update(item)
+            elif isinstance(item, str):
+                try:
+                    import json
+                    parsed = json.loads(item)
+                    if isinstance(parsed, dict):
+                        merged.update(parsed)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        logger.warning(f"Normalized corrupted JSONB list to dict: {len(data)} items")
+        return merged
+    if isinstance(data, str):
+        try:
+            import json
+            parsed = json.loads(data)
+            if isinstance(parsed, dict):
+                return parsed
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {}
+
+
 def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
     """Convert database row to JobRecord."""
-    # Parse artifacts
-    artifacts_data = row.get("artifacts") or {}
+    # Parse artifacts (with corruption handling)
+    artifacts_data = _normalize_jsonb_field(row.get("artifacts"))
     artifacts = Artifacts(
         drive_folder_url=artifacts_data.get("drive_folder_url"),
         doc_urls=artifacts_data.get("doc_urls"),
     )
 
-    # Parse outputs
-    outputs_data = row.get("outputs") or {}
+    # Parse outputs (with corruption handling)
+    outputs_data = _normalize_jsonb_field(row.get("outputs"))
     outputs = Outputs(
         research_map_md=outputs_data.get("research_map_md"),
         source_shortlist_md=outputs_data.get("source_shortlist_md"),
@@ -325,6 +358,8 @@ class SupabaseJobStore(JobStore):
             client = _get_supabase_client()
 
             # Prepare RPC parameters
+            # Note: Pass dicts directly - Supabase client handles dict→JSONB conversion
+            # Do NOT use json.dumps() as it causes double-encoding
             rpc_params = {
                 "p_job_id": job_id,
                 "p_status": status,
@@ -332,9 +367,9 @@ class SupabaseJobStore(JobStore):
                 "p_progress_percent": progress_percent,
                 "p_title": title,
                 "p_error": error,
-                "p_partial_outputs": json.dumps(partial_outputs) if partial_outputs else None,
-                "p_partial_artifacts": json.dumps(partial_artifacts) if partial_artifacts else None,
-                "p_warnings_append": json.dumps(warnings_append) if warnings_append else None,
+                "p_partial_outputs": partial_outputs,
+                "p_partial_artifacts": partial_artifacts,
+                "p_warnings_append": warnings_append,
                 "p_update_stage_timestamp": stage is not None,
             }
 
