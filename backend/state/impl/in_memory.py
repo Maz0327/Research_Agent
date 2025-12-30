@@ -65,6 +65,8 @@ class InMemoryJobStore(JobStore):
         config_json: Optional[dict] = None,
         artifacts: Optional[Artifacts] = None,
         warnings: Optional[list[str]] = None,
+        interpretations: Optional[list[dict]] = None,
+        selected_interpretations: Optional[list[int]] = None,
     ) -> Optional[JobRecord]:
         """Update a job record with partial updates."""
         with self._lock:
@@ -89,6 +91,12 @@ class InMemoryJobStore(JobStore):
                 job.error = error
             if config_json is not None:
                 job.config_json = config_json
+
+            # Disambiguation fields
+            if interpretations is not None:
+                job.interpretations = interpretations
+            if selected_interpretations is not None:
+                job.selected_interpretations = selected_interpretations
 
             # Full replacements
             if artifacts is not None:

@@ -70,6 +70,8 @@ def update_job(
     partial_outputs: dict | None = None,
     partial_artifacts: dict | None = None,
     warnings_append: list[str] | None = None,
+    interpretations: list[dict] | None = None,
+    selected_interpretations: list[int] | None = None,
 ) -> JobRecord | None:
     """
     Update a job with partial updates.
@@ -83,6 +85,8 @@ def update_job(
         partial_outputs: Partial outputs dict to merge (optional)
         partial_artifacts: Partial artifacts dict to merge (optional)
         warnings_append: List of warnings to append (optional)
+        interpretations: Disambiguation interpretations list (optional)
+        selected_interpretations: User-selected interpretation indices (optional)
 
     Returns:
         Updated JobRecord if found, None otherwise
@@ -97,6 +101,8 @@ def update_job(
         partial_outputs=partial_outputs,
         partial_artifacts=partial_artifacts,
         warnings_append=warnings_append,
+        interpretations=interpretations,
+        selected_interpretations=selected_interpretations,
     )
 
 

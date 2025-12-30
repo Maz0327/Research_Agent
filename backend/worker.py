@@ -5,15 +5,8 @@ from celery import Celery
 from loguru import logger
 
 from backend.config import get_settings
-from backend.models.job_config import JobConfig
 from backend.state import get_job, update_job
 from backend.services.error_logger import log_exception
-from backend.pipeline.document_helpers import (
-    generate_master_index,
-    generate_transcripts_md,
-    generate_web_extracts_md,
-    generate_evidence_table_md,
-)
 
 settings = get_settings()
 

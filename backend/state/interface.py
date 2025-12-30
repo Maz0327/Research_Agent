@@ -51,6 +51,8 @@ class JobStore(ABC):
         config_json: Optional[dict] = None,
         artifacts: Optional[Artifacts] = None,
         warnings: Optional[list[str]] = None,
+        interpretations: Optional[list[dict]] = None,
+        selected_interpretations: Optional[list[int]] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record with partial updates.
@@ -68,6 +70,8 @@ class JobStore(ABC):
             config_json: Full config_json replacement (optional)
             artifacts: Full artifacts replacement (optional)
             warnings: Full warnings replacement (optional)
+            interpretations: Disambiguation interpretations list (optional)
+            selected_interpretations: User-selected interpretation indices (optional)
 
         Returns:
             Updated JobRecord if found and updated, None otherwise
