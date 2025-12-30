@@ -11,12 +11,12 @@ import { useJobsStore } from '../store/jobs';
 import { POLLING_INTERVALS } from '../lib/constants';
 
 const pipelines = [
-  { value: 'quick', label: 'Quick', description: 'Fast research with basic coverage' },
-  { value: 'full', label: 'Full', description: 'Comprehensive research with full coverage' },
-  { value: 'breaking_news', label: 'Breaking News', description: 'Fast-turnaround current events' },
-  { value: 'investigation', label: 'Investigation', description: 'Deep-dive investigative research' },
-  { value: 'profile', label: 'Profile', description: 'Character-driven biographical research' },
-  { value: 'controversy', label: 'Controversy', description: 'Balanced multi-perspective analysis' },
+  { value: 'quick', label: 'Quick', description: 'Fast research with basic coverage', example: 'What is quantum computing?' },
+  { value: 'full', label: 'Full', description: 'Comprehensive research with full coverage', example: 'Electric vehicle market trends 2024' },
+  { value: 'breaking_news', label: 'Breaking News', description: 'Fast-turnaround current events', example: 'OpenAI leadership changes December 2024' },
+  { value: 'investigation', label: 'Investigation', description: 'Deep-dive investigative research', example: 'FTX collapse timeline and key players' },
+  { value: 'profile', label: 'Profile', description: 'Character-driven biographical research', example: 'Elon Musk business ventures and controversies' },
+  { value: 'controversy', label: 'Controversy', description: 'Balanced multi-perspective analysis', example: 'AI art copyright debate perspectives' },
 ];
 
 // Skeleton loader for jobs
@@ -141,11 +141,14 @@ function DashboardContent() {
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Enter your research topic or question..."
+                placeholder={`e.g., "${pipelines.find(p => p.value === pipeline)?.example || 'Enter your research topic...'}"`}
                 rows={3}
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 disabled={isCreating}
               />
+              <p className="mt-2 text-xs text-gray-500">
+                <strong>Tips:</strong> Be specific with names, dates, and context. Include key entities (people, companies, events) for better results.
+              </p>
             </div>
 
             <div className="mb-5">
