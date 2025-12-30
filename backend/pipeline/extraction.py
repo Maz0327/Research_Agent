@@ -261,6 +261,52 @@ def _validate_openai_key(api_key: str) -> bool:
 _validated_api_key: str | None = None
 
 
+def _normalize_claim_response(claim_data: dict) -> dict:
+    """
+    Normalize OpenAI response to match Claim model schema.
+
+    Handles common variations:
+    - 'claim' → 'canonical_claim'
+    - 'text' → 'canonical_claim' (fallback)
+    - 'statement' → 'canonical_claim' (fallback)
+    - entities as [{type, name}] → [name, ...]
+    - entities as [{name}] → [name, ...]
+
+    Args:
+        claim_data: Raw claim dict from OpenAI
+
+    Returns:
+        Normalized dict matching Claim model schema
+    """
+    # Create a copy to avoid mutating original
+    normalized = dict(claim_data)
+
+    # Normalize canonical_claim field - check alternative names
+    if "canonical_claim" not in normalized:
+        for alt_name in ("claim", "text", "statement", "claim_text"):
+            if alt_name in normalized:
+                normalized["canonical_claim"] = normalized.pop(alt_name)
+                break
+
+    # Normalize entities - convert from structured to simple list
+    if "entities" in normalized:
+        entities = normalized["entities"]
+        if entities and isinstance(entities, list):
+            normalized_entities = []
+            for entity in entities:
+                if isinstance(entity, str):
+                    # Already a string, keep as-is
+                    normalized_entities.append(entity)
+                elif isinstance(entity, dict):
+                    # Extract name from structured entity
+                    name = entity.get("name") or entity.get("entity") or entity.get("text")
+                    if name:
+                        normalized_entities.append(name)
+            normalized["entities"] = normalized_entities
+
+    return normalized
+
+
 def _canonicalize_claims_with_openai(
     candidates: list[dict],
     chunk_text: str,
@@ -339,6 +385,9 @@ Return JSON array of Claim objects. Each claim must have verbatim_quote that exa
         validated_claims = []
         for claim_data in claims_data:
             try:
+                # Normalize OpenAI response field names
+                claim_data = _normalize_claim_response(claim_data)
+
                 # Generate claim_id if not provided
                 if "claim_id" not in claim_data:
                     claim_data["claim_id"] = f"claim_{uuid.uuid4().hex[:8]}"

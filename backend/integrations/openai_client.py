@@ -353,7 +353,20 @@ Return a complete JobConfig JSON object matching the schema."""
         config_dict["budgets"].setdefault("max_web_urls", 50)
         config_dict["budgets"].setdefault("max_claims_to_validate", 25)
         config_dict["budgets"].setdefault("max_validation_links_per_claim", 6)
-        
+
+        # Normalize topic field (OpenAI may return main_topic, subject, research_topic, etc.)
+        if "topic" not in config_dict:
+            for alt_name in ("main_topic", "subject", "research_topic", "query", "question"):
+                if alt_name in config_dict:
+                    config_dict["topic"] = config_dict.pop(alt_name)
+                    logger.debug(f"Normalized '{alt_name}' -> 'topic'")
+                    break
+
+        # Fallback: use slack_text as topic if still missing
+        if "topic" not in config_dict or not config_dict["topic"]:
+            config_dict["topic"] = slack_text.strip()
+            logger.debug("No topic field found, using slack_text as fallback")
+
         # Validate and return
         try:
             config = JobConfig.model_validate(config_dict)

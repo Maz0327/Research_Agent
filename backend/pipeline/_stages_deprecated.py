@@ -774,7 +774,11 @@ def stage_8_6_documentary_intelligence(ctx: PipelineContext) -> None:
 def stage_9_drive_upload(ctx: PipelineContext) -> None:
     """Upload research packet to Google Drive."""
     from backend.integrations.google_drive_docs import create_research_packet
-    from backend.worker import _generate_master_index, _generate_transcripts_md, _generate_web_extracts_md
+    from backend.pipeline.document_helpers import (
+        generate_master_index,
+        generate_transcripts_md,
+        generate_web_extracts_md,
+    )
 
     logger.info(f"[{ctx.job_id}] Stage 9: Writing Drive docs")
     update_job(ctx.job_id, stage="drive_upload", progress_percent=85)
@@ -782,12 +786,12 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
 
     try:
         doc_contents = {
-            "00_MASTER_INDEX": _generate_master_index(ctx.job_config, ctx.outputs),
+            "00_MASTER_INDEX": generate_master_index(ctx.job_config, ctx.outputs),
             "01_RESEARCH_MAP": ctx.outputs.get("research_map_md", ""),
             "02_SOURCE_SHORTLIST": ctx.outputs.get("source_shortlist_md", ""),
             "03_YOUTUBE_INDEX": ctx.outputs.get("youtube_index_md", ""),
-            "04_TRANSCRIPTS": _generate_transcripts_md(ctx.transcripts),
-            "05_WEB_EXTRACTS": _generate_web_extracts_md(ctx.web_sources),
+            "04_TRANSCRIPTS": generate_transcripts_md(ctx.transcripts),
+            "05_WEB_EXTRACTS": generate_web_extracts_md(ctx.web_sources),
             "06_QUOTE_BANK": ctx.outputs.get("quote_bank_md", ""),
             "07_CLAIMS_LEDGER": ctx.outputs.get("claims_ledger_md", ""),
             "08_EVIDENCE_TABLE": ctx.outputs.get("evidence_table_md", ""),

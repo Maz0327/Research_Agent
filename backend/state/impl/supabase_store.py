@@ -32,6 +32,12 @@ def _get_supabase_client() -> Client:
     )
 
 
+# Public alias for external modules (e.g., error_logger)
+def get_supabase_client() -> Client:
+    """Get Supabase client. Public wrapper around _get_supabase_client."""
+    return _get_supabase_client()
+
+
 def _rest_base_url() -> str:
     """Base URL for Supabase PostgREST."""
     settings = get_settings()
