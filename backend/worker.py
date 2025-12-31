@@ -317,17 +317,16 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
 
         interp = interpretations[idx]
         interpretation_topic = interp.get("topic", "")
-        interpretation_desc = interp.get("description", "")
         label = interp.get("label", f"Interpretation {idx + 1}")
 
-        # Preserve original question context with clarification
-        # E.g., "What fan theories exist about 'the barney show'?" + "Barney the Dinosaur"
-        # -> "What fan theories exist about 'the barney show'? [Clarification: Barney the Dinosaur - ...]"
-        if original_prompt and interpretation_topic and original_prompt.lower() != interpretation_topic.lower():
-            # Original had question context - append clarification
-            refined_topic = f"{original_prompt} [Clarification: This refers to {interpretation_topic}. {interpretation_desc}]"
+        # Use LLM to generate natural clarified prompt
+        # E.g., "What fan theories exist about 'the barney show'?" + {topic: "Barney the Dinosaur", ...}
+        # -> "What fan theories exist about Barney the Dinosaur (the children's TV show, 1992-2010)?"
+        from backend.integrations.openai_client import generate_clarified_prompt
+        if original_prompt and interpretation_topic:
+            refined_topic = generate_clarified_prompt(original_prompt, interp)
         else:
-            # Fallback to just the interpretation topic
+            # Fallback to interpretation topic or original
             refined_topic = interpretation_topic or original_prompt or ctx.topic
 
         logger.info(f"[{ctx.job_id}] Processing interpretation {i + 1}/{len(selected_indices)}: {label}")

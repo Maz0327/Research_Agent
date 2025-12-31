@@ -229,6 +229,103 @@ def generate_short_title(prompt: str) -> str:
 
 
 @with_rate_limit("openai")
+def generate_clarified_prompt(original_prompt: str, interpretation: dict) -> str:
+    """
+    Generate a natural, clarified version of an ambiguous prompt.
+
+    Uses GPT-4o-mini to synthesize the original user question/request with
+    the selected disambiguation, producing a clean prompt that preserves
+    the original intent while incorporating the clarification.
+
+    Args:
+        original_prompt: The user's original research request
+        interpretation: Dict with 'topic', 'description', and optionally 'label'
+
+    Returns:
+        A natural, clarified prompt combining the question intent with
+        the specific interpretation. Falls back to concatenation on error.
+
+    Examples:
+        Input:
+            original_prompt: "What fan theories exist about 'the barney show'?"
+            interpretation: {"topic": "Barney the Dinosaur", "description": "Children's TV show"}
+        Output:
+            "What fan theories exist about Barney the Dinosaur (the children's TV show, 1992-2010)?"
+
+    Cost: ~$0.003 per call
+    """
+    interpretation_topic = interpretation.get("topic", "")
+    interpretation_desc = interpretation.get("description", "")
+
+    # If no topic or same as original, just return original
+    if not interpretation_topic or original_prompt.lower().strip() == interpretation_topic.lower().strip():
+        return original_prompt
+
+    # Fallback format (used on API failure)
+    fallback = f"{original_prompt} [Clarification: This refers to {interpretation_topic}. {interpretation_desc}]"
+
+    try:
+        settings = require_openai()
+    except MissingRequiredSettingError:
+        logger.warning("OpenAI API key not configured. Using fallback prompt format.")
+        return fallback
+
+    client = OpenAI(api_key=settings.openai_api_key)
+
+    system_prompt = """You are a prompt clarifier. Given an original research request and a clarification about what the user meant, synthesize them into a single, natural-sounding prompt.
+
+Rules:
+1. Preserve the original question/request structure and intent
+2. Naturally integrate the clarified subject into the prompt
+3. Add brief parenthetical context when helpful (dates, type of entity)
+4. Keep the output concise - don't add unnecessary words
+5. Return ONLY the clarified prompt, nothing else
+
+Examples:
+- "What fan theories exist about 'the barney show'?" + "Barney the Dinosaur (Children's TV show 1992-2010)"
+  -> "What fan theories exist about Barney the Dinosaur (the children's TV show, 1992-2010)?"
+
+- "Tell me about the Avatar controversy" + "Avatar (2009 James Cameron film)"
+  -> "Tell me about the controversy surrounding Avatar (the 2009 James Cameron film)"
+
+- "Why did The Office end?" + "The Office (US version, NBC sitcom 2005-2013)"
+  -> "Why did The Office (the US version, 2005-2013) end?"
+"""
+
+    user_prompt = f"""Original request: "{original_prompt}"
+
+Clarification - the user means: {interpretation_topic}
+Additional context: {interpretation_desc}
+
+Generate the clarified prompt:"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,
+            max_tokens=200,
+        )
+
+        result = response.choices[0].message.content
+        if result:
+            clarified = result.strip().strip('"\'')
+            logger.info(f"Generated clarified prompt: '{clarified[:60]}...' from: '{original_prompt[:40]}...'")
+            return clarified
+        else:
+            logger.warning("Empty response from clarification API, using fallback")
+            return fallback
+
+    except Exception as e:
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.warning(f"Failed to generate clarified prompt: {sanitized}. Using fallback.")
+        return fallback
+
+
+@with_rate_limit("openai")
 def plan_job(slack_text: str) -> dict:
     """
     Use OpenAI to plan a research job from Slack text input.

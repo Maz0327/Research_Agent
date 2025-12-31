@@ -58,11 +58,19 @@ function DashboardContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showPreview, setShowPreview] = useState(false);
+  // Bulk delete confirmation
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkArchiving, setIsBulkArchiving] = useState(false);
   // Editable preview state
   const [editableSources, setEditableSources] = useState<string[]>([]);
   const [editableSubreddits, setEditableSubreddits] = useState<string[]>([]);
   const [newSubreddit, setNewSubreddit] = useState('');
-  const { jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, refreshJob, clearPreview } = useJobsStore();
+  const {
+    jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, refreshJob, clearPreview,
+    // Bulk selection
+    isEditMode, selectedJobIds, bulkErrors, toggleEditMode, selectJob, deselectJob, selectAll, deselectAll, bulkDelete, bulkArchive, clearBulkErrors,
+  } = useJobsStore();
   const { user } = useAuth();
 
   // Get current depth config for placeholder example
@@ -497,26 +505,119 @@ function DashboardContent() {
 
         {/* Jobs List */}
         <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-100">Your Jobs</h2>
-
-            {/* Status Filter */}
-            <div className="flex flex-wrap gap-2">
-              {['all', 'running', 'completed', 'failed', 'cancelled'].map((status) => (
+          {/* Bulk errors display */}
+          {bulkErrors.length > 0 && (
+            <div className="mb-4 rounded-lg border border-red-800 bg-red-900/30 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-red-400">Some jobs failed:</p>
                 <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
-                    statusFilter === status
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
-                  }`}
+                  onClick={clearBulkErrors}
+                  className="text-red-400 hover:text-red-300 text-sm"
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  Dismiss
                 </button>
+              </div>
+              {bulkErrors.map(({ jobId, error }) => (
+                <p key={jobId} className="text-xs text-red-300">{jobId.slice(0, 8)}...: {error}</p>
               ))}
             </div>
+          )}
+
+          <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-gray-100">Your Jobs</h2>
+              {/* Edit Mode Toggle */}
+              <button
+                onClick={toggleEditMode}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                  isEditMode
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+                }`}
+              >
+                {isEditMode ? 'Done' : 'Select'}
+              </button>
+            </div>
+
+            {/* Edit Mode Controls */}
+            {isEditMode ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={selectedJobIds.size > 0 ? deselectAll : selectAll}
+                  className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-700"
+                >
+                  {selectedJobIds.size > 0 ? 'Deselect All' : 'Select All'}
+                </button>
+                <span className="text-sm text-gray-500">{selectedJobIds.size} selected</span>
+                <button
+                  onClick={async () => {
+                    if (selectedJobIds.size === 0) return;
+                    setIsBulkArchiving(true);
+                    await bulkArchive();
+                    setIsBulkArchiving(false);
+                  }}
+                  disabled={selectedJobIds.size === 0 || isBulkArchiving}
+                  className="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isBulkArchiving ? 'Archiving...' : 'Archive'}
+                </button>
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  disabled={selectedJobIds.size === 0}
+                  className="rounded-lg border border-red-700 px-3 py-1.5 text-sm text-red-400 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Delete
+                </button>
+              </div>
+            ) : (
+              /* Status Filter - only show when not in edit mode */
+              <div className="flex flex-wrap gap-2">
+                {['all', 'running', 'completed', 'failed', 'cancelled'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                      statusFilter === status
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Bulk Delete Confirmation Modal */}
+          {showBulkDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="rounded-lg border border-gray-700 bg-gray-900 p-6 max-w-sm shadow-xl">
+                <h3 className="text-lg font-medium text-gray-100 mb-2">Delete {selectedJobIds.size} jobs?</h3>
+                <p className="text-sm text-gray-400 mb-4">This action cannot be undone.</p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowBulkDeleteConfirm(false)}
+                    className="rounded-lg px-4 py-2 text-gray-400 hover:text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setIsBulkDeleting(true);
+                      await bulkDelete();
+                      setIsBulkDeleting(false);
+                      setShowBulkDeleteConfirm(false);
+                    }}
+                    disabled={isBulkDeleting}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {isBulkDeleting ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="space-y-4">
@@ -563,7 +664,19 @@ function DashboardContent() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <JobCard job={job} onRefresh={handleRefresh} />
+                  <JobCard
+                    job={job}
+                    onRefresh={handleRefresh}
+                    isEditMode={isEditMode}
+                    isSelected={selectedJobIds.has(job.id)}
+                    onToggleSelect={() => {
+                      if (selectedJobIds.has(job.id)) {
+                        deselectJob(job.id);
+                      } else {
+                        selectJob(job.id);
+                      }
+                    }}
+                  />
                 </motion.div>
               ))}
             </motion.div>

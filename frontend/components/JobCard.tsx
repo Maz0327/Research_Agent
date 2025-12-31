@@ -19,6 +19,9 @@ import {
 interface JobCardProps {
   job: Job;
   onRefresh?: () => void;
+  isEditMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 const formatDate = (dateStr: string) => {
@@ -31,8 +34,9 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export default function JobCard({ job, onRefresh }: JobCardProps) {
+export default function JobCard({ job, onRefresh, isEditMode = false, isSelected = false, onToggleSelect }: JobCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const canSelect = !['running', 'queued'].includes(job.status);
 
   const config = statusConfig[job.status];
   const pipelineLabel = pipelineLabels[job.pipeline] || job.pipeline;
@@ -71,6 +75,22 @@ export default function JobCard({ job, onRefresh }: JobCardProps) {
         }}
       >
         <div className="flex items-start justify-between">
+          {/* Checkbox for edit mode */}
+          {isEditMode && (
+            <div
+              className="mr-3 flex items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={onToggleSelect}
+                disabled={!canSelect}
+                className="h-5 w-5 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+          )}
+
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-gray-100 truncate">
               {displayTitle}
@@ -148,7 +168,7 @@ export default function JobCard({ job, onRefresh }: JobCardProps) {
                   <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
                     Original Prompt
                   </h4>
-                  <p className="text-sm text-gray-300">{job.prompt}</p>
+                  <p className="text-sm text-gray-300 break-words whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>{job.prompt}</p>
                 </div>
               )}
 

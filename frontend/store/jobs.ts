@@ -72,12 +72,23 @@ export interface Job {
   interpretations?: Interpretation[];
 }
 
+/** Error from a bulk operation */
+export interface BulkError {
+  jobId: string;
+  error: string;
+}
+
 interface JobsState {
   jobs: Job[];
   isLoading: boolean;
   error: string | null;
   preview: JobPreview | null;
   isPreviewLoading: boolean;
+  // Bulk selection state
+  selectedJobIds: Set<string>;
+  isEditMode: boolean;
+  bulkErrors: BulkError[];
+  // Methods
   fetchJobs: () => Promise<void>;
   previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
   createJob: (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => Promise<string>;
@@ -88,6 +99,15 @@ interface JobsState {
   selectInterpretation: (jobId: string, indices: number[] | 'all') => Promise<void>;
   clearPreview: () => void;
   clearJobs: () => void;
+  // Bulk selection methods
+  toggleEditMode: () => void;
+  selectJob: (jobId: string) => void;
+  deselectJob: (jobId: string) => void;
+  selectAll: () => void;
+  deselectAll: () => void;
+  bulkDelete: () => Promise<void>;
+  bulkArchive: () => Promise<void>;
+  clearBulkErrors: () => void;
 }
 
 export const useJobsStore = create<JobsState>((set, get) => ({
@@ -96,6 +116,10 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   error: null,
   preview: null,
   isPreviewLoading: false,
+  // Bulk selection initial state
+  selectedJobIds: new Set<string>(),
+  isEditMode: false,
+  bulkErrors: [],
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -424,5 +448,80 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
   clearJobs: () => {
     set({ jobs: [], error: null });
+  },
+
+  // Bulk selection methods
+  toggleEditMode: () => {
+    set((state) => ({
+      isEditMode: !state.isEditMode,
+      selectedJobIds: new Set<string>(),
+      bulkErrors: [],
+    }));
+  },
+
+  selectJob: (jobId: string) => {
+    set((state) => {
+      const newSet = new Set(state.selectedJobIds);
+      newSet.add(jobId);
+      return { selectedJobIds: newSet };
+    });
+  },
+
+  deselectJob: (jobId: string) => {
+    set((state) => {
+      const newSet = new Set(state.selectedJobIds);
+      newSet.delete(jobId);
+      return { selectedJobIds: newSet };
+    });
+  },
+
+  selectAll: () => {
+    set((state) => ({
+      selectedJobIds: new Set(
+        state.jobs
+          .filter((j) => !['running', 'queued'].includes(j.status))
+          .map((j) => j.id)
+      ),
+    }));
+  },
+
+  deselectAll: () => {
+    set({ selectedJobIds: new Set<string>() });
+  },
+
+  bulkDelete: async () => {
+    const { selectedJobIds, deleteJob } = get();
+    const errors: BulkError[] = [];
+    const jobIds = Array.from(selectedJobIds);
+
+    for (const id of jobIds) {
+      try {
+        await deleteJob(id);
+      } catch (e) {
+        errors.push({ jobId: id, error: e instanceof Error ? e.message : 'Failed to delete' });
+      }
+    }
+
+    set({ selectedJobIds: new Set<string>(), bulkErrors: errors });
+  },
+
+  bulkArchive: async () => {
+    const { selectedJobIds, archiveJob } = get();
+    const errors: BulkError[] = [];
+    const jobIds = Array.from(selectedJobIds);
+
+    for (const id of jobIds) {
+      try {
+        await archiveJob(id);
+      } catch (e) {
+        errors.push({ jobId: id, error: e instanceof Error ? e.message : 'Failed to archive' });
+      }
+    }
+
+    set({ selectedJobIds: new Set<string>(), bulkErrors: errors });
+  },
+
+  clearBulkErrors: () => {
+    set({ bulkErrors: [] });
   },
 }));

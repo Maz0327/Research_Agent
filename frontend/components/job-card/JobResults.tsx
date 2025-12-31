@@ -14,7 +14,7 @@ export function JobResults({ status, driveFolderUrl, error }: JobResultsProps) {
     return (
       <div className="rounded-lg border border-red-800 bg-red-900/30 p-4">
         <h4 className="text-sm font-medium text-red-400 mb-1">Error</h4>
-        <p className="text-sm text-red-300">{error}</p>
+        <p className="text-sm text-red-300 break-words" style={{ overflowWrap: 'anywhere' }}>{error}</p>
       </div>
     );
   }
