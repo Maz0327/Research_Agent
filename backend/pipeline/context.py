@@ -24,6 +24,10 @@ class PipelineContext:
     job_config: Optional[JobConfig] = None
     short_title: str = ""
 
+    # Disambiguation (set when processing multiple interpretations)
+    interpretation_index: Optional[int] = None  # 1-based index (1, 2, 3...)
+    interpretation_label: Optional[str] = None  # Short label like "Barney & Friends"
+
     # Cost tracking (initialized in Stage 0)
     cost_tracker: Optional["CostTracker"] = None
 

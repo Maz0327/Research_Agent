@@ -290,8 +290,10 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
         logger.info(f"[{ctx.job_id}] Processing interpretation {i + 1}/{len(selected_indices)}: {label}")
         post_slack_message(ctx, f"📚 Researching: {label}")
 
-        # Update context with refined topic
+        # Update context with refined topic and interpretation info
         ctx.topic = refined_topic
+        ctx.interpretation_index = i + 1  # 1-based index for folder naming
+        ctx.interpretation_label = label
 
         # Re-run planning for refined topic to get proper subreddits and config
         # This ensures topic-specific subreddits are used, not defaults

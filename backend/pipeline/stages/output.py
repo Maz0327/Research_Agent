@@ -39,7 +39,16 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
         if ctx.outputs.get("documentary_blueprint_md"):
             doc_contents["11_DOCUMENTARY_BLUEPRINT"] = ctx.outputs["documentary_blueprint_md"]
 
-        folder_name = ctx.job_config.output.drive_folder_name or f"Research: {ctx.job_config.topic}"
+        # Generate folder name with optional interpretation prefix
+        base_name = ctx.job_config.output.drive_folder_name or ctx.short_title or ctx.job_config.topic
+        # Clean the name for folder use (replace spaces, limit length)
+        clean_name = base_name.replace(" ", "_")[:50]
+
+        if ctx.interpretation_index is not None:
+            # Multiple interpretations: prefix with number
+            folder_name = f"{ctx.interpretation_index}_{clean_name}"
+        else:
+            folder_name = clean_name
 
         job = get_job(ctx.job_id)
         user_email = None
