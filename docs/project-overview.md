@@ -40,10 +40,31 @@ Research Agent is an AI-powered documentary research assistant that replaces hum
 
 | Mode | Focus | Budget |
 |------|-------|--------|
+| quick | Fast, surface-level | $1 |
 | breaking_news | Recent events (72hr) | $2 |
+| full | Balanced coverage | $5 |
 | investigation | Deep verification | $15 |
 | profile | Single entity | $8 |
-| controversy | Multiple perspectives | $10 |
+
+## Category/Niche System
+
+Users can select a category to guide source selection:
+
+| Category | Description | Source Priority |
+|----------|-------------|-----------------|
+| Auto-detect | AI determines category | Balanced |
+| Pop Culture | TV, movies, celebrities | Video, Discussion |
+| Political | Government, policy | News, Academic |
+| True Crime | Cases, investigations | News, Video |
+| Mysteries | Theories, conspiracies | Video, Academic |
+| Downfalls | Scandals, drama | News, Discussion |
+| Controversy | Multiple perspectives | Discussion, News |
+
+Each category affects:
+- Which subreddits to search
+- Source type minimums (more video vs more news)
+- Search query expansions
+- Priority keywords for relevance scoring
 
 ## Pipeline Overview
 
@@ -52,3 +73,10 @@ Planning → Discovery → Collection → Extraction → Synthesis → Output
 ```
 
 11 stages total, with graceful degradation for failures.
+
+## UI Features (Dec 2025)
+
+- **Research Depth Dropdown**: Select research thoroughness
+- **Category Dropdown**: Guide source selection by topic type
+- **Topic Disambiguation**: Ambiguous topics pause for user clarification
+- **Numbered Folders**: Multiple interpretations get numbered Drive folders

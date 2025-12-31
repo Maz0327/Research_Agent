@@ -1,7 +1,7 @@
 # System Architecture
 
-**Last Updated:** December 2025
-**Status:** Production + Research-Validated Optimizations Pending
+**Last Updated:** December 30, 2025
+**Status:** Production + Reliability Improvements Deployed
 
 ## Overview
 
@@ -84,13 +84,39 @@
 | spaCy Model | en_core_web_sm | en_core_web_trf | `entities.py` |
 | Claim Threshold | score >= 3 | score >= 4 | `extraction.py` |
 
+## Reliability Features (Dec 2025)
+
+### Lazy Loading (`backend/integrations/lazy_loader.py`)
+- All optional integrations are lazy-loaded
+- Missing dependencies don't crash the app
+- Graceful degradation when services unavailable
+
+### Stage Error Recovery (`backend/pipeline/stage_runner.py`)
+- `run_stage_with_recovery()` wraps all pipeline stages
+- Fallback functions for non-critical stages (YouTube, Reddit, transcripts)
+- `StageGroup` tracks aggregate results for parallel stages
+- Critical stages (planning, research mapping) fail fast
+
+### LLM Validation (`backend/utils/llm_validation.py`)
+- `validate_and_repair()` validates LLM output against Pydantic schemas
+- Retry loop with LLM-based repair for invalid outputs
+- Falls back to degraded defaults when repair fails
+
+### Niche/Category System (`backend/config/niches/`)
+- 5 niche categories: pop_culture, political, true_crime, mysteries, downfalls
+- Each niche defines: source_floors, query_additions, priority_keywords
+- Quality Gate applies niche source_floors when specified
+
 ## Key Files
 
 - `backend/pipeline/stages.py` - Pipeline orchestration
 - `backend/pipeline/context.py` - Shared pipeline state
-- `backend/pipeline/quality_gate.py` - Deterministic source filtering (565 lines)
+- `backend/pipeline/stage_runner.py` - Error recovery wrapper
+- `backend/pipeline/quality_gate.py` - Deterministic source filtering
 - `backend/pipeline/extraction.py` - Claim extraction with hybrid approach
 - `backend/pipeline/entities.py` - spaCy-based entity extraction
+- `backend/integrations/lazy_loader.py` - Lazy integration loading
+- `backend/utils/llm_validation.py` - LLM output validation
 - `backend/state/factory.py` - Job store abstraction
 - `backend/models/job_config.py` - Mode configurations
 
