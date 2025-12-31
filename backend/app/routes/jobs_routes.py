@@ -11,7 +11,10 @@ from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user, get_optional_user
 from backend.auth.ban_check import get_active_user, get_optional_active_user
 from backend.auth.admin import is_admin
-from backend.models.job import CreateJobRequest, CreateJobResponse, JobStatusResponse, SelectInterpretationRequest
+from backend.models.job import (
+    CreateJobRequest, CreateJobResponse, JobStatusResponse,
+    SelectInterpretationRequest, PreviewJobRequest, PreviewJobResponse
+)
 from backend.state import create_job, get_job, update_job, list_jobs
 from backend.utils.validators import ValidationError
 from backend.worker import run_research_job
@@ -189,6 +192,93 @@ async def create_job_endpoint(
     run_research_job.delay(job.job_id, prompt)
 
     return CreateJobResponse(job_id=job.job_id)
+
+
+@router.post("/preview", response_model=PreviewJobResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])  # Same rate limit as job creation
+async def preview_job_endpoint(
+    request: Request,
+    preview_request: PreviewJobRequest,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Preview how a research job will be interpreted before creating it.
+
+    Returns the interpreted plan including topic understanding, mode,
+    subreddits, and source types. If topic is ambiguous, returns
+    possible interpretations for user selection.
+    """
+    from backend.integrations.openai_client import plan_job
+
+    prompt = preview_request.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+
+    # Validate prompt length
+    if len(prompt) > MAX_PROMPT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters"
+        )
+
+    try:
+        # Get the interpreted plan from OpenAI
+        result = plan_job(prompt)
+
+        # Check for disambiguation
+        if result.get("is_ambiguous"):
+            return PreviewJobResponse(
+                is_ambiguous=True,
+                interpretations=result.get("interpretations", [])
+            )
+
+        # Extract config details for preview
+        config = result.get("config")
+        if not config:
+            raise HTTPException(status_code=500, detail="Failed to generate job plan")
+
+        # Determine effective niche (user override or LLM detection)
+        effective_niche = preview_request.niche or getattr(config, "niche", None)
+
+        # Determine effective mode (from pipeline selection)
+        effective_mode = preview_request.pipeline
+
+        # Get subreddits from config
+        subreddits = []
+        if hasattr(config, "reddit") and config.reddit:
+            subreddits = getattr(config.reddit, "subreddits", []) or []
+
+        # Determine source types based on mode
+        source_types = ["web", "news"]
+        if effective_mode in ("investigation", "profile", "controversy"):
+            source_types.extend(["youtube", "reddit"])
+        elif effective_mode == "breaking_news":
+            source_types.extend(["news", "reddit"])
+        else:
+            source_types.extend(["youtube", "reddit"])
+
+        return PreviewJobResponse(
+            is_ambiguous=False,
+            interpreted_topic=getattr(config, "topic", prompt),
+            mode=effective_mode,
+            niche=effective_niche,
+            subreddits=subreddits,
+            source_types=list(set(source_types))
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Preview failed: {e}")
+        # Return a basic preview on error
+        return PreviewJobResponse(
+            is_ambiguous=False,
+            interpreted_topic=prompt,
+            mode=preview_request.pipeline,
+            niche=preview_request.niche,
+            subreddits=[],
+            source_types=["web", "news", "youtube", "reddit"]
+        )
 
 
 @router.get("")

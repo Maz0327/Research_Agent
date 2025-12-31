@@ -108,3 +108,43 @@ class SelectInterpretationRequest(BaseModel):
                 raise ValueError("Must select at least one interpretation")
         return v
 
+
+class PreviewJobRequest(BaseModel):
+    """Request model for previewing a job before creation."""
+    prompt: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+        description="Research prompt/topic (1-5000 characters)"
+    )
+    pipeline: Literal["quick", "full", "breaking_news", "investigation", "profile", "controversy"] = Field(
+        ...,
+        description="Pipeline type"
+    )
+    niche: Optional[Literal["pop_culture", "political", "true_crime", "mysteries", "downfalls", "controversy"]] = Field(
+        None,
+        description="Category/niche overlay"
+    )
+
+    @field_validator('prompt')
+    @classmethod
+    def validate_prompt(cls, v: str) -> str:
+        """Validate and sanitize prompt."""
+        v = v.strip()
+        if len(v) < 1:
+            raise ValueError("Prompt cannot be empty")
+        return v
+
+
+class PreviewJobResponse(BaseModel):
+    """Response model for job preview showing interpreted plan."""
+    is_ambiguous: bool = Field(..., description="Whether topic needs disambiguation")
+    interpretations: Optional[list[dict[str, Any]]] = Field(
+        None, description="Possible interpretations if ambiguous"
+    )
+    interpreted_topic: Optional[str] = Field(None, description="How we understood the topic")
+    mode: Optional[str] = Field(None, description="Research mode that will be used")
+    niche: Optional[str] = Field(None, description="Category/niche applied")
+    subreddits: Optional[list[str]] = Field(None, description="Reddit communities to search")
+    source_types: Optional[list[str]] = Field(None, description="Types of sources to collect")
+

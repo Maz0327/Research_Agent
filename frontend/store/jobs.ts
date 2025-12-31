@@ -18,6 +18,26 @@ export interface Interpretation {
 }
 
 /**
+ * JobPreview represents the interpreted plan before job creation.
+ */
+export interface JobPreview {
+  /** Whether the topic is ambiguous and needs clarification */
+  is_ambiguous: boolean;
+  /** Possible interpretations if ambiguous */
+  interpretations?: Interpretation[];
+  /** How the AI interpreted the topic */
+  interpreted_topic?: string;
+  /** Research mode that will be used */
+  mode?: string;
+  /** Category/niche applied */
+  niche?: string;
+  /** Reddit communities to search */
+  subreddits?: string[];
+  /** Types of sources to collect */
+  source_types?: string[];
+}
+
+/**
  * Job represents a research job with its status and artifacts.
  */
 export interface Job {
@@ -56,11 +76,15 @@ interface JobsState {
   jobs: Job[];
   isLoading: boolean;
   error: string | null;
+  preview: JobPreview | null;
+  isPreviewLoading: boolean;
   fetchJobs: () => Promise<void>;
+  previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
   createJob: (prompt: string, pipeline: string, niche?: string) => Promise<string>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   selectInterpretation: (jobId: string, indices: number[] | 'all') => Promise<void>;
+  clearPreview: () => void;
   clearJobs: () => void;
 }
 
@@ -68,6 +92,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
   isLoading: false,
   error: null,
+  preview: null,
+  isPreviewLoading: false,
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -109,6 +135,49 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  previewJob: async (prompt: string, pipeline: string, niche?: string) => {
+    set({ isPreviewLoading: true, error: null, preview: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const body: Record<string, string> = { prompt, pipeline };
+      if (niche) {
+        body.niche = niche;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/preview`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to preview job');
+      }
+
+      const preview: JobPreview = await response.json();
+      set({ preview, isPreviewLoading: false });
+      return preview;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to preview job',
+        isPreviewLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  clearPreview: () => {
+    set({ preview: null, error: null });
   },
 
   createJob: async (prompt: string, pipeline: string, niche?: string) => {

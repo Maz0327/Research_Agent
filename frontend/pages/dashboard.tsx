@@ -3,11 +3,11 @@
  * Features dark mode design with modern UI/UX.
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
-import { useJobsStore } from '../store/jobs';
+import { useJobsStore, JobPreview } from '../store/jobs';
 import { POLLING_INTERVALS } from '../lib/constants';
 
 // Research depth options (mode)
@@ -54,7 +54,8 @@ function DashboardContent() {
   const [category, setCategory] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const { jobs, isLoading, fetchJobs, createJob, refreshJob } = useJobsStore();
+  const [showPreview, setShowPreview] = useState(false);
+  const { jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, refreshJob, clearPreview } = useJobsStore();
   const { user } = useAuth();
 
   // Get current depth config for placeholder example
@@ -97,15 +98,29 @@ function DashboardContent() {
     };
   }, [jobs, batchRefreshJobs]);
 
-  const handleCreateJob = async (e: React.FormEvent) => {
+  // Step 1: Preview the job before creating
+  const handlePreviewJob = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
 
+    try {
+      await previewJob(prompt, researchDepth, category || undefined);
+      setShowPreview(true);
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to preview job:', error);
+      }
+    }
+  };
+
+  // Step 2: Confirm and create the job
+  const handleConfirmJob = async () => {
     setIsCreating(true);
     try {
-      // Pass niche only if not auto-detect (empty string)
       await createJob(prompt, researchDepth, category || undefined);
       setPrompt('');
+      setShowPreview(false);
+      clearPreview();
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to create job:', error);
@@ -113,6 +128,12 @@ function DashboardContent() {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  // Cancel preview and go back to editing
+  const handleCancelPreview = () => {
+    setShowPreview(false);
+    clearPreview();
   };
 
   const handleRefresh = () => {
@@ -148,91 +169,239 @@ function DashboardContent() {
           className="mb-8 rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-lg"
         >
           <h2 className="mb-4 text-lg font-semibold text-gray-100">New Research Job</h2>
-          <form onSubmit={handleCreateJob}>
-            <div className="mb-4">
-              <label htmlFor="prompt" className="mb-1.5 block text-sm font-medium text-gray-400">
-                Research Topic
-              </label>
-              <textarea
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={`e.g., "${currentDepth.example}"`}
-                rows={3}
-                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                disabled={isCreating}
-              />
-              <p className="mt-2 text-xs text-gray-500">
-                <strong>Tips:</strong> Be specific with names, dates, and context. Include key entities (people, companies, events) for better results.
-              </p>
-            </div>
 
-            {/* Two dropdown selectors for Research Depth and Category */}
-            <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* Research Depth dropdown */}
-              <div>
-                <label htmlFor="researchDepth" className="mb-1.5 block text-sm font-medium text-gray-400">
-                  Research Depth
-                </label>
-                <select
-                  id="researchDepth"
-                  value={researchDepth}
-                  onChange={(e) => setResearchDepth(e.target.value)}
-                  disabled={isCreating}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+          <AnimatePresence mode="wait">
+            {!showPreview ? (
+              /* Input Form */
+              <motion.form
+                key="form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onSubmit={handlePreviewJob}
+              >
+                <div className="mb-4">
+                  <label htmlFor="prompt" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    Research Topic
+                  </label>
+                  <textarea
+                    id="prompt"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder={`e.g., "${currentDepth.example}"`}
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    disabled={isPreviewLoading}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    <strong>Tips:</strong> Be specific with names, dates, and context. Include key entities (people, companies, events) for better results.
+                  </p>
+                </div>
+
+                {/* Two dropdown selectors for Research Depth and Category */}
+                <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {/* Research Depth dropdown */}
+                  <div>
+                    <label htmlFor="researchDepth" className="mb-1.5 block text-sm font-medium text-gray-400">
+                      Research Depth
+                    </label>
+                    <select
+                      id="researchDepth"
+                      value={researchDepth}
+                      onChange={(e) => setResearchDepth(e.target.value)}
+                      disabled={isPreviewLoading}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    >
+                      {researchDepths.map((depth) => (
+                        <option key={depth.value} value={depth.value}>
+                          {depth.label} - {depth.description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Category dropdown */}
+                  <div>
+                    <label htmlFor="category" className="mb-1.5 block text-sm font-medium text-gray-400">
+                      Category
+                    </label>
+                    <select
+                      id="category"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      disabled={isPreviewLoading}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat.value} value={cat.value}>
+                          {cat.label}{cat.description ? ` - ${cat.description}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isPreviewLoading || !prompt.trim()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                 >
-                  {researchDepths.map((depth) => (
-                    <option key={depth.value} value={depth.value}>
-                      {depth.label} - {depth.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {isPreviewLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Preview Research Plan
+                    </>
+                  )}
+                </button>
+              </motion.form>
+            ) : (
+              /* Preview Confirmation Card */
+              <motion.div
+                key="preview"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4"
+              >
+                <div className="rounded-lg border border-blue-800/50 bg-blue-900/20 p-4">
+                  <h3 className="mb-3 text-sm font-semibold text-blue-400 uppercase tracking-wide">
+                    Research Plan Preview
+                  </h3>
 
-              {/* Category dropdown */}
-              <div>
-                <label htmlFor="category" className="mb-1.5 block text-sm font-medium text-gray-400">
-                  Category
-                </label>
-                <select
-                  id="category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  disabled={isCreating}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}{cat.description ? ` - ${cat.description}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  {preview?.is_ambiguous ? (
+                    /* Ambiguous topic - show interpretations */
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-300">
+                        This topic could mean different things. Please select which one you meant:
+                      </p>
+                      <div className="space-y-2">
+                        {preview.interpretations?.map((interp, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setPrompt(interp.topic);
+                              setShowPreview(false);
+                              clearPreview();
+                            }}
+                            className="w-full text-left rounded-lg border border-gray-700 bg-gray-800 p-3 hover:border-blue-500 hover:bg-gray-750 transition"
+                          >
+                            <div className="font-medium text-gray-100">{interp.label}</div>
+                            <div className="text-sm text-gray-400">{interp.description}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    /* Clear topic - show research plan */
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase">Topic</span>
+                          <p className="text-gray-100">{preview?.interpreted_topic || prompt}</p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase">Mode</span>
+                          <p className="text-gray-100 capitalize">{preview?.mode?.replace('_', ' ') || researchDepth}</p>
+                        </div>
+                        {preview?.niche && (
+                          <div>
+                            <span className="text-xs text-gray-500 uppercase">Category</span>
+                            <p className="text-gray-100 capitalize">{preview.niche.replace('_', ' ')}</p>
+                          </div>
+                        )}
+                        {preview?.source_types && preview.source_types.length > 0 && (
+                          <div>
+                            <span className="text-xs text-gray-500 uppercase">Sources</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {preview.source_types.map((type) => (
+                                <span key={type} className="inline-flex items-center rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
-            <button
-              type="submit"
-              disabled={isCreating || !prompt.trim()}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-            >
-              {isCreating ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Start Research
-                </>
-              )}
-            </button>
-          </form>
+                      {preview?.subreddits && preview.subreddits.length > 0 && (
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase">Reddit Communities</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {preview.subreddits.map((sub) => (
+                              <span key={sub} className="inline-flex items-center rounded-full bg-orange-900/30 px-2 py-0.5 text-xs text-orange-300">
+                                r/{sub}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                {!preview?.is_ambiguous && (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCancelPreview}
+                      disabled={isCreating}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 font-medium text-gray-300 transition hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                      onClick={handleConfirmJob}
+                      disabled={isCreating}
+                      className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-500 px-6 py-2.5 font-medium text-white shadow-lg shadow-green-500/20 transition-all duration-200 hover:from-green-500 hover:to-green-400 disabled:opacity-50"
+                    >
+                      {isCreating ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Start Research
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {preview?.is_ambiguous && (
+                  <button
+                    onClick={handleCancelPreview}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 font-medium text-gray-300 transition hover:bg-gray-700"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                    </svg>
+                    Back to Edit
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         {/* Jobs List */}
