@@ -305,14 +305,30 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
 
     all_results = []
 
+    # Get original user prompt to preserve question context
+    original_prompt = ""
+    if job.config_json:
+        original_prompt = job.config_json.get("prompt", "") or job.config_json.get("topic", "")
+
     for i, idx in enumerate(selected_indices):
         if idx >= len(interpretations):
             ctx.add_warning(f"Invalid interpretation index: {idx}")
             continue
 
         interp = interpretations[idx]
-        refined_topic = interp.get("topic", ctx.topic)
+        interpretation_topic = interp.get("topic", "")
+        interpretation_desc = interp.get("description", "")
         label = interp.get("label", f"Interpretation {idx + 1}")
+
+        # Preserve original question context with clarification
+        # E.g., "What fan theories exist about 'the barney show'?" + "Barney the Dinosaur"
+        # -> "What fan theories exist about 'the barney show'? [Clarification: Barney the Dinosaur - ...]"
+        if original_prompt and interpretation_topic and original_prompt.lower() != interpretation_topic.lower():
+            # Original had question context - append clarification
+            refined_topic = f"{original_prompt} [Clarification: This refers to {interpretation_topic}. {interpretation_desc}]"
+        else:
+            # Fallback to just the interpretation topic
+            refined_topic = interpretation_topic or original_prompt or ctx.topic
 
         logger.info(f"[{ctx.job_id}] Processing interpretation {i + 1}/{len(selected_indices)}: {label}")
         post_slack_message(ctx, f"📚 Researching: {label}")
