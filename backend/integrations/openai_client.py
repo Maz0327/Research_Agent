@@ -287,13 +287,21 @@ Guidelines:
 5. Set conservative budgets: max_web_urls=50, max_claims_to_validate=25, max_validation_links_per_claim=6
 6. Default: exclude_shorts=true, include_livestreams=true, fetch_transcripts=true
 7. Enable web and news sources by default
-8. IMPORTANT - DISAMBIGUATION: If the topic is ambiguous and could refer to multiple different things (e.g., "Barney" could mean Barney & Friends children's show OR Barney Stinson from HIMYM), return ONLY:
+8. REDDIT SUBREDDITS: Suggest 2-5 relevant subreddits for this topic in "reddit.subreddits". Examples:
+   - Fan theories: ["FanTheories", "plotholes", "AskScienceFiction"]
+   - TV shows: ["television", show-specific sub like "BreakingBad"]
+   - Movies: ["movies", "MovieDetails", "TrueFilm"]
+   - Gaming: ["Games", "truegaming", game-specific subs]
+   - Tech: ["technology", "programming", product-specific subs]
+   - Politics: ["politics", "PoliticalDiscussion", "NeutralPolitics"]
+   Match subreddits to the SPECIFIC topic, not generic defaults.
+9. IMPORTANT - DISAMBIGUATION: If the topic is ambiguous and could refer to multiple different things (e.g., "Barney" could mean Barney & Friends children's show OR Barney Stinson from HIMYM), return ONLY:
    {{"is_ambiguous": true, "interpretations": [
      {{"label": "Short Name", "description": "Brief explanation", "topic": "Refined specific topic"}}
    ]}}
    Include 2-3 interpretations max. Only flag as ambiguous if genuinely unclear.
 
-If NOT ambiguous, return: {{"is_ambiguous": false, "config": {{...JobConfig...}}}}"""
+If NOT ambiguous, return: {{"is_ambiguous": false, "config": {{...JobConfig with reddit.subreddits...}}}}"""
 
     try:
         response = client.chat.completions.create(

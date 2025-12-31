@@ -131,6 +131,23 @@ class YouTubeConfig(BaseModel):
         }
 
 
+class RedditConfig(BaseModel):
+    """Reddit source configuration."""
+    subreddits: list[str] = Field(
+        default_factory=list,
+        description="Suggested subreddits for this topic (e.g., 'FanTheories', 'television')"
+    )
+    limit_per_sub: int = Field(5, ge=1, le=20, description="Max posts per subreddit")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "subreddits": ["FanTheories", "television", "movies"],
+                "limit_per_sub": 5
+            }
+        }
+
+
 class SourcesConfig(BaseModel):
     """Source type selection configuration."""
     web: bool = Field(True, description="Include general web search results")
@@ -205,6 +222,9 @@ class JobConfig(BaseModel):
     )
     youtube: YouTubeConfig = Field(
         default_factory=YouTubeConfig, description="YouTube source configuration"
+    )
+    reddit: RedditConfig = Field(
+        default_factory=RedditConfig, description="Reddit source configuration"
     )
     sources: SourcesConfig = Field(
         default_factory=SourcesConfig, description="Source type selection"

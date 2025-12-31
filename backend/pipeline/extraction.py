@@ -186,10 +186,15 @@ def _extract_claim_candidates(chunk_text: str) -> list[dict]:
     # Split into sentences
     sentences = re.split(r'[.!?]+', chunk_text)
     
+    # Assertion verbs: covers factual reporting AND speculative/theory content
     assertion_verbs = [
         r'\b(said|claimed|stated|alleged|reported|announced|revealed|'
         r'declared|insisted|maintained|asserted|contended|argued|'
-        r'confirmed|denied|admitted|acknowledged|testified|witnessed)\b',
+        r'confirmed|denied|admitted|acknowledged|testified|witnessed|'
+        # Theory/speculation verbs (for fan theories, conspiracies, etc.)
+        r'believe[sd]?|theorize[sd]?|speculate[sd]?|suggest[sd]?|suspect[sd]?|'
+        r'hypothesize[sd]?|propose[sd]?|assume[sd]?|implies?|indicates?|'
+        r'proves?|shows?|demonstrates?|supports?|evidence[sd]?)\b',
     ]
     
     date_pattern = r'\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|'

@@ -98,9 +98,20 @@ def stage_6_5_reddit(ctx: PipelineContext) -> None:
         from backend.models.source import SourceItem, SourceType
 
         reddit_client = RedditClient()
+
+        # Use subreddits from job_config if available, otherwise use defaults
+        subreddits = None
+        limit_per_sub = 5
+        if ctx.job_config and hasattr(ctx.job_config, 'reddit'):
+            if ctx.job_config.reddit.subreddits:
+                subreddits = ctx.job_config.reddit.subreddits
+                logger.info(f"[{ctx.job_id}] Using topic-specific subreddits: {subreddits}")
+            limit_per_sub = ctx.job_config.reddit.limit_per_sub
+
         ctx.reddit_posts = reddit_client.search_multiple_subreddits(
             query=ctx.topic,
-            limit_per_sub=5
+            subreddits=subreddits,
+            limit_per_sub=limit_per_sub
         )
 
         if ctx.reddit_posts:
