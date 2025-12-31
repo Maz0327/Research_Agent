@@ -48,6 +48,9 @@ function JobSkeleton() {
   );
 }
 
+// Available source types
+const availableSourceTypes = ['web', 'news', 'youtube', 'reddit'];
+
 function DashboardContent() {
   const [prompt, setPrompt] = useState('');
   const [researchDepth, setResearchDepth] = useState('investigation');
@@ -55,6 +58,10 @@ function DashboardContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showPreview, setShowPreview] = useState(false);
+  // Editable preview state
+  const [editableSources, setEditableSources] = useState<string[]>([]);
+  const [editableSubreddits, setEditableSubreddits] = useState<string[]>([]);
+  const [newSubreddit, setNewSubreddit] = useState('');
   const { jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, refreshJob, clearPreview } = useJobsStore();
   const { user } = useAuth();
 
@@ -104,7 +111,11 @@ function DashboardContent() {
     if (!prompt.trim()) return;
 
     try {
-      await previewJob(prompt, researchDepth, category || undefined);
+      const result = await previewJob(prompt, researchDepth, category || undefined);
+      // Initialize editable state from preview
+      setEditableSources(result.source_types || ['web', 'news', 'youtube', 'reddit']);
+      setEditableSubreddits(result.subreddits || []);
+      setNewSubreddit('');
       setShowPreview(true);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -113,14 +124,41 @@ function DashboardContent() {
     }
   };
 
+  // Toggle a source type
+  const toggleSource = (source: string) => {
+    setEditableSources(prev =>
+      prev.includes(source)
+        ? prev.filter(s => s !== source)
+        : [...prev, source]
+    );
+  };
+
+  // Add a subreddit
+  const addSubreddit = () => {
+    const cleaned = newSubreddit.trim().toLowerCase().replace(/^r\//, '');
+    if (cleaned && !editableSubreddits.includes(cleaned)) {
+      setEditableSubreddits(prev => [...prev, cleaned]);
+      setNewSubreddit('');
+    }
+  };
+
+  // Remove a subreddit
+  const removeSubreddit = (sub: string) => {
+    setEditableSubreddits(prev => prev.filter(s => s !== sub));
+  };
+
   // Step 2: Confirm and create the job
   const handleConfirmJob = async () => {
     setIsCreating(true);
     try {
-      await createJob(prompt, researchDepth, category || undefined);
+      // Pass custom subreddits if user modified them
+      const options = editableSubreddits.length > 0 ? { custom_subreddits: editableSubreddits } : undefined;
+      await createJob(prompt, researchDepth, category || undefined, options);
       setPrompt('');
       setShowPreview(false);
       clearPreview();
+      setEditableSources([]);
+      setEditableSubreddits([]);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to create job:', error);
@@ -303,8 +341,9 @@ function DashboardContent() {
                       </div>
                     </div>
                   ) : (
-                    /* Clear topic - show research plan */
-                    <div className="space-y-3">
+                    /* Clear topic - show editable research plan */
+                    <div className="space-y-4">
+                      {/* Topic and Mode info */}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div>
                           <span className="text-xs text-gray-500 uppercase">Topic</span>
@@ -320,32 +359,84 @@ function DashboardContent() {
                             <p className="text-gray-100 capitalize">{preview.niche.replace('_', ' ')}</p>
                           </div>
                         )}
-                        {preview?.source_types && preview.source_types.length > 0 && (
-                          <div>
-                            <span className="text-xs text-gray-500 uppercase">Sources</span>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {preview.source_types.map((type) => (
-                                <span key={type} className="inline-flex items-center rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
-                                  {type}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
 
-                      {preview?.subreddits && preview.subreddits.length > 0 && (
-                        <div>
-                          <span className="text-xs text-gray-500 uppercase">Reddit Communities</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {preview.subreddits.map((sub) => (
-                              <span key={sub} className="inline-flex items-center rounded-full bg-orange-900/30 px-2 py-0.5 text-xs text-orange-300">
-                                r/{sub}
-                              </span>
-                            ))}
-                          </div>
+                      {/* Editable source types */}
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase mb-2 block">Sources (click to toggle)</span>
+                        <div className="flex flex-wrap gap-2">
+                          {availableSourceTypes.map((type) => {
+                            const isEnabled = editableSources.includes(type);
+                            return (
+                              <button
+                                key={type}
+                                onClick={() => toggleSource(type)}
+                                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                                  isEnabled
+                                    ? 'bg-blue-600/30 border border-blue-500/50 text-blue-300'
+                                    : 'bg-gray-800 border border-gray-700 text-gray-500 hover:text-gray-400'
+                                }`}
+                              >
+                                {isEnabled ? (
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                )}
+                                {type}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
+                      </div>
+
+                      {/* Editable subreddits */}
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase mb-2 block">Reddit Communities</span>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {editableSubreddits.map((sub) => (
+                            <span
+                              key={sub}
+                              className="inline-flex items-center gap-1 rounded-full bg-orange-900/30 border border-orange-700/50 pl-2.5 pr-1 py-1 text-xs text-orange-300"
+                            >
+                              r/{sub}
+                              <button
+                                onClick={() => removeSubreddit(sub)}
+                                className="p-0.5 hover:bg-orange-800/50 rounded-full transition"
+                                aria-label={`Remove r/${sub}`}
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </span>
+                          ))}
+                          {editableSubreddits.length === 0 && (
+                            <span className="text-xs text-gray-500 italic">No subreddits selected</span>
+                          )}
+                        </div>
+                        {/* Add subreddit input */}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newSubreddit}
+                            onChange={(e) => setNewSubreddit(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSubreddit())}
+                            placeholder="Add subreddit (e.g., FanTheories)"
+                            className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                          <button
+                            onClick={addSubreddit}
+                            disabled={!newSubreddit.trim()}
+                            className="rounded-lg bg-orange-600/30 border border-orange-600/50 px-3 py-1.5 text-sm font-medium text-orange-300 hover:bg-orange-600/40 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -80,9 +80,11 @@ interface JobsState {
   isPreviewLoading: boolean;
   fetchJobs: () => Promise<void>;
   previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
-  createJob: (prompt: string, pipeline: string, niche?: string) => Promise<string>;
+  createJob: (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => Promise<string>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
+  deleteJob: (jobId: string) => Promise<void>;
+  archiveJob: (jobId: string) => Promise<void>;
   selectInterpretation: (jobId: string, indices: number[] | 'all') => Promise<void>;
   clearPreview: () => void;
   clearJobs: () => void;
@@ -180,7 +182,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     set({ preview: null, error: null });
   },
 
-  createJob: async (prompt: string, pipeline: string, niche?: string) => {
+  createJob: async (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => {
     set({ isLoading: true, error: null });
     try {
       const token = await getAccessToken();
@@ -191,10 +193,13 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Build request body, only include niche if specified
-      const body: Record<string, string> = { prompt, pipeline };
+      // Build request body
+      const body: Record<string, unknown> = { prompt, pipeline };
       if (niche) {
         body.niche = niche;
+      }
+      if (options?.custom_subreddits && options.custom_subreddits.length > 0) {
+        body.options = { custom_subreddits: options.custom_subreddits };
       }
 
       const response = await fetch(`${API_URL}/jobs`, {
@@ -348,6 +353,70 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to cancel job:', error);
+      }
+      throw error;
+    }
+  },
+
+  deleteJob: async (jobId: string) => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to delete job');
+      }
+
+      // Remove from local state
+      set((state) => ({
+        jobs: state.jobs.filter((job) => job.id !== jobId),
+      }));
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to delete job:', error);
+      }
+      throw error;
+    }
+  },
+
+  archiveJob: async (jobId: string) => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/archive`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to archive job');
+      }
+
+      // Remove from local state (archived jobs are hidden)
+      set((state) => ({
+        jobs: state.jobs.filter((job) => job.id !== jobId),
+      }));
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to archive job:', error);
       }
       throw error;
     }

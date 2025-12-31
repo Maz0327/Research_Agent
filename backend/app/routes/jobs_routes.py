@@ -429,6 +429,82 @@ async def cancel_job(
     return {"message": "Job cancelled successfully", "job_id": job_id}
 
 
+@router.delete("/{job_id}")
+@limiter.limit(RATE_LIMITS["jobs_cancel"])  # Reuse cancel rate limit
+async def delete_job(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Soft-delete a job (marks as 'deleted' status)."""
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner or admin can delete
+    if job.user_id != user.user_id and not is_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this job")
+
+    # Cannot delete running/queued jobs
+    if job.status in ("running", "queued"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a running or queued job. Cancel it first."
+        )
+
+    update_job(job_id, status="deleted", stage="deleted")
+
+    logger.info(
+        "Job deleted",
+        extra={"job_id": job_id, "deleted_by": user.user_id, "event": "job_deleted"}
+    )
+
+    return {"message": "Job deleted successfully", "job_id": job_id}
+
+
+@router.post("/{job_id}/archive")
+@limiter.limit(RATE_LIMITS["jobs_cancel"])
+async def archive_job(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Archive a job (marks as 'archived' status). Can be unarchived later."""
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner or admin can archive
+    if job.user_id != user.user_id and not is_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized to archive this job")
+
+    # Cannot archive running/queued jobs
+    if job.status in ("running", "queued"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot archive a running or queued job. Cancel it first."
+        )
+
+    update_job(job_id, status="archived", stage="archived")
+
+    logger.info(
+        "Job archived",
+        extra={"job_id": job_id, "archived_by": user.user_id, "event": "job_archived"}
+    )
+
+    return {"message": "Job archived successfully", "job_id": job_id}
+
+
 @router.post("/{job_id}/select-interpretation")
 @limiter.limit(RATE_LIMITS["jobs_create"])  # Reuse jobs_create rate limit
 async def select_interpretation(

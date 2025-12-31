@@ -1,8 +1,9 @@
 /**
- * Main layout component with sidebar navigation.
+ * Main layout component with collapsible sidebar navigation.
+ * Mobile-first responsive design with hamburger menu.
  * WCAG 2.1 AA compliant with semantic landmarks.
  */
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from './AuthProvider';
@@ -21,30 +22,109 @@ const navItems = [
 export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [router.pathname]);
+
+  // Close sidebar on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
+  const sidebarWidth = sidebarCollapsed ? 'w-16' : 'w-64';
+  const mainMargin = sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64';
 
   return (
     <>
       <SkipLink />
 
       <div className="flex min-h-screen bg-dark-bg-primary">
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-black/50 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Mobile header */}
+        <header className="fixed top-0 left-0 right-0 z-30 flex h-14 items-center justify-between border-b border-gray-800 bg-[#111111] px-4 lg:hidden">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 text-gray-400 hover:text-white"
+            aria-label="Open menu"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <Link
+            href="/dashboard"
+            className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          >
+            Research Agent
+          </Link>
+          <div className="w-10" /> {/* Spacer for centering */}
+        </header>
+
         {/* Sidebar */}
         <aside
           role="complementary"
           aria-label="Sidebar navigation"
-          className="fixed inset-y-0 left-0 z-10 w-64 border-r border-gray-800 bg-[#111111] text-white"
+          className={`fixed inset-y-0 left-0 z-40 ${sidebarWidth} border-r border-gray-800 bg-[#111111] text-white transform transition-all duration-300 ease-in-out ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0`}
         >
           {/* Logo / Header */}
-          <header className="flex h-16 items-center px-6 border-b border-gray-800">
-            <Link
-              href="/dashboard"
-              className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          <header className="flex h-16 items-center justify-between px-4 border-b border-gray-800">
+            {!sidebarCollapsed && (
+              <Link
+                href="/dashboard"
+                className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+              >
+                Research Agent
+              </Link>
+            )}
+            {sidebarCollapsed && (
+              <Link href="/dashboard" className="mx-auto">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                  R
+                </div>
+              </Link>
+            )}
+            {/* Collapse toggle - desktop only */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-lg transition"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              Research Agent
-            </Link>
+              <svg className={`h-4 w-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            </button>
+            {/* Close button - mobile only */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 text-gray-500 hover:text-gray-300"
+              aria-label="Close menu"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </header>
 
           {/* Navigation */}
-          <nav aria-label="Main navigation" className="mt-6 px-4">
+          <nav aria-label="Main navigation" className="mt-6 px-2">
             {navItems.map((item) => {
               const isActive = router.pathname === item.href;
               return (
@@ -52,14 +132,15 @@ export default function Layout({ children }: LayoutProps) {
                   key={item.href}
                   href={item.href}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`nav-item flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  title={sidebarCollapsed ? item.label : undefined}
+                  className={`nav-item flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 mb-1 ${
                     isActive
                       ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
                       : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent'
-                  }`}
+                  } ${sidebarCollapsed ? 'justify-center' : ''}`}
                 >
                   <svg
-                    className="h-5 w-5"
+                    className="h-5 w-5 flex-shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -72,33 +153,35 @@ export default function Layout({ children }: LayoutProps) {
                       d={item.icon}
                     />
                   </svg>
-                  {item.label}
+                  {!sidebarCollapsed && <span>{item.label}</span>}
                 </Link>
               );
             })}
           </nav>
 
           {/* User section at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-4">
-            <div className="flex items-center gap-3">
+          <div className="absolute bottom-0 left-0 right-0 border-t border-gray-800 p-3">
+            <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-medium text-white"
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-medium text-white"
                 aria-hidden="true"
               >
                 {user?.email?.charAt(0).toUpperCase() || 'U'}
               </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium text-gray-200">
-                  {user?.email || 'User'}
-                </p>
-                <button
-                  onClick={signOut}
-                  className="text-xs text-gray-500 hover:text-red-400 transition-colors"
-                  aria-label="Sign out of your account"
-                >
-                  Sign out
-                </button>
-              </div>
+              {!sidebarCollapsed && (
+                <div className="flex-1 overflow-hidden min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-200">
+                    {user?.email || 'User'}
+                  </p>
+                  <button
+                    onClick={signOut}
+                    className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+                    aria-label="Sign out of your account"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -107,7 +190,7 @@ export default function Layout({ children }: LayoutProps) {
         <main
           id="main-content"
           role="main"
-          className="ml-64 flex-1 p-8 text-gray-100"
+          className={`flex-1 pt-14 lg:pt-0 ${mainMargin} p-4 sm:p-6 lg:p-8 text-gray-100 transition-all duration-300`}
         >
           {children}
         </main>
