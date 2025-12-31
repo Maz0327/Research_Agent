@@ -293,8 +293,23 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
         # Update context with refined topic
         ctx.topic = refined_topic
 
-        # Create job config for this interpretation
-        ctx.job_config = _safe_default_config(refined_topic)
+        # Re-run planning for refined topic to get proper subreddits and config
+        # This ensures topic-specific subreddits are used, not defaults
+        from backend.integrations.openai_client import plan_job
+        try:
+            result = plan_job(refined_topic)
+            if result.get("is_ambiguous"):
+                # Refined topic shouldn't be ambiguous, use default config
+                logger.warning(f"[{ctx.job_id}] Refined topic still ambiguous, using default config")
+                ctx.job_config = _safe_default_config(refined_topic)
+            else:
+                ctx.job_config = result.get("config", _safe_default_config(refined_topic))
+            logger.info(f"[{ctx.job_id}] Re-planned for refined topic: {refined_topic}")
+            if hasattr(ctx.job_config, 'reddit') and ctx.job_config.reddit.subreddits:
+                logger.info(f"[{ctx.job_id}] Using subreddits: {ctx.job_config.reddit.subreddits}")
+        except Exception as plan_error:
+            logger.warning(f"[{ctx.job_id}] Re-planning failed, using default: {plan_error}")
+            ctx.job_config = _safe_default_config(refined_topic)
 
         try:
             # Run pipeline stages for this interpretation
