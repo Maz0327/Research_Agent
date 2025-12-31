@@ -25,6 +25,19 @@
 - Authentication via Supabase JWT
 - Rate limiting via slowapi
 
+#### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/jobs` | List user's jobs |
+| POST | `/jobs` | Create new research job |
+| GET | `/jobs/{id}` | Get job details |
+| POST | `/jobs/preview` | Preview job plan before execution |
+| POST | `/jobs/{id}/cancel` | Cancel running job |
+| DELETE | `/jobs/{id}` | Delete job (soft delete) |
+| POST | `/jobs/{id}/archive` | Archive completed job |
+| POST | `/jobs/{id}/select-interpretation` | Select disambiguation option |
+
 ### Celery Worker (`backend/worker.py`)
 - Async task processing
 - 11-stage research pipeline
@@ -122,12 +135,34 @@
 
 ## Data Flow
 
-1. User submits research topic
-2. API creates job in Supabase
-3. Celery picks up task from Redis
-4. Pipeline runs 11 stages
-5. Results uploaded to Google Drive
-6. Job marked complete
+### Two-Step Job Creation
+
+1. User enters topic and selects mode/category
+2. Frontend calls `/jobs/preview` to get interpreted plan
+3. User reviews: interpreted topic, sources, subreddits
+4. User can modify sources/subreddits before confirming
+5. User confirms → Frontend calls `/jobs` to create job
+6. API creates job in Supabase with user's selections
+7. Celery picks up task from Redis
+8. Pipeline runs 11 stages
+9. Results uploaded to Google Drive
+10. Job marked complete
+
+### Job Lifecycle
+
+```
+preview → queued → running → completed
+                          ↘ failed
+                          ↘ cancelled
+                          ↘ disambiguating → (user input) → queued
+```
+
+### Soft Delete Pattern
+
+Jobs use soft deletion via status field:
+- `DELETE /jobs/{id}` → sets status to "deleted"
+- `POST /jobs/{id}/archive` → sets status to "archived"
+- Both remove job from user's visible list without data loss
 
 ## Error Handling
 
@@ -146,3 +181,30 @@
 | LLM | Gemini Flash | GPT-4o-mini | - |
 
 *youtube-transcript-api fails on cloud IPs (Railway, AWS)
+
+## Frontend Architecture
+
+### Layout (`frontend/components/Layout.tsx`)
+- Collapsible sidebar (icons-only mode on desktop)
+- Mobile-first responsive design
+- Hamburger menu for mobile navigation
+- Slide-in sidebar with overlay
+
+### State Management (`frontend/store/jobs.ts`)
+- Zustand store for job state
+- `preview` state for two-step job creation
+- `previewJob()` → calls `/jobs/preview`
+- `createJob()` → calls `/jobs` with custom options
+- `deleteJob()` / `archiveJob()` → job management
+
+### Job Cards (`frontend/components/job-card/`)
+- `JobCard.tsx` - Main card with status display
+- `JobActions.tsx` - Cancel/Delete/Archive buttons
+- `DisambiguationPanel.tsx` - User input for ambiguous topics
+- `JobProgress.tsx` - Progress bar and stage display
+
+### Dashboard (`frontend/pages/dashboard.tsx`)
+- Research form with mode/category dropdowns
+- Preview confirmation card with editable sources
+- Subreddit add/remove functionality
+- Job list with real-time refresh

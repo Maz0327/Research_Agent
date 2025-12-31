@@ -76,7 +76,26 @@ Planning → Discovery → Collection → Extraction → Synthesis → Output
 
 ## UI Features (Dec 2025)
 
-- **Research Depth Dropdown**: Select research thoroughness
+### Job Creation
+- **Research Depth Dropdown**: Select research thoroughness (quick → investigation)
 - **Category Dropdown**: Guide source selection by topic type
+- **Two-Step Preview Flow**: See interpreted plan before running
+- **Editable Sources**: Toggle source types on/off in preview
+- **Custom Subreddits**: Add or remove subreddits before confirmation
+
+### Job Management
+- **Delete Button**: Remove completed/failed jobs (with confirmation)
+- **Archive Button**: Hide jobs without permanent deletion
+- **Cancel Button**: Stop running/queued jobs
 - **Topic Disambiguation**: Ambiguous topics pause for user clarification
+
+### Layout & Navigation
+- **Collapsible Sidebar**: Toggle between full and icon-only modes
+- **Mobile-First Design**: Hamburger menu with slide-in navigation
+- **Responsive Breakpoints**: Optimized for phone, tablet, desktop
+- **Skip Links**: WCAG 2.1 AA accessibility compliance
+
+### Results
+- **View Results Link**: Direct link to Google Drive folder
 - **Numbered Folders**: Multiple interpretations get numbered Drive folders
+- **Progress Tracking**: Real-time stage updates with ETA
