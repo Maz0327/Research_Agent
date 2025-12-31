@@ -295,13 +295,18 @@ Guidelines:
    - Tech: ["technology", "programming", product-specific subs]
    - Politics: ["politics", "PoliticalDiscussion", "NeutralPolitics"]
    Match subreddits to the SPECIFIC topic, not generic defaults.
-9. IMPORTANT - DISAMBIGUATION: If the topic is ambiguous and could refer to multiple different things (e.g., "Barney" could mean Barney & Friends children's show OR Barney Stinson from HIMYM), return ONLY:
-   {{"is_ambiguous": true, "interpretations": [
+9. DISAMBIGUATION - BE PROACTIVE: If the topic could reasonably refer to multiple things, flag it as ambiguous. Examples:
+   - "Barney" → children's show vs HIMYM character vs other
+   - "The Office" → US version vs UK version
+   - "Avatar" → James Cameron film vs animated series
+   - Names that could be multiple people/characters
+   - Show/movie titles that have remakes or share names
+   When ambiguous, return ONLY: {{"is_ambiguous": true, "interpretations": [
      {{"label": "Short Name", "description": "Brief explanation", "topic": "Refined specific topic"}}
    ]}}
-   Include 2-3 interpretations max. Only flag as ambiguous if genuinely unclear.
+   Include 2-3 interpretations. When in doubt, ASK - it's better to disambiguate than research the wrong thing.
 
-If NOT ambiguous, return: {{"is_ambiguous": false, "config": {{...JobConfig with reddit.subreddits...}}}}"""
+If clearly NOT ambiguous, return: {{"is_ambiguous": false, "config": {{...JobConfig with reddit.subreddits...}}}}"""
 
     try:
         response = client.chat.completions.create(
