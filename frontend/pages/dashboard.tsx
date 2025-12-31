@@ -10,13 +10,24 @@ import { ProtectedRoute, useAuth } from '../components/AuthProvider';
 import { useJobsStore } from '../store/jobs';
 import { POLLING_INTERVALS } from '../lib/constants';
 
-const pipelines = [
-  { value: 'quick', label: 'Quick', description: 'Fast research with basic coverage', example: 'What is quantum computing?' },
-  { value: 'full', label: 'Full', description: 'Comprehensive research with full coverage', example: 'Electric vehicle market trends 2024' },
-  { value: 'breaking_news', label: 'Breaking News', description: 'Fast-turnaround current events', example: 'OpenAI leadership changes December 2024' },
-  { value: 'investigation', label: 'Investigation', description: 'Deep-dive investigative research', example: 'FTX collapse timeline and key players' },
-  { value: 'profile', label: 'Profile', description: 'Character-driven biographical research', example: 'Elon Musk business ventures and controversies' },
-  { value: 'controversy', label: 'Controversy', description: 'Balanced multi-perspective analysis', example: 'AI art copyright debate perspectives' },
+// Research depth options (mode)
+const researchDepths = [
+  { value: 'quick', label: 'Quick Brief', description: 'Fast, surface-level coverage', example: 'What is quantum computing?' },
+  { value: 'breaking_news', label: 'Breaking News', description: 'Recent events, fast turnaround', example: 'OpenAI leadership changes December 2024' },
+  { value: 'full', label: 'Standard Research', description: 'Balanced depth and coverage', example: 'Electric vehicle market trends 2024' },
+  { value: 'investigation', label: 'Deep Investigation', description: 'Thorough verification, multiple sources', example: 'FTX collapse timeline and key players' },
+  { value: 'profile', label: 'Entity Profile', description: 'Single person/company focus', example: 'Elon Musk business ventures and controversies' },
+];
+
+// Category options (niche) - affects sources, subreddits, search queries
+const categories = [
+  { value: '', label: 'Auto-detect', description: 'AI determines best category' },
+  { value: 'pop_culture', label: 'Entertainment & Pop Culture', description: 'TV, movies, celebrities, fan theories' },
+  { value: 'political', label: 'Politics & Policy', description: 'Government, elections, legislation' },
+  { value: 'true_crime', label: 'True Crime & Legal', description: 'Cases, investigations, court proceedings' },
+  { value: 'mysteries', label: 'Mysteries & Conspiracies', description: 'Evidence analysis, theories, debunking' },
+  { value: 'downfalls', label: 'Scandals & Downfalls', description: 'Drama, public reactions, timelines' },
+  { value: 'controversy', label: 'Controversy', description: 'Multiple perspectives, balanced views' },
 ];
 
 // Skeleton loader for jobs
@@ -39,11 +50,15 @@ function JobSkeleton() {
 
 function DashboardContent() {
   const [prompt, setPrompt] = useState('');
-  const [pipeline, setPipeline] = useState('investigation');
+  const [researchDepth, setResearchDepth] = useState('investigation');
+  const [category, setCategory] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const { jobs, isLoading, fetchJobs, createJob, refreshJob } = useJobsStore();
   const { user } = useAuth();
+
+  // Get current depth config for placeholder example
+  const currentDepth = researchDepths.find(d => d.value === researchDepth) || researchDepths[3];
 
   // Fetch jobs on mount and when user changes
   useEffect(() => {
@@ -88,7 +103,8 @@ function DashboardContent() {
 
     setIsCreating(true);
     try {
-      await createJob(prompt, pipeline);
+      // Pass niche only if not auto-detect (empty string)
+      await createJob(prompt, researchDepth, category || undefined);
       setPrompt('');
     } catch (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -141,7 +157,7 @@ function DashboardContent() {
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder={`e.g., "${pipelines.find(p => p.value === pipeline)?.example || 'Enter your research topic...'}"`}
+                placeholder={`e.g., "${currentDepth.example}"`}
                 rows={3}
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 disabled={isCreating}
@@ -151,33 +167,46 @@ function DashboardContent() {
               </p>
             </div>
 
-            <div className="mb-5">
-              <label className="mb-2 block text-sm font-medium text-gray-400">
-                Pipeline Mode
-              </label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Select pipeline mode">
-                {pipelines.map((p) => (
-                  <button
-                    key={p.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={pipeline === p.value}
-                    aria-label={`Select ${p.label} pipeline mode: ${p.description}`}
-                    onClick={() => setPipeline(p.value)}
-                    className={`rounded-lg border p-3 text-left transition-all duration-200 ${
-                      pipeline === p.value
-                        ? 'border-blue-500 bg-blue-900/30 ring-1 ring-blue-500'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-750'
-                    }`}
-                  >
-                    <span className="block text-sm font-medium text-gray-200">
-                      {p.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-gray-500">
-                      {p.description}
-                    </span>
-                  </button>
-                ))}
+            {/* Two dropdown selectors for Research Depth and Category */}
+            <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Research Depth dropdown */}
+              <div>
+                <label htmlFor="researchDepth" className="mb-1.5 block text-sm font-medium text-gray-400">
+                  Research Depth
+                </label>
+                <select
+                  id="researchDepth"
+                  value={researchDepth}
+                  onChange={(e) => setResearchDepth(e.target.value)}
+                  disabled={isCreating}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                >
+                  {researchDepths.map((depth) => (
+                    <option key={depth.value} value={depth.value}>
+                      {depth.label} - {depth.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Category dropdown */}
+              <div>
+                <label htmlFor="category" className="mb-1.5 block text-sm font-medium text-gray-400">
+                  Category
+                </label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  disabled={isCreating}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}{cat.description ? ` - ${cat.description}` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

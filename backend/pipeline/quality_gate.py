@@ -245,6 +245,20 @@ def quality_gate(
     floors = SOURCE_FLOORS.get(mode, DEFAULT_FLOORS).copy()
     max_slots = floors.pop('max_slots')
 
+    # Override with niche-specific source floors if niche is specified
+    if niche:
+        try:
+            from backend.pipeline.niche_loader import get_niche
+            niche_config = get_niche(niche)
+            if niche_config and niche_config.source_floors:
+                # Merge niche floors (niche takes precedence)
+                for source_type, floor_value in niche_config.source_floors.items():
+                    if source_type in floors:
+                        floors[source_type] = floor_value
+                logger.info(f"Quality Gate: Applied niche '{niche}' source floors: {floors}")
+        except Exception as e:
+            logger.warning(f"Quality Gate: Failed to load niche '{niche}': {e}")
+
     # Step 1: Convert to Source objects
     source_objects = [_dict_to_source(s) for s in sources]
 

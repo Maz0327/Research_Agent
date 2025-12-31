@@ -60,11 +60,29 @@ def stage_1_planning(ctx: PipelineContext) -> None:
         if not isinstance(ctx.job_config, JobConfig):
             raise ValueError(f"plan_job returned invalid type: {type(ctx.job_config)}")
 
+        # Apply user's selections from job config_json (overrides LLM detection)
+        job = get_job(ctx.job_id)
+        if job and job.config_json:
+            # Apply user-selected niche
+            if job.config_json.get("niche"):
+                user_niche = job.config_json["niche"]
+                ctx.job_config.niche = user_niche
+                logger.info(f"[{ctx.job_id}] Applied user-selected niche: {user_niche}")
+
+            # Apply user-selected mode/pipeline
+            if job.config_json.get("mode"):
+                from backend.models.job_config import ResearchMode
+                try:
+                    ctx.job_config.mode = ResearchMode(job.config_json["mode"])
+                    logger.info(f"[{ctx.job_id}] Applied user-selected mode: {ctx.job_config.mode.value}")
+                except ValueError:
+                    pass  # Invalid mode, keep LLM's selection
+
         config_dict = ctx.job_config.model_dump()
         if not config_dict or "topic" not in config_dict:
             raise ValueError("Invalid job_config structure: missing required fields")
 
-        # Load niche overlay if specified
+        # Load niche overlay if specified (either from LLM or user selection)
         if ctx.job_config.niche:
             try:
                 from backend.pipeline.niche_loader import merge_mode_and_niche, is_valid_niche

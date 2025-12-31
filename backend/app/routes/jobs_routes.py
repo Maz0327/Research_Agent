@@ -122,6 +122,10 @@ async def create_job_endpoint(
         "pipeline": job_request.pipeline,
     }
 
+    # Add niche if specified (for source selection guidance)
+    if job_request.niche:
+        config_json["niche"] = job_request.niche
+
     # Apply pipeline-specific settings
     pipeline = job_request.pipeline
     if pipeline in PIPELINE_BUDGETS:

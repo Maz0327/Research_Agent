@@ -33,6 +33,10 @@ class CreateJobRequest(BaseModel):
         ...,
         description="Pipeline type: quick, full, breaking_news, investigation, profile, or controversy"
     )
+    niche: Optional[Literal["pop_culture", "political", "true_crime", "mysteries", "downfalls", "controversy"]] = Field(
+        None,
+        description="Category/niche overlay for specialized source selection"
+    )
     options: Optional[dict[str, Any]] = Field(None, description="Optional job configuration overrides")
 
     @field_validator('prompt')

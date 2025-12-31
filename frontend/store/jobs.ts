@@ -57,7 +57,7 @@ interface JobsState {
   isLoading: boolean;
   error: string | null;
   fetchJobs: () => Promise<void>;
-  createJob: (prompt: string, pipeline: string) => Promise<string>;
+  createJob: (prompt: string, pipeline: string, niche?: string) => Promise<string>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   selectInterpretation: (jobId: string, indices: number[] | 'all') => Promise<void>;
@@ -111,7 +111,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
-  createJob: async (prompt: string, pipeline: string) => {
+  createJob: async (prompt: string, pipeline: string, niche?: string) => {
     set({ isLoading: true, error: null });
     try {
       const token = await getAccessToken();
@@ -122,10 +122,16 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Build request body, only include niche if specified
+      const body: Record<string, string> = { prompt, pipeline };
+      if (niche) {
+        body.niche = niche;
+      }
+
       const response = await fetch(`${API_URL}/jobs`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ prompt, pipeline }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
