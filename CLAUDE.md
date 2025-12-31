@@ -68,7 +68,12 @@ Research Agent is an AI-powered documentary research assistant that aggregates c
 | fallback | Serper (NOT Tavily - 10% 502 rate) | $0.01 |
 
 ### ML Optimizations (FREE - Local)
-- **Quality Gate**: Deterministic - ✅ Optimal
+- **Quality Gate**: Deterministic - ✅ Optimal (Dec 2025 accuracy improvements)
+  - BM25 blended into relevance (60% weight)
+  - Mode-specific recency scoring (10% weight)
+  - Niche priority keywords (+0.1 bonus)
+  - Niche preferred domains (+0.15 bonus)
+  - Shannon entropy diversity metric
 - **Entity Extraction**: spaCy en_core_web_trf (+6% F1)
 - **Claim Dedup**: MinHash LSH (O(n) scaling)
 - **Source Scoring**: BM25 hybrid ranking

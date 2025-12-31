@@ -1,7 +1,7 @@
 # System Architecture
 
-**Last Updated:** December 30, 2025
-**Status:** Production + Reliability Improvements Deployed
+**Last Updated:** December 31, 2025
+**Status:** Production + Quality Gate Accuracy Improvements Deployed
 
 ## Overview
 
@@ -84,16 +84,25 @@
 ## ML Optimization Opportunities
 
 ### Already Optimal (No LLM)
-- **Quality Gate** (`backend/pipeline/quality_gate.py`): Deterministic filtering
+- **Quality Gate** (`backend/pipeline/quality_gate.py`): Deterministic filtering with BM25
 - **Entity Extraction** (`backend/pipeline/entities.py`): spaCy NER
 - **Claim Candidates** (`backend/pipeline/extraction.py`): Regex heuristics
+
+### Completed Optimizations (Dec 2025)
+
+| Component | Before | After | File |
+|-----------|--------|-------|------|
+| BM25 Relevance | +0.2 bonus | 60% blend into relevance | `quality_gate.py` |
+| Recency Scoring | None | Mode-specific (10% weight) | `quality_gate.py` |
+| Priority Keywords | Defined but unused | Active (+0.1 bonus) | `quality_gate.py` |
+| Preferred Domains | Defined but unused | Active (+0.15 bonus) | `quality_gate.py` |
+| Diversity Metric | None | Shannon entropy (monitoring) | `quality_gate.py` |
 
 ### Pending Optimizations
 
 | Component | Current | Optimal | File |
 |-----------|---------|---------|------|
 | Claim Dedup | O(n²) Jaccard | MinHash LSH O(n) | `extraction.py` |
-| Source Scoring | Domain-only | Add BM25 relevance | `quality_gate.py` |
 | spaCy Model | en_core_web_sm | en_core_web_trf | `entities.py` |
 | Claim Threshold | score >= 3 | score >= 4 | `extraction.py` |
 
@@ -117,8 +126,11 @@
 
 ### Niche/Category System (`backend/config/niches/`)
 - 5 niche categories: pop_culture, political, true_crime, mysteries, downfalls
-- Each niche defines: source_floors, query_additions, priority_keywords
-- Quality Gate applies niche source_floors when specified
+- Each niche defines: source_floors, query_additions, priority_keywords, preferred_domains
+- Quality Gate applies:
+  - Niche source_floors (override mode defaults)
+  - Priority keywords boost (+0.1 max for matching sources)
+  - Preferred domains bonus (+0.15 for niche-relevant domains)
 
 ## Key Files
 

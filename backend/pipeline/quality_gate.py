@@ -13,14 +13,19 @@ Key features:
 - Whitelist for trusted domains (no limits)
 - Soft-reject category (keeps sources as references)
 - BM25 relevance scoring (Dec 2025 optimization)
+- Recency scoring for breaking_news mode
+- Niche priority keywords and preferred domains support
+- Source diversity metric (Shannon entropy)
 
 Execution time target: <5 seconds
 """
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
+from datetime import datetime, timezone
+from math import log
+from typing import Dict, List, Optional, Set, Tuple, Any
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-from collections import defaultdict
+from collections import defaultdict, Counter
 from loguru import logger
 
 try:
@@ -41,8 +46,22 @@ QUALITY_GATE_CONFIG = {
     "type_cap_percent": 75,       # Was 60% in PRD - increased for topic-appropriate distribution
     "thin_snippet_threshold": 30, # Characters - very lenient
     "enable_soft_reject": True,   # Keep rejected sources as "reference links" instead of discarding
-    "relevance_weight": 0.6,      # Weight for relevance score in combined scoring
-    "quality_weight": 0.4,        # Weight for quality score in combined scoring
+    "relevance_weight": 0.55,     # Weight for relevance score in combined scoring
+    "quality_weight": 0.35,       # Weight for quality score in combined scoring
+    "recency_weight": 0.10,       # Weight for recency score in combined scoring
+    "bm25_blend_weight": 0.6,     # How much BM25 affects relevance (vs incoming score)
+    "keyword_bonus_max": 0.1,     # Max bonus for matching niche priority keywords
+    "preferred_domain_bonus": 0.15,  # Bonus for niche preferred domains
+}
+
+# Recency weights by mode (how much to value source freshness)
+# Higher = prefer recent sources, 1.0 = max preference for that age bucket
+RECENCY_WEIGHTS = {
+    'breaking_news': {'1d': 1.0, '3d': 0.85, '7d': 0.5, '30d': 0.2, 'older': 0.1},
+    'investigation': {'1d': 0.7, '3d': 0.75, '7d': 0.85, '30d': 0.95, 'older': 1.0},  # Prefers established
+    'profile': {'1d': 0.8, '3d': 0.85, '7d': 0.9, '30d': 0.95, 'older': 0.9},  # Balanced
+    'controversy': {'1d': 0.9, '3d': 0.85, '7d': 0.75, '30d': 0.6, 'older': 0.5},  # Prefer recent
+    'default': {'1d': 0.9, '3d': 0.8, '7d': 0.65, '30d': 0.5, 'older': 0.4},
 }
 
 # Junk patterns - ONLY clear spam, not content pages
@@ -121,9 +140,11 @@ class Source:
     domain: str = ""
     canonical_url: str = ""
     quality_score: float = 0.0
+    recency_score: float = 0.5  # Default neutral for unknown dates
     final_score: float = 0.0
     is_wire_service: bool = False
     is_syndicator: bool = False
+    published_at: Optional[str] = None  # ISO format datetime string
 
     def __post_init__(self):
         if not self.domain:
@@ -180,6 +201,7 @@ class QualityGateStats:
     approved_count: int = 0
     rejected_count: int = 0
     soft_rejected_count: int = 0
+    diversity_score: float = 0.0  # Shannon entropy-based diversity metric (0-1)
     type_weights: Dict[str, float] = field(default_factory=dict)
     by_type: Dict[str, int] = field(default_factory=dict)
     rejection_breakdown: Dict[str, int] = field(default_factory=dict)
@@ -192,6 +214,7 @@ class QualityGateStats:
             "approved_count": self.approved_count,
             "rejected_count": self.rejected_count,
             "soft_rejected_count": self.soft_rejected_count,
+            "diversity_score": self.diversity_score,
             "type_weights": self.type_weights,
             "by_type": self.by_type,
             "rejection_breakdown": self.rejection_breakdown,
@@ -216,6 +239,7 @@ def quality_gate(
     mode: str = "full",
     niche: Optional[str] = None,
     query_terms: Optional[List[str]] = None,
+    niche_config: Optional[Dict[str, Any]] = None,
 ) -> QualityGateOutput:
     """
     Main Quality Gate function.
@@ -232,6 +256,7 @@ def quality_gate(
         mode: Pipeline mode (quick, full, investigation, etc.)
         niche: Optional niche overlay (downfalls, mysteries, etc.)
         query_terms: Optional list of query terms for BM25 relevance scoring
+        niche_config: Optional niche configuration dict with priority_keywords, preferred_domains
 
     Returns:
         QualityGateOutput with approved, soft_rejected, hard_rejected sources and stats
@@ -245,19 +270,38 @@ def quality_gate(
     floors = SOURCE_FLOORS.get(mode, DEFAULT_FLOORS).copy()
     max_slots = floors.pop('max_slots')
 
-    # Override with niche-specific source floors if niche is specified
+    # Extract niche config features
+    priority_keywords: List[str] = []
+    preferred_domains: List[str] = []
+    loaded_niche_config = niche_config  # Use passed config if available
+
+    # Override with niche-specific settings if niche is specified
     if niche:
         try:
             from backend.pipeline.niche_loader import get_niche
-            niche_config = get_niche(niche)
-            if niche_config and niche_config.source_floors:
+            loaded_niche = get_niche(niche)
+            if loaded_niche:
                 # Merge niche floors (niche takes precedence)
-                for source_type, floor_value in niche_config.source_floors.items():
-                    if source_type in floors:
-                        floors[source_type] = floor_value
-                logger.info(f"Quality Gate: Applied niche '{niche}' source floors: {floors}")
+                if loaded_niche.source_floors:
+                    for source_type, floor_value in loaded_niche.source_floors.items():
+                        if source_type in floors:
+                            floors[source_type] = floor_value
+                    logger.info(f"Quality Gate: Applied niche '{niche}' source floors: {floors}")
+                # Extract priority keywords and preferred domains
+                priority_keywords = getattr(loaded_niche, 'priority_keywords', []) or []
+                preferred_domains = getattr(loaded_niche, 'preferred_domains', []) or []
         except Exception as e:
             logger.warning(f"Quality Gate: Failed to load niche '{niche}': {e}")
+
+    # Override from passed niche_config if provided
+    if loaded_niche_config:
+        priority_keywords = loaded_niche_config.get('priority_keywords', priority_keywords)
+        preferred_domains = loaded_niche_config.get('preferred_domains', preferred_domains)
+
+    if priority_keywords:
+        logger.info(f"Quality Gate: Using {len(priority_keywords)} priority keywords")
+    if preferred_domains:
+        logger.info(f"Quality Gate: Using {len(preferred_domains)} preferred domains")
 
     # Step 1: Convert to Source objects
     source_objects = [_dict_to_source(s) for s in sources]
@@ -272,19 +316,30 @@ def quality_gate(
         bm25_scores = _calculate_bm25_scores(unique_sources, query_terms)
         logger.info(f"BM25 scoring applied with {len(query_terms)} query terms")
 
-    # Step 3: Calculate quality scores
+    # Step 3: Calculate quality, recency, and final scores
     for source in unique_sources:
-        source.quality_score = _calculate_quality_score(source)
+        # Quality score (with preferred domain bonus)
+        source.quality_score = _calculate_quality_score(source, preferred_domains)
 
-        # Add BM25 relevance bonus (up to 0.2)
-        bm25_bonus = 0.0
+        # Recency score (mode-specific)
+        source.recency_score = _calculate_recency_score(source, mode)
+
+        # Effective relevance: blend BM25 with incoming relevance
+        effective_relevance = source.relevance_score
         if source.canonical_url in bm25_scores:
-            bm25_bonus = min(0.2, bm25_scores[source.canonical_url] * 0.2)
+            bm25_score = bm25_scores[source.canonical_url]
+            blend = QUALITY_GATE_CONFIG["bm25_blend_weight"]
+            effective_relevance = (1 - blend) * source.relevance_score + blend * bm25_score
 
+        # Keyword bonus for niche priority keywords
+        keyword_bonus = _calculate_keyword_bonus(source, priority_keywords)
+
+        # Final score: weighted combination + keyword bonus
         source.final_score = (
-            QUALITY_GATE_CONFIG["relevance_weight"] * source.relevance_score +
+            QUALITY_GATE_CONFIG["relevance_weight"] * effective_relevance +
             QUALITY_GATE_CONFIG["quality_weight"] * source.quality_score +
-            bm25_bonus
+            QUALITY_GATE_CONFIG["recency_weight"] * source.recency_score +
+            keyword_bonus
         )
 
     # Step 4: Hard reject clear spam (junk patterns, invalid URLs)
@@ -321,10 +376,14 @@ def quality_gate(
         output.stats.by_type[source.source_type] = \
             output.stats.by_type.get(source.source_type, 0) + 1
 
+    # Calculate diversity score (Shannon entropy-based)
+    output.stats.diversity_score = _calculate_diversity(approved)
+
     logger.info(
         f"Quality Gate complete: {output.stats.approved_count} approved, "
         f"{output.stats.soft_rejected_count} soft-rejected, "
-        f"{output.stats.rejected_count} hard-rejected"
+        f"{output.stats.rejected_count} hard-rejected, "
+        f"diversity={output.stats.diversity_score:.2f}"
     )
 
     return output
@@ -342,6 +401,7 @@ def _dict_to_source(d: Dict) -> Source:
         snippet=d.get('snippet', d.get('content', '')),
         source_type=d.get('source_type', d.get('type', 'web')),
         relevance_score=d.get('relevance_score', d.get('score', 0.5)),
+        published_at=d.get('published_at', d.get('published_date', d.get('date'))),
     )
 
 
@@ -359,13 +419,17 @@ def _deduplicate(sources: List[Source]) -> List[Source]:
     return unique
 
 
-def _calculate_quality_score(source: Source) -> float:
+def _calculate_quality_score(
+    source: Source,
+    preferred_domains: Optional[List[str]] = None,
+) -> float:
     """
     Calculate quality score for a source.
 
     Factors:
     - Domain authority (whitelist/high authority bonuses)
     - TLD bonuses (.gov, .edu)
+    - Niche preferred domains bonus
     - Snippet length (thin content penalty)
     - Wire service detection
     """
@@ -385,6 +449,13 @@ def _calculate_quality_score(source: Source) -> float:
     # High authority bonus
     if domain in HIGH_AUTHORITY_DOMAINS:
         score += 0.3
+
+    # Niche preferred domains bonus
+    if preferred_domains:
+        for pref in preferred_domains:
+            if pref.lower() in domain.lower():
+                score += QUALITY_GATE_CONFIG["preferred_domain_bonus"]
+                break
 
     # TLD bonuses
     if domain.endswith('.org'):
@@ -462,6 +533,107 @@ def _calculate_bm25_scores(
     except Exception as e:
         logger.warning(f"BM25 scoring failed: {e}")
         return {}
+
+
+def _calculate_recency_score(source: Source, mode: str) -> float:
+    """
+    Calculate recency score based on source publication date.
+
+    Mode-specific weighting:
+    - breaking_news: Strongly prefer recent (last 72h)
+    - investigation: Slightly prefer established sources
+    - default: Moderate recency preference
+    """
+    if not source.published_at:
+        return 0.5  # Neutral for unknown dates
+
+    try:
+        # Parse ISO format datetime
+        pub_str = source.published_at
+        if pub_str.endswith('Z'):
+            pub_str = pub_str[:-1] + '+00:00'
+        elif '+' not in pub_str and '-' not in pub_str[-6:]:
+            # No timezone, assume UTC
+            pub_str = pub_str + '+00:00'
+
+        pub_date = datetime.fromisoformat(pub_str)
+        now = datetime.now(timezone.utc)
+
+        # Make pub_date timezone-aware if needed
+        if pub_date.tzinfo is None:
+            pub_date = pub_date.replace(tzinfo=timezone.utc)
+
+        age = now - pub_date
+        age_days = age.days
+
+        # Get mode-specific weights
+        weights = RECENCY_WEIGHTS.get(mode, RECENCY_WEIGHTS['default'])
+
+        # Apply age-based scoring
+        if age_days <= 1:
+            return weights['1d']
+        elif age_days <= 3:
+            return weights['3d']
+        elif age_days <= 7:
+            return weights['7d']
+        elif age_days <= 30:
+            return weights['30d']
+        else:
+            return weights['older']
+
+    except Exception as e:
+        logger.debug(f"Recency score failed for {source.url}: {e}")
+        return 0.5  # Neutral on error
+
+
+def _calculate_keyword_bonus(source: Source, priority_keywords: List[str]) -> float:
+    """
+    Calculate bonus for sources matching niche priority keywords.
+
+    Returns bonus up to QUALITY_GATE_CONFIG["keyword_bonus_max"] (default 0.1).
+    """
+    if not priority_keywords:
+        return 0.0
+
+    # Combine title and snippet for matching
+    text = f"{source.title or ''} {source.snippet or ''}".lower()
+
+    # Count keyword matches
+    matches = sum(1 for kw in priority_keywords if kw.lower() in text)
+
+    # Normalize: 5 matches = max bonus
+    normalized = min(matches / 5.0, 1.0)
+
+    return normalized * QUALITY_GATE_CONFIG["keyword_bonus_max"]
+
+
+def _calculate_diversity(approved: List[Source]) -> float:
+    """
+    Calculate source diversity using Shannon entropy.
+
+    Measures distribution across source types.
+    Returns 0-1 where 1 = perfectly even distribution.
+    """
+    if len(approved) < 2:
+        return 0.0
+
+    # Count by source type
+    type_counts = Counter(s.source_type for s in approved)
+    total = len(approved)
+
+    # Calculate Shannon entropy
+    entropy = 0.0
+    for count in type_counts.values():
+        if count > 0:
+            p = count / total
+            entropy -= p * log(p)
+
+    # Normalize by maximum possible entropy (all types equally represented)
+    max_entropy = log(len(SOURCE_TYPES))  # 5 source types
+    if max_entropy <= 0:
+        return 0.0
+
+    return entropy / max_entropy
 
 
 def _check_hard_rejection(source: Source) -> Optional[str]:
@@ -625,6 +797,7 @@ def run_quality_gate(
     mode: str = "full",
     niche: Optional[str] = None,
     query_terms: Optional[List[str]] = None,
+    niche_config: Optional[Dict[str, Any]] = None,
 ) -> Dict:
     """
     Run Quality Gate and return results as dictionary.
@@ -636,8 +809,9 @@ def run_quality_gate(
         mode: Pipeline mode
         niche: Optional niche overlay
         query_terms: Optional list of query terms for BM25 relevance scoring
+        niche_config: Optional niche configuration with priority_keywords, preferred_domains
     """
-    output = quality_gate(sources, mode, niche, query_terms)
+    output = quality_gate(sources, mode, niche, query_terms, niche_config)
 
     return {
         "approved": [_source_to_dict(s) for s in output.approved],
@@ -658,7 +832,9 @@ def _source_to_dict(source: Source) -> Dict:
         "domain": source.domain,
         "relevance_score": source.relevance_score,
         "quality_score": source.quality_score,
+        "recency_score": source.recency_score,
         "final_score": source.final_score,
+        "published_at": source.published_at,
         "is_wire_service": source.is_wire_service,
         "is_syndicator": source.is_syndicator,
     }
