@@ -99,6 +99,9 @@ def stage_1_planning(ctx: PipelineContext) -> None:
             )
         logger.info(f"[{ctx.job_id}] Planned job: {ctx.job_config.topic}, mode={ctx.job_config.mode}")
 
+    except DisambiguationRequired:
+        # Re-raise disambiguation - this is expected flow, not an error
+        raise
     except Exception as e:
         logger.warning(f"[{ctx.job_id}] Planning failed: {e}")
         ctx.add_warning(f"Planning failed: {str(e)}, using default config")
