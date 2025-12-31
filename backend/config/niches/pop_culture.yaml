@@ -1,0 +1,83 @@
+# Pop Culture Niche Configuration
+# Entertainment, TV shows, movies, celebrities, viral moments
+#
+# Use case: Researching entertainment media, fan communities, celebrity news
+# Priority: Video (clips, interviews), discussion (fan forums), news (entertainment)
+
+niche:
+  name: pop_culture
+  description: "Entertainment analysis, fan theories, celebrity news, viral content"
+
+  # Additional queries appended to mode queries
+  # {topic} is replaced with the research topic
+  query_additions:
+    - "{topic} behind the scenes"
+    - "{topic} cast interview"
+    - "{topic} fan theory"
+    - "{topic} easter eggs"
+    - "{topic} making of"
+    - "{topic} explained"
+    - "{topic} reaction"
+    - "{topic} analysis"
+    - "{topic} retrospective"
+    - "{topic} deep dive"
+
+  # Override source floors for this niche
+  # Higher video (clips, interviews) and discussion (fan communities)
+  source_floors:
+    web: 2
+    news: 3        # Entertainment news
+    video: 6       # YouTube clips, interviews, analysis
+    academic: 0    # Not typically academic
+    discussion: 4  # Fan communities are key
+
+  # Synthesis configuration
+  synthesis:
+    fan_perspectives: true      # Include fan community views
+    behind_scenes: true         # Production details
+    cultural_impact: true       # Broader significance
+    timeline_evolution: true    # How it changed over time
+
+  # Output format style
+  narrative_format: entertainment_profile
+
+  # Priority keywords for relevance scoring
+  priority_keywords:
+    - behind the scenes
+    - interview
+    - cast
+    - director
+    - fan theory
+    - easter egg
+    - reaction
+    - explained
+    - analysis
+    - review
+    - making of
+    - production
+    - viral
+    - iconic
+
+  # Domain preferences for this niche
+  preferred_domains:
+    - youtube.com
+    - reddit.com
+    - imdb.com
+    - rottentomatoes.com
+    - wikipedia.org
+    - variety.com
+    - hollywoodreporter.com
+    - deadline.com
+    - ew.com
+    - screenrant.com
+    - collider.com
+
+  # Suggested subreddits for pop culture research
+  suggested_subreddits:
+    - movies
+    - television
+    - FanTheories
+    - MovieDetails
+    - entertainment
+    - popculture
+    - OutOfTheLoop

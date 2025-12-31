@@ -18,6 +18,21 @@ niches:
     description: "Evidence analysis, debunking, theories, pro/con perspectives"
     config_file: mysteries.yaml
 
+  - name: pop_culture
+    enabled: true
+    description: "Entertainment analysis, fan theories, celebrity news, viral content"
+    config_file: pop_culture.yaml
+
+  - name: political
+    enabled: true
+    description: "Policy analysis, political coverage, balanced perspectives, fact-checking"
+    config_file: political.yaml
+
+  - name: true_crime
+    enabled: true
+    description: "Case analysis, investigation details, court proceedings, evidence review"
+    config_file: true_crime.yaml
+
 # Default settings when no niche is selected
 defaults:
   baseline_reserve_percent: 0  # No baseline reserve without niche

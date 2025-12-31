@@ -7,6 +7,15 @@ from loguru import logger
 from backend.config import get_settings
 from backend.state import get_job, update_job
 from backend.services.error_logger import log_exception
+from backend.pipeline.stage_runner import (
+    run_stage_with_recovery,
+    StageGroup,
+    fallback_web_capture_skip,
+    fallback_reddit_skip,
+    fallback_transcripts_skip,
+    fallback_youtube_skip,
+    fallback_drive_upload_skip,
+)
 
 settings = get_settings()
 
@@ -135,7 +144,7 @@ def run_research_job(
             logger.info(f"[{job_id}] Resuming after disambiguation with {len(job.selected_interpretations)} interpretations")
             return _run_disambiguated_job(ctx, job, enable_parallel)
 
-        # Stage 0-3: Sequential initialization and discovery
+        # Stage 0-3: Sequential initialization and discovery (critical - no fallback)
         stage_0_initialize(ctx)
         stage_1_planning(ctx)
 
@@ -143,36 +152,54 @@ def run_research_job(
         if ctx.job_config and ctx.cost_tracker:
             ctx.cost_tracker.update_mode(ctx.job_config.mode.value)
 
-        stage_2_research_mapping(ctx)
-        stage_3_source_shortlist(ctx)
-        stage_3_5_quality_gate(ctx)
+        # Research mapping and source discovery (critical for pipeline)
+        run_stage_with_recovery(stage_2_research_mapping, ctx, "research_mapping", critical=True)
+        run_stage_with_recovery(stage_3_source_shortlist, ctx, "source_shortlist", critical=True)
+        run_stage_with_recovery(stage_3_5_quality_gate, ctx, "quality_gate")
 
-        # Parallel Group 1: Collection stages
+        # Collection stages - use fallbacks for graceful degradation
+        collection_group = StageGroup("collection")
         if enable_parallel:
             logger.info(f"[{job_id}] Running collection stages in parallel")
             run_collection_stages_parallel(ctx)
         else:
-            stage_4_youtube_enumeration(ctx)
-            stage_5_transcripts(ctx)
-            stage_6_web_capture(ctx)
-            stage_6_5_reddit(ctx)
+            collection_group.run(
+                stage_4_youtube_enumeration, ctx, "youtube_enumeration",
+                fallback_fn=fallback_youtube_skip
+            )
+            collection_group.run(
+                stage_5_transcripts, ctx, "transcripts",
+                fallback_fn=fallback_transcripts_skip
+            )
+            collection_group.run(
+                stage_6_web_capture, ctx, "web_capture",
+                fallback_fn=fallback_web_capture_skip
+            )
+            collection_group.run(
+                stage_6_5_reddit, ctx, "reddit",
+                fallback_fn=fallback_reddit_skip
+            )
 
         # Stage 7: Claim extraction (must wait for all sources)
-        stage_7_extraction(ctx)
+        run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
 
-        # Parallel Group 2: Extraction stages
+        # Extraction stages - can degrade gracefully
+        extraction_group = StageGroup("extraction")
         if enable_parallel:
             logger.info(f"[{job_id}] Running extraction stages in parallel")
             run_extraction_stages_parallel(ctx)
         else:
-            stage_7_5_timeline(ctx)
-            stage_7_6_entities(ctx)
-            stage_8_validation(ctx)
+            extraction_group.run(stage_7_5_timeline, ctx, "timeline_extraction")
+            extraction_group.run(stage_7_6_entities, ctx, "entity_extraction")
+            extraction_group.run(stage_8_validation, ctx, "validation")
 
         # Stage 8.5+: Sequential synthesis and output
-        stage_8_5_angle_discovery(ctx)
-        stage_8_6_documentary_intelligence(ctx)
-        stage_9_drive_upload(ctx)
+        run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
+        run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
+        run_stage_with_recovery(
+            stage_9_drive_upload, ctx, "drive_upload",
+            fallback_fn=fallback_drive_upload_skip
+        )
 
         # Log cost summary
         cost_summary = ctx.get_cost_summary()
@@ -316,33 +343,45 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
         try:
             # Run pipeline stages for this interpretation
             # Skip stage_0 (already initialized) and stage_1 (already planned)
-            stage_2_research_mapping(ctx)
-            stage_3_source_shortlist(ctx)
-            stage_3_5_quality_gate(ctx)
+            run_stage_with_recovery(stage_2_research_mapping, ctx, "research_mapping", critical=True)
+            run_stage_with_recovery(stage_3_source_shortlist, ctx, "source_shortlist", critical=True)
+            run_stage_with_recovery(stage_3_5_quality_gate, ctx, "quality_gate")
 
-            # Collection stages
+            # Collection stages - with fallbacks
             if enable_parallel:
                 run_collection_stages_parallel(ctx)
             else:
-                stage_4_youtube_enumeration(ctx)
-                stage_5_transcripts(ctx)
-                stage_6_web_capture(ctx)
-                stage_6_5_reddit(ctx)
+                run_stage_with_recovery(
+                    stage_4_youtube_enumeration, ctx, "youtube_enumeration",
+                    fallback_fn=fallback_youtube_skip
+                )
+                run_stage_with_recovery(
+                    stage_5_transcripts, ctx, "transcripts",
+                    fallback_fn=fallback_transcripts_skip
+                )
+                run_stage_with_recovery(
+                    stage_6_web_capture, ctx, "web_capture",
+                    fallback_fn=fallback_web_capture_skip
+                )
+                run_stage_with_recovery(
+                    stage_6_5_reddit, ctx, "reddit",
+                    fallback_fn=fallback_reddit_skip
+                )
 
             # Extraction
-            stage_7_extraction(ctx)
+            run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
 
             # Extraction stages
             if enable_parallel:
                 run_extraction_stages_parallel(ctx)
             else:
-                stage_7_5_timeline(ctx)
-                stage_7_6_entities(ctx)
-                stage_8_validation(ctx)
+                run_stage_with_recovery(stage_7_5_timeline, ctx, "timeline_extraction")
+                run_stage_with_recovery(stage_7_6_entities, ctx, "entity_extraction")
+                run_stage_with_recovery(stage_8_validation, ctx, "validation")
 
             # Synthesis
-            stage_8_5_angle_discovery(ctx)
-            stage_8_6_documentary_intelligence(ctx)
+            run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
+            run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
 
             all_results.append({
                 "label": label,
@@ -361,7 +400,10 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
             })
 
     # Upload combined results
-    stage_9_drive_upload(ctx)
+    run_stage_with_recovery(
+        stage_9_drive_upload, ctx, "drive_upload",
+        fallback_fn=fallback_drive_upload_skip
+    )
 
     # Log cost summary
     cost_summary = ctx.get_cost_summary()

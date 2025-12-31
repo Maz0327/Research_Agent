@@ -1,0 +1,82 @@
+# True Crime Niche Configuration
+# Crime cases, investigations, cold cases, court proceedings
+#
+# Use case: Researching criminal cases, investigations, legal proceedings
+# Priority: Video (documentaries), news (court coverage), official (court records)
+
+niche:
+  name: true_crime
+  description: "Case analysis, investigation details, court proceedings, evidence review"
+
+  # Additional queries appended to mode queries
+  # {topic} is replaced with the research topic
+  query_additions:
+    - "{topic} case timeline"
+    - "{topic} investigation"
+    - "{topic} evidence"
+    - "{topic} court documents"
+    - "{topic} trial"
+    - "{topic} verdict"
+    - "{topic} documentary"
+    - "{topic} cold case"
+    - "{topic} suspect"
+    - "{topic} witness"
+
+  # Override source floors for this niche
+  # Higher video (documentaries) and news (court coverage)
+  source_floors:
+    web: 2
+    news: 5        # Court coverage, journalism
+    video: 5       # True crime documentaries
+    academic: 1    # Forensic research
+    discussion: 2  # True crime communities
+
+  # Synthesis configuration
+  synthesis:
+    case_timeline: true           # Chronological events
+    evidence_summary: true        # Key evidence points
+    court_proceedings: true       # Legal process details
+    multiple_theories: true       # Alternative theories if unsolved
+
+  # Output format style
+  narrative_format: case_file
+
+  # Priority keywords for relevance scoring
+  priority_keywords:
+    - case
+    - investigation
+    - evidence
+    - trial
+    - court
+    - verdict
+    - suspect
+    - victim
+    - witness
+    - detective
+    - forensic
+    - cold case
+    - solved
+    - unsolved
+    - documentary
+    - timeline
+
+  # Domain preferences for this niche
+  preferred_domains:
+    - youtube.com
+    - reddit.com
+    - wikipedia.org
+    - courtlistener.com
+    - pacer.uscourts.gov
+    - cnn.com
+    - nbcnews.com
+    - cbsnews.com
+    - apnews.com
+    - crime-museum.org
+
+  # Suggested subreddits for true crime research
+  suggested_subreddits:
+    - TrueCrime
+    - UnresolvedMysteries
+    - TrueCrimeDiscussion
+    - serialpodcast
+    - coldcases

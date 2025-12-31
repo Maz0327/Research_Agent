@@ -1,0 +1,83 @@
+# Political Niche Configuration
+# Politics, policy, elections, government, legislation
+#
+# Use case: Researching political figures, policy analysis, election coverage
+# Priority: News (journalism), academic (think tanks), balanced perspectives
+
+niche:
+  name: political
+  description: "Policy analysis, political coverage, balanced perspectives, fact-checking"
+
+  # Additional queries appended to mode queries
+  # {topic} is replaced with the research topic
+  query_additions:
+    - "{topic} policy analysis"
+    - "{topic} fact check"
+    - "{topic} voting record"
+    - "{topic} legislation"
+    - "{topic} criticism"
+    - "{topic} support"
+    - "{topic} timeline"
+    - "{topic} impact"
+    - "{topic} debate"
+    - "{topic} opposition view"
+
+  # Override source floors for this niche
+  # Higher news (journalism) and academic (think tanks)
+  source_floors:
+    web: 2
+    news: 6        # Journalism is critical
+    video: 2       # Speeches, debates
+    academic: 3    # Think tanks, research
+    discussion: 1  # Political forums
+
+  # Synthesis configuration
+  synthesis:
+    multiple_perspectives: true   # Left/right/center views
+    fact_check_integration: true  # Note fact-checked claims
+    voting_record: true           # Include if available
+    policy_impact: true           # Real-world effects
+
+  # Output format style
+  narrative_format: policy_analysis
+
+  # Priority keywords for relevance scoring
+  priority_keywords:
+    - policy
+    - legislation
+    - vote
+    - election
+    - campaign
+    - debate
+    - fact check
+    - analysis
+    - impact
+    - opposition
+    - support
+    - bipartisan
+    - partisan
+    - congress
+    - senate
+
+  # Domain preferences for this niche
+  preferred_domains:
+    - youtube.com
+    - c-span.org
+    - congress.gov
+    - politifact.com
+    - factcheck.org
+    - reuters.com
+    - apnews.com
+    - npr.org
+    - pbs.org
+    - brookings.edu
+    - cfr.org
+    - pewresearch.org
+
+  # Suggested subreddits for political research
+  suggested_subreddits:
+    - NeutralPolitics
+    - PoliticalDiscussion
+    - Ask_Politics
+    - geopolitics
+    - moderatepolitics
