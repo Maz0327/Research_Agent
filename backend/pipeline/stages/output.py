@@ -2,6 +2,7 @@
 from loguru import logger
 
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.formats import ExportManager
 from backend.state import get_job, update_job
 from .helpers import post_slack_message
 
@@ -38,6 +39,24 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
             doc_contents["10_NOTEBOOKLM_PACKET"] = ctx.outputs["notebooklm_packet_md"]
         if ctx.outputs.get("documentary_blueprint_md"):
             doc_contents["11_DOCUMENTARY_BLUEPRINT"] = ctx.outputs["documentary_blueprint_md"]
+
+        # Generate new format exports
+        try:
+            export_manager = ExportManager()
+            research_data = export_manager.gather_research_data(ctx)
+
+            # Add structured exports
+            doc_contents["12_RESEARCH_DATA.json"] = export_manager.to_json(research_data)
+            doc_contents["13_CITATIONS.bib"] = export_manager.to_bibtex(research_data)
+            doc_contents["14_CHAPTERS.json"] = export_manager.to_chapters(research_data)
+            doc_contents["15_CLIPS.json"] = export_manager.to_clips(research_data)
+            doc_contents["16_SOCIAL_KIT.json"] = export_manager.to_social(research_data)
+            doc_contents["17_RESEARCH_BRIEF.md"] = export_manager.to_brief(research_data)
+
+            logger.info(f"[{ctx.job_id}] Generated 6 new export formats")
+        except Exception as e:
+            logger.warning(f"[{ctx.job_id}] Export generation failed: {e}")
+            ctx.add_warning(f"Export generation failed: {str(e)}")
 
         # Generate folder name with optional interpretation prefix
         base_name = ctx.job_config.output.drive_folder_name or ctx.short_title or ctx.job_config.topic
