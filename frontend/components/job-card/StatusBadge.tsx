@@ -8,7 +8,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  // Fallback to queued for unknown statuses
+  const config = statusConfig[status] || statusConfig.queued;
 
   return (
     <span
