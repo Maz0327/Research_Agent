@@ -54,8 +54,8 @@ export const VALIDATION_LIMITS = {
   MAX_USERNAME_LENGTH: 30,
   /** Minimum username length */
   MIN_USERNAME_LENGTH: 3,
-  /** Maximum prompt/topic length */
-  MAX_PROMPT_LENGTH: 500,
+  /** Maximum prompt/topic length (backend enforces 2000) */
+  MAX_PROMPT_LENGTH: 2000,
   /** Maximum transcript jobs */
   MAX_TRANSCRIPT_JOBS: 50,
 } as const;

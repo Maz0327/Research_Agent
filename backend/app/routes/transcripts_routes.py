@@ -69,7 +69,8 @@ async def extract_transcripts(
         job = create_job(config_json=config_json)
         logger.info(f"Created async transcript job {job.job_id} for {video_count} videos")
 
-        run_transcript_job.delay(job.job_id)
+        # Use deterministic task_id for reliable revocation
+        run_transcript_job.apply_async((job.job_id,), task_id=job.job_id)
 
         return TranscriptAsyncResponse(
             job_id=job.job_id,

@@ -109,12 +109,12 @@ async def create_job_endpoint(
     # Validate and clean prompt
     prompt = job_request.prompt.strip()
     if not prompt:
-        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+        raise HTTPException(status_code=422, detail="Prompt cannot be empty")
 
     # Validate prompt length
     if len(prompt) > MAX_PROMPT_LENGTH:
         raise HTTPException(
-            status_code=400,
+            status_code=422,
             detail=f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters"
         )
 
@@ -149,7 +149,7 @@ async def create_job_endpoint(
                 }
             )
             raise HTTPException(
-                status_code=400,
+                status_code=422,
                 detail=f"Invalid options: {', '.join(sorted(invalid_keys))}. "
                        f"Allowed options: {', '.join(sorted(ALLOWED_JOB_OPTIONS))}"
             )
@@ -160,7 +160,7 @@ async def create_job_endpoint(
                 validated_subreddits = _validate_subreddits(job_request.options["custom_subreddits"])
                 job_request.options["custom_subreddits"] = validated_subreddits
             except ValueError as e:
-                raise HTTPException(status_code=400, detail=str(e))
+                raise HTTPException(status_code=422, detail=str(e))
 
         config_json.update(job_request.options)
 
@@ -189,7 +189,8 @@ async def create_job_endpoint(
 
     # Enqueue Celery task
     logger.info(f"Enqueuing research job {job.job_id} for prompt: {prompt[:50]}...")
-    run_research_job.delay(job.job_id, prompt)
+    # Use job_id as Celery task_id to enable reliable cancellation
+    run_research_job.apply_async((job.job_id, prompt), task_id=job.job_id)
 
     return CreateJobResponse(job_id=job.job_id)
 
@@ -212,12 +213,12 @@ async def preview_job_endpoint(
 
     prompt = preview_request.prompt.strip()
     if not prompt:
-        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+        raise HTTPException(status_code=422, detail="Prompt cannot be empty")
 
     # Validate prompt length
     if len(prompt) > MAX_PROMPT_LENGTH:
         raise HTTPException(
-            status_code=400,
+            status_code=422,
             detail=f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters"
         )
 
@@ -578,7 +579,8 @@ async def select_interpretation(
 
     # Re-enqueue Celery task
     logger.info(f"Re-enqueuing job {job_id} with {len(indices)} selected interpretations")
-    run_research_job.delay(job_id, prompt)
+    # Use deterministic task_id for reliable revocation
+    run_research_job.apply_async((job_id, prompt), task_id=job_id)
 
     # Audit log
     selected_labels = [job.interpretations[i].get("label", f"#{i}") for i in indices]

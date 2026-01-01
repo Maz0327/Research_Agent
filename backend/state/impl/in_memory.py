@@ -11,7 +11,7 @@ from typing import Optional
 
 from loguru import logger
 
-from backend.models.job_record import Artifacts, JobRecord
+from backend.models.job_record import Artifacts, JobRecord, Outputs
 from backend.state.interface import JobStore
 
 
@@ -110,12 +110,16 @@ class InMemoryJobStore(JobStore):
 
             # Merge partial outputs
             if partial_outputs:
+                if job.outputs is None:
+                    job.outputs = Outputs()
                 for key, value in partial_outputs.items():
                     if hasattr(job.outputs, key) and value is not None:
                         setattr(job.outputs, key, value)
 
             # Merge partial artifacts
             if partial_artifacts:
+                if job.artifacts is None:
+                    job.artifacts = Artifacts()
                 for key, value in partial_artifacts.items():
                     if hasattr(job.artifacts, key) and value is not None:
                         setattr(job.artifacts, key, value)
@@ -145,4 +149,3 @@ class InMemoryJobStore(JobStore):
         end = offset + limit
 
         return jobs[start:end]
-

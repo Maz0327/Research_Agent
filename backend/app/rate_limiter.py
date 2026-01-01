@@ -5,9 +5,36 @@ imported by route modules to apply rate limiting decorators.
 """
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from typing import Optional
 
-# Initialize rate limiter with IP-based key function
-limiter = Limiter(key_func=get_remote_address)
+
+def rate_limit_key(request) -> str:
+    """Derive a fair rate-limit key.
+
+    Preference order:
+    - Authenticated user_id (prevents users behind same IP from throttling each other)
+    - X-Forwarded-For first IP (when behind proxies)
+    - Client IP
+    - Fallback string
+    """
+    # Prefer authenticated user when available
+    user_id: Optional[str] = getattr(request.state, "user_id", None)
+    if user_id:
+        return f"user:{user_id}"
+
+    # Respect proxy headers if present
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        ip = xff.split(",")[0].strip()
+        if ip:
+            return f"ip:{ip}"
+
+    # Fall back to SlowAPI's remote address helper
+    client_ip = get_remote_address(request)
+    return f"ip:{client_ip}" if client_ip else "anonymous"
+
+# Initialize rate limiter with custom key function
+limiter = Limiter(key_func=rate_limit_key)
 
 # Rate limit constants for different operations
 RATE_LIMITS = {

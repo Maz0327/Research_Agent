@@ -51,6 +51,12 @@ async def get_current_user(
 
     try:
         user = verify_jwt(token)
+        # Make user_id available to request state for rate limiting
+        try:
+            if request is not None:
+                request.state.user_id = user.user_id
+        except Exception:
+            pass
         logger.info(
             "Authentication successful",
             extra={
@@ -78,6 +84,7 @@ async def get_current_user(
 
 async def get_optional_user(
     authorization: Optional[str] = Header(None),
+    request: Request = None,
 ) -> Optional[AuthUser]:
     """
     FastAPI dependency to optionally get the current user.
@@ -103,7 +110,13 @@ async def get_optional_user(
         return None
 
     try:
-        return verify_jwt(token)
+        user = verify_jwt(token)
+        try:
+            if request is not None and user is not None:
+                request.state.user_id = user.user_id
+        except Exception:
+            pass
+        return user
     except AuthError:
         # For optional auth, we silently return None on errors
         return None

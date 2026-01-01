@@ -6,7 +6,7 @@ that combines authentication with ban checking.
 """
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Header
+from fastapi import Depends, HTTPException, Header, Request
 from loguru import logger
 from supabase import create_client, Client
 
@@ -71,6 +71,7 @@ async def check_user_banned(user_id: str) -> bool:
 
 async def get_active_user(
     authorization: Optional[str] = Header(None),
+    request: Request = None,
 ) -> AuthUser:
     """
     FastAPI dependency to get authenticated user and verify not banned.
@@ -110,6 +111,13 @@ async def get_active_user(
             headers={"WWW-Authenticate": "Bearer"} if e.status_code == 401 else None,
         )
 
+    # Expose user_id for rate limiting
+    try:
+        if request is not None:
+            request.state.user_id = user.user_id
+    except Exception:
+        pass
+
     # Check if user is banned
     if await check_user_banned(user.user_id):
         raise HTTPException(
@@ -122,6 +130,7 @@ async def get_active_user(
 
 async def get_optional_active_user(
     authorization: Optional[str] = Header(None),
+    request: Request = None,
 ) -> Optional[AuthUser]:
     """
     FastAPI dependency to optionally get active (non-banned) user.
@@ -150,6 +159,11 @@ async def get_optional_active_user(
 
     try:
         user = verify_jwt(token)
+        try:
+            if request is not None and user is not None:
+                request.state.user_id = user.user_id
+        except Exception:
+            pass
     except AuthError:
         return None
 

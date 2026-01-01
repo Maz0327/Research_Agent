@@ -95,7 +95,8 @@ async def slack_command(
         f"for topic: {text}"
     )
     
-    run_research_job.delay(job.job_id, text, slack_payload=slack_payload)
+    # Use job_id as Celery task_id for reliable cancellation from admin tools
+    run_research_job.apply_async((job.job_id, text), {"slack_payload": slack_payload}, task_id=job.job_id)
     
     # Return immediate response (must be within 3 seconds)
     return {
