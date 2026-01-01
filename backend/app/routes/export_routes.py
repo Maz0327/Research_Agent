@@ -75,23 +75,22 @@ async def export_job(
     Returns:
         Formatted export data with appropriate Content-Type
     """
-    logger.info(f"Export request: job={job_id}, format={format}, user={user.id}")
+    logger.info(f"Export request: job={job_id}, format={format}, user={user.user_id}")
 
-    # Fetch job
-    job = await get_job(job_id)
+    # Fetch job (sync function)
+    job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
     # Verify ownership
-    if job.get("user_id") != user.id:
+    if job.user_id != user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
 
     # Check job status
-    status = job.get("status", "")
-    if status not in ["completed", "completed_with_warnings"]:
+    if job.status not in ["completed", "completed_with_warnings"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Job not ready for export (status: {status})"
+            detail=f"Job not ready for export (status: {job.status})"
         )
 
     # Gather research data from job record
@@ -111,7 +110,8 @@ async def export_job(
 
     if download:
         ext = FILE_EXTENSIONS[format]
-        topic_slug = _slugify(job.get("topic", "research"))[:30]
+        topic = job.config_json.get("topic", "research") if job.config_json else "research"
+        topic_slug = _slugify(topic)[:30]
         filename = f"{topic_slug}_{format.value}.{ext}"
         headers["Content-Disposition"] = f'attachment; filename="{filename}"'
 
@@ -135,23 +135,22 @@ async def export_all_formats(
     Returns:
         JSON object with all exports
     """
-    logger.info(f"Export all request: job={job_id}, user={user.id}")
+    logger.info(f"Export all request: job={job_id}, user={user.user_id}")
 
-    # Fetch job
-    job = await get_job(job_id)
+    # Fetch job (sync function)
+    job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
     # Verify ownership
-    if job.get("user_id") != user.id:
+    if job.user_id != user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this job")
 
     # Check job status
-    status = job.get("status", "")
-    if status not in ["completed", "completed_with_warnings"]:
+    if job.status not in ["completed", "completed_with_warnings"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Job not ready for export (status: {status})"
+            detail=f"Job not ready for export (status: {job.status})"
         )
 
     # Gather and export
@@ -164,32 +163,50 @@ async def export_all_formats(
         logger.error(f"Export all generation failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate exports")
 
+    topic = job.config_json.get("topic", "") if job.config_json else ""
     return {
         "job_id": job_id,
-        "topic": job.get("topic", ""),
+        "topic": topic,
         "exports": exports,
     }
 
 
-def _extract_research_data(job: dict) -> dict:
-    """Extract research data from job record for export."""
-    # Get results from job
-    results = job.get("results", {}) or {}
+def _extract_research_data(job: "JobRecord") -> dict:
+    """Extract research data from JobRecord for export."""
+    from backend.models.job_record import JobRecord
+
+    # Get config and outputs from JobRecord
+    config = job.config_json or {}
+    outputs = job.outputs
+
+    # Build sources list from various JobRecord fields
+    sources = []
+    if job.reddit_posts:
+        for r in job.reddit_posts:
+            if isinstance(r, dict):
+                sources.append({
+                    "url": r.get("url", ""),
+                    "title": r.get("title", ""),
+                    "type": "social",
+                    "author": r.get("author"),
+                    "published_at": r.get("created_at"),
+                    "quality_score": r.get("quality_score", 0.5),
+                })
 
     return {
-        "job_id": job.get("id", ""),
-        "topic": job.get("topic", ""),
-        "mode": job.get("mode", "full"),
-        "category": job.get("niche") or job.get("category", "auto"),
-        "created_at": job.get("created_at"),
-        "claims": results.get("claims", []),
-        "entities": results.get("entities", {}),
-        "timeline_events": results.get("timeline", []) or results.get("timeline_events", []),
-        "sources": _gather_sources_from_results(results),
-        "validation_results": results.get("validation", []) or results.get("validation_results", []),
-        "documentary_analysis": results.get("documentary", {}) or results.get("documentary_analysis", {}),
-        "discovered_angles": results.get("angles", []) or results.get("discovered_angles", []),
-        "transcripts": results.get("transcripts", []),
+        "job_id": job.job_id,
+        "topic": config.get("topic", ""),
+        "mode": job.pipeline or config.get("mode", "full"),
+        "category": job.niche or config.get("category", "auto"),
+        "created_at": job.created_at,
+        "claims": config.get("claims", []),
+        "entities": job.entities or {},
+        "timeline_events": job.timeline_events or [],
+        "sources": sources,
+        "validation_results": config.get("validation_results", []),
+        "documentary_analysis": config.get("documentary_analysis", {}),
+        "discovered_angles": job.discovered_angles or [],
+        "transcripts": config.get("transcripts", []),
     }
 
 
