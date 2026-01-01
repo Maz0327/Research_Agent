@@ -7,6 +7,7 @@ This file provides guidance to Claude Code when working with Research Agent.
 Research Agent is an AI-powered documentary research assistant that aggregates content from multiple sources (Reddit, YouTube, web articles) and produces:
 1. **NotebookLM Packet** - Optimized for AI podcast generation
 2. **Documentary Blueprint** - Optimized for video production
+3. **Research Brief** - Human-readable analysis with evidence hierarchy (Jan 2026)
 
 **Status**: Production (Railway backend, Vercel frontend, Supabase database)
 
@@ -36,6 +37,21 @@ Research Agent is an AI-powered documentary research assistant that aggregates c
     ├── commands/              # Slash commands
     └── workflows/             # Development workflows
 ```
+
+## Export Formats (Jan 2026)
+
+| Format | Extension | Use Case |
+|--------|-----------|----------|
+| JSON | .json | Lossless data for AI pipelines |
+| BibTeX | .bib | Academic citations |
+| RIS | .ris | Reference manager import |
+| Chapters | .json | Podcast chapter markers |
+| YouTube Chapters | .txt | Video description timestamps |
+| Clips | .json | Short-form video suggestions |
+| Social | .json | Social media content kit |
+| Brief | .md | Human-readable research analysis |
+
+API: `GET /jobs/{id}/export?format=brief&download=true`
 
 ## Technology Stack
 

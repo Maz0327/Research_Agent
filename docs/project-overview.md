@@ -2,10 +2,12 @@
 
 ## What is Research Agent?
 
-Research Agent is an AI-powered documentary research assistant that replaces human researchers for content creators. It aggregates and analyzes content from multiple sources (Reddit, YouTube, web articles, etc.) and produces two outputs:
+Research Agent is an AI-powered documentary research assistant that replaces human researchers for content creators. It aggregates and analyzes content from multiple sources (Reddit, YouTube, web articles, etc.) and produces:
 
 1. **NotebookLM Packet** - Optimized for AI podcast generation
 2. **Documentary Blueprint** - Optimized for video production
+3. **Research Brief** - Human-readable analysis document (Jan 2026)
+4. **Export Formats** - JSON, BibTeX, chapters, clips, social kit
 
 ## Production Status
 
@@ -99,3 +101,18 @@ Planning → Discovery → Collection → Extraction → Synthesis → Output
 - **View Results Link**: Direct link to Google Drive folder
 - **Numbered Folders**: Multiple interpretations get numbered Drive folders
 - **Progress Tracking**: Real-time stage updates with ETA
+
+## Features (Jan 2026)
+
+### Export Format Stack
+- **Research Brief**: LLM-generated 2-5 page analysis with claims matrix, evidence levels
+- **Citation Exports**: BibTeX, RIS for academic use
+- **Chapter Markers**: YouTube timestamps, Podcast Chapters JSON
+- **Clip Suggestions**: Short-form video ideas from research
+- **Social Kit**: Pre-written social media content
+
+### Reliability Improvements
+- Rate limiter keys by user_id (not just IP)
+- Job cancellation works reliably (Celery task_id = job_id)
+- Validation errors return 422 (not 400)
+- Frontend/backend prompt limits aligned (2000 chars)

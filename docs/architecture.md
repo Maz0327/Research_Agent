@@ -1,7 +1,7 @@
 # System Architecture
 
-**Last Updated:** December 31, 2025
-**Status:** Production + Quality Gate Accuracy Improvements Deployed
+**Last Updated:** January 1, 2026
+**Status:** Production + Export Formats + Reliability Fixes
 
 ## Overview
 
@@ -37,6 +37,8 @@
 | DELETE | `/jobs/{id}` | Delete job (soft delete) |
 | POST | `/jobs/{id}/archive` | Archive completed job |
 | POST | `/jobs/{id}/select-interpretation` | Select disambiguation option |
+| GET | `/jobs/{id}/export` | Export job in specified format |
+| GET | `/jobs/{id}/export/all` | Export all formats at once |
 
 ### Celery Worker (`backend/worker.py`)
 - Async task processing
@@ -220,3 +222,33 @@ Jobs use soft deletion via status field:
 - Preview confirmation card with editable sources
 - Subreddit add/remove functionality
 - Job list with real-time refresh
+
+## Export System (Jan 2026)
+
+### Export Formats (`backend/pipeline/formats/`)
+- `json_export.py` - Lossless structured data
+- `citation_export.py` - BibTeX/RIS citations
+- `chapter_export.py` - Podcast/YouTube chapters
+- `clip_export.py` - Short-form video suggestions
+- `social_export.py` - Social media content kit
+- `brief_export.py` - Research Brief (LLM synthesis)
+- `export_manager.py` - Unified interface
+
+### Research Brief
+Uses Gemini 2.5 Pro with GPT-4o-mini fallback:
+- Claims matrix with evidence levels (VERIFIED/PROBABLE/SPECULATIVE/DISPUTED)
+- Key figures with roles and quotes
+- Timeline with source attribution
+- Multiple perspectives (mainstream/alternative/unexplored)
+
+### Rate Limiting (`backend/app/rate_limiter.py`)
+Key function priority:
+1. Authenticated user_id (prevents NAT throttling)
+2. X-Forwarded-For (proxy support)
+3. Client IP (fallback)
+
+### Bug Fixes (Jan 2026)
+- Celery `apply_async(task_id=job_id)` enables reliable cancellation
+- Validation errors return 422 (FastAPI convention)
+- In-memory store initializes models before merging
+- Frontend MAX_PROMPT_LENGTH = 2000 (matches backend)
