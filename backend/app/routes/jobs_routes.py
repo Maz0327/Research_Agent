@@ -598,3 +598,73 @@ async def select_interpretation(
         "job_id": job_id,
         "selected_interpretations": selected_labels,
     }
+
+
+@router.get("/usage/stats")
+@limiter.limit("30/minute")
+async def get_usage_stats(
+    request: Request,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Get API usage statistics for the authenticated user.
+
+    Returns aggregated costs from completed jobs and dashboard links.
+    """
+    # Fetch user's completed jobs
+    user_jobs = list_jobs(user_id=user.user_id, limit=100)
+
+    # Aggregate costs from completed jobs
+    total_costs = {
+        "openai": 0.0,
+        "perplexity": 0.0,
+        "whisper": 0.0,
+        "tavily": 0.0,
+        "total": 0.0,
+    }
+    jobs_with_costs = 0
+
+    for job in user_jobs:
+        if job.status != "completed":
+            continue
+
+        # Check for cost data in outputs
+        if job.outputs and hasattr(job.outputs, "__dict__"):
+            outputs_dict = job.outputs.__dict__ if hasattr(job.outputs, "__dict__") else {}
+        else:
+            outputs_dict = {}
+
+        # Cost summary may be stored in partial_outputs during completion
+        cost_summary = None
+        if hasattr(job, "config_json") and job.config_json:
+            cost_summary = job.config_json.get("cost_summary")
+
+        if cost_summary:
+            jobs_with_costs += 1
+            costs_by_api = cost_summary.get("costs_by_api", {})
+            for api, cost in costs_by_api.items():
+                if "openai" in api.lower():
+                    total_costs["openai"] += cost
+                elif "perplexity" in api.lower():
+                    total_costs["perplexity"] += cost
+                elif "whisper" in api.lower():
+                    total_costs["whisper"] += cost
+                elif "tavily" in api.lower():
+                    total_costs["tavily"] += cost
+            total_costs["total"] += cost_summary.get("total_cost", 0.0)
+
+    # External dashboard links
+    dashboards = {
+        "openai": "https://platform.openai.com/usage",
+        "perplexity": "https://www.perplexity.ai/settings/api",
+        "google_cloud": "https://console.cloud.google.com/apis/dashboard",
+        "supabase": "https://supabase.com/dashboard/project/_/settings/billing",
+    }
+
+    return {
+        "total_jobs": len([j for j in user_jobs if j.status == "completed"]),
+        "jobs_with_cost_tracking": jobs_with_costs,
+        "estimated_costs": {k: round(v, 4) for k, v in total_costs.items()},
+        "dashboards": dashboards,
+        "note": "Cost estimates are approximations. Check provider dashboards for exact usage.",
+    }
