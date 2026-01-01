@@ -38,7 +38,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
   const [isExpanded, setIsExpanded] = useState(false);
   const canSelect = !['running', 'queued'].includes(job.status);
 
-  const config = statusConfig[job.status];
+  // Fallback to queued config for unknown statuses (e.g., deleted, archived)
+  const config = statusConfig[job.status] || statusConfig.queued;
   const pipelineLabel = pipelineLabels[job.pipeline] || job.pipeline;
 
   const { eta, elapsed, stageDescription } = useETA({
