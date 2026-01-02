@@ -120,8 +120,8 @@ def _chunk_transcript_text(text: str):
         chunk_text = " ".join(words[start:end])
         yield (chunk_text, start, end)
 
-        # Overlap by ~100 words (reduced from 200 to save memory)
-        start = end - 100
+        # Overlap by ~150 words to reduce boundary losses
+        start = end - 150
         if start >= total_words:
             break
 
@@ -156,8 +156,8 @@ def _chunk_web_text(text: str):
         chunk_text = " ".join(words[start:end])
         yield (chunk_text, start, end)
 
-        # Overlap by ~100 words (reduced from 200 to save memory)
-        start = end - 100
+        # Overlap by ~150 words to reduce boundary losses
+        start = end - 150
         if start >= total_words:
             break
 
@@ -231,8 +231,10 @@ def _extract_claim_candidates(chunk_text: str) -> list[dict]:
             score += 2
             reasons.append("entities")
         
-        # Minimum score threshold (raised from 3 to 4 to reduce LLM calls ~30%)
-        if score >= 4:
+        # Minimum score threshold
+        # NOTE: Was raised to 4 in Dec 2025 but caused 0 claims extracted
+        # Reverted to 3 in Jan 2026 to restore functionality
+        if score >= 3:
             candidates.append({
                 "text": sentence,
                 "score": score,
@@ -397,7 +399,7 @@ Return JSON array of Claim objects. Each claim must have verbatim_quote that exa
                 if "claim_id" not in claim_data:
                     claim_data["claim_id"] = f"claim_{uuid.uuid4().hex[:8]}"
                 
-                # Validate verbatim_quote is exact substring (HARD REQUIREMENT)
+                # Validate verbatim_quote presence in chunk (relaxed)
                 verbatim = claim_data.get("verbatim_quote")
                 if verbatim:
                     # First try exact match
@@ -411,9 +413,16 @@ Return JSON array of Claim objects. Each claim must have verbatim_quote that exa
                             # Update verbatim_quote to normalized version for consistency
                             claim_data["verbatim_quote"] = verbatim_normalized
                         else:
-                            # Not found even after normalization - DISCARD (hard requirement)
-                            logger.warning(f"verbatim_quote not found in chunk (even after normalization), discarding: {verbatim[:50]}...")
-                            continue
+                            # Try relaxed sentence match
+                            score, best = _find_best_sentence_match(verbatim, chunk_text)
+                            if score >= 0.88 and best:
+                                claim_data["verbatim_quote"] = best
+                            else:
+                                # Keep claim but drop verbatim quote (will rely on canonical_claim + citations)
+                                logger.debug(
+                                    f"verbatim_quote not found (score={score:.2f}); keeping claim without quote"
+                                )
+                                claim_data["verbatim_quote"] = None
                 
                 # Build Citation if URL provided
                 if "citations" not in claim_data or not claim_data["citations"]:
@@ -474,6 +483,28 @@ def _similarity_score(text1: str, text2: str) -> float:
         jaccard = min(1.0, jaccard + substring_bonus)
     
     return jaccard
+
+
+def _find_best_sentence_match(needle: str, haystack: str) -> tuple[float, str | None]:
+    """Find the most similar sentence to `needle` within `haystack`.
+
+    Returns (score, sentence). Score is 0.0-1.0 using the same metric as _similarity_score
+    with a small substring bonus if one contains the other.
+    """
+    sentences = re.split(r'[.!?\n]+', haystack)
+    best_score = 0.0
+    best_sentence: str | None = None
+    for s in sentences:
+        s_clean = s.strip()
+        if not s_clean:
+            continue
+        score = _similarity_score(needle, s_clean)
+        if needle.lower() in s_clean.lower() or s_clean.lower() in needle.lower():
+            score = min(1.0, score + 0.1)
+        if score > best_score:
+            best_score = score
+            best_sentence = s_clean
+    return best_score, best_sentence
 
 
 def _dedupe_claims_minhash(claims: list[Claim], threshold: float = 0.7) -> list[Claim]:
@@ -973,4 +1004,3 @@ def _generate_claims_ledger_md(claims: list[Claim]) -> str:
         lines.append(f"| {claim_id} | {canonical} | {claim_type} | {entities} | {confidence} | {citation_count} |")
     
     return "\n".join(lines)
-
