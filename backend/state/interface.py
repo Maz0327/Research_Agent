@@ -1,8 +1,29 @@
 """Job storage interface."""
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 
 from backend.models.job_record import Artifacts, JobRecord
+
+
+def safe_merge(target: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+    """Merge updates into target dict, skipping None values.
+
+    This ensures consistent behavior between in-memory and Supabase stores:
+    - None values in updates are ignored (don't overwrite existing values)
+    - Non-None values are merged into target
+
+    Args:
+        target: Base dict to merge into (not modified)
+        updates: Dict with updates to apply
+
+    Returns:
+        New merged dict
+    """
+    result = dict(target)
+    for key, value in updates.items():
+        if value is not None:
+            result[key] = value
+    return result
 
 
 class JobStore(ABC):

@@ -5,6 +5,11 @@ import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
 import { API_URL } from '../lib/constants';
 
+// Phase 3 types - import from job-card components
+import type { ContentBlueprint } from '../components/job-card/ContentBlueprintView';
+import type { GapAnalysis } from '../components/job-card/GapAnalysisView';
+import type { ResearchStarter } from '../components/job-card/ResearchStarterView';
+
 /**
  * Interpretation represents a possible meaning of an ambiguous topic.
  */
@@ -97,6 +102,13 @@ export interface JobArtifacts {
   };
   /** Whether producer packet passed quality gate */
   quality_gate_passed?: boolean;
+  // Phase 3: Full Research Assistant Pipeline (Jan 2026)
+  /** Content Blueprints - structure analysis per video */
+  content_blueprints?: ContentBlueprint[];
+  /** Gap Analysis - cross-video gaps, missing perspectives */
+  gap_analysis?: GapAnalysis;
+  /** Research Starter - actionable queries and content angles */
+  research_starter?: ResearchStarter;
 }
 
 /**

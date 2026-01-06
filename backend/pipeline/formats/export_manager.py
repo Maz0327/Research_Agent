@@ -13,6 +13,10 @@ from backend.pipeline.formats.chapter_export import ChapterExporter, ChapterMark
 from backend.pipeline.formats.clip_export import ClipExporter, ClipSuggestion
 from backend.pipeline.formats.social_export import SocialExporter, SocialContentKit
 from backend.pipeline.formats.brief_export import BriefExporter, ResearchBrief
+from backend.pipeline.dual_output import (
+    ProducerPacket,
+    create_producer_packet_from_gemini,
+)
 
 
 class ExportManager:
@@ -235,6 +239,64 @@ class ExportManager:
             validation_results=data.get("validation_results", []),
             discovered_angles=data.get("discovered_angles", []),
         )
+
+    # -------------------------------------------------------------------------
+    # Producer Packet Exports (Phase 2)
+    # -------------------------------------------------------------------------
+
+    def to_producer_packet(
+        self,
+        gemini_results: dict,
+        title: str,
+        transcripts: Optional[dict] = None,
+    ) -> str:
+        """Generate Producer Packet as JSON from Gemini results.
+
+        Phase 2: Grounded extraction output for video production.
+
+        Args:
+            gemini_results: Output from GeminiClient.analyze_youtube_videos_batch()
+            title: Research title
+            transcripts: Optional dict of {video_url: transcript_text}
+
+        Returns:
+            JSON string of ProducerPacket
+        """
+        import json
+        packet = self.get_producer_packet(gemini_results, title, transcripts)
+        return json.dumps(packet.to_dict(), indent=2)
+
+    def get_producer_packet(
+        self,
+        gemini_results: dict,
+        title: str,
+        transcripts: Optional[dict] = None,
+    ) -> ProducerPacket:
+        """Get Producer Packet object from Gemini results.
+
+        Args:
+            gemini_results: Output from GeminiClient.analyze_youtube_videos_batch()
+            title: Research title
+            transcripts: Optional dict of {video_url: transcript_text}
+
+        Returns:
+            ProducerPacket with clips, quotes, verification status
+        """
+        return create_producer_packet_from_gemini(
+            gemini_results=gemini_results,
+            title=title,
+            transcripts=transcripts,
+        )
+
+    def to_producer_packet_markdown(
+        self,
+        gemini_results: dict,
+        title: str,
+        transcripts: Optional[dict] = None,
+    ) -> str:
+        """Generate Producer Packet as Markdown."""
+        packet = self.get_producer_packet(gemini_results, title, transcripts)
+        return packet.to_markdown()
 
     # -------------------------------------------------------------------------
     # All Exports at Once

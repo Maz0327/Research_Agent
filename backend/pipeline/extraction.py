@@ -295,6 +295,10 @@ def _normalize_claim_response(claim_data: dict) -> dict:
                 normalized["canonical_claim"] = normalized.pop(alt_name)
                 break
 
+    # Fallback: use verbatim_quote if canonical_claim still missing
+    if "canonical_claim" not in normalized and normalized.get("verbatim_quote"):
+        normalized["canonical_claim"] = normalized["verbatim_quote"]
+
     # Normalize entities - convert from structured to simple list
     if "entities" in normalized:
         entities = normalized["entities"]

@@ -16,6 +16,20 @@ class Artifacts(BaseModel):
     producer_packet: Optional[dict[str, Any]] = Field(None, description="Full ProducerPacket for video production")
     quality_gate_passed: Optional[bool] = Field(None, description="Whether ProducerPacket passed quality gate")
 
+    # Phase 3: Full Research Assistant Pipeline (Jan 2026)
+    # Pass 2: Content Blueprints - structure analysis per video
+    content_blueprints: Optional[list[dict[str, Any]]] = Field(
+        None, description="ContentBlueprint per video (hook, structure, open loops, sources)"
+    )
+    # Pass 3: Gap Analysis - cross-video gaps
+    gap_analysis: Optional[dict[str, Any]] = Field(
+        None, description="GapAnalysis (missing perspectives, unanswered questions, contradictions)"
+    )
+    # Pass 4: Research Starter - actionable next steps
+    research_starter: Optional[dict[str, Any]] = Field(
+        None, description="ResearchStarter (search queries, source suggestions, content angles)"
+    )
+
 
 class Outputs(BaseModel):
     """Research outputs as markdown files."""

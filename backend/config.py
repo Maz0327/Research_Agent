@@ -484,3 +484,38 @@ def require_reddit() -> Settings:
             "Please set it in your .env file."
         )
     return settings
+
+
+# === STARTUP VALIDATION ===
+
+
+def validate_jwt_config() -> tuple[bool, str]:
+    """
+    Validate JWT configuration at startup.
+
+    Returns tuple of (is_valid, message).
+    - If Supabase is not configured, returns (True, "Supabase not configured - JWT auth disabled")
+    - If Supabase is configured but JWT secret missing, returns (False, error_message)
+    - If all valid, returns (True, "JWT configuration valid")
+    """
+    settings = get_settings()
+
+    # If Supabase is not configured at all, JWT auth is disabled (valid)
+    if not settings.supabase_url:
+        return True, "Supabase not configured - JWT auth disabled (in-memory mode)"
+
+    # If Supabase is configured, JWT secret is required
+    if not settings.supabase_jwt_secret:
+        return False, (
+            "SUPABASE_JWT_SECRET is required when SUPABASE_URL is set. "
+            "Get it from Supabase Dashboard > Settings > API > JWT Settings."
+        )
+
+    # Check audience is set (has default, but warn if non-standard)
+    if settings.supabase_jwt_audience != "authenticated":
+        logger.warning(
+            f"Non-standard JWT audience: {settings.supabase_jwt_audience}. "
+            "Ensure this matches your Supabase configuration."
+        )
+
+    return True, f"JWT configuration valid (audience: {settings.supabase_jwt_audience})"

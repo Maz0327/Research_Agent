@@ -593,22 +593,28 @@ def run_transcript_job(job_id: str) -> dict:
 )
 def run_gemini_video_job(job_id: str) -> dict:
     """
-    Celery task for Gemini video extraction.
+    Celery task for Full Research Assistant Pipeline.
 
-    Phase 1.5 features:
+    Phase 3 (Jan 2026) - 4-Pass Analysis:
+    - Pass 1: Extraction (clips, quotes) → ProducerPacket
+    - Pass 2: Structure Analysis → ContentBlueprint per video
+    - Pass 3: Gap Analysis → Missing perspectives, unanswered questions
+    - Pass 4: Research Starter → Actionable search queries, source suggestions
+
+    Features:
     - Per-video error handling (partial failures don't kill job)
-    - Per-video progress updates (frontend shows "Processing video 2/5")
+    - Per-pass progress updates (frontend shows "Pass 2/4: Analyzing structure...")
     - Extended timeout (30 min for long videos)
 
     Args:
         job_id: Unique identifier for the video extraction job
 
     Returns:
-        Dict with job_id, status, clips, quotes, and errors
+        Dict with job_id, status, all pipeline outputs, and errors
     """
     from backend.integrations.gemini_client import GeminiClient
 
-    logger.info(f"[{job_id}] Starting Gemini video extraction job")
+    logger.info(f"[{job_id}] Starting Full Research Assistant Pipeline")
 
     job = get_job(job_id)
     if not job:
@@ -617,6 +623,7 @@ def run_gemini_video_job(job_id: str) -> dict:
 
     video_urls = job.config_json.get("video_urls", [])
     model = job.config_json.get("model", "gemini-2.5-flash")
+    research_topic = job.config_json.get("title", "Video Research")
 
     if not video_urls:
         logger.error(f"[{job_id}] No video URLs provided")
@@ -630,106 +637,173 @@ def run_gemini_video_job(job_id: str) -> dict:
     update_job(
         job_id,
         status="running",
-        stage="gemini_extraction",
+        stage="pass_1_extraction",
         progress_percent=5,
     )
 
-    # Progress callback to update job status
-    def progress_callback(current: int, total: int, video_url: str, status: str):
-        progress = 5 + int((current / total) * 90)  # 5-95%
-        update_job(
-            job_id,
-            progress_percent=progress,
-            config_json={
-                **job.config_json,
-                "current_video": current,
-                "total_videos": total,
-                "current_video_url": video_url,
-                "current_video_status": status,
-            },
-        )
-        logger.info(f"[{job_id}] Video {current}/{total}: {status}")
+    # H-007: Progress callback with error handling
+    # H-003: Progress updated per video within each pass
+    def progress_callback(pass_num: int, total_passes: int, status: str, detail: str):
+        """Safe progress callback that won't crash the worker."""
+        try:
+            # Map progress: Pass 1 = 5-25%, Pass 2 = 25-50%, Pass 3 = 50-75%, Pass 4 = 75-95%
+            base_progress = 5 + ((pass_num - 1) / total_passes) * 90
+            progress = int(base_progress)
+
+            stage_names = {
+                1: "pass_1_extraction",
+                2: "pass_2_structure",
+                3: "pass_3_gaps",
+                4: "pass_4_research",
+            }
+
+            update_job(
+                job_id,
+                stage=stage_names.get(pass_num, f"pass_{pass_num}"),
+                progress_percent=progress,
+                config_json={
+                    **job.config_json,
+                    "current_pass": pass_num,
+                    "total_passes": total_passes,
+                    "pass_status": status,
+                    "pass_detail": detail,
+                },
+            )
+            logger.info(f"[{job_id}] Pass {pass_num}/{total_passes}: {detail}")
+        except Exception as e:
+            # H-007: Log but don't crash the worker
+            logger.warning(f"[{job_id}] Progress update failed: {e}")
 
     try:
         client = GeminiClient()
-        result = client.analyze_youtube_videos_batch(
+        result = client.run_full_analysis_pipeline(
             video_urls=video_urls,
+            research_topic=research_topic,
             model=model,
             progress_callback=progress_callback,
         )
 
         # Update job with results
         if result["status"] == "failed":
+            # H-013: Include pipeline_errors in warnings for visibility
+            all_warnings = [result.get("error", "Pipeline failed")]
+            all_warnings.extend(result.get("pipeline_errors", []))
             update_job(
                 job_id,
                 status="failed",
                 stage="error",
-                warnings=[e["error"] for e in result["errors"]],
+                warnings=all_warnings,
             )
-            return {"job_id": job_id, "status": "failed", "errors": result["errors"]}
+            return {"job_id": job_id, "status": "failed", "error": result.get("error")}
 
         # Generate ProducerPacket with quality gate
         from backend.pipeline.dual_output import create_producer_packet_from_gemini
         from backend.models.job_record import Artifacts
 
         title = job.config_json.get("title", f"Video Analysis {job_id[:8]}")
+
+        # Build batch result format for ProducerPacket
+        batch_result = {
+            "clips": result.get("clips", []),
+            "quotes": result.get("quotes", []),
+            "results": [],  # Videos info for packet
+            "total_cost": result.get("total_cost", 0),
+        }
+
         producer_packet = create_producer_packet_from_gemini(
-            gemini_results=result,
+            gemini_results=batch_result,
             title=title,
-            transcripts=None,  # Will be added in future phase
+            transcripts=None,
         )
 
         # Check quality gate
         passes_gate, gate_issues = producer_packet.passes_quality_gate()
-        warnings = [e["error"] for e in result["errors"]] if result["errors"] else []
+        warnings = []
+
+        if result.get("extraction_errors"):
+            warnings.extend([e.get("error", str(e)) for e in result["extraction_errors"]])
+        
+        # H-013: Include pipeline_errors in warnings
+        if result.get("pipeline_errors"):
+            warnings.extend(result["pipeline_errors"])
 
         if not passes_gate:
             warnings.extend([f"Quality gate: {issue}" for issue in gate_issues])
             logger.warning(f"[{job_id}] Quality gate not passed: {gate_issues}")
 
-        # Build artifacts with ProducerPacket
+        # M-008: Consistent dataclass serialization pattern using safe_to_dict
+        from backend.integrations.gemini_client import safe_to_dict
+        
+        content_blueprints_dicts = [
+            safe_to_dict(bp) for bp in result.get("content_blueprints", [])
+        ]
+        gap_analysis_dict = safe_to_dict(result.get("gap_analysis"))
+        research_starter_dict = safe_to_dict(result.get("research_starter"))
+
+        # Build artifacts with all pipeline outputs
         artifacts = Artifacts(
-            clips=result["clips"],
-            quotes=result["quotes"],
+            clips=result.get("clips", []),
+            quotes=result.get("quotes", []),
             producer_packet=producer_packet.to_dict(),
             quality_gate_passed=passes_gate,
+            # Phase 3 additions
+            content_blueprints=content_blueprints_dicts,
+            gap_analysis=gap_analysis_dict,
+            research_starter=research_starter_dict,
         )
 
+        # H-013: Determine appropriate final status based on warnings
+        final_status = "completed"
+        if result.get("status") == "completed_with_errors":
+            final_status = "completed_with_warnings"  # Downgrade to partial success
+        elif result.get("status") == "completed_with_warnings":
+            final_status = "completed_with_warnings"
+        elif warnings:
+            final_status = "completed_with_warnings"
+        
         update_job(
             job_id,
-            status="completed",
+            status=final_status,
             stage="completed",
             progress_percent=100,
             artifacts=artifacts,
             warnings=warnings if warnings else None,
         )
 
+        videos_processed = result.get("videos_processed", 0)
+        videos_failed = result.get("videos_failed", 0)
+        total_cost = result.get("total_cost", 0)
+
         logger.info(
-            f"[{job_id}] Gemini extraction completed: "
-            f"{result['videos_processed']} videos, "
-            f"{len(result['clips'])} clips, "
+            f"[{job_id}] Full pipeline completed: "
+            f"{videos_processed} videos, "
+            f"{len(result.get('clips', []))} clips, "
             f"{len(producer_packet.quotes)} quotes, "
+            f"{len(content_blueprints_dicts)} blueprints, "
             f"quality_gate={'PASS' if passes_gate else 'FAIL'}, "
-            f"${result['total_cost']:.4f}"
+            f"${total_cost:.4f}"
         )
 
         return {
             "job_id": job_id,
             "status": result["status"],
-            "clips": len(result["clips"]),
+            "clips": len(result.get("clips", [])),
             "quotes": len(producer_packet.quotes),
-            "videos_processed": result["videos_processed"],
-            "videos_failed": result["videos_failed"],
-            "total_cost": result["total_cost"],
+            "content_blueprints": len(content_blueprints_dicts),
+            "has_gap_analysis": gap_analysis_dict is not None,
+            "has_research_starter": research_starter_dict is not None,
+            "videos_processed": videos_processed,
+            "videos_failed": videos_failed,
+            "total_cost": total_cost,
             "quality_gate_passed": passes_gate,
         }
 
     except Exception as e:
-        logger.exception(f"[{job_id}] Gemini extraction failed: {e}")
+        logger.exception(f"[{job_id}] Full pipeline failed: {e}")
         update_job(
             job_id,
             status="failed",
             stage="error",
-            warnings=[f"Gemini extraction failed: {str(e)}"],
+            warnings=[f"Pipeline failed: {str(e)}"],
         )
         return {"job_id": job_id, "status": "failed", "error": str(e)}

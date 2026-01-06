@@ -63,7 +63,12 @@ class UserSettings(BaseModel):
     jobs_per_page: int = Field(default=10, ge=5, le=25)
     default_sort: SortOrder = SortOrder.NEWEST
     show_progress_details: bool = True
-    
+
+    # Webhook Settings
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
+    webhook_events: List[str] = Field(default_factory=list)  # Empty = all events
+
     # Metadata
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -97,6 +102,11 @@ class UserSettingsUpdate(BaseModel):
     jobs_per_page: Optional[int] = Field(default=None, ge=5, le=25)
     default_sort: Optional[SortOrder] = None
     show_progress_details: Optional[bool] = None
+
+    # Webhook Settings
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
+    webhook_events: Optional[List[str]] = None
 
     @field_validator('username')
     @classmethod
@@ -198,6 +208,11 @@ class UserSettingsResponse(BaseModel):
     default_sort: str = "newest"
     show_progress_details: bool = True
 
+    # Webhook Settings
+    webhook_url: Optional[str] = None
+    webhook_events: List[str] = Field(default_factory=list)
+    webhook_configured: bool = False  # True if webhook_url is set
+
     @classmethod
     def from_settings(cls, settings: UserSettings) -> "UserSettingsResponse":
         """Create response from UserSettings model."""
@@ -233,6 +248,9 @@ class UserSettingsResponse(BaseModel):
             jobs_per_page=settings.jobs_per_page,
             default_sort=settings.default_sort.value,
             show_progress_details=settings.show_progress_details,
+            webhook_url=settings.webhook_url,
+            webhook_events=settings.webhook_events,
+            webhook_configured=bool(settings.webhook_url),
         )
 
 

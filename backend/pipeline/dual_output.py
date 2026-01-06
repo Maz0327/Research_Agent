@@ -9,10 +9,27 @@ The NotebookLM packet is optimized for text-to-speech podcast creation,
 the Documentary Blueprint is for video scriptwriting,
 and the Producer Packet is raw grounded extraction for video editing.
 """
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TypedDict
 from dataclasses import dataclass, field
 from enum import Enum
 from loguru import logger
+
+
+# M-005: TypedDict definitions for structured claim data
+class VerifiedClaim(TypedDict):
+    """Structure for a claim that has a supporting quote."""
+    claim: str
+    quote_id: str  # Reference to ProducerQuote
+    confidence: str  # "high" | "medium" | "low"
+    source_video: str
+
+
+class CandidateClaim(TypedDict):
+    """Structure for a claim that has clip reference but no direct quote."""
+    claim: str
+    clip_id: str  # Reference to ProducerClip
+    timestamp: str
+    needs_verification: bool
 
 
 # =============================================================================
@@ -99,9 +116,9 @@ class ProducerPacket:
     videos_analyzed: List[Dict[str, Any]]  # Video metadata
     clips: List[ProducerClip] = field(default_factory=list)
     quotes: List[ProducerQuote] = field(default_factory=list)
-    # Split claims per ChatGPT refinement
-    verified_claims: List[Dict[str, Any]] = field(default_factory=list)  # Has quote
-    candidate_claims: List[Dict[str, Any]] = field(default_factory=list)  # Clip ref only
+    # M-005: Use TypedDict for structured claims
+    verified_claims: List[VerifiedClaim] = field(default_factory=list)  # Has supporting quote
+    candidate_claims: List[CandidateClaim] = field(default_factory=list)  # Clip ref only
     warnings: List[str] = field(default_factory=list)
     extraction_cost: float = 0.0
 
@@ -217,6 +234,435 @@ class ProducerPacket:
             ])
             for w in self.warnings:
                 lines.append(f"- ⚠️ {w}")
+
+        return "\n".join(lines)
+
+
+# =============================================================================
+# Phase 3: Full Research Assistant Pipeline - New Output Types
+# =============================================================================
+
+@dataclass
+class ActSection:
+    """A section/act in the video's narrative structure."""
+    name: str  # "Setup", "Conflict", "Resolution"
+    timestamp_start: str  # MM:SS
+    timestamp_end: str  # MM:SS
+    description: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "timestamp_start": self.timestamp_start,
+            "timestamp_end": self.timestamp_end,
+            "description": self.description,
+        }
+
+
+@dataclass
+class OpenLoop:
+    """A re-engagement point (open loop) in the video."""
+    timestamp: str
+    technique: str  # "question", "tease", "cliffhanger"
+    description: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "timestamp": self.timestamp,
+            "technique": self.technique,
+            "description": self.description,
+        }
+
+
+@dataclass
+class ContentBlueprint:
+    """Structure analysis of a video for reverse-engineering.
+
+    Phase 3: Helps creators understand what makes a video work.
+    Per-video analysis - not cross-video.
+    
+    H-013: Includes parse_error flag to signal incomplete/failed parsing.
+    """
+    video_url: str
+    title: str
+
+    # Hook Analysis (first 10-30 seconds)
+    # M-004: Renamed comment to clarify this is the END of the hook
+    hook_timestamp: str  # END timestamp of hook (start is always 0:00)
+    hook_technique: str  # "Pattern interrupt", "Provocative question", etc.
+    hook_description: str
+
+    # Narrative Structure
+    structure_type: str  # "3-act villain origin", "story circle", "problem-solution"
+    act_breakdown: List[ActSection] = field(default_factory=list)
+
+    # Re-engagement Points
+    open_loops: List[OpenLoop] = field(default_factory=list)
+
+    # Visual/Style
+    pacing: str = "medium"  # "high-energy", "lo-fi", "documentary"
+    editing_style: str = "standard"
+
+    # Source Tracing
+    likely_primary_sources: List[str] = field(default_factory=list)
+    referenced_materials: List[str] = field(default_factory=list)
+    
+    # H-013: Error tracking - True if LLM response parsing failed
+    parse_error: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "video_url": self.video_url,
+            "title": self.title,
+            "hook": {
+                "timestamp": self.hook_timestamp,
+                "technique": self.hook_technique,
+                "description": self.hook_description,
+            },
+            "narrative": {
+                "structure_type": self.structure_type,
+                "acts": [a.to_dict() for a in self.act_breakdown],
+            },
+            "open_loops": [o.to_dict() for o in self.open_loops],
+            "style": {
+                "pacing": self.pacing,
+                "editing_style": self.editing_style,
+            },
+            "sources": {
+                "likely_primary_sources": self.likely_primary_sources,
+                "referenced_materials": self.referenced_materials,
+            },
+            "parse_error": self.parse_error,
+        }
+
+    def to_markdown(self) -> str:
+        lines = [
+            f"# Content Blueprint: {self.title}",
+            f"**Video:** {self.video_url}",
+            "",
+            "## Hook Analysis",
+            f"**Timestamp:** 0:00 - {self.hook_timestamp}",
+            f"**Technique:** {self.hook_technique}",
+            f"**Description:** {self.hook_description}",
+            "",
+            "## Narrative Structure",
+            f"**Type:** {self.structure_type}",
+            "",
+        ]
+
+        for act in self.act_breakdown:
+            lines.append(f"### {act.name} [{act.timestamp_start} - {act.timestamp_end}]")
+            lines.append(act.description)
+            lines.append("")
+
+        lines.extend([
+            "## Re-engagement Points (Open Loops)",
+            "",
+        ])
+        for loop in self.open_loops:
+            lines.append(f"- **[{loop.timestamp}]** {loop.technique}: {loop.description}")
+
+        lines.extend([
+            "",
+            "## Visual Style",
+            f"- **Pacing:** {self.pacing}",
+            f"- **Editing:** {self.editing_style}",
+            "",
+            "## Likely Sources Used",
+        ])
+        for source in self.likely_primary_sources:
+            lines.append(f"- {source}")
+
+        if self.referenced_materials:
+            lines.extend([
+                "",
+                "## Referenced Materials",
+            ])
+            for ref in self.referenced_materials:
+                lines.append(f"- {ref}")
+
+        return "\n".join(lines)
+
+
+@dataclass
+class MissingPerspective:
+    """A perspective that's missing from the analyzed videos."""
+    perspective: str  # "skeptic", "victim", "expert"
+    why_important: str
+    suggested_search: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "perspective": self.perspective,
+            "why_important": self.why_important,
+            "suggested_search": self.suggested_search,
+        }
+
+
+@dataclass
+class CoverageBlindSpot:
+    """A topic mentioned but not explored in the videos."""
+    topic: str
+    where_mentioned: str  # Video title/timestamp
+    why_explore: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "topic": self.topic,
+            "where_mentioned": self.where_mentioned,
+            "why_explore": self.why_explore,
+        }
+
+
+@dataclass
+class Contradiction:
+    """A contradiction between sources - opportunity for original content."""
+    claim_a: str
+    source_a: str
+    claim_b: str
+    source_b: str
+    opportunity: str  # How to use this in their video
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "claim_a": self.claim_a,
+            "source_a": self.source_a,
+            "claim_b": self.claim_b,
+            "source_b": self.source_b,
+            "opportunity": self.opportunity,
+        }
+
+
+@dataclass
+class GapAnalysis:
+    """Cross-video analysis of what's missing.
+
+    Phase 3: Helps creators know what perspectives and topics are unexplored.
+    
+    H-013: Includes parse_error flag to signal incomplete/failed parsing.
+    """
+    # Missing Perspectives
+    missing_perspectives: List[MissingPerspective] = field(default_factory=list)
+
+    # Unanswered Questions
+    unanswered_questions: List[str] = field(default_factory=list)
+
+    # Coverage Blind Spots
+    mentioned_but_unexplored: List[CoverageBlindSpot] = field(default_factory=list)
+
+    # Contradictions (opportunity for original content)
+    contradictions: List[Contradiction] = field(default_factory=list)
+    
+    # H-013: Error tracking - True if LLM response parsing failed
+    parse_error: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "missing_perspectives": [p.to_dict() for p in self.missing_perspectives],
+            "unanswered_questions": self.unanswered_questions,
+            "mentioned_but_unexplored": [b.to_dict() for b in self.mentioned_but_unexplored],
+            "contradictions": [c.to_dict() for c in self.contradictions],
+            "parse_error": self.parse_error,
+        }
+
+    def to_markdown(self) -> str:
+        lines = [
+            "# Gap Analysis",
+            "",
+            "## Missing Perspectives",
+            "",
+        ]
+
+        if self.missing_perspectives:
+            for p in self.missing_perspectives:
+                lines.append(f"### {p.perspective}")
+                lines.append(f"**Why important:** {p.why_important}")
+                lines.append(f"**Search suggestion:** `{p.suggested_search}`")
+                lines.append("")
+        else:
+            lines.append("*No major missing perspectives identified.*")
+            lines.append("")
+
+        lines.extend([
+            "## Unanswered Questions",
+            "",
+        ])
+        for q in self.unanswered_questions:
+            lines.append(f"- {q}")
+
+        lines.extend([
+            "",
+            "## Topics Mentioned But Not Explored",
+            "",
+        ])
+        for blind in self.mentioned_but_unexplored:
+            lines.append(f"### {blind.topic}")
+            lines.append(f"**Where mentioned:** {blind.where_mentioned}")
+            lines.append(f"**Why explore:** {blind.why_explore}")
+            lines.append("")
+
+        if self.contradictions:
+            lines.extend([
+                "## Contradictions (Opportunity)",
+                "",
+            ])
+            for i, c in enumerate(self.contradictions, 1):
+                lines.append(f"### Contradiction {i}")
+                lines.append(f"**Source A ({c.source_a}):** {c.claim_a}")
+                lines.append(f"**Source B ({c.source_b}):** {c.claim_b}")
+                lines.append(f"**Opportunity:** {c.opportunity}")
+                lines.append("")
+
+        return "\n".join(lines)
+
+
+@dataclass
+class SearchQuery:
+    """A specific search query for additional research."""
+    query: str
+    platform: str  # "google", "reddit", "youtube", "academic"
+    why: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "query": self.query,
+            "platform": self.platform,
+            "why": self.why,
+        }
+
+
+@dataclass
+class SourceSuggestion:
+    """A suggested source type to find."""
+    source_type: str  # "documentary", "podcast", "academic_paper", etc.
+    description: str
+    why_helpful: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "source_type": self.source_type,
+            "description": self.description,
+            "why_helpful": self.why_helpful,
+        }
+
+
+@dataclass
+class RabbitHole:
+    """An interesting tangent worth exploring."""
+    topic: str
+    mentioned_in: str  # Video title/timestamp
+    potential_angle: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "topic": self.topic,
+            "mentioned_in": self.mentioned_in,
+            "potential_angle": self.potential_angle,
+        }
+
+
+@dataclass
+class ContentAngle:
+    """A unique angle for the creator's own video."""
+    angle: str
+    differentiator: str
+    why_unique: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "angle": self.angle,
+            "differentiator": self.differentiator,
+            "why_unique": self.why_unique,
+        }
+
+
+@dataclass
+class ResearchStarter:
+    """Actionable research starting points.
+
+    Phase 3: Gives creators a jump start on additional research.
+    No rabbit holes - bounded, focused suggestions.
+    
+    H-013: Includes parse_error flag to signal incomplete/failed parsing.
+    """
+    # Search Queries (exact terms)
+    search_queries: List[SearchQuery] = field(default_factory=list)
+
+    # Source Type Suggestions
+    source_suggestions: List[SourceSuggestion] = field(default_factory=list)
+
+    # Rabbit Holes (interesting tangents)
+    rabbit_holes: List[RabbitHole] = field(default_factory=list)
+
+    # Content Angles (what makes YOUR video different)
+    content_angles: List[ContentAngle] = field(default_factory=list)
+    
+    # H-013: Error tracking - True if LLM response parsing failed
+    parse_error: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "search_queries": [q.to_dict() for q in self.search_queries],
+            "source_suggestions": [s.to_dict() for s in self.source_suggestions],
+            "rabbit_holes": [r.to_dict() for r in self.rabbit_holes],
+            "content_angles": [a.to_dict() for a in self.content_angles],
+            "parse_error": self.parse_error,
+        }
+
+    def to_markdown(self) -> str:
+        lines = [
+            "# Research Starter Kit",
+            "",
+            "## Search Queries",
+            "",
+            "Copy these exact queries to search:",
+            "",
+        ]
+
+        # Group by platform
+        platforms = {}
+        for q in self.search_queries:
+            if q.platform not in platforms:
+                platforms[q.platform] = []
+            platforms[q.platform].append(q)
+
+        for platform, queries in platforms.items():
+            lines.append(f"### {platform.title()}")
+            for q in queries:
+                lines.append(f"- `{q.query}` — {q.why}")
+            lines.append("")
+
+        lines.extend([
+            "## Suggested Source Types",
+            "",
+        ])
+        for s in self.source_suggestions:
+            lines.append(f"### {s.source_type.replace('_', ' ').title()}")
+            lines.append(f"**What to find:** {s.description}")
+            lines.append(f"**Why helpful:** {s.why_helpful}")
+            lines.append("")
+
+        if self.rabbit_holes:
+            lines.extend([
+                "## Interesting Tangents (Rabbit Holes)",
+                "",
+            ])
+            for r in self.rabbit_holes:
+                lines.append(f"### {r.topic}")
+                lines.append(f"**Mentioned in:** {r.mentioned_in}")
+                lines.append(f"**Potential angle:** {r.potential_angle}")
+                lines.append("")
+
+        if self.content_angles:
+            lines.extend([
+                "## Unique Angles for YOUR Video",
+                "",
+            ])
+            for a in self.content_angles:
+                lines.append(f"### {a.angle}")
+                lines.append(f"**What makes it different:** {a.differentiator}")
+                lines.append(f"**Why it's unique:** {a.why_unique}")
+                lines.append("")
 
         return "\n".join(lines)
 

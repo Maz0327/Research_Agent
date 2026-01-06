@@ -7,6 +7,7 @@ from loguru import logger
 
 from backend.utils.datetime_utils import utc_now_iso, utc_today_iso
 from backend.utils.cache import cache_get, cache_set
+from backend.config import get_settings
 
 # Maximum page size to prevent memory issues
 MAX_PAGE_SIZE = 100
@@ -20,6 +21,21 @@ from backend.auth.ban_check import get_supabase_client
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+def require_supabase():
+    """Dependency to check if Supabase is configured.
+
+    Admin endpoints require Supabase for database queries.
+    Returns 501 Not Implemented if using in-memory store.
+    """
+    settings = get_settings()
+    if not settings.supabase_url:
+        raise HTTPException(
+            status_code=501,
+            detail="Admin features require Supabase configuration. Running in-memory mode."
+        )
+    return True
+
+
 @router.get("/check")
 async def check_admin_status(user: AuthUser = Depends(get_current_user)):
     """Check if the current user is an admin."""
@@ -27,7 +43,10 @@ async def check_admin_status(user: AuthUser = Depends(get_current_user)):
 
 
 @router.get("/stats")
-async def get_admin_stats(user: AuthUser = Depends(require_admin)):
+async def get_admin_stats(
+    user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
+):
     """Get admin dashboard statistics.
 
     Performance: Uses Redis caching with 60-second TTL to reduce database load.
@@ -91,6 +110,7 @@ async def get_admin_stats(user: AuthUser = Depends(require_admin)):
 @router.get("/users")
 async def list_admin_users(
     user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=MAX_PAGE_SIZE, description="Items per page (max 100)"),
 ):
@@ -180,6 +200,7 @@ async def list_admin_users(
 @router.get("/jobs")
 async def list_admin_jobs(
     user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
     page: int = 1,
     page_size: int = 20,
     status: Optional[str] = None,
@@ -268,6 +289,7 @@ async def admin_cancel_job(
 async def admin_delete_job(
     job_id: str,
     user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
 ):
     """Delete a job as admin."""
     try:
@@ -302,6 +324,7 @@ async def admin_delete_job(
 async def ban_user(
     user_id: str,
     admin_user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
 ):
     """Ban a user."""
     if user_id == admin_user.user_id:
@@ -322,6 +345,7 @@ async def ban_user(
 async def unban_user(
     user_id: str,
     admin_user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
 ):
     """Unban a user."""
     try:
@@ -338,6 +362,7 @@ async def unban_user(
 @router.get("/errors")
 async def list_error_logs(
     user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
     page: int = 1,
     page_size: int = 20,
     category: Optional[str] = None,
@@ -396,6 +421,7 @@ async def list_error_logs(
 async def resolve_error(
     error_id: str,
     user: AuthUser = Depends(require_admin),
+    _: bool = Depends(require_supabase),
 ):
     """Mark an error as resolved."""
     try:

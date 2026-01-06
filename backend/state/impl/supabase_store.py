@@ -12,7 +12,7 @@ from supabase import create_client, Client
 
 from backend.config import get_settings
 from backend.models.job_record import Artifacts, JobRecord, Outputs
-from backend.state.interface import JobStore
+from backend.state.interface import JobStore, safe_merge
 from backend.utils.error_handling import sanitize_error_message
 from backend.utils.validators import validate_uuid, ValidationError
 
@@ -454,13 +454,11 @@ class SupabaseJobStore(JobStore):
 
             if partial_outputs:
                 outputs_dict = current_job.outputs.model_dump(exclude_none=True)
-                outputs_dict.update(partial_outputs)
-                payload["outputs"] = outputs_dict
+                payload["outputs"] = safe_merge(outputs_dict, partial_outputs)
 
             if partial_artifacts:
                 artifacts_dict = current_job.artifacts.model_dump(exclude_none=True)
-                artifacts_dict.update(partial_artifacts)
-                payload["artifacts"] = artifacts_dict
+                payload["artifacts"] = safe_merge(artifacts_dict, partial_artifacts)
 
         if not payload:
             return self.get_job(job_id)

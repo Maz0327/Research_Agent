@@ -1,11 +1,20 @@
 /**
  * Job results display component for completed/failed/cancelled jobs.
  * Supports both topic research (Drive folder) and video analysis (clips/quotes).
+ *
+ * Phase 3 (Jan 2026): Full Research Assistant Pipeline
+ * - Pass 1: Clips & Quotes (existing)
+ * - Pass 2: Content Blueprints (structure analysis)
+ * - Pass 3: Gap Analysis (missing perspectives)
+ * - Pass 4: Research Starter (actionable queries)
  */
 import { useState } from 'react';
 import { JobStatus } from './job-card-config';
 import { ClipSheet, Clip } from './ClipSheet';
 import { QuoteList, Quote } from './QuoteList';
+import { ContentBlueprintView, ContentBlueprint } from './ContentBlueprintView';
+import { GapAnalysisView, GapAnalysis } from './GapAnalysisView';
+import { ResearchStarterView, ResearchStarter } from './ResearchStarterView';
 
 interface VideoArtifacts {
   clips?: Clip[];
@@ -22,6 +31,10 @@ interface VideoArtifacts {
     extraction_cost?: number;
   };
   quality_gate_passed?: boolean;
+  // Phase 3: Full Research Assistant Pipeline
+  content_blueprints?: ContentBlueprint[];
+  gap_analysis?: GapAnalysis;
+  research_starter?: ResearchStarter;
 }
 
 interface JobResultsProps {
@@ -32,8 +45,10 @@ interface JobResultsProps {
   artifacts?: VideoArtifacts;
 }
 
+type ResultTab = 'clips' | 'quotes' | 'blueprints' | 'gaps' | 'research';
+
 export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts }: JobResultsProps) {
-  const [activeTab, setActiveTab] = useState<'clips' | 'quotes'>('clips');
+  const [activeTab, setActiveTab] = useState<ResultTab>('clips');
 
   if (status === 'failed' && error) {
     return (
@@ -58,6 +73,18 @@ export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts 
   if (status === 'completed' && pipeline === 'video_analysis' && artifacts) {
     const clips = artifacts.clips || [];
     const quotes = artifacts.quotes || [];
+    const blueprints = artifacts.content_blueprints || [];
+    const hasGapAnalysis = artifacts.gap_analysis && (
+      (artifacts.gap_analysis.missing_perspectives?.length > 0) ||
+      (artifacts.gap_analysis.unanswered_questions?.length > 0) ||
+      (artifacts.gap_analysis.mentioned_but_unexplored?.length > 0) ||
+      (artifacts.gap_analysis.contradictions?.length > 0)
+    );
+    const hasResearchStarter = artifacts.research_starter && (
+      (artifacts.research_starter.search_queries?.length > 0) ||
+      (artifacts.research_starter.source_suggestions?.length > 0) ||
+      (artifacts.research_starter.content_angles?.length > 0)
+    );
     const qualityGate = artifacts.producer_packet?.quality_gate;
     const passed = artifacts.quality_gate_passed ?? qualityGate?.passes ?? false;
 
@@ -113,13 +140,13 @@ export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts 
           )}
         </div>
 
-        {/* Tabs for Clips/Quotes */}
-        {(clips.length > 0 || quotes.length > 0) && (
+        {/* Tabs for all outputs */}
+        {(clips.length > 0 || quotes.length > 0 || blueprints.length > 0 || hasGapAnalysis || hasResearchStarter) && (
           <div>
-            <div className="flex border-b border-gray-700 mb-4">
+            <div className="flex flex-wrap border-b border-gray-700 mb-4">
               <button
                 onClick={() => setActiveTab('clips')}
-                className={`px-4 py-2 text-sm font-medium transition ${
+                className={`px-3 py-2 text-sm font-medium transition ${
                   activeTab === 'clips'
                     ? 'text-purple-400 border-b-2 border-purple-400'
                     : 'text-gray-400 hover:text-gray-300'
@@ -129,7 +156,7 @@ export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts 
               </button>
               <button
                 onClick={() => setActiveTab('quotes')}
-                className={`px-4 py-2 text-sm font-medium transition ${
+                className={`px-3 py-2 text-sm font-medium transition ${
                   activeTab === 'quotes'
                     ? 'text-purple-400 border-b-2 border-purple-400'
                     : 'text-gray-400 hover:text-gray-300'
@@ -137,13 +164,55 @@ export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts 
               >
                 Quotes ({quotes.length})
               </button>
+              {blueprints.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('blueprints')}
+                  className={`px-3 py-2 text-sm font-medium transition ${
+                    activeTab === 'blueprints'
+                      ? 'text-purple-400 border-b-2 border-purple-400'
+                      : 'text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  Blueprints ({blueprints.length})
+                </button>
+              )}
+              {hasGapAnalysis && (
+                <button
+                  onClick={() => setActiveTab('gaps')}
+                  className={`px-3 py-2 text-sm font-medium transition ${
+                    activeTab === 'gaps'
+                      ? 'text-purple-400 border-b-2 border-purple-400'
+                      : 'text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  Gaps
+                </button>
+              )}
+              {hasResearchStarter && (
+                <button
+                  onClick={() => setActiveTab('research')}
+                  className={`px-3 py-2 text-sm font-medium transition ${
+                    activeTab === 'research'
+                      ? 'text-purple-400 border-b-2 border-purple-400'
+                      : 'text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  Research
+                </button>
+              )}
             </div>
 
-            <div className="max-h-[400px] overflow-y-auto">
-              {activeTab === 'clips' ? (
-                <ClipSheet clips={clips} />
-              ) : (
-                <QuoteList quotes={quotes} />
+            <div className="max-h-[500px] overflow-y-auto">
+              {activeTab === 'clips' && <ClipSheet clips={clips} />}
+              {activeTab === 'quotes' && <QuoteList quotes={quotes} />}
+              {activeTab === 'blueprints' && blueprints.length > 0 && (
+                <ContentBlueprintView blueprints={blueprints} />
+              )}
+              {activeTab === 'gaps' && hasGapAnalysis && (
+                <GapAnalysisView gapAnalysis={artifacts.gap_analysis!} />
+              )}
+              {activeTab === 'research' && hasResearchStarter && (
+                <ResearchStarterView researchStarter={artifacts.research_starter!} />
               )}
             </div>
           </div>

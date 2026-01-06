@@ -17,6 +17,52 @@ def stage_7_extraction(ctx: PipelineContext) -> None:
     try:
         if ctx.transcripts or any(s.text for s in ctx.web_sources):
             ctx.claims, quote_bank_md, claims_ledger_md = extract_claims(ctx.transcripts, ctx.web_sources)
+            # Heuristic fallback if LLM extraction produced too few claims
+            if not ctx.claims or len(ctx.claims) < 3:
+                try:
+                    from backend.pipeline.extraction import _extract_claim_candidates
+                    fallback_sentences = []
+                    # Harvest sentences from transcripts (primary content source)
+                    for transcript in (ctx.transcripts or []):
+                        if getattr(transcript, 'text', None):
+                            candidates = _extract_claim_candidates(transcript.text)
+                            fallback_sentences.extend([c['text'] for c in candidates[:5]])
+                    # Harvest sentences from captured web content
+                    for src in (ctx.web_sources or []):
+                        if getattr(src, 'text', None):
+                            candidates = _extract_claim_candidates(src.text)
+                            fallback_sentences.extend([c['text'] for c in candidates[:5]])
+                    # Deduplicate and build minimal claims
+                    unique = []
+                    seen = set()
+                    for sent in fallback_sentences:
+                        key = sent.strip().lower()
+                        if key not in seen:
+                            seen.add(key)
+                            unique.append(sent)
+                    from backend.models.claim import Claim, ClaimType
+                    import uuid as _uuid
+                    # Create up to 10 heuristic claims (increased from 5)
+                    heuristics = [
+                        Claim(
+                            claim_id=f"claim_{_uuid.uuid4().hex[:8]}",
+                            canonical_claim=s,
+                            verbatim_quote=s,
+                            citations=[],
+                            claim_type=ClaimType.FACTUAL,
+                            entities=[],
+                            confidence=0.4,
+                        ) for s in unique[:10]
+                    ]
+                    if heuristics:
+                        ctx.claims = (ctx.claims or []) + heuristics
+                        quote_bank_md = (quote_bank_md or "# Quote Bank\n\n") + "\n".join(f"> {s}" for s in unique[:10])
+                        claims_ledger_md = (claims_ledger_md or "# Claims Ledger\n\n") + "\n".join(f"- {s}" for s in unique[:10])
+                        logger.info(f"[{ctx.job_id}] Added {len(heuristics)} heuristic claims as fallback")
+                        ctx.add_warning(f"Used heuristic fallback: {len(heuristics)} claims (LLM extracted {len(ctx.claims) - len(heuristics)})")
+                except Exception as fb_err:
+                    logger.debug(f"[{ctx.job_id}] Heuristic fallback failed: {fb_err}")
+
             ctx.set_output("quote_bank_md", quote_bank_md)
             ctx.set_output("claims_ledger_md", claims_ledger_md)
             # Track OpenAI cost (estimate ~2K tokens for extraction)

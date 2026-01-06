@@ -13,6 +13,7 @@ from backend.app.routes import (
     jobs_router,
     transcripts_router,
     admin_router,
+    export_router,
 )
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user
@@ -142,17 +143,100 @@ async def limit_request_size(request: Request, call_next):
 
 
 # =============================================================================
+# Startup Events
+# =============================================================================
+
+@app.on_event("startup")
+async def startup_validation():
+    """Validate critical configuration at startup.
+
+    Fails fast if required configuration is missing, rather than failing
+    silently on the first request.
+    """
+    from backend.config import validate_jwt_config
+
+    # Validate JWT configuration
+    jwt_valid, jwt_message = validate_jwt_config()
+    if not jwt_valid:
+        logger.error(f"JWT configuration error: {jwt_message}")
+        raise RuntimeError(f"Startup failed: {jwt_message}")
+    else:
+        logger.info(f"Startup check: {jwt_message}")
+
+    # Log environment mode
+    if settings.supabase_url:
+        logger.info("Startup: Using Supabase for job persistence")
+    else:
+        logger.warning("Startup: Using in-memory store (jobs will not persist across restarts)")
+
+    # Check Redis connection (non-blocking, just logs warning)
+    if settings.redis_url:
+        try:
+            import redis
+            r = redis.from_url(str(settings.redis_url), socket_timeout=3)
+            r.ping()
+            logger.info("Startup: Redis connection verified")
+        except Exception as e:
+            logger.warning(f"Startup: Redis connection failed (Celery may not work): {e}")
+    else:
+        logger.warning("Startup: REDIS_URL not configured (Celery disabled)")
+
+    # Check Supabase connection (non-blocking, just logs warning)
+    if settings.supabase_url and settings.supabase_service_role_key:
+        try:
+            from backend.state.impl.supabase_store import get_supabase_client
+            client = get_supabase_client()
+            # Simple query to verify connection
+            client.table("jobs").select("id").limit(1).execute()
+            logger.info("Startup: Supabase connection verified")
+        except Exception as e:
+            logger.warning(f"Startup: Supabase connection failed: {e}")
+
+
+# =============================================================================
 # Health Check
 # =============================================================================
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for load balancers and monitoring."""
-    return {
+    """Health check endpoint for load balancers and monitoring.
+
+    Returns basic health status and dependency checks.
+    """
+    health = {
         "status": "healthy",
         "version": "0.1.0",
-        "service": "research-agent-api"
+        "service": "research-agent-api",
+        "dependencies": {},
     }
+
+    # Check Redis
+    if settings.redis_url:
+        try:
+            import redis
+            r = redis.from_url(str(settings.redis_url), socket_timeout=2)
+            r.ping()
+            health["dependencies"]["redis"] = "ok"
+        except Exception:
+            health["dependencies"]["redis"] = "error"
+            health["status"] = "degraded"
+    else:
+        health["dependencies"]["redis"] = "not_configured"
+
+    # Check Supabase
+    if settings.supabase_url:
+        try:
+            from backend.state.impl.supabase_store import get_supabase_client
+            client = get_supabase_client()
+            client.table("jobs").select("id").limit(1).execute()
+            health["dependencies"]["supabase"] = "ok"
+        except Exception:
+            health["dependencies"]["supabase"] = "error"
+            health["status"] = "degraded"
+    else:
+        health["dependencies"]["supabase"] = "not_configured"
+
+    return health
 
 
 # =============================================================================
@@ -184,3 +268,4 @@ app.include_router(settings_router)
 app.include_router(jobs_router)
 app.include_router(transcripts_router)
 app.include_router(admin_router)
+app.include_router(export_router)
