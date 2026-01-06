@@ -129,6 +129,8 @@ export interface Job {
   stage?: string;
   /** When current stage started (ISO timestamp for ETA calculation) */
   stage_started_at?: string;
+  /** Detailed progress info (e.g., "Analyzing video 2/5") */
+  pass_detail?: string;
   /** Job completion percentage (0-100) */
   progress_percent: number;
   /** Output artifacts from completed job */

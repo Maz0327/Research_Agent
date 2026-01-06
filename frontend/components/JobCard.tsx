@@ -47,6 +47,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
     status: job.status,
     stage: job.stage,
     stageStartedAt: job.stage_started_at,
+    passDetail: job.pass_detail,
     pipeline: job.pipeline,
     createdAt: job.created_at,
   });

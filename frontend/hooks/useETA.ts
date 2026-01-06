@@ -9,6 +9,7 @@ interface UseETAOptions {
   status: string;
   stage?: string;
   stageStartedAt?: string;
+  passDetail?: string;
   pipeline: string;
   createdAt: string;
 }
@@ -37,6 +38,20 @@ const STAGE_ORDER = [
   'angle_discovery',
   'documentary_analysis',
   'drive_upload',
+];
+
+// Stage order for Gemini video pipeline
+const GEMINI_STAGE_ORDER = [
+  'pass_1_extraction',
+  'pass_2_structure',
+  'pass_3_gaps',
+  'pass_4_research',
+];
+
+// Stage order for transcript pipeline
+const TRANSCRIPT_STAGE_ORDER = [
+  'extracting_transcripts',
+  'generating_document',
 ];
 
 // Stage-based duration estimates in seconds (per pipeline type)
@@ -144,10 +159,23 @@ const STAGE_DURATIONS: Record<string, Record<string, number>> = {
     documentary_analysis: 25,
     drive_upload: 15,
   },
+  // Gemini video pipeline (4-pass analysis)
+  gemini_video: {
+    pass_1_extraction: 180,  // ~3 min for 5 videos
+    pass_2_structure: 150,   // ~2.5 min for structure analysis
+    pass_3_gaps: 30,         // ~30s for gap analysis
+    pass_4_research: 40,     // ~40s for research starter
+  },
+  // Transcript extraction pipeline
+  transcript: {
+    extracting_transcripts: 120,  // ~2 min for transcripts
+    generating_document: 30,       // ~30s for doc creation
+  },
 };
 
 // Human-readable stage descriptions (must match worker.py stages)
 const STAGE_DESCRIPTIONS: Record<string, string> = {
+  // Original research pipeline stages
   initializing: 'Preparing your research job...',
   planning: 'AI is analyzing your topic...',
   research_mapping: 'Discovering research angles...',
@@ -163,8 +191,21 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   angle_discovery: 'Discovering unique angles...',
   documentary_analysis: 'Analyzing documentary structure...',
   drive_upload: 'Creating your documents...',
-  completed: 'Research complete!',
+  
+  // Gemini video pipeline stages (Phase 3)
+  pass_1_extraction: 'Pass 1/4: Extracting clips & quotes from videos...',
+  pass_2_structure: 'Pass 2/4: Analyzing video structure...',
+  pass_3_gaps: 'Pass 3/4: Identifying research gaps...',
+  pass_4_research: 'Pass 4/4: Generating research starter...',
+  
+  // Transcript job stages
+  extracting_transcripts: 'Extracting video transcripts...',
+  generating_document: 'Creating your document...',
+  
+  // Common stages
+  completed: 'Complete!',
   error: 'Job failed',
+  timeout: 'Job timed out',
 };
 
 function formatDuration(seconds: number): string {
@@ -186,6 +227,7 @@ export default function useETA({
   status,
   stage,
   stageStartedAt,
+  passDetail,
   pipeline,
   createdAt,
 }: UseETAOptions): ETAResult {
@@ -216,12 +258,30 @@ export default function useETA({
       return null;
     }
 
-    // Get durations for this pipeline type, fallback to investigation
-    const durations = STAGE_DURATIONS[pipeline] || STAGE_DURATIONS.investigation;
+    // Determine which stage order and durations to use based on pipeline
+    let stageOrder: string[];
+    let durations: Record<string, number>;
+    
+    if (pipeline === 'gemini_video' || stage.startsWith('pass_')) {
+      stageOrder = GEMINI_STAGE_ORDER;
+      durations = STAGE_DURATIONS.gemini_video;
+    } else if (pipeline === 'transcript' || stage === 'extracting_transcripts' || stage === 'generating_document') {
+      stageOrder = TRANSCRIPT_STAGE_ORDER;
+      durations = STAGE_DURATIONS.transcript;
+    } else {
+      stageOrder = STAGE_ORDER;
+      durations = STAGE_DURATIONS[pipeline] || STAGE_DURATIONS.investigation;
+    }
 
     // Find current stage index
-    const currentStageIndex = STAGE_ORDER.indexOf(stage);
+    const currentStageIndex = stageOrder.indexOf(stage);
     if (currentStageIndex === -1) {
+      // Stage not found in order - just return based on progress
+      if (progress > 0 && progress < 100) {
+        const estimatedTotal = elapsed / (progress / 100);
+        const remaining = estimatedTotal - elapsed;
+        return formatDuration(remaining);
+      }
       return null;
     }
 
@@ -234,13 +294,13 @@ export default function useETA({
 
     // Calculate time for remaining stages
     let remainingStagesTime = 0;
-    for (let i = currentStageIndex + 1; i < STAGE_ORDER.length; i++) {
-      remainingStagesTime += durations[STAGE_ORDER[i]] || 30;
+    for (let i = currentStageIndex + 1; i < stageOrder.length; i++) {
+      remainingStagesTime += durations[stageOrder[i]] || 30;
     }
 
     const totalRemaining = remainingInCurrentStage + remainingStagesTime;
     return formatDuration(totalRemaining);
-  }, [status, stage, stageStartedAt, pipeline]);
+  }, [status, stage, stageStartedAt, pipeline, progress, elapsed]);
 
   // Get stage description
   const stageDescription = useMemo(() => {
@@ -248,8 +308,19 @@ export default function useETA({
     if (status === 'queued') return 'Waiting to start...';
     if (status === 'failed') return 'Job failed';
     if (status === 'cancelled') return 'Job cancelled';
-    return STAGE_DESCRIPTIONS[stage || 'initializing'] || 'Processing...';
-  }, [status, stage]);
+    
+    // Use pass_detail if available (more granular info from Gemini pipeline)
+    // Format: "Pass 2/4: Analyzing video structures..." + detail if provided
+    const baseDescription = STAGE_DESCRIPTIONS[stage || 'initializing'] || 'Processing...';
+    
+    // If we have passDetail, append it (or use it as the description)
+    if (passDetail && passDetail !== 'complete') {
+      // passDetail is like "Extracting clips and quotes..." or "Pipeline complete!"
+      return passDetail;
+    }
+    
+    return baseDescription;
+  }, [status, stage, passDetail]);
 
   // Format elapsed time
   const elapsedFormatted = useMemo(() => {

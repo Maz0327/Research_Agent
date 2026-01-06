@@ -448,13 +448,23 @@ async def list_jobs_endpoint(
             if not artifacts_dict:
                 artifacts_dict = None
 
+        # Extract progress detail from config_json for Gemini video jobs
+        pass_detail = None
+        if job.config_json:
+            pass_detail = job.config_json.get("pass_detail")
+        
         jobs_data.append({
             "id": job.job_id,
             "prompt": prompt,
+            "title": job.title,
             "pipeline": pipeline,
             "status": job.status,
+            "stage": job.stage,
+            "stage_started_at": job.stage_started_at.isoformat() if job.stage_started_at else None,
             "progress_percent": job.progress_percent,
+            "pass_detail": pass_detail,
             "artifacts": artifacts_dict,
+            "error": job.warnings[-1] if job.status == "failed" and job.warnings else None,
             "created_at": job.created_at.isoformat(),
         })
 
@@ -513,12 +523,21 @@ async def get_job_status(
     if job.status == "disambiguating" and job.interpretations:
         interpretations = job.interpretations
 
+    # Extract pass_detail from config_json
+    pass_detail = None
+    if job.config_json:
+        pass_detail = job.config_json.get("pass_detail")
+
     return JobStatusResponse(
         job_id=job.job_id,
         prompt=prompt,
+        title=job.title,
         pipeline=pipeline,
         status=job.status,
+        stage=job.stage,
+        stage_started_at=job.stage_started_at,
         progress_percent=job.progress_percent,
+        pass_detail=pass_detail,
         artifacts=artifacts_dict,
         error=error,
         created_at=job.created_at,

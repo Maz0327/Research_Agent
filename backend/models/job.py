@@ -74,9 +74,13 @@ class JobStatusResponse(BaseModel):
     """Response model for job status."""
     id: str = Field(..., alias="job_id", description="Job identifier")
     prompt: str = Field(..., description="Research prompt")
+    title: Optional[str] = Field(None, description="AI-generated short title")
     pipeline: str = Field(..., description="Pipeline type (quick or full)")
     status: str
+    stage: Optional[str] = Field(None, description="Current pipeline stage")
+    stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
     progress_percent: int = Field(..., ge=0, le=100)
+    pass_detail: Optional[str] = Field(None, description="Detailed progress info (e.g., 'Analyzing video 2/5')")
     artifacts: Optional[dict[str, Any]] = Field(None, description="Job artifacts (Drive folder, docs)")
     error: Optional[str] = Field(None, description="Error message if job failed")
     created_at: Optional[datetime] = Field(None, description="Job creation timestamp")

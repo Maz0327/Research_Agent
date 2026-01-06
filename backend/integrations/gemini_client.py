@@ -1445,7 +1445,8 @@ YouTube Video URL: {chunk_url}"""
             video_urls = video_urls[:MAX_VIDEOS_PER_JOB]
 
         # Pass 1: Extract clips and quotes
-        safe_progress(1, total_passes, "extracting", "Extracting clips and quotes...")
+        video_count = len(video_urls)
+        safe_progress(1, total_passes, "extracting", f"Extracting clips & quotes from {video_count} video{'s' if video_count != 1 else ''}...")
 
         batch_result = self.analyze_youtube_videos_batch(video_urls, model=model)
         total_cost += batch_result.get("total_cost", 0)
@@ -1484,7 +1485,8 @@ YouTube Video URL: {chunk_url}"""
         ])
 
         # Pass 2: Structure analysis for each video
-        safe_progress(2, total_passes, "analyzing_structure", "Analyzing video structures...")
+        total_videos = len(results)
+        safe_progress(2, total_passes, "analyzing_structure", f"Analyzing video structure (0/{total_videos})...")
 
         content_blueprints = []
         pass2_errors = []
@@ -1492,6 +1494,9 @@ YouTube Video URL: {chunk_url}"""
         for i, result in enumerate(results):
             video_url = result.get("video_url", "")
             video_title = result.get("video_info", {}).get("title", "Unknown")
+            
+            # Update progress per-video for better UX
+            safe_progress(2, total_passes, "analyzing_structure", f"Analyzing video {i+1}/{total_videos}: {video_title[:40]}...")
             
             # H-010: Add small delay between videos to avoid rate limiting
             # Skip delay on first video
