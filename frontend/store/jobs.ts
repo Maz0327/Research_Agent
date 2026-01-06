@@ -38,6 +38,68 @@ export interface JobPreview {
 }
 
 /**
+ * Clip from video analysis
+ */
+export interface Clip {
+  clip_id: string;
+  video_url: string;
+  timestamp_start: string;
+  timestamp_end: string;
+  speaker: string;
+  quote: string;
+  quote_type: string;
+  range_verified: boolean;
+  quote_verified: boolean;
+  verification_level: 'verified' | 'probable' | 'unverified';
+}
+
+/**
+ * Quote from video analysis
+ */
+export interface Quote {
+  quote_id: string;
+  video_url: string;
+  text: string;
+  speaker: string;
+  timestamp: string;
+  quote_verified: boolean;
+  match_score: number;
+}
+
+/**
+ * Producer packet quality gate results
+ */
+export interface QualityGate {
+  passes: boolean;
+  failures: string[];
+  clip_count: number;
+  quote_count: number;
+  verified_claim_count: number;
+}
+
+/**
+ * Job artifacts including video analysis results
+ */
+export interface JobArtifacts {
+  /** Google Drive folder URL containing research documents */
+  drive_folder_url?: string;
+  /** Array of individual document URLs */
+  doc_urls?: string[];
+  /** Video clips from Gemini extraction */
+  clips?: Clip[];
+  /** Quotes from Gemini extraction */
+  quotes?: Quote[];
+  /** Full producer packet data */
+  producer_packet?: {
+    title?: string;
+    quality_gate?: QualityGate;
+    extraction_cost?: number;
+  };
+  /** Whether producer packet passed quality gate */
+  quality_gate_passed?: boolean;
+}
+
+/**
  * Job represents a research job with its status and artifacts.
  */
 export interface Job {
@@ -47,7 +109,7 @@ export interface Job {
   prompt: string;
   /** AI-generated short title for display */
   title?: string;
-  /** Pipeline type (quick, full, breaking_news, investigation, profile, controversy) */
+  /** Pipeline type (quick, full, breaking_news, investigation, profile, controversy, video_analysis) */
   pipeline: string;
   /** Current job status */
   status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'disambiguating';
@@ -58,12 +120,7 @@ export interface Job {
   /** Job completion percentage (0-100) */
   progress_percent: number;
   /** Output artifacts from completed job */
-  artifacts?: {
-    /** Google Drive folder URL containing research documents */
-    drive_folder_url?: string;
-    /** Array of individual document URLs */
-    doc_urls?: string[];
-  };
+  artifacts?: JobArtifacts;
   /** Error message if job failed */
   error?: string;
   /** Job creation timestamp (ISO format) */
@@ -76,6 +133,17 @@ export interface Job {
 export interface BulkError {
   jobId: string;
   error: string;
+}
+
+/**
+ * Video analysis job response
+ */
+export interface VideoAnalysisResponse {
+  job_id: string;
+  estimated_cost: number;
+  total_duration_minutes: number;
+  video_count: number;
+  warnings?: string[];
 }
 
 interface JobsState {
@@ -92,6 +160,7 @@ interface JobsState {
   fetchJobs: () => Promise<void>;
   previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
   createJob: (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => Promise<string>;
+  createVideoAnalysisJob: (videoUrls: string[], title?: string, model?: 'gemini-2.5-flash' | 'gemini-2.5-pro') => Promise<VideoAnalysisResponse>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -258,6 +327,67 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to create job',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  createVideoAnalysisJob: async (
+    videoUrls: string[],
+    title?: string,
+    model: 'gemini-2.5-flash' | 'gemini-2.5-pro' = 'gemini-2.5-flash'
+  ): Promise<VideoAnalysisResponse> => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const body: Record<string, unknown> = {
+        video_urls: videoUrls,
+        model,
+      };
+      if (title) {
+        body.title = title;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/video-analysis`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create video analysis job');
+      }
+
+      const data: VideoAnalysisResponse = await response.json();
+
+      // Add job to local state
+      const newJob: Job = {
+        id: data.job_id,
+        prompt: title || `Video Analysis (${data.video_count} videos)`,
+        pipeline: 'video_analysis',
+        status: 'queued',
+        progress_percent: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        jobs: [newJob, ...state.jobs],
+        isLoading: false,
+      }));
+
+      return data;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create video analysis job',
         isLoading: false,
       });
       throw error;

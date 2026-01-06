@@ -4,10 +4,16 @@ This file provides guidance to Claude Code when working with Research Agent.
 
 ## Project Overview
 
-Research Agent is an AI-powered documentary research assistant that aggregates content from multiple sources (Reddit, YouTube, web articles) and produces:
-1. **NotebookLM Packet** - Optimized for AI podcast generation
-2. **Documentary Blueprint** - Optimized for video production
-3. **Research Brief** - Human-readable analysis with evidence hierarchy (Jan 2026)
+Research Agent is an AI-powered documentary research assistant with two modes:
+
+**Primary Mode (Jan 2026): Video Analysis**
+- User provides YouTube URLs → Gemini extracts clips, quotes, timestamps
+- Output: ProducerPacket with timestamped clips and verified quotes
+- See: `docs/gemini-pivot-implementation.md`
+
+**Legacy Mode: Topic Research**
+- User enters topic → System discovers sources → Extraction pipeline
+- Output: NotebookLM Packet, Documentary Blueprint, Research Brief
 
 **Status**: Production (Railway backend, Vercel frontend, Supabase database)
 
@@ -146,6 +152,12 @@ For Research Agent development, activate:
 
 ## Research Modes
 
+### Video Analysis Mode (Primary - Jan 2026)
+| Mode | Focus | Cost | Use Case |
+|------|-------|------|----------|
+| video_analysis | URL-first extraction | ~$0.15-1.15/hr | User provides YouTube URLs |
+
+### Topic Research Mode (Legacy)
 | Mode | Focus | Budget | Time Window |
 |------|-------|--------|-------------|
 | breaking_news | Speed + Recency | $2 | 72 hours |
@@ -155,6 +167,12 @@ For Research Agent development, activate:
 
 ## Pipeline Stages
 
+### Video Analysis Pipeline (Primary)
+```
+User URLs → Gemini Extraction → ProducerPacket → Quality Gate → Display
+```
+
+### Topic Research Pipeline (Legacy)
 1. Initialize → 2. Planning (OpenAI) → 3. Research Mapping (Perplexity)
 4. Source Discovery → 5. YouTube → 6. Transcripts (Supadata/Whisper)
 7. Web Capture (Jina/Trafilatura) → 8. Reddit (PRAW)
@@ -241,3 +259,8 @@ See `.env.example` for complete list.
 See `plans/reports/` for detailed analysis:
 - `api-validation-*-best-stack-recommendations.md`
 - `ml-vs-llm-analysis-*-traditional-ml-opportunities.md`
+
+## Strategic Documentation
+
+- `docs/gemini-pivot-implementation.md` - Complete Gemini pivot documentation (Jan 2026)
+- `plans/strategic-pivot-jan-2026-v3-recalibrated.md` - Strategic decision rationale

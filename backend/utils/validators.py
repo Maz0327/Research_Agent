@@ -225,3 +225,127 @@ def validate_subreddit_name(name: str) -> str:
         )
 
     return name
+
+
+# =============================================================================
+# Phase 1.5: Video Job Duration/Cost Validation
+# =============================================================================
+
+# Cost per minute of video at Gemini 2.5 Flash rates (~$0.015/min estimated)
+GEMINI_COST_PER_MINUTE = 0.015
+# Pro costs more (~$0.075/min)
+GEMINI_PRO_COST_PER_MINUTE = 0.075
+
+
+class VideoJobValidationResult:
+    """Result of video job validation."""
+
+    def __init__(
+        self,
+        valid: bool,
+        error: Optional[str] = None,
+        warnings: Optional[list[str]] = None,
+        total_duration_minutes: float = 0,
+        estimated_cost: float = 0,
+    ):
+        self.valid = valid
+        self.error = error
+        self.warnings = warnings or []
+        self.total_duration_minutes = total_duration_minutes
+        self.estimated_cost = estimated_cost
+
+
+def validate_video_job_inputs(
+    video_urls: list[str],
+    video_durations: Optional[list[int]] = None,
+    model: str = "gemini-2.5-flash",
+    max_videos: int = 10,
+    max_total_duration_minutes: int = 300,  # 5 hours
+    cost_warning_threshold: float = 5.00,
+    cost_hard_cap: float = 10.00,
+) -> VideoJobValidationResult:
+    """
+    Validate video job inputs before submission.
+
+    Phase 1.5: Prevents runaway costs from large video batches.
+
+    Args:
+        video_urls: List of YouTube video URLs
+        video_durations: Optional list of durations in seconds (if known)
+        model: Gemini model to use
+        max_videos: Maximum videos per job
+        max_total_duration_minutes: Maximum total duration
+        cost_warning_threshold: Warn if estimated cost exceeds this
+        cost_hard_cap: Block if estimated cost exceeds this
+
+    Returns:
+        VideoJobValidationResult with validation status and details
+    """
+    warnings = []
+
+    # Check video count
+    if not video_urls:
+        return VideoJobValidationResult(
+            valid=False,
+            error="No video URLs provided",
+        )
+
+    if len(video_urls) > max_videos:
+        return VideoJobValidationResult(
+            valid=False,
+            error=f"Too many videos: {len(video_urls)} exceeds limit of {max_videos}",
+        )
+
+    # Validate each URL
+    valid_urls = []
+    for url in video_urls:
+        try:
+            validated_url, _ = validate_youtube_url(url)
+            valid_urls.append(validated_url)
+        except ValidationError as e:
+            return VideoJobValidationResult(
+                valid=False,
+                error=str(e),
+            )
+
+    # Calculate duration if provided
+    total_duration_minutes = 0.0
+    if video_durations:
+        total_duration_seconds = sum(video_durations)
+        total_duration_minutes = total_duration_seconds / 60
+
+        if total_duration_minutes > max_total_duration_minutes:
+            return VideoJobValidationResult(
+                valid=False,
+                error=f"Total duration {total_duration_minutes:.0f} min exceeds limit of {max_total_duration_minutes} min",
+            )
+
+    # Estimate cost
+    cost_per_minute = (
+        GEMINI_PRO_COST_PER_MINUTE if "pro" in model.lower()
+        else GEMINI_COST_PER_MINUTE
+    )
+
+    # If no duration provided, estimate ~10 min per video
+    if not video_durations:
+        total_duration_minutes = len(video_urls) * 10
+
+    estimated_cost = total_duration_minutes * cost_per_minute
+
+    if estimated_cost > cost_hard_cap:
+        return VideoJobValidationResult(
+            valid=False,
+            error=f"Estimated cost ${estimated_cost:.2f} exceeds limit of ${cost_hard_cap:.2f}",
+            estimated_cost=estimated_cost,
+            total_duration_minutes=total_duration_minutes,
+        )
+
+    if estimated_cost > cost_warning_threshold:
+        warnings.append(f"Estimated cost: ${estimated_cost:.2f}")
+
+    return VideoJobValidationResult(
+        valid=True,
+        warnings=warnings,
+        total_duration_minutes=total_duration_minutes,
+        estimated_cost=estimated_cost,
+    )

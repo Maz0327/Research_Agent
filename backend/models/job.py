@@ -148,3 +148,76 @@ class PreviewJobResponse(BaseModel):
     subreddits: Optional[list[str]] = Field(None, description="Reddit communities to search")
     source_types: Optional[list[str]] = Field(None, description="Types of sources to collect")
 
+
+# =============================================================================
+# Video Analysis Models (URL-first Gemini extraction)
+# =============================================================================
+
+class VideoAnalysisRequest(BaseModel):
+    """Request model for URL-first video analysis job.
+
+    This is the new primary input model for the Gemini pivot.
+    User provides YouTube URLs directly instead of a topic.
+    """
+    video_urls: list[str] = Field(
+        ...,
+        min_length=1,
+        max_length=10,
+        description="List of YouTube video URLs to analyze (1-10 videos)"
+    )
+    title: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Optional title for the research project"
+    )
+    model: Literal["gemini-2.5-flash", "gemini-2.5-pro"] = Field(
+        "gemini-2.5-flash",
+        description="Gemini model to use (flash is faster/cheaper, pro is more accurate)"
+    )
+
+    @field_validator('video_urls')
+    @classmethod
+    def validate_video_urls(cls, v: list[str]) -> list[str]:
+        """Validate YouTube URLs."""
+        from backend.utils.validators import validate_youtube_url, ValidationError as ValidatorError
+
+        validated_urls = []
+        for url in v:
+            try:
+                validated_url, _ = validate_youtube_url(url.strip())
+                validated_urls.append(validated_url)
+            except ValidatorError as e:
+                raise ValueError(str(e))
+
+        # Check for duplicates
+        if len(validated_urls) != len(set(validated_urls)):
+            raise ValueError("Duplicate video URLs not allowed")
+
+        return validated_urls
+
+
+class VideoAnalysisResponse(BaseModel):
+    """Response model for video analysis job creation."""
+    job_id: str
+    estimated_cost: float = Field(..., description="Estimated cost in USD")
+    total_duration_minutes: float = Field(..., description="Total video duration in minutes")
+    video_count: int = Field(..., description="Number of videos to analyze")
+    warnings: Optional[list[str]] = Field(None, description="Cost or duration warnings")
+
+
+class VideoAnalysisStatusResponse(BaseModel):
+    """Response model for video analysis job status."""
+    job_id: str
+    status: str
+    progress_percent: int = Field(..., ge=0, le=100)
+    current_video: Optional[int] = Field(None, description="Current video being processed (1-indexed)")
+    total_videos: Optional[int] = Field(None, description="Total videos in job")
+    clips_count: Optional[int] = Field(None, description="Number of clips extracted so far")
+    quotes_count: Optional[int] = Field(None, description="Number of quotes extracted so far")
+    error: Optional[str] = Field(None, description="Error message if job failed")
+    created_at: Optional[datetime] = None
+    # Results available when completed
+    producer_packet: Optional[dict[str, Any]] = Field(
+        None, description="Full ProducerPacket when job completes"
+    )
+

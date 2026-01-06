@@ -1,15 +1,224 @@
-"""Dual Output Formatter: NotebookLM packet + Documentary Blueprint.
+"""Dual Output Formatter: NotebookLM packet + Documentary Blueprint + Producer Packet.
 
-PRD v4.3: Research Agent produces two output formats:
+PRD v4.3 + Phase 2: Research Agent produces three output formats:
 1. NotebookLM Packet - For AI audio podcast generation
 2. Documentary Blueprint - For video production
+3. Producer Packet - Grounded extraction with clips, quotes, timestamps (Phase 2)
 
 The NotebookLM packet is optimized for text-to-speech podcast creation,
-while the Documentary Blueprint is optimized for video scriptwriting.
+the Documentary Blueprint is for video scriptwriting,
+and the Producer Packet is raw grounded extraction for video editing.
 """
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
+from enum import Enum
 from loguru import logger
+
+
+# =============================================================================
+# Phase 2: Producer Packet - Grounded Extraction Output
+# =============================================================================
+
+class VerificationLevel(str, Enum):
+    """Verification status for clips and quotes."""
+    VERIFIED = "verified"  # Quote found in transcript, timestamp confirmed
+    PROBABLE = "probable"  # High confidence but not exact match
+    UNVERIFIED = "unverified"  # Extracted but not cross-verified
+
+
+@dataclass
+class ProducerClip:
+    """A clip extracted from video for production use.
+
+    Phase 2: Grounded extraction - no opinions, just facts.
+    """
+    clip_id: str
+    video_url: str
+    timestamp_start: str  # MM:SS format
+    timestamp_end: str  # MM:SS format
+    speaker: str
+    quote: str  # Verbatim quote
+    quote_type: str  # statement, question, reaction
+    # Verification flags (ChatGPT refinement)
+    range_verified: bool = False  # Timestamp within video bounds
+    quote_verified: bool = False  # Quote found in transcript
+    verification_level: VerificationLevel = VerificationLevel.UNVERIFIED
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "clip_id": self.clip_id,
+            "video_url": self.video_url,
+            "timestamp_start": self.timestamp_start,
+            "timestamp_end": self.timestamp_end,
+            "speaker": self.speaker,
+            "quote": self.quote,
+            "quote_type": self.quote_type,
+            "range_verified": self.range_verified,
+            "quote_verified": self.quote_verified,
+            "verification_level": self.verification_level.value,
+        }
+
+
+@dataclass
+class ProducerQuote:
+    """A quote extracted from video for production use."""
+    quote_id: str
+    video_url: str
+    text: str  # Verbatim quote
+    speaker: str
+    timestamp: str  # MM:SS format
+    # Verification
+    quote_verified: bool = False
+    match_score: float = 0.0  # 0-1, how well quote matches transcript
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "quote_id": self.quote_id,
+            "video_url": self.video_url,
+            "text": self.text,
+            "speaker": self.speaker,
+            "timestamp": self.timestamp,
+            "quote_verified": self.quote_verified,
+            "match_score": self.match_score,
+        }
+
+
+@dataclass
+class ProducerPacket:
+    """Grounded extraction output for video producers.
+
+    Phase 2: Contains only grounded facts - clips, quotes, timestamps.
+    No opinions, no analysis, no "why it matters".
+
+    Quality gates (from plan):
+    - clips >= 4
+    - quotes >= 8
+    - verified_claims >= 2
+    """
+    title: str
+    videos_analyzed: List[Dict[str, Any]]  # Video metadata
+    clips: List[ProducerClip] = field(default_factory=list)
+    quotes: List[ProducerQuote] = field(default_factory=list)
+    # Split claims per ChatGPT refinement
+    verified_claims: List[Dict[str, Any]] = field(default_factory=list)  # Has quote
+    candidate_claims: List[Dict[str, Any]] = field(default_factory=list)  # Clip ref only
+    warnings: List[str] = field(default_factory=list)
+    extraction_cost: float = 0.0
+
+    def passes_quality_gate(self) -> tuple[bool, List[str]]:
+        """Check if packet meets quality thresholds."""
+        failures = []
+
+        if len(self.clips) < 4:
+            failures.append(f"clips: {len(self.clips)} < 4 required")
+        if len(self.quotes) < 8:
+            failures.append(f"quotes: {len(self.quotes)} < 8 required")
+        if len(self.verified_claims) < 2:
+            failures.append(f"verified_claims: {len(self.verified_claims)} < 2 required")
+
+        return len(failures) == 0, failures
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON export."""
+        passes, failures = self.passes_quality_gate()
+        return {
+            "title": self.title,
+            "videos_analyzed": self.videos_analyzed,
+            "clips": [c.to_dict() for c in self.clips],
+            "quotes": [q.to_dict() for q in self.quotes],
+            "verified_claims": self.verified_claims,
+            "candidate_claims": self.candidate_claims,
+            "quality_gate": {
+                "passes": passes,
+                "failures": failures,
+                "clip_count": len(self.clips),
+                "quote_count": len(self.quotes),
+                "verified_claim_count": len(self.verified_claims),
+            },
+            "warnings": self.warnings,
+            "extraction_cost": self.extraction_cost,
+        }
+
+    def to_markdown(self) -> str:
+        """Convert to markdown for human review."""
+        lines = [
+            f"# Producer Packet: {self.title}",
+            "",
+            "## Summary",
+            f"- **Videos Analyzed:** {len(self.videos_analyzed)}",
+            f"- **Clips Extracted:** {len(self.clips)}",
+            f"- **Quotes Extracted:** {len(self.quotes)}",
+            f"- **Verified Claims:** {len(self.verified_claims)}",
+            f"- **Extraction Cost:** ${self.extraction_cost:.4f}",
+            "",
+        ]
+
+        # Quality gate status
+        passes, failures = self.passes_quality_gate()
+        if passes:
+            lines.append("**Quality Gate:** ✅ PASSED")
+        else:
+            lines.append("**Quality Gate:** ❌ FAILED")
+            for f in failures:
+                lines.append(f"  - {f}")
+        lines.append("")
+
+        # Clips section
+        lines.extend([
+            "## Clips",
+            "",
+        ])
+        # Sort verified first
+        sorted_clips = sorted(
+            self.clips,
+            key=lambda c: (not c.quote_verified, c.timestamp_start)
+        )
+        for clip in sorted_clips:
+            status = "✅" if clip.quote_verified else "⚠️"
+            lines.append(
+                f"### {status} {clip.clip_id} [{clip.timestamp_start}-{clip.timestamp_end}]"
+            )
+            lines.append(f"**Speaker:** {clip.speaker}")
+            lines.append(f"> \"{clip.quote}\"")
+            lines.append(f"**Type:** {clip.quote_type} | **Verified:** {clip.verification_level.value}")
+            lines.append("")
+
+        # Quotes section
+        lines.extend([
+            "## Quotes",
+            "",
+        ])
+        sorted_quotes = sorted(
+            self.quotes,
+            key=lambda q: (not q.quote_verified, q.timestamp)
+        )
+        for quote in sorted_quotes:
+            status = "✅" if quote.quote_verified else "⚠️"
+            lines.append(f"- {status} [{quote.timestamp}] **{quote.speaker}:** \"{quote.text}\"")
+
+        lines.append("")
+
+        # Verified claims
+        if self.verified_claims:
+            lines.extend([
+                "",
+                "## Verified Claims",
+                "",
+            ])
+            for claim in self.verified_claims:
+                lines.append(f"- {claim.get('claim', str(claim))}")
+
+        # Warnings
+        if self.warnings:
+            lines.extend([
+                "",
+                "## Warnings",
+                "",
+            ])
+            for w in self.warnings:
+                lines.append(f"- ⚠️ {w}")
+
+        return "\n".join(lines)
 
 
 @dataclass
@@ -405,3 +614,182 @@ def format_dual_output(
     """
     formatter = DualOutputFormatter()
     return formatter.format(research_data, documentary_analysis, title)
+
+
+# =============================================================================
+# Phase 2: Producer Packet Generator
+# =============================================================================
+
+def create_producer_packet_from_gemini(
+    gemini_results: Dict[str, Any],
+    title: str,
+    transcripts: Optional[Dict[str, str]] = None,
+) -> ProducerPacket:
+    """Create a Producer Packet from Gemini video extraction results.
+
+    Phase 2: Converts raw Gemini output to structured Producer Packet
+    with verification against transcripts.
+
+    Args:
+        gemini_results: Output from GeminiClient.analyze_youtube_videos_batch()
+        title: Research title
+        transcripts: Optional dict of {video_url: transcript_text} for verification
+
+    Returns:
+        ProducerPacket with clips, quotes, and verification status
+    """
+    transcripts = transcripts or {}
+
+    # Extract video metadata
+    videos_analyzed = []
+    for result in gemini_results.get("results", []):
+        videos_analyzed.append({
+            "url": result.get("video_url", ""),
+            "title": result.get("video_info", {}).get("title", "Unknown"),
+            "duration_seconds": result.get("video_info", {}).get("duration_seconds", 0),
+        })
+
+    # Convert clips
+    clips = []
+    raw_clips = gemini_results.get("clips", [])
+    for i, raw_clip in enumerate(raw_clips):
+        video_url = raw_clip.get("video_url", "")
+        quote = raw_clip.get("quote", "")
+
+        # Verify against transcript if available
+        transcript = transcripts.get(video_url, "")
+        quote_verified, match_score = _verify_quote(quote, transcript)
+
+        # Check timestamp is valid format
+        ts_start = raw_clip.get("timestamp_start", "00:00")
+        ts_end = raw_clip.get("timestamp_end", "00:00")
+        range_verified = _verify_timestamp_format(ts_start) and _verify_timestamp_format(ts_end)
+
+        # Determine verification level
+        if quote_verified and range_verified:
+            level = VerificationLevel.VERIFIED
+        elif match_score >= 0.8:
+            level = VerificationLevel.PROBABLE
+        else:
+            level = VerificationLevel.UNVERIFIED
+
+        clips.append(ProducerClip(
+            clip_id=raw_clip.get("clip_id", f"CLIP_{i+1}"),
+            video_url=video_url,
+            timestamp_start=ts_start,
+            timestamp_end=ts_end,
+            speaker=raw_clip.get("speaker", "SPEAKER_A"),
+            quote=quote,
+            quote_type=raw_clip.get("quote_type", "statement"),
+            range_verified=range_verified,
+            quote_verified=quote_verified,
+            verification_level=level,
+        ))
+
+    # Convert quotes
+    quotes = []
+    raw_quotes = gemini_results.get("quotes", [])
+    for i, raw_quote in enumerate(raw_quotes):
+        video_url = raw_quote.get("video_url", "")
+        text = raw_quote.get("text", "")
+
+        # Verify against transcript
+        transcript = transcripts.get(video_url, "")
+        quote_verified, match_score = _verify_quote(text, transcript)
+
+        quotes.append(ProducerQuote(
+            quote_id=raw_quote.get("quote_id", f"QUOTE_{i+1}"),
+            video_url=video_url,
+            text=text,
+            speaker=raw_quote.get("speaker", "SPEAKER_A"),
+            timestamp=raw_quote.get("timestamp", "00:00"),
+            quote_verified=quote_verified,
+            match_score=match_score,
+        ))
+
+    # Split claims into verified and candidate
+    verified_claims = []
+    candidate_claims = []
+
+    # A claim is "verified" if it has a matching quote
+    for quote in quotes:
+        if quote.quote_verified:
+            verified_claims.append({
+                "claim": quote.text,
+                "source": quote.speaker,
+                "timestamp": quote.timestamp,
+                "video_url": quote.video_url,
+            })
+
+    # Candidate claims come from clips that aren't quote-verified
+    for clip in clips:
+        if not clip.quote_verified:
+            candidate_claims.append({
+                "claim": clip.quote,
+                "clip_id": clip.clip_id,
+                "timestamp": clip.timestamp_start,
+                "video_url": clip.video_url,
+            })
+
+    # Build warnings
+    warnings = []
+    for error in gemini_results.get("errors", []):
+        warnings.append(f"Video failed: {error.get('video_url', 'unknown')} - {error.get('error', 'unknown error')}")
+
+    return ProducerPacket(
+        title=title,
+        videos_analyzed=videos_analyzed,
+        clips=clips,
+        quotes=quotes,
+        verified_claims=verified_claims,
+        candidate_claims=candidate_claims,
+        warnings=warnings,
+        extraction_cost=gemini_results.get("total_cost", 0.0),
+    )
+
+
+def _verify_quote(quote: str, transcript: str, threshold: float = 0.8) -> tuple[bool, float]:
+    """Verify a quote against transcript text.
+
+    Returns (is_verified, match_score) where:
+    - is_verified: True if match_score >= threshold
+    - match_score: 0.0-1.0 similarity score
+
+    Uses simple substring matching for now.
+    TODO: Use fuzzy matching for better accuracy.
+    """
+    if not quote or not transcript:
+        return False, 0.0
+
+    quote_lower = quote.lower().strip()
+    transcript_lower = transcript.lower()
+
+    # Exact substring match
+    if quote_lower in transcript_lower:
+        return True, 1.0
+
+    # Check for partial match (first 50 chars)
+    quote_start = quote_lower[:50]
+    if quote_start in transcript_lower:
+        return True, 0.9
+
+    # Very basic word overlap score
+    quote_words = set(quote_lower.split())
+    transcript_words = set(transcript_lower.split())
+
+    if not quote_words:
+        return False, 0.0
+
+    overlap = len(quote_words & transcript_words)
+    score = overlap / len(quote_words)
+
+    return score >= threshold, score
+
+
+def _verify_timestamp_format(timestamp: str) -> bool:
+    """Verify timestamp is in MM:SS or HH:MM:SS format."""
+    import re
+    if not timestamp:
+        return False
+    # Match MM:SS or HH:MM:SS
+    return bool(re.match(r'^(\d{1,2}:)?\d{1,2}:\d{2}$', timestamp))

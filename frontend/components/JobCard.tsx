@@ -196,6 +196,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 status={job.status}
                 driveFolderUrl={job.artifacts?.drive_folder_url}
                 error={job.error}
+                pipeline={job.pipeline}
+                artifacts={job.artifacts}
               />
 
               {/* Actions */}

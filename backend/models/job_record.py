@@ -10,6 +10,12 @@ class Artifacts(BaseModel):
     drive_folder_url: Optional[str] = Field(None, description="Google Drive folder URL")
     doc_urls: Optional[list[str]] = Field(None, description="List of Google Doc URLs")
 
+    # Video analysis artifacts (Gemini pivot)
+    clips: Optional[list[dict[str, Any]]] = Field(None, description="Extracted video clips")
+    quotes: Optional[list[dict[str, Any]]] = Field(None, description="Extracted quotes with timestamps")
+    producer_packet: Optional[dict[str, Any]] = Field(None, description="Full ProducerPacket for video production")
+    quality_gate_passed: Optional[bool] = Field(None, description="Whether ProducerPacket passed quality gate")
+
 
 class Outputs(BaseModel):
     """Research outputs as markdown files."""

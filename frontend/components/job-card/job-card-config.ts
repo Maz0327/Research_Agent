@@ -54,6 +54,7 @@ export const pipelineLabels: Record<string, string> = {
   investigation: 'Investigation',
   profile: 'Profile',
   controversy: 'Controversy',
+  video_analysis: 'Video Analysis',
 };
 
 export type JobStatus = keyof typeof statusConfig;

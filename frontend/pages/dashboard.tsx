@@ -7,8 +7,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
-import { useJobsStore, JobPreview } from '../store/jobs';
+import { useJobsStore, JobPreview, VideoAnalysisResponse } from '../store/jobs';
 import { POLLING_INTERVALS } from '../lib/constants';
+
+// Job creation modes
+type JobMode = 'video' | 'topic';
 
 // Research depth options (mode)
 const researchDepths = [
@@ -52,6 +55,22 @@ function JobSkeleton() {
 const availableSourceTypes = ['web', 'news', 'youtube', 'reddit'];
 
 function DashboardContent() {
+  // Job creation mode: 'video' (primary) or 'topic' (legacy)
+  const [jobMode, setJobMode] = useState<JobMode>('video');
+
+  // Video Analysis state (PRIMARY)
+  const [videoUrls, setVideoUrls] = useState('');
+  const [videoTitle, setVideoTitle] = useState('');
+  const [geminiModel, setGeminiModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [videoPreview, setVideoPreview] = useState<{
+    estimatedCost: number;
+    totalDuration: number;
+    videoCount: number;
+    warnings: string[];
+  } | null>(null);
+  const [isVideoSubmitting, setIsVideoSubmitting] = useState(false);
+
+  // Topic Research state (LEGACY)
   const [prompt, setPrompt] = useState('');
   const [researchDepth, setResearchDepth] = useState('investigation');
   const [category, setCategory] = useState('');
@@ -67,7 +86,7 @@ function DashboardContent() {
   const [editableSubreddits, setEditableSubreddits] = useState<string[]>([]);
   const [newSubreddit, setNewSubreddit] = useState('');
   const {
-    jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, refreshJob, clearPreview,
+    jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createVideoAnalysisJob, refreshJob, clearPreview,
     // Bulk selection
     isEditMode, selectedJobIds, bulkErrors, toggleEditMode, selectJob, deselectJob, selectAll, deselectAll, bulkDelete, bulkArchive, clearBulkErrors,
   } = useJobsStore();
@@ -186,6 +205,54 @@ function DashboardContent() {
     fetchJobs();
   };
 
+  // Parse video URLs from textarea (one per line or comma-separated)
+  const parseVideoUrls = (text: string): string[] => {
+    return text
+      .split(/[\n,]/)
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0 && (url.includes('youtube.com') || url.includes('youtu.be')));
+  };
+
+  // Video Analysis submission
+  const handleVideoAnalysisSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const urls = parseVideoUrls(videoUrls);
+
+    if (urls.length === 0) {
+      return;
+    }
+
+    if (urls.length > 10) {
+      alert('Maximum 10 videos per job. Please reduce the number of URLs.');
+      return;
+    }
+
+    setIsVideoSubmitting(true);
+    try {
+      const result = await createVideoAnalysisJob(urls, videoTitle || undefined, geminiModel);
+      // Show preview with cost info
+      setVideoPreview({
+        estimatedCost: result.estimated_cost,
+        totalDuration: result.total_duration_minutes,
+        videoCount: result.video_count,
+        warnings: result.warnings || [],
+      });
+      // Clear form
+      setVideoUrls('');
+      setVideoTitle('');
+      setVideoPreview(null);
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to create video analysis job:', error);
+      }
+    } finally {
+      setIsVideoSubmitting(false);
+    }
+  };
+
+  // Count valid URLs for display
+  const validUrlCount = parseVideoUrls(videoUrls).length;
+
   // Memoize filtered jobs to prevent unnecessary recalculations
   const filteredJobs = useMemo(() => {
     if (statusFilter === 'all') return jobs;
@@ -214,13 +281,127 @@ function DashboardContent() {
           transition={{ delay: 0.1 }}
           className="mb-8 rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-lg"
         >
-          <h2 className="mb-4 text-lg font-semibold text-gray-100">New Research Job</h2>
+          {/* Mode Toggle */}
+          <div className="mb-6 flex items-center gap-4">
+            <h2 className="text-lg font-semibold text-gray-100">New Job</h2>
+            <div className="flex rounded-lg bg-gray-800 p-1">
+              <button
+                type="button"
+                onClick={() => setJobMode('video')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  jobMode === 'video'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                🎬 Video Analysis
+              </button>
+              <button
+                type="button"
+                onClick={() => setJobMode('topic')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                  jobMode === 'topic'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                📚 Topic Research
+              </button>
+            </div>
+          </div>
 
           <AnimatePresence mode="wait">
-            {!showPreview ? (
-              /* Input Form */
+            {/* VIDEO ANALYSIS MODE (PRIMARY) */}
+            {jobMode === 'video' ? (
               <motion.form
-                key="form"
+                key="video-form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onSubmit={handleVideoAnalysisSubmit}
+              >
+                <div className="mb-4">
+                  <label htmlFor="videoUrls" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    YouTube Video URLs
+                    {validUrlCount > 0 && (
+                      <span className="ml-2 text-purple-400">({validUrlCount} video{validUrlCount !== 1 ? 's' : ''})</span>
+                    )}
+                  </label>
+                  <textarea
+                    id="videoUrls"
+                    value={videoUrls}
+                    onChange={(e) => setVideoUrls(e.target.value)}
+                    placeholder={`Paste YouTube URLs (one per line)\n\nhttps://youtube.com/watch?v=...\nhttps://youtu.be/...`}
+                    rows={5}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 font-mono text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    disabled={isVideoSubmitting}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    <strong>Max 10 videos.</strong> AI will extract key moments, quotes, and timestamps from each video.
+                  </p>
+                </div>
+
+                {/* Optional title and model selector */}
+                <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="videoTitle" className="mb-1.5 block text-sm font-medium text-gray-400">
+                      Project Title (optional)
+                    </label>
+                    <input
+                      type="text"
+                      id="videoTitle"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      placeholder="e.g., Joe Rogan UFO Episodes"
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      disabled={isVideoSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="geminiModel" className="mb-1.5 block text-sm font-medium text-gray-400">
+                      Analysis Model
+                    </label>
+                    <select
+                      id="geminiModel"
+                      value={geminiModel}
+                      onChange={(e) => setGeminiModel(e.target.value as 'gemini-2.5-flash' | 'gemini-2.5-pro')}
+                      disabled={isVideoSubmitting}
+                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                    >
+                      <option value="gemini-2.5-flash">Flash - Faster & Cheaper (~$0.15/hr)</option>
+                      <option value="gemini-2.5-pro">Pro - More Accurate (~$1.15/hr)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isVideoSubmitting || validUrlCount === 0}
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-500 px-6 py-3 font-medium text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:from-purple-500 hover:to-purple-400 hover:shadow-purple-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                >
+                  {isVideoSubmitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Analyze {validUrlCount > 0 ? `${validUrlCount} Video${validUrlCount !== 1 ? 's' : ''}` : 'Videos'}
+                    </>
+                  )}
+                </button>
+              </motion.form>
+            ) : !showPreview ? (
+              /* TOPIC RESEARCH MODE (LEGACY) - Input Form */
+              <motion.form
+                key="topic-form"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}

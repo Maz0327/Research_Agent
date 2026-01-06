@@ -1,6 +1,14 @@
 # Research Agent
 
-A cloud-based research backend for aggregating content from Reddit, YouTube, articles, and other sources. Processes research topics through a multi-stage pipeline with AI-powered planning, web scraping, transcript extraction, claim validation, and Google Drive document generation.
+AI-powered documentary research assistant that makes long-form video content scannable. Two modes:
+
+**Primary Mode (Jan 2026): Video Analysis**
+- User provides YouTube URLs → Gemini extracts timestamped clips and quotes
+- Output: ProducerPacket with verified clips, quotes, and quality gate status
+
+**Legacy Mode: Topic Research**
+- User enters topic → System discovers sources → Extraction pipeline
+- Output: NotebookLM Packet, Documentary Blueprint, Research Brief
 
 ## Production Status
 
@@ -13,8 +21,15 @@ A cloud-based research backend for aggregating content from Reddit, YouTube, art
 
 ## Features
 
-### Research Capabilities
-- **Multi-mode Research Pipelines**: Quick, Full, Breaking News, Investigation, Profile, and Controversy modes
+### Video Analysis (Primary - Jan 2026)
+- **Gemini 2.5 Extraction**: Direct YouTube URL analysis with Gemini 2.5 Flash/Pro
+- **Timestamped Clips**: MM:SS timestamps for every extracted moment
+- **Quote Verification**: Three-tier verification (verified/probable/unverified)
+- **Quality Gate**: Minimum thresholds (4 clips, 8 quotes, 2 verified claims)
+- **ProducerPacket Output**: Structured data for video production workflows
+
+### Topic Research (Legacy)
+- **Multi-mode Pipelines**: Quick, Full, Breaking News, Investigation, Profile, Controversy
 - **AI-Powered Planning**: OpenAI-based research planning and claim extraction
 - **Source Aggregation**: YouTube transcripts, web articles, Reddit discussions
 - **Claim Validation**: Multi-source claim verification with evidence scoring
@@ -202,6 +217,51 @@ npm run dev
 
 Frontend available at `http://localhost:3000`
 
+## Testing
+
+### Backend Tests
+
+```bash
+# Install dev dependencies
+pip install -r requirements-dev.txt
+
+# Run all backend tests
+pytest backend/tests/ -v
+
+# Run with coverage
+pytest backend/tests/ --cov=backend --cov-report=term-missing
+
+# Run specific test file
+pytest backend/tests/test_extraction.py -v
+```
+
+### Frontend Tests
+
+```bash
+cd frontend
+
+# Run linting
+npm run lint
+
+# Type check
+npx tsc --noEmit
+
+# Build (includes type checking)
+npm run build
+```
+
+### Pre-commit Checks
+
+```bash
+# Backend
+source venv/bin/activate
+pytest backend/tests/
+
+# Frontend
+cd frontend
+npm run lint && npm run build
+```
+
 ## API Endpoints
 
 ### Authentication
@@ -214,7 +274,11 @@ Frontend available at `http://localhost:3000`
 - `GET /settings/check-username` - Check username availability
 - `GET /settings/oauth-status` - Check Google OAuth connection status
 
-### Research Jobs
+### Video Analysis (Primary)
+- `POST /jobs/video-analysis` - Create video analysis job (accepts YouTube URLs)
+- `GET /jobs/video-analysis/{job_id}` - Get video analysis status with clips/quotes
+
+### Research Jobs (Legacy)
 - `POST /jobs` - Create research job
 - `GET /jobs` - List user's jobs
 - `GET /jobs/{job_id}` - Get job status
@@ -243,6 +307,7 @@ See `.env.example` for the complete list. Key variables:
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `SUPABASE_JWT_SECRET` | JWT secret for auth |
 | `SUPABASE_JWT_AUDIENCE` | JWT audience claim (default: "authenticated") |
+| `GOOGLE_API_KEY` | Google API key for Gemini 2.5 (video analysis) |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `PERPLEXITY_API_KEY` | Perplexity API key |
 | `GOOGLE_OAUTH_*` | Google OAuth credentials |
@@ -255,15 +320,17 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for production deployment to Rail
 ## Documentation
 
 ### Core Documentation
-- **[PRD v6.0](Active%20Docs/PRD_v6.md)** - Authoritative product specification (research-validated)
+- **[Gemini Pivot](docs/gemini-pivot-implementation.md)** - Video analysis implementation (Jan 2026)
 - **[CLAUDE.md](CLAUDE.md)** - Development guide for Claude Code
 - **[Architecture](docs/architecture.md)** - System architecture overview
 - **[Code Standards](docs/code-standards.md)** - Coding conventions
 
+### Strategic Planning
+- `plans/strategic-pivot-jan-2026-v3-recalibrated.md` - Strategic decision rationale
+- `plans/reports/` - Research reports and analysis
+
 ### Deployment & Operations
 - `DEPLOYMENT_GUIDE.md` - Production deployment instructions
-- `SETTINGS_DESIGN.md` - Settings page design document
-- `TECHNICAL_DEBT_REPORT.md` - Technical debt analysis
 
 ### Archived
 - See `Archive Docs/` for superseded PRDs (v2, v3, v4.3, v5.0)

@@ -13,11 +13,12 @@ from backend.auth.ban_check import get_active_user, get_optional_active_user
 from backend.auth.admin import is_admin
 from backend.models.job import (
     CreateJobRequest, CreateJobResponse, JobStatusResponse,
-    SelectInterpretationRequest, PreviewJobRequest, PreviewJobResponse
+    SelectInterpretationRequest, PreviewJobRequest, PreviewJobResponse,
+    VideoAnalysisRequest, VideoAnalysisResponse, VideoAnalysisStatusResponse,
 )
 from backend.state import create_job, get_job, update_job, list_jobs
-from backend.utils.validators import ValidationError
-from backend.worker import run_research_job
+from backend.utils.validators import ValidationError, validate_video_job_inputs
+from backend.worker import run_research_job, run_gemini_video_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -193,6 +194,148 @@ async def create_job_endpoint(
     run_research_job.apply_async((job.job_id, prompt), task_id=job.job_id)
 
     return CreateJobResponse(job_id=job.job_id)
+
+
+# =============================================================================
+# Video Analysis Endpoint (URL-first Gemini extraction - PRIMARY FLOW)
+# =============================================================================
+
+@router.post("/video-analysis", response_model=VideoAnalysisResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def create_video_analysis_job(
+    request: Request,
+    job_request: VideoAnalysisRequest,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Create a new video analysis job (URL-first Gemini extraction).
+
+    This is the PRIMARY job creation endpoint for the Gemini pivot.
+    User provides YouTube URLs directly → Gemini extracts clips/quotes.
+
+    Returns estimated cost and job ID for polling.
+    """
+    # Validate video URLs and get cost estimate
+    validation = validate_video_job_inputs(
+        video_urls=job_request.video_urls,
+        video_durations=None,  # Will estimate based on count
+        model=job_request.model,
+    )
+
+    if not validation.valid:
+        raise HTTPException(status_code=422, detail=validation.error)
+
+    # Build config_json for the job
+    config_json = {
+        "video_urls": job_request.video_urls,
+        "model": job_request.model,
+        "title": job_request.title or f"Video Analysis ({len(job_request.video_urls)} videos)",
+        "job_type": "video_analysis",  # Distinguish from topic-based jobs
+    }
+
+    # Store user info
+    if user:
+        config_json["user_email"] = user.email
+        config_json["user_id"] = user.user_id
+
+    # Create job
+    user_id = user.user_id if user else None
+    job = create_job(config_json=config_json, user_id=user_id)
+
+    # Audit log
+    logger.info(
+        "Video analysis job created",
+        extra={
+            "job_id": job.job_id,
+            "user_id": user_id or "anonymous",
+            "video_count": len(job_request.video_urls),
+            "model": job_request.model,
+            "estimated_cost": validation.estimated_cost,
+            "ip": request.client.host if request.client else None,
+            "event": "video_analysis_job_created",
+        }
+    )
+
+    # Enqueue Celery task
+    logger.info(f"Enqueuing Gemini video job {job.job_id} for {len(job_request.video_urls)} videos")
+    run_gemini_video_job.apply_async((job.job_id,), task_id=job.job_id)
+
+    return VideoAnalysisResponse(
+        job_id=job.job_id,
+        estimated_cost=validation.estimated_cost,
+        total_duration_minutes=validation.total_duration_minutes,
+        video_count=len(job_request.video_urls),
+        warnings=validation.warnings if validation.warnings else None,
+    )
+
+
+@router.get("/video-analysis/{job_id}", response_model=VideoAnalysisStatusResponse)
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_video_analysis_status(
+    request: Request,
+    job_id: str,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """Get the status of a video analysis job."""
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required to view this job",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Extract progress info from config_json
+    current_video = job.config_json.get("current_video") if job.config_json else None
+    total_videos = len(job.config_json.get("video_urls", [])) if job.config_json else None
+
+    # Extract clips/quotes counts from artifacts
+    clips_count = None
+    quotes_count = None
+    producer_packet = None
+
+    if job.artifacts:
+        artifacts_dict = job.artifacts.model_dump(exclude_none=True) if hasattr(job.artifacts, "model_dump") else {}
+        clips = artifacts_dict.get("clips", [])
+        quotes = artifacts_dict.get("quotes", [])
+        clips_count = len(clips) if clips else None
+        quotes_count = len(quotes) if quotes else None
+
+        # If completed, include full producer packet
+        if job.status == "completed":
+            producer_packet = artifacts_dict
+
+    # Extract error
+    error = None
+    if job.status == "failed":
+        if job.warnings:
+            error = job.warnings[-1]
+
+    return VideoAnalysisStatusResponse(
+        job_id=job.job_id,
+        status=job.status,
+        progress_percent=job.progress_percent,
+        current_video=current_video,
+        total_videos=total_videos,
+        clips_count=clips_count,
+        quotes_count=quotes_count,
+        error=error,
+        created_at=job.created_at,
+        producer_packet=producer_packet,
+    )
 
 
 @router.post("/preview", response_model=PreviewJobResponse)
