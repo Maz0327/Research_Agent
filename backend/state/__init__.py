@@ -1,5 +1,5 @@
 """Job persistence interface and implementations."""
-from backend.models.job_record import JobRecord
+from backend.models.job_record import Artifacts, JobRecord
 from backend.state.factory import get_job_store
 from backend.state.interface import JobStore
 
@@ -7,6 +7,7 @@ from backend.state.interface import JobStore
 __all__ = [
     "JobStore",
     "JobRecord",
+    "Artifacts",
     "get_job_store",
     "create_job",
     "get_job",
@@ -67,9 +68,13 @@ def update_job(
     stage: str | None = None,
     progress_percent: int | None = None,
     title: str | None = None,
+    error: str | None = None,
     partial_outputs: dict | None = None,
     partial_artifacts: dict | None = None,
     warnings_append: list[str] | None = None,
+    config_json: dict | None = None,
+    artifacts: Artifacts | None = None,
+    warnings: list[str] | None = None,
     interpretations: list[dict] | None = None,
     selected_interpretations: list[int] | None = None,
 ) -> JobRecord | None:
@@ -82,9 +87,13 @@ def update_job(
         stage: New stage (optional)
         progress_percent: New progress percentage (optional)
         title: AI-generated short title (optional)
+        error: Error message for failed jobs (optional)
         partial_outputs: Partial outputs dict to merge (optional)
         partial_artifacts: Partial artifacts dict to merge (optional)
         warnings_append: List of warnings to append (optional)
+        config_json: Full config_json replacement (optional)
+        artifacts: Full artifacts replacement (optional)
+        warnings: Full warnings replacement (optional)
         interpretations: Disambiguation interpretations list (optional)
         selected_interpretations: User-selected interpretation indices (optional)
 
@@ -98,9 +107,13 @@ def update_job(
         stage=stage,
         progress_percent=progress_percent,
         title=title,
+        error=error,
         partial_outputs=partial_outputs,
         partial_artifacts=partial_artifacts,
         warnings_append=warnings_append,
+        config_json=config_json,
+        artifacts=artifacts,
+        warnings=warnings,
         interpretations=interpretations,
         selected_interpretations=selected_interpretations,
     )
