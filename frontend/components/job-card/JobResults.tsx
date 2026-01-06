@@ -15,6 +15,7 @@ import { QuoteList, Quote } from './QuoteList';
 import { ContentBlueprintView, ContentBlueprint } from './ContentBlueprintView';
 import { GapAnalysisView, GapAnalysis } from './GapAnalysisView';
 import { ResearchStarterView, ResearchStarter } from './ResearchStarterView';
+import { ExportButton } from './ExportButton';
 
 interface VideoArtifacts {
   clips?: Clip[];
@@ -38,6 +39,7 @@ interface VideoArtifacts {
 }
 
 interface JobResultsProps {
+  jobId: string;
   status: JobStatus;
   driveFolderUrl?: string;
   error?: string;
@@ -47,7 +49,7 @@ interface JobResultsProps {
 
 type ResultTab = 'clips' | 'quotes' | 'blueprints' | 'gaps' | 'research';
 
-export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts }: JobResultsProps) {
+export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, artifacts }: JobResultsProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>('clips');
 
   if (status === 'failed' && error) {
@@ -90,13 +92,13 @@ export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts 
 
     return (
       <div className="space-y-4">
-        {/* Quality Gate Status */}
+        {/* Quality Gate Status + Export Button */}
         <div className={`rounded-lg border p-4 ${
           passed
             ? 'border-green-800 bg-green-900/30'
             : 'border-yellow-800 bg-yellow-900/30'
         }`}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${passed ? 'bg-green-800/50' : 'bg-yellow-800/50'}`}>
                 {passed ? (
@@ -119,12 +121,15 @@ export function JobResults({ status, driveFolderUrl, error, pipeline, artifacts 
               </div>
             </div>
 
-            {qualityGate && (
-              <div className="text-xs text-gray-400 text-right">
-                <div>Clips: {qualityGate.clip_count}/4</div>
-                <div>Quotes: {qualityGate.quote_count}/8</div>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {qualityGate && (
+                <div className="text-xs text-gray-400 text-right hidden sm:block">
+                  <div>Clips: {qualityGate.clip_count}/4</div>
+                  <div>Quotes: {qualityGate.quote_count}/8</div>
+                </div>
+              )}
+              <ExportButton jobId={jobId} />
+            </div>
           </div>
 
           {/* Quality gate failures */}
