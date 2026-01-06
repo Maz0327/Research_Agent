@@ -440,7 +440,8 @@ async def list_jobs_endpoint(
     jobs_data = []
     for job in jobs:
         prompt = job.config_json.get("prompt") or job.config_json.get("topic", "")
-        pipeline = job.config_json.get("pipeline", "full")
+        # Check job_type first (for video analysis), then pipeline
+        pipeline = job.config_json.get("job_type") or job.config_json.get("pipeline", "full")
 
         artifacts_dict = None
         if job.artifacts:
@@ -501,7 +502,8 @@ async def get_job_status(
             raise HTTPException(status_code=403, detail="Access denied")
 
     prompt = job.config_json.get("prompt") or job.config_json.get("topic", "")
-    pipeline = job.config_json.get("pipeline", "full")
+    # Check job_type first (for video analysis), then pipeline
+    pipeline = job.config_json.get("job_type") or job.config_json.get("pipeline", "full")
 
     # Extract error from warnings
     error = None
