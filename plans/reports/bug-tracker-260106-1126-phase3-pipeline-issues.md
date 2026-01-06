@@ -721,6 +721,8 @@
 | 2026-01-06 | Fixed 6 Low priority issues (L-001, L-002, L-003, L-007, L-012, L-016) | Agent |
 | 2026-01-06 | Added 37 tests for Phase 3 pipeline | Agent |
 | 2026-01-06 | Architect verification complete | Architect |
+| 2026-01-06 | **HOTFIX**: Added missing params to `update_job()` wrapper (config_json, artifacts, warnings, error) | Agent |
+| 2026-01-06 | **HOTFIX**: Added `SoftTimeLimitExceeded` handler for graceful 25-min timeout | Agent |
 
 ---
 

@@ -256,5 +256,58 @@ These are documentation, tooling, and minor improvements:
 4. Backend changes require worker restart
 5. All changes are backward compatible
 
+---
+
+## Post-Deployment Hotfixes (2026-01-06 Evening)
+
+### HOTFIX-001: `update_job()` Missing Parameters
+**Issue:** Worker calling `update_job(config_json=..., artifacts=..., warnings=...)` failed with `TypeError: unexpected keyword argument`
+
+**Root Cause:** Module-level `update_job()` wrapper in `backend/state/__init__.py` didn't expose all parameters that the underlying `JobStore.update_job()` supports.
+
+**Fix:** Added missing parameters to wrapper:
+- `config_json: dict | None`
+- `artifacts: Artifacts | None`
+- `warnings: list[str] | None`
+- `error: str | None`
+
+**File:** `backend/state/__init__.py`
+
+---
+
+### HOTFIX-002: `SoftTimeLimitExceeded` Handler Missing
+**Issue:** Jobs exceeding 25-minute soft limit were stuck in "running" state indefinitely.
+
+**Root Cause:** C-005 fix was incomplete - `SoftTimeLimitExceeded` exception wasn't being caught.
+
+**Fix:** Added explicit exception handler:
+```python
+except SoftTimeLimitExceeded:
+    logger.error(f"[{job_id}] Pipeline timed out after 25 minutes")
+    update_job(
+        job_id,
+        status="failed",
+        stage="timeout",
+        error="Pipeline timed out. Try processing fewer videos or shorter videos.",
+        warnings=["Task exceeded 25 minute time limit"],
+    )
+```
+
+**File:** `backend/worker.py`
+
+---
+
+## Current Configuration for Video Processing
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `time_limit` | 30 min | Hard timeout - worker killed |
+| `soft_time_limit` | 25 min | Soft timeout - graceful failure |
+| `API_TIMEOUT_SECONDS` | 5 min | Per-API call timeout |
+| `MAX_VIDEOS_PER_JOB` | 20 | Maximum videos per job |
+| Rate limit delay | 500ms | Between video analyses |
+
+**Estimated Processing Time for 5 × 30-min Videos:** ~7-10 minutes (well under 25-min limit)
+
 
 
