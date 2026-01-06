@@ -2,6 +2,7 @@
 from typing import Optional
 
 from celery import Celery
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from backend.config import get_settings
@@ -798,12 +799,29 @@ def run_gemini_video_job(job_id: str) -> dict:
             "quality_gate_passed": passes_gate,
         }
 
+    except SoftTimeLimitExceeded:
+        # C-005: Handle Celery soft timeout (25 min) gracefully
+        logger.error(f"[{job_id}] Pipeline timed out after 25 minutes")
+        update_job(
+            job_id,
+            status="failed",
+            stage="timeout",
+            error="Pipeline timed out. Try processing fewer videos or shorter videos.",
+            warnings=["Task exceeded 25 minute time limit"],
+        )
+        return {
+            "job_id": job_id,
+            "status": "failed",
+            "error": "Pipeline timed out after 25 minutes",
+        }
+
     except Exception as e:
         logger.exception(f"[{job_id}] Full pipeline failed: {e}")
         update_job(
             job_id,
             status="failed",
             stage="error",
+            error=str(e),
             warnings=[f"Pipeline failed: {str(e)}"],
         )
         return {"job_id": job_id, "status": "failed", "error": str(e)}
