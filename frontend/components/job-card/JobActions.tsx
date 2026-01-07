@@ -71,7 +71,7 @@ export function JobActions({
 
   const canCancel = status === 'running' || status === 'queued';
   const canDeleteOrArchive = !canCancel; // Can delete/archive when not running
-  const hasResults = status === 'completed' && driveFolderUrl;
+  const hasResults = (status === 'completed' || status === 'completed_with_warnings') && driveFolderUrl;
 
   return (
     <div className="space-y-3 pt-2">

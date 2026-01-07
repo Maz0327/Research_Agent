@@ -254,9 +254,18 @@ function DashboardContent() {
   const validUrlCount = parseVideoUrls(videoUrls).length;
 
   // Memoize filtered jobs to prevent unnecessary recalculations
+  // Group related statuses for filtering (completed includes completed_with_warnings, failed includes failed_insufficient)
   const filteredJobs = useMemo(() => {
     if (statusFilter === 'all') return jobs;
-    return jobs.filter((job) => job.status === statusFilter);
+    return jobs.filter((job) => {
+      if (statusFilter === 'completed') {
+        return job.status === 'completed' || job.status === 'completed_with_warnings';
+      }
+      if (statusFilter === 'failed') {
+        return job.status === 'failed' || job.status === 'failed_insufficient';
+      }
+      return job.status === statusFilter;
+    });
   }, [jobs, statusFilter]);
 
   return (

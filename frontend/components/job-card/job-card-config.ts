@@ -24,12 +24,26 @@ export const statusConfig = {
     dotColor: 'bg-green-400',
     borderColor: 'border-green-500/50',
   },
+  completed_with_warnings: {
+    label: 'Completed',
+    bgColor: 'bg-yellow-900/50',
+    textColor: 'text-yellow-300',
+    dotColor: 'bg-yellow-400',
+    borderColor: 'border-yellow-500/50',
+  },
   failed: {
     label: 'Failed',
     bgColor: 'bg-red-900/50',
     textColor: 'text-red-300',
     dotColor: 'bg-red-400',
     borderColor: 'border-red-500/50',
+  },
+  failed_insufficient: {
+    label: 'Insufficient Data',
+    bgColor: 'bg-orange-900/50',
+    textColor: 'text-orange-300',
+    dotColor: 'bg-orange-400',
+    borderColor: 'border-orange-500/50',
   },
   cancelled: {
     label: 'Cancelled',

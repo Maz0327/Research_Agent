@@ -124,7 +124,7 @@ export interface Job {
   /** Pipeline type (quick, full, breaking_news, investigation, profile, controversy, video_analysis) */
   pipeline: string;
   /** Current job status */
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'disambiguating';
+  status: 'queued' | 'running' | 'completed' | 'completed_with_warnings' | 'failed' | 'failed_insufficient' | 'cancelled' | 'disambiguating';
   /** Current pipeline stage name */
   stage?: string;
   /** When current stage started (ISO timestamp for ETA calculation) */

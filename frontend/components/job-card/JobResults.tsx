@@ -71,8 +71,9 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
     );
   }
 
-  // Video Analysis results
-  if (status === 'completed' && pipeline === 'video_analysis' && artifacts) {
+  // Video Analysis results - show for completed, completed_with_warnings, and failed_insufficient
+  const isVideoCompleted = ['completed', 'completed_with_warnings', 'failed_insufficient'].includes(status);
+  if (isVideoCompleted && pipeline === 'video_analysis' && artifacts) {
     const clips = artifacts.clips || [];
     const quotes = artifacts.quotes || [];
     const blueprints = artifacts.content_blueprints || [];
@@ -226,8 +227,9 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
     );
   }
 
-  // Topic Research results (Drive folder)
-  if (status === 'completed' && driveFolderUrl) {
+  // Topic Research results (Drive folder) - show for completed and completed_with_warnings
+  const isTopicCompleted = ['completed', 'completed_with_warnings'].includes(status);
+  if (isTopicCompleted && driveFolderUrl) {
     return (
       <div className="rounded-lg border border-green-800 bg-green-900/30 p-4">
         <div className="flex items-center justify-between">

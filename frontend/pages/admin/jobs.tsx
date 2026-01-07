@@ -14,7 +14,9 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   queued: { label: 'Queued', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
   running: { label: 'Running', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
   completed: { label: 'Completed', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+  completed_with_warnings: { label: 'Completed (Warnings)', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' },
   failed: { label: 'Failed', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
+  failed_insufficient: { label: 'Insufficient Data', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
   cancelled: { label: 'Cancelled', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
 };
 
@@ -169,7 +171,9 @@ function AdminJobsContent() {
           <option value="queued">Queued</option>
           <option value="running">Running</option>
           <option value="completed">Completed</option>
+          <option value="completed_with_warnings">Completed (Warnings)</option>
           <option value="failed">Failed</option>
+          <option value="failed_insufficient">Insufficient Data</option>
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
