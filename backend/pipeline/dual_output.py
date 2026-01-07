@@ -43,6 +43,17 @@ class VerificationLevel(str, Enum):
     UNVERIFIED = "unverified"  # Extracted but not cross-verified
 
 
+class TriageLevel(str, Enum):
+    """Quality triage levels for producer packets.
+    
+    Provides nuanced assessment beyond pass/fail quality gate.
+    """
+    READY = "ready"           # 6+ clips, 12+ quotes, 4+ verified claims
+    USABLE = "usable"         # Meets minimums but low verification
+    THIN = "thin"             # Below minimums but has some content
+    FAILED = "failed"         # Nothing usable
+
+
 @dataclass
 class ProducerClip:
     """A clip extracted from video for production use.
@@ -123,21 +134,67 @@ class ProducerPacket:
     extraction_cost: float = 0.0
 
     def passes_quality_gate(self) -> tuple[bool, List[str]]:
-        """Check if packet meets quality thresholds."""
+        """Check if packet meets quality thresholds.
+        
+        Accepts candidate_claims as fallback when transcripts unavailable
+        (verified_claims require transcript matching which may not be possible).
+        """
         failures = []
 
         if len(self.clips) < 4:
             failures.append(f"clips: {len(self.clips)} < 4 required")
         if len(self.quotes) < 8:
             failures.append(f"quotes: {len(self.quotes)} < 8 required")
-        if len(self.verified_claims) < 2:
-            failures.append(f"verified_claims: {len(self.verified_claims)} < 2 required")
+        
+        # Accept either verified claims OR candidate claims as fallback
+        # (When transcripts are unavailable, verification is impossible)
+        if len(self.verified_claims) < 2 and len(self.candidate_claims) < 6:
+            failures.append(
+                f"insufficient claims: {len(self.verified_claims)} verified, "
+                f"{len(self.candidate_claims)} candidate (need 2+ verified OR 6+ candidate)"
+            )
 
         return len(failures) == 0, failures
+
+    def triage(self) -> tuple["TriageLevel", List[str]]:
+        """Compute triage level with reasons.
+        
+        Provides nuanced quality assessment beyond pass/fail:
+        - READY: Full quality, ready for production
+        - USABLE: Meets minimums, spot-check recommended
+        - THIN: Below minimums but has some content
+        - FAILED: Nothing usable
+        """
+        reasons = []
+        
+        clip_count = len(self.clips)
+        quote_count = len(self.quotes)
+        verified_count = len(self.verified_claims)
+        candidate_count = len(self.candidate_claims)
+        
+        # READY: High quality output
+        if clip_count >= 6 and quote_count >= 12 and verified_count >= 4:
+            return TriageLevel.READY, []
+        
+        # USABLE: Meets minimums with acceptable verification
+        if clip_count >= 4 and quote_count >= 8:
+            if verified_count >= 2 or candidate_count >= 6:
+                reasons.append("Low verification - spot-check recommended")
+                return TriageLevel.USABLE, reasons
+        
+        # THIN: Has some content but below minimums
+        if clip_count >= 2 or quote_count >= 4:
+            reasons.append(f"Thin extraction: {clip_count} clips, {quote_count} quotes")
+            return TriageLevel.THIN, reasons
+        
+        # FAILED: Nothing usable
+        reasons.append("Insufficient extraction")
+        return TriageLevel.FAILED, reasons
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON export."""
         passes, failures = self.passes_quality_gate()
+        triage_level, triage_reasons = self.triage()
         return {
             "title": self.title,
             "videos_analyzed": self.videos_analyzed,
@@ -151,6 +208,10 @@ class ProducerPacket:
                 "clip_count": len(self.clips),
                 "quote_count": len(self.quotes),
                 "verified_claim_count": len(self.verified_claims),
+            },
+            "triage": {
+                "level": triage_level.value,
+                "reasons": triage_reasons,
             },
             "warnings": self.warnings,
             "extraction_cost": self.extraction_cost,
@@ -522,12 +583,17 @@ class SearchQuery:
     query: str
     platform: str  # "google", "reddit", "youtube", "academic"
     why: str
+    # Citation tracking: references to clips/quotes that support this suggestion
+    based_on: List[str] = field(default_factory=list)  # e.g., ["CLIP_3", "QUOTE_7"]
+    confidence: str = "medium"  # "high" | "medium" | "speculative"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "query": self.query,
             "platform": self.platform,
             "why": self.why,
+            "based_on": self.based_on,
+            "confidence": self.confidence,
         }
 
 
@@ -552,12 +618,17 @@ class RabbitHole:
     topic: str
     mentioned_in: str  # Video title/timestamp
     potential_angle: str
+    # Citation tracking: references to clips/quotes that support this suggestion
+    based_on: List[str] = field(default_factory=list)  # e.g., ["CLIP_3", "QUOTE_7"]
+    confidence: str = "speculative"  # Rabbit holes are inherently speculative
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "topic": self.topic,
             "mentioned_in": self.mentioned_in,
             "potential_angle": self.potential_angle,
+            "based_on": self.based_on,
+            "confidence": self.confidence,
         }
 
 
@@ -567,12 +638,17 @@ class ContentAngle:
     angle: str
     differentiator: str
     why_unique: str
+    # Citation tracking: references to clips/quotes that support this angle
+    based_on: List[str] = field(default_factory=list)  # e.g., ["CLIP_3", "QUOTE_7"]
+    confidence: str = "medium"  # "high" | "medium" | "speculative"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "angle": self.angle,
             "differentiator": self.differentiator,
             "why_unique": self.why_unique,
+            "based_on": self.based_on,
+            "confidence": self.confidence,
         }
 
 

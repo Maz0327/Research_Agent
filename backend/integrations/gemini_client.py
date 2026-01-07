@@ -1578,7 +1578,8 @@ YouTube Video URL: {chunk_url}"""
         return {
             "status": status,
             "research_topic": research_topic,
-            # Pass 1 outputs
+            # Pass 1 outputs - include results for video metadata
+            "results": batch_result.get("results", []),
             "clips": batch_result.get("clips", []),
             "quotes": batch_result.get("quotes", []),
             "videos_processed": batch_result.get("videos_processed", 0),

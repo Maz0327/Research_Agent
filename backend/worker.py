@@ -698,7 +698,7 @@ def run_gemini_video_job(job_id: str) -> dict:
             return {"job_id": job_id, "status": "failed", "error": result.get("error")}
 
         # Generate ProducerPacket with quality gate
-        from backend.pipeline.dual_output import create_producer_packet_from_gemini
+        from backend.pipeline.dual_output import create_producer_packet_from_gemini, TriageLevel
         from backend.models.job_record import Artifacts
 
         title = job.config_json.get("title", f"Video Analysis {job_id[:8]}")
@@ -707,7 +707,7 @@ def run_gemini_video_job(job_id: str) -> dict:
         batch_result = {
             "clips": result.get("clips", []),
             "quotes": result.get("quotes", []),
-            "results": [],  # Videos info for packet
+            "results": result.get("results", []),  # Pass through video metadata
             "total_cost": result.get("total_cost", 0),
         }
 
@@ -717,8 +717,9 @@ def run_gemini_video_job(job_id: str) -> dict:
             transcripts=None,
         )
 
-        # Check quality gate
+        # Check quality gate and triage level
         passes_gate, gate_issues = producer_packet.passes_quality_gate()
+        triage_level, triage_reasons = producer_packet.triage()
         warnings = []
 
         if result.get("extraction_errors"):
@@ -731,6 +732,7 @@ def run_gemini_video_job(job_id: str) -> dict:
         if not passes_gate:
             warnings.extend([f"Quality gate: {issue}" for issue in gate_issues])
             logger.warning(f"[{job_id}] Quality gate not passed: {gate_issues}")
+            logger.info(f"[{job_id}] Triage level: {triage_level.value}, reasons: {triage_reasons}")
 
         # M-008: Consistent dataclass serialization pattern using safe_to_dict
         from backend.integrations.gemini_client import safe_to_dict
@@ -753,14 +755,24 @@ def run_gemini_video_job(job_id: str) -> dict:
             research_starter=research_starter_dict,
         )
 
-        # H-013: Determine appropriate final status based on warnings
+        # Determine appropriate final status based on triage and warnings
         final_status = "completed"
-        if result.get("status") == "completed_with_errors":
+        
+        # Use failed_insufficient for FAILED triage (nothing usable)
+        if triage_level == TriageLevel.FAILED:
+            final_status = "failed_insufficient"
+            logger.warning(f"[{job_id}] Triage FAILED - marking as failed_insufficient")
+        elif result.get("status") == "completed_with_errors":
             final_status = "completed_with_warnings"  # Downgrade to partial success
         elif result.get("status") == "completed_with_warnings":
             final_status = "completed_with_warnings"
-        elif warnings:
+        elif warnings or triage_level in (TriageLevel.THIN, TriageLevel.USABLE):
             final_status = "completed_with_warnings"
+        
+        # Set error message for failed_insufficient
+        error_msg = None
+        if final_status == "failed_insufficient":
+            error_msg = f"Insufficient extraction: {'; '.join(triage_reasons + gate_issues)}"
         
         update_job(
             job_id,
@@ -769,6 +781,7 @@ def run_gemini_video_job(job_id: str) -> dict:
             progress_percent=100,
             artifacts=artifacts,
             warnings=warnings if warnings else None,
+            error=error_msg,
         )
 
         videos_processed = result.get("videos_processed", 0)
@@ -777,17 +790,19 @@ def run_gemini_video_job(job_id: str) -> dict:
 
         logger.info(
             f"[{job_id}] Full pipeline completed: "
+            f"status={final_status}, "
             f"{videos_processed} videos, "
             f"{len(result.get('clips', []))} clips, "
             f"{len(producer_packet.quotes)} quotes, "
             f"{len(content_blueprints_dicts)} blueprints, "
+            f"triage={triage_level.value}, "
             f"quality_gate={'PASS' if passes_gate else 'FAIL'}, "
             f"${total_cost:.4f}"
         )
 
         return {
             "job_id": job_id,
-            "status": result["status"],
+            "status": final_status,
             "clips": len(result.get("clips", [])),
             "quotes": len(producer_packet.quotes),
             "content_blueprints": len(content_blueprints_dicts),
@@ -797,6 +812,7 @@ def run_gemini_video_job(job_id: str) -> dict:
             "videos_failed": videos_failed,
             "total_cost": total_cost,
             "quality_gate_passed": passes_gate,
+            "triage_level": triage_level.value,
         }
 
     except SoftTimeLimitExceeded:

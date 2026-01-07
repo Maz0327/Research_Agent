@@ -723,6 +723,14 @@
 | 2026-01-06 | Architect verification complete | Architect |
 | 2026-01-06 | **HOTFIX**: Added missing params to `update_job()` wrapper (config_json, artifacts, warnings, error) | Agent |
 | 2026-01-06 | **HOTFIX**: Added `SoftTimeLimitExceeded` handler for graceful 25-min timeout | Agent |
+| 2026-01-07 | **FIX**: Pass through `results` array for video metadata (fixes empty `videos_analyzed`) | Agent |
+| 2026-01-07 | **FIX**: Show results for `completed_with_warnings` status (fixes hidden output) | Agent |
+| 2026-01-07 | **FIX**: Quality gate accepts `candidate_claims >= 6` as fallback when transcripts unavailable | Agent |
+| 2026-01-07 | **NEW**: Added `TriageLevel` enum (READY/USABLE/THIN/FAILED) for nuanced quality assessment | Agent |
+| 2026-01-07 | **NEW**: Added `triage()` method to `ProducerPacket` with reasons | Agent |
+| 2026-01-07 | **NEW**: Added `failed_insufficient` status for failed triage | Agent |
+| 2026-01-07 | **NEW**: Added `based_on` and `confidence` citation fields to Layer 2/3 dataclasses | Agent |
+| 2026-01-07 | **NEW**: Updated research_starter_prompt.py to request citations | Agent |
 
 ---
 
@@ -737,4 +745,4 @@
 ---
 
 *Generated from audit reports: architect-260106-1140-phase3-audit-consolidated.md*
-*Last updated: 2026-01-06*
+*Last updated: 2026-01-07*

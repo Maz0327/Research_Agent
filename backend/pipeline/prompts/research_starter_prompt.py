@@ -64,14 +64,16 @@ How could the user's video be DIFFERENT from what's already out there?
 Be specific - "do more research" is not an angle.
 
 ## OUTPUT FORMAT
-Return valid JSON:
+Return valid JSON with citation tracking:
 ```json
 {{
   "search_queries": [
     {{
       "query": "exact search query here",
       "platform": "google | reddit | youtube | academic",
-      "why": "What this will help you find"
+      "why": "What this will help you find",
+      "based_on": ["CLIP_3", "QUOTE_7"],
+      "confidence": "high | medium | speculative"
     }}
   ],
   "source_suggestions": [
@@ -85,14 +87,18 @@ Return valid JSON:
     {{
       "topic": "The tangent topic",
       "mentioned_in": "Which video / context",
-      "potential_angle": "How to use this"
+      "potential_angle": "How to use this",
+      "based_on": ["CLIP_5"],
+      "confidence": "speculative"
     }}
   ],
   "content_angles": [
     {{
       "angle": "The unique approach",
       "differentiator": "What makes this different from existing videos",
-      "why_unique": "Why this would stand out"
+      "why_unique": "Why this would stand out",
+      "based_on": ["CLIP_2", "QUOTE_4"],
+      "confidence": "high | medium | speculative"
     }}
   ]
 }}
@@ -110,4 +116,8 @@ Return valid JSON:
 6. Aim for 5-8 search queries across platforms
 7. Aim for 3-4 source type suggestions
 8. Aim for 2-3 content angles
+9. CITATIONS ARE REQUIRED: Every search_query, rabbit_hole, and content_angle MUST include:
+   - "based_on": array of clip/quote IDs from the input that support this suggestion
+   - "confidence": "high" (directly supported), "medium" (inferred), or "speculative" (intuition)
+   - If you cannot cite evidence, set confidence to "speculative"
 """

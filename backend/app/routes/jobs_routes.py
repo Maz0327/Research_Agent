@@ -314,8 +314,9 @@ async def get_video_analysis_status(
         clips_count = len(clips) if clips else None
         quotes_count = len(quotes) if quotes else None
 
-        # If completed, include full producer packet
-        if job.status == "completed":
+        # If completed (with or without warnings) or failed_insufficient, include producer packet
+        # failed_insufficient still has partial artifacts that may be useful
+        if job.status in ("completed", "completed_with_warnings", "failed_insufficient"):
             producer_packet = artifacts_dict
 
     # Extract error
