@@ -844,8 +844,17 @@ YouTube Video URL: {chunk_url}"""
                     })
                 else:
                     results.append(result)
-                    all_clips.extend(result.get("clips", []))
-                    all_quotes.extend(result.get("quotes", []))
+                    # Enrich clips/quotes with parent video_url before aggregation
+                    # Gemini LLM returns clips without video_url - it's at result top level
+                    video_url = result.get("video_url", url)
+                    enriched_clips = [
+                        {**clip, "video_url": video_url} for clip in result.get("clips", [])
+                    ]
+                    enriched_quotes = [
+                        {**quote, "video_url": video_url} for quote in result.get("quotes", [])
+                    ]
+                    all_clips.extend(enriched_clips)
+                    all_quotes.extend(enriched_quotes)
                     total_cost += result.get("cost", 0)
 
                 if progress_callback:

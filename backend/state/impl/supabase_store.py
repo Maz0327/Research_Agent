@@ -109,8 +109,18 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
     # Parse artifacts (with corruption handling)
     artifacts_data = _normalize_jsonb_field(row.get("artifacts"))
     artifacts = Artifacts(
+        # Legacy fields (topic research)
         drive_folder_url=artifacts_data.get("drive_folder_url"),
         doc_urls=artifacts_data.get("doc_urls"),
+        # Video analysis fields (Jan 2026 Gemini pivot)
+        clips=artifacts_data.get("clips"),
+        quotes=artifacts_data.get("quotes"),
+        producer_packet=artifacts_data.get("producer_packet"),
+        quality_gate_passed=artifacts_data.get("quality_gate_passed"),
+        # Phase 3: Full Research Assistant Pipeline
+        content_blueprints=artifacts_data.get("content_blueprints"),
+        gap_analysis=artifacts_data.get("gap_analysis"),
+        research_starter=artifacts_data.get("research_starter"),
     )
 
     # Parse outputs (with corruption handling)
