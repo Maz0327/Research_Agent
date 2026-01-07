@@ -744,9 +744,11 @@ def run_gemini_video_job(job_id: str) -> dict:
         research_starter_dict = safe_to_dict(result.get("research_starter"))
 
         # Build artifacts with all pipeline outputs
+        # Use processed clips/quotes from producer_packet (has video_url, verification_level)
+        # NOT raw clips from result (missing required fields for frontend display)
         artifacts = Artifacts(
-            clips=result.get("clips", []),
-            quotes=result.get("quotes", []),
+            clips=[c.to_dict() for c in producer_packet.clips],
+            quotes=[q.to_dict() for q in producer_packet.quotes],
             producer_packet=producer_packet.to_dict(),
             quality_gate_passed=passes_gate,
             # Phase 3 additions
