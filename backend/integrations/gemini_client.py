@@ -558,16 +558,18 @@ RULES:
 2. Quotes must be VERBATIM - exact words spoken
 3. If speaker name unknown, use SPEAKER_A, SPEAKER_B, etc.
 4. Extract 6-{max_clips} most significant clips
-5. NO opinions, NO analysis, NO "why it matters" - just extraction
-
-YouTube Video URL: {video_url}"""
+5. NO opinions, NO analysis, NO "why it matters" - just extraction"""
 
         try:
             logger.info(f"Gemini video analysis: {video_url}")
 
+            # Create video Part from YouTube URL - Gemini fetches and analyzes the actual video
+            # This replaces just passing URL as text which may not properly fetch video content
+            video_part = types.Part.from_uri(file_uri=video_url, mime_type="video/*")
+
             response = self._client.models.generate_content(
                 model=model,
-                contents=[extraction_prompt],
+                contents=[video_part, extraction_prompt],
             )
             text = response.text
 
@@ -700,9 +702,13 @@ RULES:
 YouTube Video URL: {chunk_url}"""
 
             try:
+                # Create video Part from YouTube URL - Gemini fetches and analyzes the actual video
+                # Note: chunk_url includes #t=start,end fragment for time range
+                video_part = types.Part.from_uri(file_uri=chunk_url, mime_type="video/*")
+
                 response = self._client.models.generate_content(
                     model=model,
-                    contents=[chunk_prompt],
+                    contents=[video_part, chunk_prompt],
                 )
                 text = response.text
 
@@ -963,10 +969,13 @@ YouTube Video URL: {chunk_url}"""
                 temperature=0.7,
                 max_output_tokens=4096,
             )
-            
+
+            # Create video Part from YouTube URL - Gemini fetches and analyzes the actual video
+            video_part = types.Part.from_uri(file_uri=video_url, mime_type="video/*")
+
             response = self._client.models.generate_content(
                 model=model,
-                contents=[prompt],
+                contents=[video_part, prompt],
                 config=config,
             )
             text = response.text
