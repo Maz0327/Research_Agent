@@ -150,6 +150,90 @@ For Research Agent development, activate:
 - `debugging` - Issue investigation
 - `code-review` - Post-implementation review
 
+### Semantic-First Skills (Phase 0)
+When working on the 3-document semantic architecture:
+- `semantic-extraction` - Doc 2 patterns, epistemic categories
+- `source-ledger-assembly` - Doc 0 assembly, blob storage
+- `jump-start-consolidation` - Doc 1 gaps, leads, verification
+- `semantic-validation` - Hard/soft failure handling
+
+## Semantic-First Architecture (Jan 2026)
+
+Research Agent produces **3 canonical documents** with strict epistemic boundaries:
+
+### Document Model
+
+| Doc | Name | Purpose | Epistemic Level |
+|-----|------|---------|-----------------|
+| **Doc 0** | Source Ledger | Preserve 100% context, single source of truth | Source Data |
+| **Doc 1** | Jump-Start | Activation trigger: have/missing/next | Research Direction |
+| **Doc 2** | Semantic Brief | 80% of human researcher output | Semantic Interpretation |
+
+### Epistemic Categories (Mandatory Distinctions)
+
+All information must fall into ONE category:
+
+| Layer | Category | Description | Allowed In |
+|-------|----------|-------------|------------|
+| 1 | **Source Data** | Verbatim text, no interpretation | Doc 0 only |
+| 2 | **Descriptive Extraction** | What source explicitly says | Doc 0, Doc 1 |
+| 3 | **Semantic Interpretation** | Patterns across sources | Doc 2 |
+| 4 | **Speculation** | Hypotheses beyond evidence | Doc 2 (labeled) |
+
+### ID/Citation Scheme
+
+All documents use stable identifiers for traceability:
+
+| Type | Format | Example |
+|------|--------|---------|
+| Sources | `SRC_X` | `SRC_1`, `SRC_2` |
+| Quotes | `QUOTE_XXX` | `QUOTE_001` |
+| Clips | `CLIP_XXX` | `CLIP_001` |
+| Claims | `CLM_XXX` | `CLM_001` |
+| Key Points | `KEY_POINT_XXX` | `KEY_POINT_001` |
+| Themes | `THEME_XXX` | `THEME_001` |
+| Gaps | `GAP_XXX` | `GAP_001` |
+| Leads | `LEAD_XXX` | `LEAD_001` |
+
+**Rule:** All Doc 2 assertions must include `based_on: [ID, ID]` or `confidence: "speculative"`
+
+### Minimum Depth Requirements
+
+| Document | Minimum | On Failure |
+|----------|---------|------------|
+| Doc 0 | 1+ source with transcript, 6+ quotes OR 10+ clips | Warning |
+| Doc 1 | 5+ gaps, 10+ leads, 5+ verification items | Warning |
+| Doc 2 | 8+ key points, 4+ themes, 5+ gaps | `needs_more_sources` |
+
+### Transcript Provenance (Video Sources)
+
+Every video source requires provenance metadata:
+
+```python
+transcript_provenance = {
+    "transcript_source": "supadata | youtube_captions | none",
+    "gemini_analysis_mode": "transcript_grounded | caption_grounded | video_only",
+    "verification_capabilities": {
+        "quote_verification": bool,
+        "timestamp_grounding": bool,
+        "semantic_precision": "high | medium | low"
+    }
+}
+```
+
+**Rules:**
+- Transcript failure MUST NOT fail job
+- Degradation MUST be disclosed in outputs
+- Video-only mode limits confidence to "medium" max
+
+### Specification Documents
+
+- `Active Docs/REVIEW THESE FILES/Research Agent System Specification (RASS).md`
+- `Active Docs/REVIEW THESE FILES/Document Output Format Specification.md`
+- `Active Docs/REVIEW THESE FILES/Research Agent System Opirational Definitions.md`
+- `Active Docs/REVIEW THESE FILES/Validation & Retry Rules Specification.md`
+- `Active Docs/REVIEW THESE FILES/Gemini Semantic Extraction Prompt Pack.md`
+
 ## Research Modes
 
 ### Video Analysis Mode (Primary - Jan 2026)

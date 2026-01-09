@@ -584,6 +584,37 @@ def run_transcript_job(job_id: str) -> dict:
 
 
 # =============================================================================
+# NEW STAGE: transcript_acquisition (Phase 0 - Semantic-First Architecture)
+# =============================================================================
+#
+# Position: After source discovery, BEFORE Gemini extraction
+#
+# Responsibilities:
+# 1. Attempt Supadata transcript fetch for each video source
+# 2. If Supadata fails → attempt YouTube captions fallback
+# 3. Record results in transcript_provenance metadata (see backend/models/source.py)
+# 4. Store transcript in Supabase Storage if available (blob storage)
+# 5. Pass transcript text + analysis mode flags forward to Gemini
+#
+# Rules:
+# - Transcript failure does NOT stop the pipeline
+# - Gemini analysis ALWAYS runs regardless of transcript availability
+# - Analysis mode must be passed explicitly to Gemini:
+#   - "transcript_grounded" (Supadata success)
+#   - "caption_grounded" (YouTube captions fallback)
+#   - "video_only" (no transcript available)
+#
+# Integration Points:
+# - Input: List of video URLs from source discovery
+# - Output: List of sources with transcript_provenance populated
+# - Storage: Transcripts stored as blobs in Supabase Storage
+# - Forward: Gemini receives analysis_mode parameter
+#
+# See: RASS Section 8, Validation Rules Section 12
+# =============================================================================
+
+
+# =============================================================================
 # Gemini Video Extraction Task (Phase 1.5)
 # =============================================================================
 
