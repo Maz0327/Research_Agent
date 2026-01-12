@@ -21,6 +21,21 @@ Update/replace the example *before* changing behavior.
 
 ---
 
+## Vocabulary Authority (Non-Negotiable)
+
+`Operational_Definitions.md` is the **authoritative vocabulary source** for this system.
+
+**Rules:**
+1. If any prompt, spec, or example uses a term, check `Operational_Definitions.md` first
+2. If undefined there, defer to that document's closest semantic match
+3. If still ambiguous, flag for definition addition before proceeding
+
+**Prohibition:**
+Terms MUST NOT be redefined in individual prompts or specs.
+All documents inherit vocabulary from `Operational_Definitions.md`.
+
+---
+
 ## System Non-Goals (Authoritative)
 
 This system is NOT:
@@ -107,17 +122,31 @@ Docs 1 and 2 must not introduce facts not present in Doc 0.
 
 Every video source must record transcript provenance and analysis mode.
 
-**Required acquisition order:**
-1. Supadata
-2. YouTube captions
-3. If both fail → Gemini video-only analysis mode
+**Transcript Acquisition Order (LOCKED):**
+1. Supadata (primary — includes title, date, description) → `transcript_grounded`
+2. Whisper (if Supadata fails) → `transcript_grounded`
+3. YouTube captions (if Whisper fails) → `caption_grounded`
+4. If all fail → `video_only` mode
 
-**Rules:**
-- Gemini always runs
+**Analysis Mode Rules:**
+- Gemini always runs (receives content regardless of transcript status)
 - Transcript failure must **never** fail a job
 - Degradation must be visible in outputs
-- Confidence must be capped appropriately
-- Video-only analysis **prohibits quotes**
+- Confidence ceiling depends on mode (see below)
+
+**Confidence Ceilings (Categorical):**
+| Analysis Mode | Max Confidence |
+|---------------|----------------|
+| transcript_grounded | high |
+| caption_grounded | medium |
+| video_only | low |
+
+**Video-Only Mode: `approximate_observations`**
+- Input to Gemini has empty quotes array
+- Gemini generates `approximate_observations` (NOT quotes)
+- All observations marked `approximate: true`, `type: observation`
+- These are semantic descriptions, NOT verbatim text
+- TERMINOLOGY: Use "approximate_observations" consistently, never "approximate quotes"
 
 ---
 
@@ -143,6 +172,7 @@ Location: `docs/authoritative/`
 ### Meta / Build Instructions
 - `meta/Claude_Code_Build_Instructions.md`
 - `meta/Missing_Examples_Tracker.md`
+- `meta/Corrections_260111.md`
 
 ### Reviews
 - `reviews/Spec_Review_2026-01-08.md`

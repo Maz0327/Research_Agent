@@ -74,10 +74,28 @@ A **hard failure** occurs if:
 * A Theme references fewer than 2 Key Points
 * Doc 1 or Doc 2 introduces facts not present in Doc 0
 
+**Exception for video_only mode:**
+For sources with `analysis_mode = video_only`:
+- Claims are not required to have supporting Quotes
+- Claims must reference approximate timestamp ranges
+- Claims must be marked `confidence: low`
+- Validation passes if these conditions are met
+
 ### Behavior
 
 * Retry once with grounding-focused prompt
-* If still ungrounded → **Job = FAILED**
+* If retry fails → **Stage = failed_with_warnings**
+
+  Job continues with degraded output:
+  - Doc 0: Produced deterministically (always possible)
+  - Doc 1: Produced from deterministic gap rules + available metadata
+  - Doc 2: Marked "thin/degraded: semantic extraction unavailable"
+
+  **Job = FAILED only if:**
+  - ALL sources fail (nothing usable remains)
+  - Infrastructure/system failure (pipeline crash, DB outage)
+  - Contract violation (no sources provided at all)
+
 * Output must never silently drop ungrounded items
 
 ---
@@ -281,18 +299,20 @@ Validation behavior changes based on **transcript provenance** for video sources
 
 ---
 
-### 12.4 Transcript Acquisition Retry Rules
+### 12.4 Transcript Acquisition Retry Rules (LOCKED ORDER)
 
 | Stage | Max Retries | On Failure |
 |-------|-------------|------------|
-| Supadata fetch | 1 | Try YouTube captions |
+| Supadata fetch | 1 | Try Whisper |
+| Whisper fetch | 1 | Try YouTube captions |
 | Captions fetch | 1 | Continue with `video_only` |
 | Gemini stage | 1 | Fail stage, not job |
 
-**Failure Escalation:**
-1. Supadata fails → Try captions
-2. Captions fail → Continue with `video_only` mode
-3. Gemini fails → Mark source as `failed`, continue job with other sources
+**Failure Escalation (LOCKED ORDER):**
+1. Supadata fails → Try Whisper
+2. Whisper fails → Try YouTube captions
+3. Captions fail → Continue with `video_only` mode
+4. Gemini fails → Mark source as `failed`, continue job with other sources
 
 ---
 
@@ -305,6 +325,39 @@ A **hard failure** occurs if:
 * `transcript_provenance.verification_capabilities` is missing
 
 This ensures downstream documents always know the reliability of their source material.
+
+---
+
+### 12.6 Confidence Ceiling Enforcement (Machine-Checked)
+
+Confidence uses **CATEGORICAL values only**: `low`, `medium`, `high`
+
+Do NOT use numeric values (0.0-1.0) or percentages.
+
+| Analysis Mode | Max Confidence | Auto-Downgrade |
+|---------------|----------------|----------------|
+| transcript_grounded | high | No |
+| caption_grounded | medium | Yes, if high |
+| video_only | low | Yes, if medium or high |
+
+If output exceeds mode ceiling:
+1. Auto-downgrade to ceiling value
+2. Add warning: "Confidence auto-downgraded from {original} to {ceiling}"
+
+**RULE:** All specs must use low/medium/high — never 0.3, 0.7, etc.
+
+---
+
+### 12.7 Malformed Source Handling
+
+If a source is malformed (invalid URL, deleted/private video, access denied):
+1. Mark source as `failed` with explicit reason
+2. Exclude from semantic extraction (no Gemini call)
+3. Record in Doc 0 with failure_reason
+4. Propagate degradation to Doc 1/2
+
+Job continues with remaining valid sources.
+**Job fails ONLY if no usable sources remain.**
 
 ---
 

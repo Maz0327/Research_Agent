@@ -1,6 +1,6 @@
-Research Agent System Specification (RASS)
+# Research Agent System Specification (RASS)
 
-**Draft v1 — Sections 1–7**
+**Draft v1 — Sections 1–8**
 
 ---
 
@@ -95,6 +95,7 @@ The Research Agent is **not**:
 The system **must not**:
 
 * invent facts to fill gaps
+* guess or substitute source identity — metadata must be resolved deterministically before any LLM call
 * collapse data and interpretation into a single layer
 * present speculation as truth
 * hide uncertainty for the sake of fluency
@@ -339,11 +340,12 @@ Stages may **degrade gracefully**, but **may not be skipped**.
   * Fetch full content
   * Store full content as a blob
   * Generate a stable `source_id`
-* Transcript acquisition priority:
+* Transcript acquisition priority (LOCKED ORDER — see Section 8.1):
 
-  1. YouTube captions
-  2. Supadata
-  3. Whisper (fallback)
+  1. Supadata (primary) → `transcript_grounded`
+  2. Whisper (if Supadata fails) → `transcript_grounded`
+  3. YouTube captions (if Whisper fails) → `caption_grounded`
+  4. If all fail → `video_only` mode
 
 **Failure Rules**
 
@@ -680,13 +682,14 @@ This section defines **how transcripts are acquired** and **how analysis adapts*
 
 ---
 
-### 8.1 Transcript Acquisition Order
+### 8.1 Transcript Acquisition Order (LOCKED)
 
 For each video source, transcripts are acquired in priority order:
 
-1. **Supadata** (primary) — Full transcript with high accuracy
-2. **YouTube captions** (fallback) — Auto-generated or uploaded captions
-3. **None** (degraded mode) — Video-only analysis proceeds
+1. **Supadata** (primary) — Full transcript with high accuracy → `transcript_grounded`
+2. **Whisper** (if Supadata fails) — Audio transcription → `transcript_grounded`
+3. **YouTube captions** (fallback) — Auto-generated or uploaded captions → `caption_grounded`
+4. **None** (degraded mode) — Video-only analysis proceeds → `video_only`
 
 The system must attempt the next fallback if the higher-priority source fails.
 
@@ -728,8 +731,10 @@ This mode is stored in **Transcript Provenance** metadata and propagates to all 
 | Quote verification | ✅ Full | ⚠️ Partial | ❌ None |
 | Timestamp grounding | ✅ Precise | ⚠️ Approximate (±5s) | ❌ Unavailable |
 | Semantic precision | High | Medium | Low |
-| Max confidence level | High | Medium | Medium |
-| Verbatim quotes | ✅ Required | ⚠️ Approximate | ❌ Not claimed |
+| Max confidence level | High | Medium | Low |
+| Verbatim quotes | ✅ Required | ⚠️ Approximate | ❌ `approximate_observations` only |
+
+**Terminology:** In `video_only` mode, use `approximate_observations` (not "quotes") to describe what was observed.
 
 ---
 

@@ -19,6 +19,11 @@ Your job is NOT to speculate about truth.
 
 Your job IS to identify what information a competent human researcher
 would reasonably expect to see, but which is absent from the current corpus.
+
+You must NOT:
+- Guess which video/article is being discussed
+- Substitute a "likely" source
+- Assume information not in the Context Bundle
 ```
 
 ---
@@ -128,6 +133,18 @@ Gemini must NOT:
 * It is acceptable to return **few gaps** if the corpus is narrow
 
 Gemini must prefer **precision over quantity**.
+
+---
+
+## 7.1 GAP COUNT GUIDANCE
+
+- Minimum: 0 (valid if corpus is comprehensive)
+- Target: 3-7 gaps for typical research
+- Maximum: 10 (prevent overwhelming user)
+
+If fewer than 3 gaps identified for a multi-source corpus:
+- This may indicate thin analysis
+- Triggers soft fail review
 
 ---
 

@@ -94,6 +94,13 @@ A **Claim** is a declarative statement **made by a source** that asserts somethi
 * Claims may be false, disputed, or unverifiable
 * Claims must reference at least one supporting Quote
 
+**Exception for video_only mode:**
+
+When `analysis_mode = video_only`, Claims are not required to have supporting Quotes. Instead:
+- Claims must reference approximate timestamp ranges
+- Claims must be marked `confidence: low`
+- Claims must include `source_mode: video_only` metadata
+
 ---
 
 ## 5. KEY POINT
@@ -318,9 +325,16 @@ A **Context Bundle** is a constrained input set used to guide downstream researc
 
 **Transcript Provenance** is metadata describing how transcript text was acquired for a video source.
 
+### Transcript Acquisition Order (LOCKED)
+
+1. Supadata (primary) → `transcript_grounded`
+2. Whisper (if Supadata fails) → `transcript_grounded`
+3. YouTube captions (if Whisper fails) → `caption_grounded`
+4. None (if all fail) → `video_only`
+
 ### Includes
 
-* Transcript source (Supadata, YouTube captions, or none)
+* Transcript source (supadata, whisper, youtube_captions, or none)
 * Acquisition status (success or failed)
 * Analysis mode (transcript_grounded, caption_grounded, video_only)
 * Verification capabilities (quote verification, timestamp grounding, semantic precision)
@@ -348,7 +362,7 @@ A **Context Bundle** is a constrained input set used to guide downstream researc
 
 ### Definition
 
-A **Degraded Source** is a source where the ideal transcript (Supadata) was unavailable, requiring fallback to YouTube captions or video-only analysis.
+A **Degraded Source** is a source where the ideal transcript (Supadata or Whisper) was unavailable, requiring fallback to YouTube captions or video-only analysis.
 
 ### Indicators
 
@@ -365,13 +379,16 @@ A **Degraded Source** is a source where the ideal transcript (Supadata) was unav
 
 * Quote verification capabilities
 * Timestamp precision claims
-* Confidence level maximums (medium ceiling for captions, low for video-only)
+* Confidence level maximums:
+  - `caption_grounded`: confidence ceiling = `medium`
+  - `video_only`: confidence ceiling = `low`
 
 ### Rules
 
 * Degraded sources do NOT fail jobs
 * Degradation MUST be visible in DOC 0 and DOC 2
-* Quotes from degraded sources MUST be flagged
+* Quotes from `caption_grounded` sources MUST be flagged as approximate
+* `video_only` sources produce `approximate_observations`, not quotes
 
 ---
 
@@ -384,20 +401,27 @@ A **Degraded Source** is a source where the ideal transcript (Supadata) was unav
 ### Enables
 
 * Visual/audio-based theme extraction
-* Approximate quote generation
+* `approximate_observations` — semantic descriptions of what was said (NOT quotes)
 * Topic identification from non-text signals
 * Job completion when transcript acquisition fails entirely
 
 ### Restricts
 
-* Verbatim quote accuracy — quotes MUST be marked `approximate: true`
+* **Quotes prohibited** — use `approximate_observations` instead
 * Timestamp precision — cannot claim precise timestamps
-* High-confidence claims — confidence ceiling is `medium`
+* Confidence ceiling is `low` (categorical, not numeric)
 * Quote verification — not available in this mode
+
+### Terminology
+
+In `video_only` mode, use **`approximate_observations`** consistently.
+- These are semantic descriptions, NOT verbatim text
+- All must be marked `approximate: true` and `type: observation`
+- Do NOT call them "quotes" or "approximate quotes"
 
 ### Rules
 
-* Video-only mode is triggered when both Supadata and YouTube captions fail
+* Video-only mode is triggered when Supadata, Whisper, AND YouTube captions all fail
 * Analysis MUST still run (Gemini can process video directly)
 * All outputs MUST include `analysis_limitations` field
 * DOC 2 must visibly indicate degraded source quality

@@ -94,6 +94,11 @@ For each Theme:
 * List supporting Key Points
 * No interpretation beyond description
 
+**Theme Requirements:**
+- Minimum total themes: 2
+- Each theme must reference ≥2 Key Points
+- If fewer than 2 themes emerge, this is valid but triggers confidence downgrade
+
 ---
 
 ### Task 3 — Surface Tensions & Competing Interpretations
@@ -179,6 +184,15 @@ Speculation must:
 
 ## 5. ABSOLUTE PROHIBITIONS (NON-NEGOTIABLE)
 
+⚠️ **HIGHEST PRIORITY CONSTRAINT** ⚠️
+
+You have ONLY the JSON input provided. You have NO other knowledge.
+Any fact, name, date, or claim NOT in this JSON is FABRICATION.
+Before each sentence, ask: "Which source_id supports this?"
+If no source_id supports it, DELETE the sentence.
+
+---
+
 Gemini must never:
 
 * Introduce new facts
@@ -186,7 +200,7 @@ Gemini must never:
 * Write a script or narrative
 * Decide intent or motive
 * Resolve contradictions
-* Pretend uncertainty doesn’t exist
+* Pretend uncertainty doesn't exist
 
 Violation invalidates the output.
 

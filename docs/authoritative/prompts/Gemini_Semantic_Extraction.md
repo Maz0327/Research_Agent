@@ -31,6 +31,23 @@ You do not fill gaps with assumptions.
 
 ---
 
+## 0.1 SOURCE IDENTITY CONTRACT (BEFORE REASONING)
+
+The source_id and source metadata provided are **CANONICAL**.
+
+You MUST NOT:
+- Guess or infer which video/article this is
+- Substitute or correct source metadata
+- Assume information about the source not explicitly provided
+- Reference external knowledge about this topic
+
+If source identity seems wrong or incomplete:
+- Proceed with provided data
+- Note discrepancy in `analysis_limitations`
+- Do NOT substitute a "likely" source
+
+---
+
 ## 1. PRIMARY SEMANTIC EXTRACTION PROMPT
 
 ### When Used
@@ -272,9 +289,15 @@ ANALYSIS_MODE: {analysis_mode}
 
 | Mode | Description | When Used |
 |------|-------------|-----------|
-| `transcript_grounded` | Full transcript available | Supadata success |
-| `caption_grounded` | YouTube captions used | Supadata failed, captions available |
-| `video_only` | No text available | Both transcript sources failed |
+| `transcript_grounded` | Full transcript available | Supadata or Whisper success |
+| `caption_grounded` | YouTube captions used | Supadata + Whisper failed, captions available |
+| `video_only` | No text available | All transcript sources failed |
+
+**Transcript Acquisition Order (LOCKED):**
+1. Supadata (primary) → `transcript_grounded`
+2. Whisper (if Supadata fails) → `transcript_grounded`
+3. YouTube captions (if Whisper fails) → `caption_grounded`
+4. None (if all fail) → `video_only`
 
 ---
 
@@ -286,24 +309,42 @@ ANALYSIS_MODE: {analysis_mode}
 IMPORTANT: You are analyzing video WITHOUT a transcript.
 
 You MUST:
-- DO NOT claim verbatim accuracy for quotes
-- Mark all quotes as `approximate: true` in the output
+- You receive NO quotes in input (quotes array is empty before you process)
+- Generate `approximate_observations` — semantic descriptions of what was said
+- All observations MUST include `approximate: true` and `type: observation`
+- These are NOT quotes — use distinct terminology
+- Confidence ceiling is LOW (categorical, not numeric) — no `medium` or `high`
 - Include an `analysis_limitations` field in your output
-- Lower your confidence ceiling to `medium` — no `high` confidence claims
 
 You MAY:
 - Identify themes from visual/audio cues
-- Extract approximate quotes (paraphrased, not verbatim)
+- Describe observed behavior (not quoted speech)
 - Identify entities and topics
+
+You MUST NOT:
+- Generate verbatim or approximate "quotes"
+- Claim verbatim accuracy for any text
+- Use `high` or `medium` confidence
+
+TERMINOLOGY RULE:
+Use "approximate_observations" consistently. These are NOT quotes.
 
 Your output JSON must include:
 {
   ...
   "analysis_mode": "video_only",
+  "approximate_observations": [
+    {
+      "observation": "...",
+      "approximate": true,
+      "type": "observation",
+      "timestamp_range": "~MM:SS - MM:SS"
+    }
+  ],
   "analysis_limitations": [
-    "Quotes are approximate paraphrases, not verbatim",
+    "No transcript available — all observations are approximate",
     "Timestamps may be imprecise",
-    "No transcript verification available"
+    "No quote verification possible"
   ]
 }
 ```
@@ -372,11 +413,13 @@ INPUT:
 
 ### Validation Behavior
 
-| Mode | Quote Requirements | Max Confidence | Timestamp Precision |
-|------|-------------------|----------------|---------------------|
-| `transcript_grounded` | Verbatim required | High | Precise |
-| `caption_grounded` | Approximate allowed | Medium | ±5 seconds |
-| `video_only` | Paraphrased only | Medium | Unavailable |
+| Mode | Output Type | Max Confidence | Timestamp Precision |
+|------|-------------|----------------|---------------------|
+| `transcript_grounded` | Verbatim quotes required | high | Precise |
+| `caption_grounded` | Approximate quotes allowed | medium | ±5 seconds |
+| `video_only` | `approximate_observations` only | low | Unavailable |
+
+**TERMINOLOGY:** In `video_only` mode, use "approximate_observations" (not quotes).
 
 Validation failures trigger warnings, not job failures.
 

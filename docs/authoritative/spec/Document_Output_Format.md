@@ -101,6 +101,21 @@ URL:
 
 #### FULL SOURCE TEXT (Canonical)
 <verbatim transcript or article text>
+
+**If full source text is unavailable, use this standardized placeholder:**
+
+```
+#### FULL SOURCE TEXT (Canonical)
+⚠️ FULL SOURCE TEXT UNAVAILABLE
+
+Reason: [Supadata failed / Whisper failed / Captions unavailable / Access denied]
+Analysis Mode: [video_only / caption_grounded]
+
+This source was analyzed without verbatim transcript text.
+All extracted content should be treated as approximate.
+```
+
+Never invent or reconstruct missing source text.
 ```
 
 ---
@@ -109,9 +124,15 @@ URL:
 
 For video sources (YouTube, etc.), each source MUST include transcript provenance metadata:
 
+**Transcript Acquisition Order (LOCKED):**
+1. Supadata (primary) → `transcript_grounded`
+2. Whisper (if Supadata fails) → `transcript_grounded`
+3. YouTube captions (if Whisper fails) → `caption_grounded`
+4. None (if all fail) → `video_only`
+
 ```json
 "transcript_provenance": {
-  "transcript_source": "supadata | youtube_captions | none",
+  "transcript_source": "supadata | whisper | youtube_captions | none",
   "transcript_status": "success | failed",
   "captions_status": "success | missing | failed",
   "gemini_analysis_mode": "transcript_grounded | caption_grounded | video_only",
@@ -123,6 +144,16 @@ For video sources (YouTube, etc.), each source MUST include transcript provenanc
   "notes": "Human-readable explanation of fallbacks or failures"
 }
 ```
+
+**Extraction Rules by Mode:**
+
+| transcript_source | Output Type | Confidence Ceiling |
+|-------------------|-------------|-------------------|
+| supadata / whisper | Verbatim quotes required | high |
+| youtube_captions | Approximate quotes allowed, mark `approximate: true` | medium |
+| none (video_only) | `approximate_observations` only — NOT quotes | low |
+
+**TERMINOLOGY:** In `video_only` mode, use `approximate_observations` (not "quotes") to avoid confusion.
 
 **Provenance Rules:**
 

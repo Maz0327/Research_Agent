@@ -117,6 +117,15 @@ The booster must never:
 
 If uncertain, the model must prefer **fewer outputs**.
 
+**Explicit Factual Assertion Ban:**
+
+Your output must NEVER contain:
+- "X happened" / "Y occurred" / "Z discovered"
+- "The evidence shows" / "This proves"
+- Any statement that could be verified as true/false
+
+You provide DIRECTIONS, not FINDINGS.
+
 ---
 
 ## 6. OUTPUT FORMAT (JSON ONLY)
@@ -155,7 +164,20 @@ If uncertain, the model must prefer **fewer outputs**.
 
 ---
 
-## 7. FAILURE MODE HANDLING
+## 7. MERGE STRATEGY (Doc 1 Integration)
+
+Booster output is **APPENDED** to Doc 1, never replaces:
+
+- `missing_perspectives` → append to "GAPS" section
+- `primary_source_directions` → append to "RESEARCH DIRECTIONS"
+- `research_questions` → append to "OPEN QUESTIONS"
+- `suggested_search_queries` → append to "SUGGESTED QUERIES"
+
+If booster fails, Doc 1 remains valid as-is.
+
+---
+
+## 8. FAILURE MODE HANDLING
 
 If the model cannot confidently expand research:
 
@@ -165,11 +187,11 @@ If the model cannot confidently expand research:
 
 Downstream systems will surface:
 
-> “No additional research directions identified given current context.”
+> "No additional research directions identified given current context."
 
 ---
 
-## 8. SUCCESS CRITERIA (HUMAN CHECK)
+## 9. SUCCESS CRITERIA (HUMAN CHECK)
 
 A successful Deep Research Booster output:
 

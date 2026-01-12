@@ -15,6 +15,21 @@
 
 ---
 
+## 0.1 DOCS-ONLY SAFETY RULE: Legacy Output Preservation
+
+During this documentation phase, we preserve existing outputs as a safety measure:
+- producer_packet
+- clips
+- quotes
+- content_blueprint
+
+New semantic docs (Doc 0/1/2) are ADDITIVE during this phase.
+
+**NOTE:** This is a docs-phase safety rule, not a permanent product decision.
+Future deprecation may occur after semantic pipeline is validated.
+
+---
+
 ## 1. FILE / MODULE STRUCTURE (EXPECTED)
 
 Claude should implement or modify the following logical areas:
@@ -44,8 +59,9 @@ backend/
   storage/
     blob_store.py
 
-  workers/
-    celery_tasks.py
+  worker.py              # Main Celery worker (not in workers/ subdirectory)
+  pipeline/
+    stages.py            # Pipeline stage implementations
 ```
 
 Claude may adapt names to the existing repo **but must preserve separation of concerns**.
