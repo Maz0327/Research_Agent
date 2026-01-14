@@ -1,366 +1,490 @@
-# Validation & Retry Rules Specification
+# Validation and Retry Rules
 
-**Research Agent System Specification — Addendum**
-
-This document defines **deterministic validation**, **retry behavior**, **degradation rules**, and **job states** for all Research Agent outputs.
-
-The goal is **reliability over fluency**.
+**Purpose:** Defines how the system validates outputs, handles failures, and manages retries.
+**Authority:** These rules are non-negotiable. Validation failures must be handled as specified.
 
 ---
 
-## 0. PRINCIPLES (NON-NEGOTIABLE)
+## Validation Philosophy
 
-* Prefer **honest thin output** over padded output
-* Never fabricate to satisfy quotas
-* Retries are **bounded**
-* Degradation is **visible**
-* Failure is **actionable**
+### Core Principles
 
----
+1. **Fail gracefully, not silently** — Problems must be visible, not hidden
+2. **Prefer thin over hallucinated** — Sparse accurate output beats dense fabricated output
+3. **Continue when possible** — One failure shouldn't kill the whole job
+4. **Log everything** — Every validation failure is recorded
 
-## 1. VALIDATION SCOPE
+### Validation Timing
 
-Validation occurs at **four levels**:
-
-1. **Schema Validation** (machine)
-2. **Grounding Validation** (machine)
-3. **Structural Sufficiency** (heuristic)
-4. **Confidence Calibration** (derived)
-
-Only (1) and (2) can hard-fail a job.
+```
+SOURCE IDENTITY → EXTRACTION → [VALIDATION] → SYNTHESIS → ASSEMBLY
+                                    ↑
+                          Validation happens here,
+                          per-source, before synthesis
+```
 
 ---
 
-## 2. SCHEMA VALIDATION (HARD FAIL)
+## Validation Checks
 
-### Applies to
+### V1: JSON Schema Validation
 
-* Gemini semantic extraction JSON
-* Assembled Doc 0 / Doc 1 / Doc 2 JSON
+**When:** After every LLM call that expects JSON output
 
-### Rules
+**Check:** Response parses as valid JSON matching expected schema
 
-A **hard failure** occurs if:
+**On Failure:**
+- Severity: **HARD FAIL**
+- Action: Retry once with same prompt
+- If retry fails: Mark source as `failed`, continue job with warning
 
-* Output is not valid JSON
-* Required top-level keys are missing
-* IDs are malformed or missing
-* Cross-references point to non-existent IDs
-
-### Behavior
-
-* Retry once with **schema-only correction prompt**
-* If retry fails → **Job = FAILED**
-* Error message must specify missing/invalid fields
-
----
-
-## 3. GROUNDING VALIDATION (HARD FAIL)
-
-### Applies to
-
-* Key Points
-* Claims
-* Themes
-* Tensions
-* Speculative sections
-
-### Rules
-
-A **hard failure** occurs if:
-
-* A Key Point has no source references
-* A Claim has no supporting Quote
-* A Theme references fewer than 2 Key Points
-* Doc 1 or Doc 2 introduces facts not present in Doc 0
-
-**Exception for video_only mode:**
-For sources with `analysis_mode = video_only`:
-- Claims are not required to have supporting Quotes
-- Claims must reference approximate timestamp ranges
-- Claims must be marked `confidence: low`
-- Validation passes if these conditions are met
-
-### Behavior
-
-* Retry once with grounding-focused prompt
-* If retry fails → **Stage = failed_with_warnings**
-
-  Job continues with degraded output:
-  - Doc 0: Produced deterministically (always possible)
-  - Doc 1: Produced from deterministic gap rules + available metadata
-  - Doc 2: Marked "thin/degraded: semantic extraction unavailable"
-
-  **Job = FAILED only if:**
-  - ALL sources fail (nothing usable remains)
-  - Infrastructure/system failure (pipeline crash, DB outage)
-  - Contract violation (no sources provided at all)
-
-* Output must never silently drop ungrounded items
+**Implementation:**
+```python
+try:
+    data = json.loads(response)
+    validated = PydanticModel(**data)
+except json.JSONDecodeError:
+    # HARD FAIL - retry
+except pydantic.ValidationError:
+    # HARD FAIL - retry
+```
 
 ---
 
-## 4. STRUCTURAL SUFFICIENCY (SOFT FAIL)
+### V2: Source ID Consistency
 
-### Definition
+**When:** After extraction, before synthesis
 
-Structural sufficiency is evaluated **relative to corpus size and diversity**, not absolute counts.
+**Check:** All extracted items reference valid `source_id` from current job
 
-### Heuristic Indicators of Thin Output
+**On Failure:**
+- Severity: **HARD FAIL**
+- Action: Retry once
+- If retry fails: Remove invalid items, log warning, continue
 
-Any of the following trigger a **soft fail**:
-
-* Long source (≥30 min video or ≥3k words) with:
-
-  * <3 Key Points
-* All Key Points come from a single source
-* Themes collapse into a single category
-* No Gaps identified in a non-trivial topic
-* Verification rate <50%
-
-### Behavior on Soft Fail
-
-* Retry **once** with constrained retry prompt
-* If still thin:
-
-  * Proceed
-  * Mark job as **completed_with_warnings**
-  * Downgrade confidence
-  * Amplify Gaps + Next Steps
+**Implementation:**
+```python
+valid_source_ids = {s.source_id for s in job.sources}
+for item in extraction.key_points:
+    for sid in item.source_ids:
+        if sid not in valid_source_ids:
+            # HARD FAIL - invalid source reference
+```
 
 ---
 
-## 5. RETRY POLICY (GLOBAL)
+### V3: Confidence Ceiling Enforcement
 
-### Maximum Retries
+**When:** After extraction, before synthesis
 
-* **1 retry per stage**
-* No chained retries
-* No infinite loops
+**Check:** No item has confidence higher than source's ceiling
 
-### Retry Triggers
+**On Failure:**
+- Severity: **SOFT FAIL**
+- Action: Auto-downgrade confidence to ceiling, log warning
+- Never retry for this — just fix and continue
 
-* Invalid JSON
-* Missing required fields
-* Structural thinness
-* Over-abstract output
+**Implementation:**
+```python
+ceiling_map = {"high": 3, "medium": 2, "low": 1}
 
-### Retry Constraints
+if ceiling_map[item.confidence] > ceiling_map[source.confidence_ceiling]:
+    item.confidence = source.confidence_ceiling
+    warnings.append(f"Downgraded {item.id} from {original} to {source.confidence_ceiling}")
+```
 
-* Retry prompt must be **more constrained**, never broader
-* Retry must not introduce new data
-* Retry must reuse original input
-
----
-
-## 6. CONFIDENCE CALIBRATION RULES
-
-Confidence is derived automatically based on validation signals.
-
-### High Confidence
-
-* ≥2 sources
-* Verification rate ≥70%
-* No unresolved critical tensions
-
-### Medium Confidence
-
-* Limited sources
-* Partial verification
-* Some unresolved tensions
-
-### Low Confidence
-
-* Single perspective
-* Thin extraction
-* High uncertainty or unverifiable claims
-
-Confidence level must be displayed in **Doc 2** and referenced in **Doc 1**.
+**Ceiling Reference:**
+| Mode | Ceiling |
+|------|---------|
+| `transcript_grounded` | high |
+| `caption_grounded` | medium |
+| `video_only` | low |
+| `text_provided` | medium |
+| `ocr_extracted` | medium |
+| `article_fetched` | high |
 
 ---
 
-## 7. JOB STATES (USER-VISIBLE)
+### V4: Quote Verification
 
-### States
+**When:** After extraction, for modes that allow quotes
 
-* `pending`
-* `processing`
-* `completed`
-* `completed_with_warnings`
-* `failed`
+**Check:** Extracted quotes exist in source text
 
-### State Rules
+**On Failure:**
+- Severity: **SOFT FAIL**
+- Action: Mark quote as `unverified`, do NOT remove, continue
 
-* `completed_with_warnings` is **not an error**
-* Warnings must be human-readable
-* `failed` must always include recovery guidance
+**Implementation:**
+```python
+def verify_quote(quote_text: str, source_text: str) -> str:
+    # Exact match
+    if quote_text in source_text:
+        return "verified"
+    
+    # Fuzzy match (80% similarity threshold)
+    ratio = fuzz.ratio(quote_text.lower(), best_match.lower())
+    if ratio >= 80:
+        return "partial"
+    
+    return "unverified"
+```
 
----
+**Verification Statuses:**
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `verified` | Exact or near-exact match found | Keep as-is |
+| `partial` | Similar text found (80%+ match) | Keep, flag |
+| `unverified` | No match found | Keep, flag, warn |
 
-## 8. PARTIAL SUCCESS RULES
-
-* Failure of one source does **not** fail the job
-* Partial outputs are allowed
-* Each source has independent status:
-
-  * ingested
-  * failed
-  * partial
-
-Doc 1 and Doc 2 must reflect partial coverage honestly.
-
----
-
-## 9. BOOSTER-SPECIFIC VALIDATION
-
-### Deep Research Booster Failures
-
-* Never block Doc 1 or Doc 2
-* Add warning:
-
-  > “External research expansion unavailable.”
-
-### Booster Output Rules
-
-* Booster may only:
-
-  * add leads
-  * add gaps
-  * add suggested queries
-* Booster must not:
-
-  * add facts
-  * modify Doc 0
+**Note:** Unverified quotes are NOT removed. They are flagged and the user decides.
 
 ---
 
-## 10. LOGGING & OBSERVABILITY (MINIMAL)
+### V5: Quote Permission Check
 
-The system must log:
+**When:** After extraction
 
-* validation failures
-* retry attempts
-* downgrade triggers
-* final job state
+**Check:** Quotes only exist for modes that allow them
 
-Logs are for debugging, not user display.
+**On Failure:**
+- Severity: **HARD FAIL**
+- Action: Remove quotes, convert to observations if possible, log error
 
----
+**Modes That Allow Quotes:**
+- `transcript_grounded` ✅
+- `caption_grounded` ✅
+- `article_fetched` ✅
 
-## 11. NON-GOALS (EXPLICIT)
+**Modes That Forbid Quotes:**
+- `video_only` ❌
+- `text_provided` ❌
+- `ocr_extracted` ❌
 
-This system does **not**:
+**Implementation:**
+```python
+QUOTE_ALLOWED_MODES = {"transcript_grounded", "caption_grounded", "article_fetched"}
 
-* Score “truth”
-* Resolve disputes
-* Rank narratives
-* Enforce completeness
-
----
-
-## 12. TRANSCRIPT-AWARE VALIDATION RULES
-
-Validation behavior changes based on **transcript provenance** for video sources.
-
----
-
-### 12.1 If Transcript Exists (`transcript_grounded`)
-
-| Validation Rule | Requirement |
-|-----------------|-------------|
-| Quote verification | Quotes MUST be verbatim matches |
-| Timestamp grounding | Precise timestamps REQUIRED |
-| Claim references | Claims MUST reference transcript segments |
-| Confidence ceiling | High confidence available |
+if source.analysis_mode not in QUOTE_ALLOWED_MODES:
+    if len(extraction.quotes) > 0:
+        # HARD FAIL - quotes not allowed
+        # Convert to observations or remove
+```
 
 ---
 
-### 12.2 If Transcript Does NOT Exist (`video_only`)
+### V6: Timestamp Validation
 
-| Validation Rule | Requirement |
-|-----------------|-------------|
-| Quote flagging | Quotes MUST be marked `unverified` |
-| Confidence ceiling | Claims MUST be `low_confidence` maximum |
-| Job completion | Job MUST still complete |
-| Degradation disclosure | Warning MUST be added to Doc 0 and Doc 2 |
+**When:** After extraction, for video sources
 
-**CRITICAL:** Never fail job due to transcript absence alone.
+**Check:** Timestamps are within source duration
 
----
+**On Failure:**
+- Severity: **SOFT FAIL**
+- Action: Remove invalid timestamp (set to null), log warning
 
-### 12.3 If Captions Used (`caption_grounded`)
-
-| Validation Rule | Requirement |
-|-----------------|-------------|
-| Quote accuracy | Quotes marked `approximate` |
-| Confidence ceiling | Claims can be `medium_confidence` maximum |
-| Timestamp grounding | Available but imprecise (±5 seconds) |
-| Source note | Caption source MUST be noted in quote metadata |
+**Implementation:**
+```python
+if source.duration_seconds and item.timestamp_seconds:
+    if item.timestamp_seconds > source.duration_seconds:
+        item.timestamp_seconds = None
+        item.timestamp = None
+        warnings.append(f"Removed invalid timestamp from {item.id}")
+```
 
 ---
 
-### 12.4 Transcript Acquisition Retry Rules (LOCKED ORDER)
+### V7: Empty Output Check
 
-| Stage | Max Retries | On Failure |
-|-------|-------------|------------|
-| Supadata fetch | 1 | Try Whisper |
-| Whisper fetch | 1 | Try YouTube captions |
-| Captions fetch | 1 | Continue with `video_only` |
-| Gemini stage | 1 | Fail stage, not job |
+**When:** After extraction
 
-**Failure Escalation (LOCKED ORDER):**
-1. Supadata fails → Try Whisper
-2. Whisper fails → Try YouTube captions
-3. Captions fail → Continue with `video_only` mode
-4. Gemini fails → Mark source as `failed`, continue job with other sources
+**Check:** Extraction produced minimum required content
 
----
+**On Failure:**
+- Severity: **SOFT FAIL**
+- Action: Retry once with constrained prompt, then accept thin output
 
-### 12.5 Provenance Validation (Hard Fail)
+**Minimum Thresholds:**
+| Field | Minimum | On Miss |
+|-------|---------|---------|
+| `key_points` | 1 | Retry once |
+| `claims` | 0 | Accept |
+| `quotes` (if allowed) | 0 | Accept |
+| `themes` | 0 | Accept (synthesis may find) |
 
-A **hard failure** occurs if:
-
-* Video source has no `transcript_provenance` metadata
-* `transcript_provenance.gemini_analysis_mode` is missing
-* `transcript_provenance.verification_capabilities` is missing
-
-This ensures downstream documents always know the reliability of their source material.
+**Note:** Empty output is acceptable if the source genuinely has no relevant content. The prompt explicitly permits this.
 
 ---
 
-### 12.6 Confidence Ceiling Enforcement (Machine-Checked)
+### V8: Provenance Chain Validation
 
-Confidence uses **CATEGORICAL values only**: `low`, `medium`, `high`
+**When:** During assembly, before finalizing Doc 2
 
-Do NOT use numeric values (0.0-1.0) or percentages.
+**Check:** All references trace back to Doc 0
 
-| Analysis Mode | Max Confidence | Auto-Downgrade |
-|---------------|----------------|----------------|
-| transcript_grounded | high | No |
-| caption_grounded | medium | Yes, if high |
-| video_only | low | Yes, if medium or high |
+**On Failure:**
+- Severity: **HARD FAIL**
+- Action: Remove broken references, log error
 
-If output exceeds mode ceiling:
-1. Auto-downgrade to ceiling value
-2. Add warning: "Confidence auto-downgraded from {original} to {ceiling}"
-
-**RULE:** All specs must use low/medium/high — never 0.3, 0.7, etc.
-
----
-
-### 12.7 Malformed Source Handling
-
-If a source is malformed (invalid URL, deleted/private video, access denied):
-1. Mark source as `failed` with explicit reason
-2. Exclude from semantic extraction (no Gemini call)
-3. Record in Doc 0 with failure_reason
-4. Propagate degradation to Doc 1/2
-
-Job continues with remaining valid sources.
-**Job fails ONLY if no usable sources remain.**
+**Chain Requirements:**
+```
+Theme.supporting_key_points → must exist in Doc 2 key_points
+KeyPoint.source_ids → must exist in Doc 0 sources
+KeyPoint.supporting_evidence.quotes → must exist in Doc 0 indexes.quotes
+Tension.sources_involved → must exist in Doc 0 sources
+```
 
 ---
 
-## End of Validation & Retry Rules Specification (Draft v1)
+### V9: Cardinality Check
+
+**When:** After assembly
+
+**Check:** Output meets target cardinality ranges
+
+**On Failure:**
+- Severity: **WARNING ONLY**
+- Action: Log warning, continue (targets are goals, not requirements)
+
+**Targets:**
+| Doc | Field | Min | Target | Max |
+|-----|-------|-----|--------|-----|
+| Doc 1 | gaps | 3 | 5-8 | 15 |
+| Doc 1 | research_directions | 2 | 4-6 | 10 |
+| Doc 1 | top_three_next_steps | 3 | 3 | 3 |
+| Doc 2 | themes | 2 | 4-6 | 10 |
+| Doc 2 | key_points | 5 | 8-15 | 25 |
 
 ---
+
+### V10: Doc 3 Gating Validation
+
+**When:** Before generating Producer Packet
+
+**Check:** All gating requirements met
+
+**On Failure:**
+- Severity: **HARD FAIL**
+- Action: Reject request, return clear error message
+
+**Requirements:**
+```python
+def can_generate_producer_packet(job) -> tuple[bool, str]:
+    if len(job.sources) < 4:
+        return False, f"Need 4+ sources, have {len(job.sources)}"
+    
+    high_confidence = sum(1 for s in job.sources if s.confidence_ceiling == "high")
+    if high_confidence < 1:
+        return False, "Need at least 1 high-confidence source"
+    
+    if job.status != "completed":
+        return False, f"Job must be completed, currently {job.status}"
+    
+    return True, "OK"
+```
+
+---
+
+## Retry Rules
+
+### Retry Limits
+
+| Stage | Max Retries | Backoff |
+|-------|-------------|---------|
+| Transcript acquisition (Supadata) | 1 | None (try next method) |
+| Transcript acquisition (Whisper) | 1 | None (try next method) |
+| Transcript acquisition (Captions) | 1 | None (degrade to video_only) |
+| Semantic extraction | 1 | None |
+| Synthesis | 1 | None |
+| Assembly | 0 | N/A (deterministic) |
+| Booster stages | 1 each | None |
+| Producer stages | 1 each | None |
+
+### Retry Prompt Modification
+
+On retry, add constraint block to prompt:
+
+```
+RETRY CONTEXT:
+Previous attempt failed validation.
+Error: {validation_error}
+
+Be MORE conservative:
+- Prefer fewer, higher-quality items over many low-quality items
+- If uncertain, omit rather than guess
+- Empty arrays are acceptable
+```
+
+### No Retry Cascade
+
+If a retry fails, do NOT retry again. Accept degraded output or fail the stage.
+
+```python
+MAX_RETRIES = 1
+
+for attempt in range(MAX_RETRIES + 1):
+    result = call_llm(prompt)
+    if validate(result):
+        return result
+    if attempt < MAX_RETRIES:
+        prompt = add_retry_context(prompt, validation_error)
+    else:
+        return handle_final_failure(result)
+```
+
+---
+
+## Failure Severity Levels
+
+### HARD FAIL
+
+**Definition:** Validation failure that prevents proceeding without fix
+
+**Actions:**
+1. Retry once (if retries available)
+2. If retry fails: 
+   - For single source: mark source failed, continue job
+   - For synthesis: fail stage, produce degraded output
+   - For assembly: should not happen (deterministic)
+
+**Examples:**
+- Invalid JSON from LLM
+- Source ID doesn't exist
+- Quotes in no-quote mode
+
+### SOFT FAIL
+
+**Definition:** Validation failure that can be auto-corrected
+
+**Actions:**
+1. Apply auto-correction
+2. Log warning
+3. Continue processing
+
+**Examples:**
+- Confidence exceeds ceiling → downgrade
+- Quote not found in source → mark unverified
+- Timestamp out of range → remove timestamp
+
+### WARNING
+
+**Definition:** Non-ideal state that doesn't require action
+
+**Actions:**
+1. Log warning
+2. Continue processing
+3. Surface in job warnings
+
+**Examples:**
+- Below target cardinality
+- Low verification rate
+- High percentage of unverified quotes
+
+---
+
+## Stage-Specific Failure Handling
+
+### Source Identity Stage
+
+| Failure | Handling |
+|---------|----------|
+| Can't fetch metadata | Use URL as title, log warning |
+| Invalid URL | Fail source, continue job |
+| All sources invalid | Fail job |
+
+### Transcript Acquisition
+
+| Failure | Handling |
+|---------|----------|
+| Supadata fails | Try Whisper |
+| Whisper fails | Try YouTube captions |
+| All methods fail | Continue with `video_only` mode |
+| Non-video source | N/A (skip transcript acquisition) |
+
+### Semantic Extraction
+
+| Failure | Handling |
+|---------|----------|
+| Invalid JSON | Retry once |
+| Empty extraction | Retry once, then accept |
+| Invalid source refs | Retry once, then remove invalid |
+| Exceeds ceiling | Auto-downgrade |
+
+### Validation
+
+| Failure | Handling |
+|---------|----------|
+| Quote not found | Mark unverified, continue |
+| Quotes in wrong mode | Remove/convert, log error |
+| Timestamp invalid | Remove timestamp |
+| Broken provenance | Remove broken refs |
+
+### Synthesis
+
+| Failure | Handling |
+|---------|----------|
+| Invalid JSON | Retry once |
+| No cross-source themes | Accept (may be single source) |
+| Conflicting synthesis | Log, keep both interpretations |
+
+### Assembly
+
+| Failure | Handling |
+|---------|----------|
+| Missing required field | Use default/empty |
+| Template error | Log error, return raw JSON |
+
+---
+
+## Error Logging Format
+
+All validation failures must be logged with:
+
+```json
+{
+  "timestamp": "ISO-8601",
+  "job_id": "string",
+  "stage": "string",
+  "source_id": "string | null",
+  "validation_check": "V1 | V2 | V3 | ...",
+  "severity": "hard_fail | soft_fail | warning",
+  "message": "string",
+  "details": {},
+  "action_taken": "string",
+  "retry_attempted": "boolean"
+}
+```
+
+---
+
+## Job Status Based on Failures
+
+| Scenario | Final Status |
+|----------|--------------|
+| All validations pass | `completed` |
+| Soft fails only | `completed` (warnings in job.warnings) |
+| Some sources hard fail, others succeed | `completed_with_warnings` |
+| Synthesis hard fails after retry | `completed_with_warnings` (degraded output) |
+| All sources hard fail | `failed` |
+| Assembly fails | `failed` |
+
+---
+
+## Validation Summary Table
+
+| Check | ID | Severity | Auto-Correct | Retry |
+|-------|-----|----------|--------------|-------|
+| JSON Schema | V1 | Hard | No | Yes |
+| Source ID Consistency | V2 | Hard | No | Yes |
+| Confidence Ceiling | V3 | Soft | Yes (downgrade) | No |
+| Quote Verification | V4 | Soft | Yes (flag) | No |
+| Quote Permission | V5 | Hard | Partial (convert) | No |
+| Timestamp Range | V6 | Soft | Yes (remove) | No |
+| Empty Output | V7 | Soft | No | Yes |
+| Provenance Chain | V8 | Hard | Yes (remove) | No |
+| Cardinality | V9 | Warning | No | No |
+| Doc 3 Gating | V10 | Hard | No | No |
+
+---
+
+**END OF VALIDATION AND RETRY RULES**

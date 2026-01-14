@@ -1,398 +1,673 @@
 # Document Output Format Specification
 
-**Research Agent System Specification — Addendum**
-
-This document defines the **required structure, formatting, ordering, and content rules** for all three canonical documents produced by the Research Agent.
-
-All outputs must be renderable as **Markdown** and serializable as **JSON** without loss of meaning.
+**Purpose:** Defines the exact JSON schemas for Doc 0, Doc 1, Doc 2, and Doc 3.
+**Authority:** These schemas are canonical. Pydantic models must match these structures.
 
 ---
 
-# GLOBAL FORMATTING RULES (APPLY TO ALL DOCS)
+## Doc 0 — Source Ledger
 
-### G1. Skimmable First
+**Purpose:** Canonical data layer. Preserves 100% of source content and metadata.
 
-* Every document must be readable at a glance
-* Headings precede detail
-* Long content must be collapsible in UI
-
-### G2. Stable Identifiers
-
-* All references use stable IDs:
-
-  * `SRC_1`, `KP_3`, `THEME_2`, `GAP_1`
-* IDs are required for traceability
-
-### G3. Explicit Labels
-
-* Interpretation and speculation must be labeled
-* Confidence must be visible where applicable
-
-### G4. No Narrative Voice
-
-* Neutral, research-oriented language
-* No persuasive framing
-* No conclusions unless explicitly marked speculative
-
----
-
-# DOC 0 — SOURCE LEDGER
-
-**(Canonical Data Layer)**
-
----
-
-## Purpose (Reminder)
-
-Preserve **full context + raw extracted structure**.
-This document is **the foundation** for all others.
-
----
-
-## DOC 0 — REQUIRED STRUCTURE
-
-```
-# SOURCE LEDGER
-Topic: <Scope Lock Sentence>
-
-## SOURCE MANIFEST
-| Source ID | Type | Title | Creator/Author | Length | Status |
-|----------|------|-------|----------------|--------|--------|
-| SRC_1 | YouTube | ... | ... | 1:42:33 | Ingested |
-| SRC_2 | Article | ... | ... | 3,200 words | Ingested |
-
----
-
-## SOURCES
-```
-
----
-
-### Per-Source Section (REQUIRED)
-
-```
-### SOURCE: SRC_1
-Type: YouTube
-Title:
-Creator:
-Published:
-Duration:
-URL:
-
-#### Skim Summary (3–6 bullets)
-- What this source is about
-- Who is speaking / perspective
-- What it contributes
-- Notable limitations or bias
-
-#### Extracted Index
-**Key Claims**
-- CLAIM_1: <short description>
-- CLAIM_2: <short description>
-
-**Entities**
-- Person:
-- Organization:
-- Event:
-
-**Themes Touched**
-- THEME_1
-- THEME_3
-
-#### FULL SOURCE TEXT (Canonical)
-<verbatim transcript or article text>
-
-**If full source text is unavailable, use this standardized placeholder:**
-
-```
-#### FULL SOURCE TEXT (Canonical)
-⚠️ FULL SOURCE TEXT UNAVAILABLE
-
-Reason: [Supadata failed / Whisper failed / Captions unavailable / Access denied]
-Analysis Mode: [video_only / caption_grounded]
-
-This source was analyzed without verbatim transcript text.
-All extracted content should be treated as approximate.
-```
-
-Never invent or reconstruct missing source text.
-```
-
----
-
-### Transcript Provenance (Per Video Source)
-
-For video sources (YouTube, etc.), each source MUST include transcript provenance metadata:
-
-**Transcript Acquisition Order (LOCKED):**
-1. Supadata (primary) → `transcript_grounded`
-2. Whisper (if Supadata fails) → `transcript_grounded`
-3. YouTube captions (if Whisper fails) → `caption_grounded`
-4. None (if all fail) → `video_only`
+### Schema
 
 ```json
-"transcript_provenance": {
-  "transcript_source": "supadata | whisper | youtube_captions | none",
-  "transcript_status": "success | failed",
-  "captions_status": "success | missing | failed",
-  "gemini_analysis_mode": "transcript_grounded | caption_grounded | video_only",
-  "verification_capabilities": {
-    "quote_verification": true,
-    "timestamp_grounding": true,
-    "semantic_precision": "high | medium | low"
+{
+  "document_type": "source_ledger",
+  "document_version": "2.0",
+  "job_id": "string",
+  "generated_at": "ISO-8601 datetime",
+  "sources": [
+    {
+      "source_id": "SRC_1",
+      "source_type": "youtube | article | text | screenshot",
+      "analysis_mode": "transcript_grounded | caption_grounded | video_only | text_provided | ocr_extracted | article_fetched",
+      "confidence_ceiling": "high | medium | low",
+      "metadata": {
+        "title": "string",
+        "creator": "string | null",
+        "date": "ISO-8601 date | null",
+        "duration_seconds": "integer | null",
+        "url": "string | null",
+        "description": "string | null"
+      },
+      "transcript_provenance": {
+        "method": "supadata | whisper | youtube_captions | none",
+        "quality": "high | medium | low | unavailable",
+        "timestamp_reliability": "precise | approximate | unavailable",
+        "acquisition_timestamp": "ISO-8601 datetime"
+      },
+      "full_text": "string | null",
+      "full_text_storage": "inline | blob_reference | unavailable",
+      "blob_reference": "string | null",
+      "skim_summary": "string (2-3 sentences)",
+      "status": "complete | partial | failed",
+      "degradation_notes": ["string"] 
+    }
+  ],
+  "indexes": {
+    "quotes": [
+      {
+        "quote_id": "QT_1",
+        "text": "string",
+        "source_id": "SRC_1",
+        "speaker": "string | null",
+        "timestamp": "string | null",
+        "timestamp_seconds": "integer | null",
+        "verification_status": "verified | partial | unverified"
+      }
+    ],
+    "observations": [
+      {
+        "observation_id": "OBS_1",
+        "description": "string",
+        "source_id": "SRC_1",
+        "timestamp": "string | null",
+        "approximate": true,
+        "type": "observation"
+      }
+    ],
+    "claims": [
+      {
+        "claim_id": "CLM_1",
+        "statement": "string",
+        "source_id": "SRC_1",
+        "speaker": "string | null",
+        "timestamp": "string | null",
+        "confidence": "high | medium | low",
+        "verifiable": "boolean"
+      }
+    ],
+    "entities": [
+      {
+        "name": "string",
+        "type": "person | organization | place | event | other",
+        "source_ids": ["SRC_1"],
+        "first_mention_timestamp": "string | null"
+      }
+    ],
+    "timestamps": [
+      {
+        "timestamp": "string",
+        "timestamp_seconds": "integer",
+        "source_id": "SRC_1",
+        "description": "string"
+      }
+    ]
   },
-  "notes": "Human-readable explanation of fallbacks or failures"
+  "corpus_stats": {
+    "total_sources": "integer",
+    "sources_by_mode": {
+      "transcript_grounded": "integer",
+      "caption_grounded": "integer",
+      "video_only": "integer",
+      "text_provided": "integer",
+      "ocr_extracted": "integer",
+      "article_fetched": "integer"
+    },
+    "total_quotes": "integer",
+    "total_observations": "integer",
+    "total_claims": "integer",
+    "total_duration_seconds": "integer | null"
+  }
 }
 ```
 
-**Extraction Rules by Mode:**
+### Field Requirements
 
-| transcript_source | Output Type | Confidence Ceiling |
-|-------------------|-------------|-------------------|
-| supadata / whisper | Verbatim quotes required | high |
-| youtube_captions | Approximate quotes allowed, mark `approximate: true` | medium |
-| none (video_only) | `approximate_observations` only — NOT quotes | low |
-
-**TERMINOLOGY:** In `video_only` mode, use `approximate_observations` (not "quotes") to avoid confusion.
-
-**Provenance Rules:**
-
-| Condition | Enforcement |
-|-----------|-------------|
-| `transcript_source = none` | `quote_verification` MUST be `false` |
-| `transcript_source = youtube_captions` | `semantic_precision` = `medium` maximum |
-| Any video source | This block MUST appear |
-
-**Display in Markdown:**
-
-```
-#### Transcript Provenance
-Source: Supadata ✅ | Captions: N/A | Mode: transcript_grounded
-Verification: Full quote verification available
-```
+| Field | Required | Notes |
+|-------|----------|-------|
+| `sources` | Yes | At least 1 source |
+| `sources[].source_id` | Yes | Format: `SRC_N` |
+| `sources[].analysis_mode` | Yes | One of 6 modes |
+| `sources[].full_text` | Conditional | Required if `full_text_storage: inline` |
+| `indexes.quotes` | Conditional | Only for modes that allow quotes |
+| `indexes.observations` | Conditional | Only for modes that don't allow quotes |
 
 ---
 
-## Rules for DOC 0
+## Doc 1 — Jump-Start Directions
 
-* FULL SOURCE TEXT is mandatory
-* No interpretation beyond skim summaries
-* Skim summaries describe content, not meaning
-* This document may be long — that is intentional
+**Purpose:** Research direction layer. Reduces activation energy for next steps.
 
----
+### Schema
 
-# DOC 1 — JUMP-START
-
-**(Research Direction Layer)**
-
----
-
-## Purpose (Reminder)
-
-Answer:
-
-* What do I have?
-* What’s missing?
-* Where do I go next?
-
-This is the **activation trigger** for the user.
-
----
-
-## DOC 1 — REQUIRED STRUCTURE
-
-```
-# JUMP-START RESEARCH BRIEF
-
-## SCOPE LOCK
-This research covers:
-- IN: …
-- OUT: …
-
----
-
-## CURRENT CORPUS OVERVIEW
-- Number of sources:
-- Perspectives represented:
-- Time span covered:
-
----
-
-## WHAT WE KNOW (From Current Sources)
-- KP_1: <one-line description>
-- KP_2:
-- KP_3:
-
----
-
-## WHAT IS UNCLEAR OR DISPUTED
-- TENSION_1:
-- TENSION_2:
-
----
-
-## GAPS (What’s Missing)
-- GAP_1: <description + why it matters>
-- GAP_2:
-
----
-
-## SUGGESTED RESEARCH DIRECTIONS
-### Priority 1
-- What to look for
-- Example queries
-- Why this matters
-
-### Priority 2
-…
-
----
-
-## TOP 3 NEXT STEPS (MANDATORY)
-1. …
-2. …
-3. …
+```json
+{
+  "document_type": "jump_start_directions",
+  "document_version": "2.0",
+  "job_id": "string",
+  "generated_at": "ISO-8601 datetime",
+  "scope_lock": {
+    "topic": "string",
+    "boundaries": "string",
+    "not_about": ["string"]
+  },
+  "corpus_coverage": {
+    "summary": "string (2-3 sentences)",
+    "sources_analyzed": "integer",
+    "high_confidence_sources": "integer",
+    "perspectives_represented": ["string"],
+    "perspectives_missing": ["string"]
+  },
+  "gaps": [
+    {
+      "gap_id": "GAP_1",
+      "description": "string",
+      "importance": "high | medium | low",
+      "category": "factual | perspective | timeline | context | verification",
+      "would_answer": "string",
+      "suggested_source_types": ["string"]
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "string",
+      "why_unanswered": "string",
+      "related_gaps": ["GAP_1"]
+    }
+  ],
+  "research_directions": [
+    {
+      "direction_id": "RD_1",
+      "title": "string",
+      "description": "string",
+      "priority": "high | medium | low",
+      "effort_estimate": "quick | moderate | deep_dive",
+      "addresses_gaps": ["GAP_1"],
+      "suggested_sources": ["string"],
+      "search_queries": ["string"]
+    }
+  ],
+  "verification_checklist": [
+    {
+      "item": "string",
+      "status": "unverified | partially_verified | verified",
+      "source_for_verification": "string | null",
+      "importance": "high | medium | low"
+    }
+  ],
+  "top_three_next_steps": [
+    {
+      "step": "string",
+      "rationale": "string",
+      "addresses": "string"
+    }
+  ],
+  "booster_augmentation": {
+    "augmented": "boolean",
+    "augmented_at": "ISO-8601 datetime | null",
+    "additional_directions": []
+  }
+}
 ```
 
----
+### Field Requirements
 
-## Rules for DOC 1
+| Field | Required | Notes |
+|-------|----------|-------|
+| `scope_lock` | Yes | Defines what this research is/isn't |
+| `gaps` | Yes | Minimum 3 gaps recommended |
+| `top_three_next_steps` | Yes | Exactly 3 items |
+| `research_directions` | Yes | Minimum 2 directions |
+| `booster_augmentation` | Yes | Placeholder for Booster results |
 
-* Must always be produced
-* May exist without Deep Research Booster
-* Booster adds sections, never replaces content
-* Language must be directive, not speculative
+### Cardinality Targets
 
----
-
-# DOC 2 — SEMANTIC RESEARCH BRIEF
-
-**(80% Finished Output)**
-
----
-
-## Purpose (Reminder)
-
-Deliver **deep understanding**, not conclusions.
-This is what a strong human researcher would hand off.
+| Field | Minimum | Target | Maximum |
+|-------|---------|--------|---------|
+| `gaps` | 3 | 5-8 | 15 |
+| `research_directions` | 2 | 4-6 | 10 |
+| `open_questions` | 1 | 3-5 | 10 |
+| `verification_checklist` | 1 | 3-5 | 10 |
 
 ---
 
-## DOC 2 — REQUIRED STRUCTURE
+## Doc 2 — Semantic Research Brief
+
+**Purpose:** Analysis layer. The "80% finished" semantic understanding.
+
+### Schema
+
+```json
+{
+  "document_type": "semantic_research_brief",
+  "document_version": "2.0",
+  "job_id": "string",
+  "generated_at": "ISO-8601 datetime",
+  "executive_summary": {
+    "one_sentence": "string",
+    "three_sentences": "string",
+    "key_takeaway": "string"
+  },
+  "confidence_assessment": {
+    "overall_confidence": "high | medium | low",
+    "confidence_rationale": "string",
+    "high_confidence_claims": "integer",
+    "medium_confidence_claims": "integer",
+    "low_confidence_claims": "integer",
+    "limiting_factors": ["string"]
+  },
+  "themes": [
+    {
+      "theme_id": "THEME_1",
+      "name": "string",
+      "description": "string",
+      "prevalence": "dominant | significant | minor",
+      "source_ids": ["SRC_1"],
+      "supporting_key_points": ["KP_1", "KP_2"],
+      "supporting_quotes": ["QT_1"]
+    }
+  ],
+  "key_points": [
+    {
+      "key_point_id": "KP_1",
+      "statement": "string",
+      "source_ids": ["SRC_1"],
+      "confidence": "high | medium | low",
+      "timestamp": "string | null",
+      "supporting_evidence": {
+        "quotes": ["QT_1"],
+        "observations": ["OBS_1"],
+        "claims": ["CLM_1"]
+      },
+      "contested_by": ["SRC_2"] 
+    }
+  ],
+  "tensions": [
+    {
+      "tension_id": "TEN_1",
+      "description": "string",
+      "nature": "factual_dispute | perspective_difference | timeline_conflict | internal_contradiction | other",
+      "sources_involved": ["SRC_1", "SRC_2"],
+      "position_a": {
+        "summary": "string",
+        "source_ids": ["SRC_1"],
+        "supporting_evidence": ["KP_1", "QT_1"]
+      },
+      "position_b": {
+        "summary": "string",
+        "source_ids": ["SRC_2"],
+        "supporting_evidence": ["KP_2", "QT_2"]
+      },
+      "resolution_status": "unresolved | partially_resolved | resolved",
+      "resolution_notes": "string | null"
+    }
+  ],
+  "assumptions": [
+    {
+      "assumption": "string",
+      "source_ids": ["SRC_1"],
+      "explicit_or_implicit": "explicit | implicit",
+      "impact_if_wrong": "string"
+    }
+  ],
+  "gaps_summary": {
+    "total_gaps": "integer",
+    "critical_gaps": ["GAP_1"],
+    "see_doc_1_for_details": true
+  },
+  "speculation_section": {
+    "included": "boolean",
+    "speculation_items": [
+      {
+        "speculation": "string",
+        "basis": "string",
+        "confidence": "low",
+        "explicitly_speculative": true
+      }
+    ]
+  },
+  "source_concordance": {
+    "sources_agree_on": ["string"],
+    "sources_disagree_on": ["string"],
+    "single_source_claims": ["string"]
+  }
+}
+```
+
+### Field Requirements
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `executive_summary` | Yes | All three fields required |
+| `confidence_assessment` | Yes | Must reflect actual extraction |
+| `themes` | Yes | Minimum 2 themes |
+| `key_points` | Yes | Minimum 5 key points |
+| `tensions` | No | Empty array if no tensions |
+| `speculation_section.included` | Yes | Boolean, items optional |
+
+### Cardinality Targets
+
+| Field | Minimum | Target | Maximum |
+|-------|---------|--------|---------|
+| `themes` | 2 | 4-6 | 10 |
+| `key_points` | 5 | 8-15 | 25 |
+| `tensions` | 0 | 1-3 | 10 |
+| `assumptions` | 1 | 2-4 | 8 |
+
+---
+
+## Doc 3 — Producer Packet
+
+**Purpose:** Creative interpretation layer. Story angles and narrative elements.
+
+### Gating Requirements (ALL must be met)
+
+- 4+ sources in job
+- At least 1 source with `confidence_ceiling: high`
+- Job status: `completed`
+- User explicitly requests Doc 3
+
+### Schema
+
+```json
+{
+  "document_type": "producer_packet",
+  "document_version": "2.0",
+  "job_id": "string",
+  "generated_at": "ISO-8601 datetime",
+  "creative_interpretation_notice": "This document contains creative interpretation and narrative suggestions. It is not factual research output. All content should be verified against Doc 0/1/2.",
+  "story_core": {
+    "central_question": "string",
+    "one_sentence_pitch": "string",
+    "why_this_matters": "string",
+    "target_audience": "string",
+    "emotional_arc": "string"
+  },
+  "narrative_angles": [
+    {
+      "angle_id": "ANG_1",
+      "title": "string",
+      "description": "string",
+      "strengths": ["string"],
+      "weaknesses": ["string"],
+      "best_for": "string",
+      "key_sources": ["SRC_1"]
+    }
+  ],
+  "opening_hooks": [
+    {
+      "hook_type": "cold_open | provocative_question | surprising_fact | personal_story | scene_setting",
+      "content": "string",
+      "tone": "string",
+      "source_basis": ["SRC_1"] 
+    }
+  ],
+  "structure_options": [
+    {
+      "structure_type": "chronological | thematic | mystery_reveal | compare_contrast | problem_solution",
+      "description": "string",
+      "section_breakdown": ["string"],
+      "pros": ["string"],
+      "cons": ["string"]
+    }
+  ],
+  "key_moments": [
+    {
+      "moment": "string",
+      "source_id": "SRC_1",
+      "timestamp": "string | null",
+      "why_compelling": "string",
+      "potential_use": "string"
+    }
+  ],
+  "title_options": [
+    {
+      "title": "string",
+      "subtitle": "string | null",
+      "tone": "serious | provocative | curious | urgent",
+      "seo_considerations": "string | null"
+    }
+  ],
+  "thumbnail_concepts": [
+    {
+      "concept": "string",
+      "visual_elements": ["string"],
+      "text_overlay": "string | null",
+      "emotional_appeal": "string"
+    }
+  ],
+  "risk_assessment": {
+    "sensitivity_level": "low | medium | high",
+    "potential_issues": ["string"],
+    "mitigation_suggestions": ["string"],
+    "legal_considerations": ["string"],
+    "ethical_considerations": ["string"]
+  },
+  "interview_suggestions": {
+    "people_to_contact": [
+      {
+        "name": "string",
+        "role": "string",
+        "why_relevant": "string",
+        "potential_questions": ["string"]
+      }
+    ],
+    "expert_perspectives_needed": ["string"]
+  },
+  "b_roll_suggestions": [
+    {
+      "description": "string",
+      "purpose": "string",
+      "source_options": ["string"]
+    }
+  ]
+}
+```
+
+### Field Requirements
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `creative_interpretation_notice` | Yes | Exact text as shown |
+| `story_core` | Yes | All fields required |
+| `narrative_angles` | Yes | Minimum 2 angles |
+| `opening_hooks` | Yes | Minimum 2 hooks |
+| `structure_options` | Yes | Minimum 2 options |
+| `risk_assessment` | Yes | All fields required |
+
+### Cardinality Targets
+
+| Field | Minimum | Target | Maximum |
+|-------|---------|--------|---------|
+| `narrative_angles` | 2 | 3-4 | 6 |
+| `opening_hooks` | 2 | 3-4 | 6 |
+| `structure_options` | 2 | 3 | 5 |
+| `title_options` | 2 | 4-5 | 8 |
+| `key_moments` | 3 | 5-8 | 15 |
+
+---
+
+## Validation Rules
+
+### Cross-Document Consistency
+
+1. All `source_id` references in Docs 1/2/3 must exist in Doc 0
+2. All `quote_id` references must exist in Doc 0 indexes
+3. All `key_point_id` references must exist in Doc 2
+4. All `gap_id` references must exist in Doc 1
+
+### Confidence Ceiling Enforcement
+
+No item in Doc 2 may have confidence higher than its source's ceiling:
 
 ```
-# SEMANTIC RESEARCH BRIEF
+If source.confidence_ceiling == "medium":
+  key_point.confidence cannot be "high"
+```
 
-## SEMANTIC CORE (What This Is Really About)
-<2–4 sentences describing the underlying issue, not a summary>
+### Mode-Specific Rules
 
----
-
-## KEY THEMES
-### THEME_1: <Theme Name>
-Description:
-- What this theme represents
-
-Supporting Key Points:
-- KP_1
-- KP_4
-- KP_7
+| Mode | Quotes Allowed | Observations Required |
+|------|---------------|----------------------|
+| `transcript_grounded` | Yes | No |
+| `caption_grounded` | Yes | No |
+| `video_only` | No | Yes |
+| `text_provided` | No | Yes |
+| `ocr_extracted` | No | Yes |
+| `article_fetched` | Yes | No |
 
 ---
 
-### THEME_2: …
+## Markdown Rendering
+
+When documents are rendered for human consumption, use this structure:
+
+### Doc 0 Markdown Template
+
+```markdown
+# Source Ledger
+
+**Job ID:** {job_id}
+**Generated:** {generated_at}
+**Sources:** {total_sources}
+
+---
+
+## Sources
+
+### {source_id}: {title}
+
+- **Type:** {source_type}
+- **Mode:** {analysis_mode}
+- **Confidence Ceiling:** {confidence_ceiling}
+- **Status:** {status}
+
+**Skim Summary:** {skim_summary}
+
+[Full text available in expandable section or blob]
+
+---
+
+## Quote Index
+
+| ID | Text | Source | Speaker | Timestamp |
+|----|------|--------|---------|-----------|
+| {quote_id} | {text} | {source_id} | {speaker} | {timestamp} |
+
+---
+
+## Claim Index
+
+| ID | Claim | Source | Confidence | Verifiable |
+|----|-------|--------|------------|------------|
+| {claim_id} | {statement} | {source_id} | {confidence} | {verifiable} |
+```
+
+### Doc 1 Markdown Template
+
+```markdown
+# Jump-Start Research Directions
+
+**Job ID:** {job_id}
+**Generated:** {generated_at}
+
+---
+
+## Scope
+
+**Topic:** {scope_lock.topic}
+**Boundaries:** {scope_lock.boundaries}
+**Not About:** {scope_lock.not_about}
+
+---
+
+## What We Have
+
+{corpus_coverage.summary}
+
+- **Sources Analyzed:** {sources_analyzed}
+- **High Confidence:** {high_confidence_sources}
+
+---
+
+## Gaps
+
+### {gap_id}: {description}
+
+- **Importance:** {importance}
+- **Category:** {category}
+- **Would Answer:** {would_answer}
+
+---
+
+## Top 3 Next Steps
+
+1. **{step}** — {rationale}
+2. **{step}** — {rationale}
+3. **{step}** — {rationale}
+```
+
+### Doc 2 Markdown Template
+
+```markdown
+# Semantic Research Brief
+
+**Job ID:** {job_id}
+**Generated:** {generated_at}
+**Overall Confidence:** {overall_confidence}
+
+---
+
+## Executive Summary
+
+{executive_summary.three_sentences}
+
+**Key Takeaway:** {key_takeaway}
+
+---
+
+## Themes
+
+### {theme_id}: {name}
+
+{description}
+
+**Prevalence:** {prevalence}
+**Sources:** {source_ids}
+
+---
+
+## Key Points
+
+### {key_point_id}
+
+> {statement}
+
+- **Confidence:** {confidence}
+- **Sources:** {source_ids}
+
+---
+
+## Tensions
+
+### {tension_id}: {description}
+
+**Nature:** {nature}
+
+**Position A:** {position_a.summary}
+- Sources: {position_a.source_ids}
+
+**Position B:** {position_b.summary}
+- Sources: {position_b.source_ids}
+
+**Status:** {resolution_status}
 ```
 
 ---
 
-### Key Points Section (MANDATORY)
+## Pydantic Model Mapping
 
-```
-## KEY POINTS
-- KP_1: <neutral assertion>
-  Sources: SRC_1, SRC_2
+| Schema | Pydantic Model | Location |
+|--------|---------------|----------|
+| Doc 0 | `SourceLedger` | `backend/models/document_outputs.py` |
+| Doc 1 | `JumpStartDirections` | `backend/models/document_outputs.py` |
+| Doc 2 | `SemanticBrief` | `backend/models/document_outputs.py` |
+| Doc 3 | `ProducerPacket` | `backend/models/document_outputs.py` |
 
-- KP_2:
-  Sources: SRC_3
-```
-
----
-
-### Tensions & Contradictions (If Present)
-
-```
-## TENSIONS & CONTRADICTIONS
-- TENSION_1:
-  Description:
-  Involved Points: KP_3, KP_6
-  Notes:
-```
+Nested models should match nested schema objects.
 
 ---
 
-### Gaps & Weaknesses
-
-```
-## GAPS & WEAKNESSES
-- GAP_1:
-  Why it matters:
-  What would help resolve it:
-```
-
----
-
-### Confidence Calibration
-
-```
-## CONFIDENCE ASSESSMENT
-Overall Confidence: Medium
-
-Reasoning:
-- Source diversity:
-- Verification rate:
-- Presence of contradictions:
-```
-
----
-
-### Optional: Speculative Directions (Explicitly Labeled)
-
-```
-## SPECULATIVE OBSERVATIONS (OPTIONAL)
-⚠️ These are hypotheses, not conclusions.
-
-- One possible interpretation is…
-  Based on: KP_2, KP_5
-```
-
----
-
-## Rules for DOC 2
-
-* Every section must reference earlier units
-* No new facts allowed
-* Speculation must be isolated and labeled
-* This document should *feel* complete but never authoritative
-
----
-
-# FAILURE & DEGRADATION DISPLAY (ALL DOCS)
-
-If output is thin or sources are weak:
-
-* Add visible warning banner:
-
-  > “This brief is based on limited or one-sided sources.”
-* Increase emphasis on:
-
-  * Gaps
-  * Next steps
-* Never pad content to appear complete
-
----
-
-## End of Document Output Format Specification (Draft v1)
-
----
-
+**END OF DOCUMENT OUTPUT FORMAT SPECIFICATION**

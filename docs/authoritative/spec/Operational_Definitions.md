@@ -1,433 +1,312 @@
 # Operational Definitions
 
-**Research Agent System Specification — Addendum**
-
-This document defines the **exact meaning** of core concepts used throughout the Research Agent.
-If a term appears in code, prompts, validation logic, or UX, **it must conform to this document**.
+**Purpose:** Authoritative vocabulary for the Research Agent system.
+**Rule:** All documents inherit definitions from this file. Terms MUST NOT be redefined elsewhere.
 
 ---
 
-## 1. SOURCE
+## Source & Identity Terms
 
-### Definition
+### Source
+A discrete unit of input content provided by the user for analysis. Each source has exactly one `source_id` and exactly one `analysis_mode`.
 
-A **Source** is any discrete unit of external information provided to or ingested by the system.
+**Types:**
+- YouTube video (URL)
+- Article (URL)
+- User-provided text (copy-paste)
+- Screenshot (image file)
 
-### Examples
+### source_id
+A stable, unique identifier for a source within a job. Format: `SRC_1`, `SRC_2`, etc. Assigned during Source Identity stage, before any LLM call.
 
-* One YouTube video
-* One article
-* One forum thread
-* One uploaded text document
-
-### Rules
-
-* Each source is assigned a stable `source_id`
-* A source has exactly **one canonical full-text representation**
-* Partial excerpts are not sources
-
----
-
-## 2. SOURCE DATA (CANONICAL)
-
-### Definition
-
-**Source Data** is the full, verbatim content of a source.
-
-### Includes
-
-* Full transcript of a video
-* Full article text
-* Full thread/comment text
-
-### Rules
-
-* Source Data is immutable after ingestion
-* All downstream artifacts must trace back to Source Data
-* No interpretation, summarization, or filtering occurs at this layer
+### Source Identity Package
+The complete metadata bundle for a source, resolved BEFORE any LLM processing:
+- `source_id`
+- `title`
+- `creator` (if available)
+- `date` (if available)
+- `duration` (for video)
+- `analysis_mode`
+- `confidence_ceiling`
+- `transcript_provenance` (for video)
 
 ---
 
-## 3. QUOTE
+## Analysis Mode Terms
 
-### Definition
+### Analysis Mode
+The method used to analyze a source, determined by source type and content availability. Affects confidence ceiling and extraction capabilities.
 
-A **Quote** is verbatim text taken directly from Source Data.
+| Mode | Definition |
+|------|------------|
+| `transcript_grounded` | YouTube video with full transcript (Supadata or Whisper) |
+| `caption_grounded` | YouTube video with YouTube captions only |
+| `video_only` | YouTube video with no text available |
+| `text_provided` | User-pasted text content |
+| `ocr_extracted` | Screenshot processed with OCR |
+| `article_fetched` | Article URL with full text retrieved |
 
-### Properties
+### Confidence Ceiling
+The maximum confidence level any extraction from a source can claim, determined by analysis mode:
 
-* Exact text match (or near-exact with punctuation tolerance)
-* Associated with:
+| Mode | Ceiling |
+|------|---------|
+| `transcript_grounded` | HIGH |
+| `caption_grounded` | MEDIUM |
+| `video_only` | LOW |
+| `text_provided` | MEDIUM |
+| `ocr_extracted` | MEDIUM |
+| `article_fetched` | HIGH |
 
-  * `source_id`
-  * location anchor (timestamp, paragraph index, or offset)
-
-### Rules
-
-* Quotes do **not** imply truth
-* Quotes do **not** imply importance
-* Quotes exist only to support higher-level units
-
----
-
-## 4. CLAIM
-
-### Definition
-
-A **Claim** is a declarative statement **made by a source** that asserts something about reality.
-
-### Examples
-
-* “The event happened in 2019.”
-* “We never received funding.”
-* “The study showed a 30% increase.”
-
-### What a Claim is NOT
-
-* Opinions (“I think this is bad”)
-* Interpretations (“This suggests corruption”)
-* General descriptions (“The video discusses funding issues”)
-
-### Rules
-
-* Claims must originate from a source
-* Claims may be false, disputed, or unverifiable
-* Claims must reference at least one supporting Quote
-
-**Exception for video_only mode:**
-
-When `analysis_mode = video_only`, Claims are not required to have supporting Quotes. Instead:
-- Claims must reference approximate timestamp ranges
-- Claims must be marked `confidence: low`
-- Claims must include `source_mode: video_only` metadata
+### Transcript Provenance
+Metadata recording how a video's transcript was obtained:
+- `method`: supadata | whisper | youtube_captions | none
+- `quality`: high | medium | low | unavailable
+- `timestamp_reliability`: precise | approximate | unavailable
 
 ---
 
-## 5. KEY POINT
+## Confidence Terms
 
-### Definition
+### Confidence Level
+A categorical assessment of certainty. Three levels only:
 
-A **Key Point** is a **semantically meaningful assertion** that a human researcher would reasonably extract after reviewing the corpus.
+| Level | Definition |
+|-------|------------|
+| `HIGH` | Directly verifiable in source text; verbatim or near-verbatim |
+| `MEDIUM` | Reasonable interpretation of source content; paraphrased |
+| `LOW` | Inferred or uncertain; limited source support |
 
-### Properties
-
-* Derived from one or more Claims and/or Quotes
-* Expressed in neutral language
-* Represents *what is being said*, not *what it means*
-
-### Examples
-
-* “Multiple sources state that funding was delayed.”
-* “The subject gives differing accounts of the timeline.”
-
-### What a Key Point is NOT
-
-* A summary of the entire source
-* A quote
-* A conclusion
-* A narrative beat
-
-### Rules
-
-* Each Key Point must reference:
-
-  * one or more `source_id`s
-* Key Points may conflict with one another
-* Key Points may be incomplete
+### Confidence Calibration
+The practice of ensuring confidence levels accurately reflect certainty. Extraction cannot exceed the source's confidence ceiling.
 
 ---
 
-## 6. THEME
+## Extraction Terms
 
-### Definition
+### Semantic Extraction
+The process of identifying meaningful content from a source: key points, claims, themes, tensions, quotes (if allowed), and gaps.
 
-A **Theme** is a recurring **conceptual pattern** that spans multiple Key Points.
+### Key Point
+A significant statement or idea from a source. Must reference `source_id`.
 
-### Properties
+Fields:
+- `key_point_id`: Unique ID (format: `KP_1`, `KP_2`)
+- `statement`: The key point in clear language
+- `source_ids`: List of supporting source IDs
+- `confidence`: Confidence level
+- `timestamp`: If from video (optional)
 
-* Abstracted one level above Key Points
-* Describes *what ideas recur*, not what is concluded
+### Claim
+A factual assertion made within a source that could be verified or disputed. Descriptive only — no judgment on truth.
 
-### Examples
+Fields:
+- `claim_id`: Unique ID (format: `CLM_1`, `CLM_2`)
+- `statement`: The claim as stated
+- `source_id`: Single source ID
+- `speaker`: Who made the claim (if identifiable)
+- `confidence`: Confidence level
+- `verifiable`: Boolean — can this be fact-checked?
 
-* “Inconsistent timelines”
-* “Financial opacity”
-* “Shifting public narratives”
+### Quote
+Verbatim or near-verbatim text from a source. Only allowed for modes with text available.
 
-### Rules
+Fields:
+- `quote_id`: Unique ID (format: `QT_1`, `QT_2`)
+- `text`: The quoted text
+- `source_id`: Single source ID
+- `speaker`: Who said it (if identifiable)
+- `timestamp`: When in video (if applicable)
+- `verification_status`: verified | partial | unverified
 
-* A Theme must:
+### Approximate Observation
+A semantic description of content for sources without verifiable text (`video_only`, `text_provided`, `ocr_extracted`). NOT a quote.
 
-  * contain ≥2 Key Points
-* Themes must not:
+Fields:
+- `observation_id`: Unique ID (format: `OBS_1`, `OBS_2`)
+- `description`: What was observed (semantic description)
+- `source_id`: Single source ID
+- `timestamp`: Approximate time (if video)
+- `approximate`: Always `true`
+- `type`: Always `observation`
 
-  * assert causality
-  * resolve ambiguity
-* Themes may overlap
+**Critical distinction:** Quotes are verbatim text. Observations are descriptions of content. Never call an observation a quote.
 
----
+### Theme
+A recurring idea, topic, or pattern identified within or across sources.
 
-## 7. TENSION / CONTRADICTION
+Fields:
+- `theme_id`: Unique ID (format: `THEME_1`, `THEME_2`)
+- `name`: Short theme name
+- `description`: What this theme represents
+- `source_ids`: Sources where this theme appears
+- `supporting_key_points`: Key point IDs that support this theme
 
-### Definition
+### Tension
+A contradiction, disagreement, or unresolved conflict between sources or within a source.
 
-A **Tension** exists when two or more Key Points cannot simultaneously be true **without explanation**.
+Fields:
+- `tension_id`: Unique ID (format: `TEN_1`, `TEN_2`)
+- `description`: What the tension is
+- `sources_involved`: Source IDs involved
+- `nature`: factual_dispute | perspective_difference | timeline_conflict | other
+- `resolution_status`: unresolved | partially_resolved | resolved
 
-### Examples
+### Gap
+Missing information, unanswered questions, or areas needing further research.
 
-* Two sources give conflicting dates
-* A subject contradicts earlier statements
-* Data conflicts with testimony
-
-### Rules
-
-* Tensions must cite all involved Key Points
-* The system must not resolve tensions unless evidence exists
-* Tensions are surfaced, not adjudicated
-
----
-
-## 8. GAP
-
-### Definition
-
-A **Gap** is information that a competent human researcher would reasonably expect to find **but is missing** from the current corpus.
-
-### Examples
-
-* Missing response from a key party
-* No primary documentation for a major claim
-* No coverage of consequences or outcomes
-
-### Rules
-
-* Gaps are contextual, not absolute
-* Gaps must explain *why* the information is expected
-* Gaps drive the Jump-Start document
-
----
-
-## 9. SEMANTIC INTERPRETATION
-
-### Definition
-
-**Semantic Interpretation** is the act of identifying patterns, relationships, or implications **across** Key Points.
-
-### Properties
-
-* Requires multiple sources or points
-* Must remain descriptive, not narrative
-
-### Examples
-
-* “Accounts of the event diverge after 2020.”
-* “Discussion shifts from facts to personal attacks.”
-
-### Rules
-
-* Must cite supporting Key Points
-* Must be clearly labeled as interpretation
-* Must not introduce new facts
+Fields:
+- `gap_id`: Unique ID (format: `GAP_1`, `GAP_2`)
+- `description`: What's missing
+- `importance`: high | medium | low
+- `suggested_sources`: Potential places to find this information
+- `research_queries`: Suggested search queries
 
 ---
 
-## 10. SPECULATION
+## Pipeline Terms
 
-### Definition
+### Source Isolation
+The requirement that each source be extracted in a separate, isolated LLM call. The model never sees other sources during extraction. Cross-source analysis only happens in synthesis.
 
-**Speculation** is any inference that goes beyond what the source data directly supports.
+### Layered Extraction
+The required extraction approach:
+- **Layer 1:** Explicit content — what the source directly states
+- **Layer 2:** Patterns — what patterns exist in Layer 1 content
+- **Layer 3:** Structure — themes, tensions, gaps derived from Layer 2
 
-### Examples
+### Synthesis
+The stage where extracted content from multiple sources is analyzed together to identify cross-source themes, tensions, and patterns. This is the ONLY stage where sources "see" each other.
 
-* “This may indicate an attempt to obscure responsibility.”
-* “One possible motive is financial pressure.”
+### Validation
+The stage where extractions are verified:
+- Quote verification (does quote exist in source text?)
+- Confidence ceiling enforcement
+- Timestamp validation
+- Source ID consistency
 
-### Rules
-
-* Must be explicitly labeled as speculative
-* Must never appear in Doc 0
-* Optional in Doc 2
-* Never presented as truth
-
----
-
-## 11. THIN OUTPUT
-
-### Definition
-
-Output is considered **thin** when it fails to provide sufficient structure for understanding **relative to corpus size**.
-
-### Indicators
-
-* Very few Key Points given large source material
-* Themes lack diversity
-* Major claims have no supporting structure
-
-### Rules
-
-* Thin output does **not** fail the job
-* Thin output triggers:
-
-  * confidence downgrade
-  * emphasis on gaps
-  * stronger Jump-Start guidance
+### Assembly
+The stage where validated extractions and synthesis results are formatted into output documents (Doc 0, Doc 1, Doc 2).
 
 ---
 
-## 12. CONFIDENCE LEVELS
+## Document Terms
 
-### High
+### Doc 0 — Source Ledger
+The canonical data layer. Contains full source text, metadata, provenance, and indexes. No interpretation. Single source of truth.
 
-* Multiple sources
-* Verified quotes
-* Consistent Key Points
+### Doc 1 — Jump-Start Directions
+The research direction layer. Answers: "What do I have, what's missing, where do I go next?" Contains gaps, research directions, suggested queries, next steps.
 
-### Medium
+### Doc 2 — Semantic Research Brief
+The analysis layer. Contains themes, key points, tensions, confidence calibration. The "80% finished" semantic understanding of the corpus.
 
-* Limited sources
-* Partial verification
-* Some ambiguity
+### Doc 3 — Producer Packet
+The optional creative layer. Contains story angles, hooks, structure options, creative interpretation. Gated: requires 4+ sources, 1+ high-confidence, explicit user request.
 
-### Low
-
-* Single perspective
-* Unverified claims
-* Thin extraction
-
-Confidence is descriptive, not evaluative.
+### Addendum
+Content added to existing documents when new sources are added to a completed job. Clearly marked as additions, preserves original analysis.
 
 ---
 
-## 13. CONTEXT BUNDLE
+## Quality Terms
 
-### Definition
+### Degraded Output
+Output produced when ideal conditions aren't met (e.g., no transcript available). Still valid, but with:
+- Lower confidence ceiling
+- Explicit disclosure of limitations
+- Emphasis on gaps
 
-A **Context Bundle** is a constrained input set used to guide downstream research or expansion.
+### Thin Output
+Output with minimal content due to source limitations. Acceptable if honest about limitations. Preferred over hallucinated dense output.
 
-### Includes
-
-* Scope lock
-* Key Points
-* Themes
-* Gaps
-
-### Rules
-
-* Context Bundles replace free-text topic prompts
-* Used for Deep Research Booster
-* Must not introduce new facts into canonical layers
-
----
-
-## 14. TRANSCRIPT PROVENANCE
-
-### Definition
-
-**Transcript Provenance** is metadata describing how transcript text was acquired for a video source.
-
-### Transcript Acquisition Order (LOCKED)
-
-1. Supadata (primary) → `transcript_grounded`
-2. Whisper (if Supadata fails) → `transcript_grounded`
-3. YouTube captions (if Whisper fails) → `caption_grounded`
-4. None (if all fail) → `video_only`
-
-### Includes
-
-* Transcript source (supadata, whisper, youtube_captions, or none)
-* Acquisition status (success or failed)
-* Analysis mode (transcript_grounded, caption_grounded, video_only)
-* Verification capabilities (quote verification, timestamp grounding, semantic precision)
-
-### Enables
-
-* Confidence calibration based on source quality
-* Appropriate flagging of unverified quotes
-* Transparency about degradation
-
-### Restricts
-
-* Claims from degraded sources cannot be marked high-confidence
-* Verbatim quotes require `transcript_grounded` mode
-
-### Rules
-
-* Every video source MUST have transcript provenance metadata
-* Provenance propagates to all downstream documents
-* Missing provenance is a validation error
+### Hallucination
+Content generated by LLM that has no basis in source material. System is designed to prevent this through:
+- Source isolation
+- Confidence ceilings
+- Quote verification
+- Empty output permission
 
 ---
 
-## 15. DEGRADED SOURCE
+## Job Terms
 
-### Definition
+### Job
+A single analysis request containing one or more sources. Has a `job_id`, status, and produces Doc 0/1/2 (and optionally Doc 3).
 
-A **Degraded Source** is a source where the ideal transcript (Supadata or Whisper) was unavailable, requiring fallback to YouTube captions or video-only analysis.
+### Job Status
+- `pending`: Created, not started
+- `running`: Pipeline executing
+- `completed`: Successfully finished
+- `completed_with_warnings`: Finished with degradation
+- `failed`: Unrecoverable error
+- `cancelled`: User cancelled
 
-### Indicators
-
-* `transcript_source` = `youtube_captions` or `none`
-* `gemini_analysis_mode` ≠ `transcript_grounded`
-
-### Enables
-
-* Partial analysis to proceed
-* User awareness of limitations
-* Job completion despite transcript failure
-
-### Restricts
-
-* Quote verification capabilities
-* Timestamp precision claims
-* Confidence level maximums:
-  - `caption_grounded`: confidence ceiling = `medium`
-  - `video_only`: confidence ceiling = `low`
-
-### Rules
-
-* Degraded sources do NOT fail jobs
-* Degradation MUST be visible in DOC 0 and DOC 2
-* Quotes from `caption_grounded` sources MUST be flagged as approximate
-* `video_only` sources produce `approximate_observations`, not quotes
+### Evolving Job
+A job that has new sources added after initial completion. Uses addendum pattern to preserve original analysis.
 
 ---
 
-## 16. GEMINI VIDEO-ONLY ANALYSIS
+## Booster Terms
 
-### Definition
+### Deep Research Booster
+Optional 4-stage pipeline that expands research directions beyond the current corpus. Augments Doc 1 only. Does not modify canonical data.
 
-**Gemini Video-Only Analysis** is an analysis mode where Gemini processes video content without access to transcript text.
-
-### Enables
-
-* Visual/audio-based theme extraction
-* `approximate_observations` — semantic descriptions of what was said (NOT quotes)
-* Topic identification from non-text signals
-* Job completion when transcript acquisition fails entirely
-
-### Restricts
-
-* **Quotes prohibited** — use `approximate_observations` instead
-* Timestamp precision — cannot claim precise timestamps
-* Confidence ceiling is `low` (categorical, not numeric)
-* Quote verification — not available in this mode
-
-### Terminology
-
-In `video_only` mode, use **`approximate_observations`** consistently.
-- These are semantic descriptions, NOT verbatim text
-- All must be marked `approximate: true` and `type: observation`
-- Do NOT call them "quotes" or "approximate quotes"
-
-### Rules
-
-* Video-only mode is triggered when Supadata, Whisper, AND YouTube captions all fail
-* Analysis MUST still run (Gemini can process video directly)
-* All outputs MUST include `analysis_limitations` field
-* DOC 2 must visibly indicate degraded source quality
+**Stages:**
+1. Gap Analysis — deep analysis of missing information
+2. Research Directions — prioritized next steps
+3. Search Queries — concrete queries to run
+4. Context Bundle — package for continued research
 
 ---
 
-## End of Operational Definitions (Draft v1)
+## Producer Packet Terms
+
+### Story Core
+The central narrative question or angle for a documentary.
+
+### Hook
+An attention-grabbing opening element (cold open, provocative question, surprising fact).
+
+### Structure Options
+Different ways to organize the narrative (chronological, thematic, mystery-reveal, etc.).
+
+### Creative Interpretation
+Content in Doc 3 that goes beyond factual extraction into narrative territory. Always explicitly labeled as interpretation.
 
 ---
+
+## Validation Terms
+
+### Quote Verification
+Checking that extracted quotes actually exist in source text. Uses fuzzy matching to account for minor transcription differences.
+
+Statuses:
+- `verified`: Exact or near-exact match found
+- `partial`: Partial match found
+- `unverified`: No match found (flagged, not removed)
+
+### Confidence Enforcement
+Automatic downgrade of confidence levels that exceed the source's ceiling. Logged as warning.
+
+### Source ID Consistency
+Verification that all extracted items reference valid source IDs from the job.
+
+---
+
+## ID Format Reference
+
+| Entity | Format | Example |
+|--------|--------|---------|
+| Source | `SRC_N` | `SRC_1`, `SRC_2` |
+| Key Point | `KP_N` | `KP_1`, `KP_2` |
+| Claim | `CLM_N` | `CLM_1`, `CLM_2` |
+| Quote | `QT_N` | `QT_1`, `QT_2` |
+| Observation | `OBS_N` | `OBS_1`, `OBS_2` |
+| Theme | `THEME_N` | `THEME_1`, `THEME_2` |
+| Tension | `TEN_N` | `TEN_1`, `TEN_2` |
+| Gap | `GAP_N` | `GAP_1`, `GAP_2` |
+
+---
+
+**END OF OPERATIONAL DEFINITIONS**

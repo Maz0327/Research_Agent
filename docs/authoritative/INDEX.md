@@ -91,9 +91,49 @@ It does NOT mean:
 
 ---
 
-## Canonical 3-Document Model (Non-Negotiable)
+## Source Isolation Rule (Non-Negotiable)
 
-The Research Agent produces **three distinct documents** with strict boundaries:
+**Each source MUST be extracted in a SEPARATE, ISOLATED LLM call.**
+
+Rules:
+- The model must NEVER see content from other sources during extraction
+- Cross-source analysis (themes, tensions) happens ONLY in synthesis stage
+- Source identity must be resolved BEFORE LLM call, not inferred by LLM
+
+Rationale:
+- Prevents cross-contamination of source attribution
+- Guarantees provenance accuracy
+- Enables parallel processing
+- Makes validation simpler (check one source at a time)
+
+**Violation of this rule is a critical bug.**
+
+---
+
+## Six Analysis Modes (Authoritative)
+
+Every source is assigned ONE analysis mode based on source type and content availability.
+
+| Mode | Source Type | Confidence Ceiling | Quotes Allowed |
+|------|-------------|-------------------|----------------|
+| `transcript_grounded` | YouTube with Supadata/Whisper transcript | HIGH | Yes (verbatim) |
+| `caption_grounded` | YouTube with captions only | MEDIUM | Yes (approximate) |
+| `video_only` | YouTube, no text available | LOW | **No** (observations only) |
+| `text_provided` | User-pasted content | MEDIUM | **No** |
+| `ocr_extracted` | Screenshot with OCR | MEDIUM | **No** |
+| `article_fetched` | Article URL with full text | HIGH | Yes |
+
+**Rules:**
+- Mode is determined BEFORE extraction, not during
+- Mode determines confidence ceiling — extraction cannot exceed it
+- Modes without quote permission use `approximate_observations` instead
+- Mode is recorded in TranscriptProvenance and propagates to all outputs
+
+---
+
+## Canonical Document Model (Non-Negotiable)
+
+The Research Agent produces **three core documents** plus one optional:
 
 ### Doc 0 — Source Ledger (Canonical Data Layer)
 - Preserves **100% of full context** and raw extracted structure
@@ -105,7 +145,7 @@ The Research Agent produces **three distinct documents** with strict boundaries:
 - "What do I have, what's missing, where do I go next?"
 - Gaps, research directions, and top next steps
 - **No narrative conclusions**
-- **No new facts**
+- **No new facts beyond Doc 0**
 
 ### Doc 2 — Semantic Research Brief (80% Finished Output)
 - Themes, key points, tensions, assumptions, gaps
@@ -113,8 +153,16 @@ The Research Agent produces **three distinct documents** with strict boundaries:
 - **No new facts beyond Doc 0**
 - All reasoning must trace back to Doc 0
 
-**Hard boundary rule:**
-Docs 1 and 2 must not introduce facts not present in Doc 0.
+### Doc 3 — Producer Packet (Optional Creative Layer)
+- Story angles, hooks, structure options, creative elements
+- **GATED:** Requires 4+ sources AND 1+ high-confidence source
+- Explicitly labeled as creative interpretation
+- Does NOT affect Docs 0/1/2
+- User must explicitly request this document
+
+**Hard boundary rules:**
+- Docs 1 and 2 must not introduce facts not present in Doc 0
+- Doc 3 is isolated from canonical documents
 
 ---
 
@@ -132,7 +180,7 @@ Every video source must record transcript provenance and analysis mode.
 - Gemini always runs (receives content regardless of transcript status)
 - Transcript failure must **never** fail a job
 - Degradation must be visible in outputs
-- Confidence ceiling depends on mode (see below)
+- Confidence ceiling depends on mode (see above)
 
 **Confidence Ceilings (Categorical):**
 | Analysis Mode | Max Confidence |
@@ -150,18 +198,49 @@ Every video source must record transcript provenance and analysis mode.
 
 ---
 
+## Prompt Requirements (Non-Negotiable)
+
+All LLM prompts for semantic extraction MUST include these 5 components:
+
+### 1. Source Identity Lock Block
+```
+╔══════════════════════════════════════════════════════════╗
+║  SOURCE IDENTITY LOCK — DO NOT MODIFY OR INFER          ║
+╠══════════════════════════════════════════════════════════╣
+║  source_id: {source_id}                                  ║
+║  title: {title}                                          ║
+║  analysis_mode: {mode}                                   ║
+║  confidence_ceiling: {ceiling}                           ║
+╚══════════════════════════════════════════════════════════╝
+```
+
+### 2. Confidence Ceiling Declaration
+Explicit statement of maximum allowed confidence. Output exceeding ceiling is rejected.
+
+### 3. Empty Output Permission
+Explicit permission to return empty arrays if no relevant content found. Prevents hallucination.
+
+### 4. Layered Extraction Instructions (extraction prompts only)
+- Layer 1: Explicit content only (what source says)
+- Layer 2: Patterns from Layer 1
+- Layer 3: Themes from Layer 2
+
+### 5. Output Schema
+JSON structure specification with Pydantic model reference.
+
+**Prompts missing any component are invalid.**
+
+---
+
 ## Authoritative Documents (Must Exist in Repo)
 
 Location: `docs/authoritative/`
 
-### Context
-- `context/Context_Handoff.md`
-
 ### System Specification
-- `spec/RASS.md`
-- `spec/Operational_Definitions.md`
-- `spec/Document_Output_Format.md`
-- `spec/Validation_and_Retry_Rules.md`
+- `spec/RASS.md` — Research Agent System Specification
+- `spec/Operational_Definitions.md` — Vocabulary authority
+- `spec/Document_Output_Format.md` — Doc 0/1/2/3 schemas
+- `spec/Validation_and_Retry_Rules.md` — Failure handling
 
 ### Prompt Contracts (Never Inline)
 - `prompts/Gemini_Semantic_Extraction.md`
@@ -169,36 +248,20 @@ Location: `docs/authoritative/`
 - `prompts/Semantic_Synthesis.md`
 - `prompts/Deep_Research_Booster.md`
 
+### Orchestration Specifications
+- `Job_State_Machine.md` — Job lifecycle, status transitions, failure handling
+- `API_Endpoint_Spec.md` — REST API contract, request/response shapes
+- `Celery_Task_Flow.md` — Task orchestration, retry logic, queue configuration
+
+### Canonical Examples
+- `examples/Example_Producer_Packet.md`
+- `examples/Example_Content_Blueprint.md`
+- `examples/Example_Degraded_Output.md`
+- `examples/Example_Thin_But_Acceptable.md`
+- `examples/Example_Conflicting_Sources.md`
+
 ### Meta / Build Instructions
 - `meta/Claude_Code_Build_Instructions.md`
-- `meta/Missing_Examples_Tracker.md`
-- `meta/Corrections_260111.md`
-
-### Reviews
-- `reviews/Spec_Review_2026-01-08.md`
-
----
-
-## Canonical Example Artifacts (Example-Wins)
-
-Location: `docs/authoritative/examples/`
-
-### Core Outputs
-- `Example_Producer_Packet.md`
-- `Example_Content_Blueprint.md`
-
-### Trust & Failure Modes
-- `Example_Degraded_Output.md`
-- `Example_Thin_But_Acceptable.md`
-- `Example_Conflicting_Sources.md`
-
-### System & UX Anchors
-- `Example_Artifact_Index_Confidence_Summary.md`
-- `Example_Minimal_API_Response.md`
-
-**Rule:**
-If code behavior conflicts with an example, treat it as a bug in code
-(or update the example first, explicitly).
 
 ---
 
