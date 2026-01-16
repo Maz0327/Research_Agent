@@ -96,6 +96,12 @@ class PipelineContext:
     ocr_result: Optional[object] = None  # OCRResult from screenshot extraction
     job_config_dict: dict = field(default_factory=dict)  # Raw config dict from job
 
+    # Phase 4: Validation Stage
+    verification_rate: float = 0.0  # Fraction of quotes verified (0.0 to 1.0)
+    validation_warnings: list = field(default_factory=list)  # Validation warning messages
+    source_durations: dict = field(default_factory=dict)  # source_id → duration_seconds
+    source_metadata: dict = field(default_factory=dict)  # source_id → metadata dict
+
     # Stage 9: Drive
     folder_url: Optional[str] = None
     doc_urls: dict = field(default_factory=dict)

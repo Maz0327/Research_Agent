@@ -131,6 +131,8 @@ def run_research_job(
         stage_gap_analysis,
         stage_semantic_synthesis,
         stage_document_assembly,
+        # Validation Stage (Phase 4)
+        stage_semantic_validation,
     )
     from backend.pipeline.stages.planning import DisambiguationRequired
     from backend.pipeline.parallel_executor import (
@@ -201,6 +203,9 @@ def run_research_job(
 
         # Stage B: Semantic Extraction (Gemini)
         run_stage_with_recovery(stage_semantic_extraction, ctx, "semantic_extraction")
+
+        # Stage B.5: Semantic Validation (Phase 4)
+        run_stage_with_recovery(stage_semantic_validation, ctx, "semantic_validation")
 
         # Stage C: Gap Analysis (Gemini)
         run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
@@ -325,6 +330,8 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
         stage_gap_analysis,
         stage_semantic_synthesis,
         stage_document_assembly,
+        # Validation Stage (Phase 4)
+        stage_semantic_validation,
     )
     from backend.pipeline.parallel_executor import (
         run_collection_stages_parallel,
@@ -423,6 +430,8 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
             # === SEMANTIC PIPELINE STAGES (Phase 2A) ===
             run_stage_with_recovery(stage_source_identity, ctx, "source_identity")
             run_stage_with_recovery(stage_semantic_extraction, ctx, "semantic_extraction")
+            # Validation Stage (Phase 4)
+            run_stage_with_recovery(stage_semantic_validation, ctx, "semantic_validation")
             run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
             run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
             run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")

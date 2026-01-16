@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-15 21:30
-**Current Phase:** 4 — Add Validation (ready to start)
-**Current Task:** Phase 3 Complete, Phase 4 Planning
+**Last Updated:** 2026-01-16 00:05
+**Current Phase:** 5 — Multi-Source Support (ready to start)
+**Current Task:** Phase 4 Complete
 **Branch:** feature/vision-alignment-v1
 
 ---
@@ -15,8 +15,8 @@ Phase 0.5: ✅ COMPLETE — Review Existing Code
 Phase 1:   ✅ COMPLETE — Fix Blocking Issues
 Phase 2:   ✅ COMPLETE — Wire Semantic Pipeline + Extended Inputs
 Phase 3:   ✅ COMPLETE — Add Analysis Modes
-Phase 4:   ⏳ READY — Add Validation
-Phase 5:   ⏳ PENDING — Multi-Source Support
+Phase 4:   ✅ COMPLETE — Add Validation
+Phase 5:   ⏳ READY — Multi-Source Support
 Phase 6:   ⏳ PENDING — Evolving Jobs
 Phase 7:   ⏳ PENDING — Booster Pipeline
 Phase 8:   ⏳ PENDING — Producer Packet
@@ -233,39 +233,113 @@ Phase 10:  ⏳ PENDING — Documentation
 
 ---
 
-## Phase 4-10: See IMPLEMENTATION_PLAN.md
+## Phase 4: Add Validation
 
-Detailed task lists for phases 4-10 are in IMPLEMENTATION_PLAN.md.
+**Status:** ✅ COMPLETE (2026-01-16)
+**Goal:** Add dedicated validation stage with quote verification and provenance chain validation
+
+### Tasks
+
+- [x] **4.1** Create `quote_verification.py` module
+  - Fuzzy matching using difflib.SequenceMatcher (YAGNI - no external deps)
+  - Thresholds: 95%+ = verified, 80-94% = partial, <80% = unverified
+  - verify_quote() and verify_all_quotes() functions
+
+- [x] **4.2** Create `semantic_validation_stage.py`
+  - New pipeline stage between extraction and gap_analysis
+  - Verifies quotes against RAW SOURCE CONTENT (Doc 0)
+  - Uses are_quotes_allowed() from mode_selector
+  - Only video_only exempt (no quotes allowed)
+
+- [x] **4.3** Add verification fields to Quote model
+  - verification_status: Optional[str] (verified/partial/unverified)
+  - match_ratio: Optional[float] (0.0-1.0)
+  - _verification_warning: Optional[str]
+
+- [x] **4.4** Add validation fields to PipelineContext
+  - verification_rate: float (0.0-1.0)
+  - validation_warnings: list
+  - source_durations: dict
+  - source_metadata: dict
+
+- [x] **4.5** Wire validation stage into worker.py
+  - Import stage_semantic_validation
+  - Insert between extraction and gap_analysis (2 pipeline locations)
+
+- [x] **4.6** Update stages exports
+  - Export stage_semantic_validation, verify_quote, verify_all_quotes, QuoteVerification
+
+- [x] **4.7** Update calibration with real verification rate
+  - validate_semantic_extraction() now accepts verification_rate parameter
+  - Calibration uses actual quote verification results
+
+- [x] **4.8** Add provenance chain validation (V8)
+  - validate_provenance_chain() in document_assembly.py
+  - Validates: Theme→KeyPoint, KeyPoint→Source, Tension→KeyPoint references
+  - Called at start of document assembly
+
+- [x] **4.9** Verify syntax and run tests
+  - All py_compile checks pass
+  - 129/129 tests pass (13 errors unrelated to Phase 4 - pre-existing TestClient issue)
+
+### Files Created (2 new files)
+- backend/pipeline/stages/quote_verification.py (~180 lines)
+- backend/pipeline/stages/semantic_validation_stage.py (~180 lines)
+
+### Files Modified (6 files)
+- backend/models/semantic_units.py (Quote class)
+- backend/pipeline/context.py
+- backend/worker.py
+- backend/pipeline/stages/__init__.py
+- backend/pipeline/semantic_validation.py
+- backend/pipeline/stages/document_assembly.py
+
+### Checkpoint Criteria
+- [x] Quote verification uses fuzzy matching
+- [x] Validation stage wired into pipeline
+- [x] Provenance chain validated before assembly
+- [x] All syntax checks pass
+- [x] 129 tests pass (no regressions)
+
+---
+
+## Phase 5-10: See IMPLEMENTATION_PLAN.md
+
+Detailed task lists for phases 5-10 are in IMPLEMENTATION_PLAN.md.
 
 ---
 
 ## Current Session
 
-**Date:** 2026-01-15
+**Date:** 2026-01-16
 **Tasks Planned:**
-- Complete Phase 3: Add Analysis Modes
+- Complete Phase 4: Add Validation
 
 **Tasks Completed:**
-- Phase 3 complete (mode_selector.py + 6 mode-specific prompts)
-- Updated architecture.md with owner decision on quotes
-- All syntax checks pass
+- Phase 4 complete (quote verification + validation stage + provenance validation)
+- Created quote_verification.py (fuzzy matching with difflib)
+- Created semantic_validation_stage.py (pipeline stage)
+- Added provenance chain validation to document_assembly
+- All 129 tests pass
 
-**Files Modified (Phase 3):**
-- backend/pipeline/mode_selector.py (NEW)
-- backend/pipeline/prompts/modes/ (NEW directory, 8 files)
-- .claude/rules/architecture.md
-- backend/pipeline/prompts/semantic_extraction_prompt.py
-- backend/pipeline/semantic_validation.py
+**Files Created (Phase 4):**
+- backend/pipeline/stages/quote_verification.py
+- backend/pipeline/stages/semantic_validation_stage.py
+
+**Files Modified (Phase 4):**
 - backend/models/semantic_units.py
-- backend/pipeline/__init__.py
-- backend/pipeline/prompts/__init__.py
+- backend/pipeline/context.py
+- backend/worker.py
+- backend/pipeline/stages/__init__.py
+- backend/pipeline/semantic_validation.py
+- backend/pipeline/stages/document_assembly.py
 
 **Blockers:**
 - None
 
 **Next Session Should:**
-- Run `pytest backend/tests/ -v` to verify tests
-- Start Phase 4: Add Validation
+- Start Phase 5: Multi-Source Support
+- Consider E2E test before proceeding
 
 ---
 

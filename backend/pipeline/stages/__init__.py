@@ -23,6 +23,14 @@ from .document_assembly import stage_document_assembly
 # Extended Input Stages (Phase 2B)
 from .ocr_extraction import stage_ocr_extraction
 
+# Validation Stage (Phase 4)
+from .semantic_validation_stage import stage_semantic_validation
+from .quote_verification import (
+    verify_quote,
+    verify_all_quotes,
+    QuoteVerification,
+)
+
 __all__ = [
     # Helpers
     "post_slack_message",
@@ -60,4 +68,9 @@ __all__ = [
     "stage_document_assembly",
     # Extended Input Stages (Phase 2B)
     "stage_ocr_extraction",
+    # Validation Stage (Phase 4)
+    "stage_semantic_validation",
+    "verify_quote",
+    "verify_all_quotes",
+    "QuoteVerification",
 ]

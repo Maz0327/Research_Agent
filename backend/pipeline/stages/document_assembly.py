@@ -321,6 +321,67 @@ def build_semantic_brief(
     return brief
 
 
+def validate_provenance_chain(ctx: PipelineContext) -> list[str]:
+    """
+    Validate all references trace back to Doc 0.
+
+    Per Validation_and_Retry_Rules.md V8:
+    - Theme.related_key_points → must exist in key_points
+    - KeyPoint.source_ids → must exist in sources
+    - Tension.involved_key_points → must exist in key_points
+
+    Args:
+        ctx: Pipeline context with source_identity_packages and semantic_extractions
+
+    Returns:
+        List of warning messages for broken references
+    """
+    warnings = []
+
+    # Collect valid source IDs from source_identity_packages
+    valid_source_ids = set()
+    for pkg in getattr(ctx, "source_identity_packages", []):
+        valid_source_ids.add(pkg.source_id)
+
+    # Collect valid key point IDs and validate source references
+    valid_kp_ids = set()
+    for extraction in getattr(ctx, "semantic_extractions", []):
+        # Validate key points have valid source references
+        for kp in extraction.key_points:
+            valid_kp_ids.add(kp.key_point_id)
+            for sid in kp.source_ids:
+                if sid not in valid_source_ids:
+                    warnings.append(
+                        f"KeyPoint {kp.key_point_id} references invalid source {sid}"
+                    )
+                    logger.warning(f"Provenance: {warnings[-1]}")
+
+        # Validate themes reference valid key points
+        for theme in extraction.themes:
+            for kp_id in theme.related_key_points:
+                if kp_id not in valid_kp_ids:
+                    warnings.append(
+                        f"Theme {theme.theme_id} references invalid key_point {kp_id}"
+                    )
+                    logger.warning(f"Provenance: {warnings[-1]}")
+
+        # Validate tensions reference valid key points
+        for tension in extraction.tensions:
+            for kp_id in tension.involved_key_points:
+                if kp_id not in valid_kp_ids:
+                    warnings.append(
+                        f"Tension {tension.tension_id} references invalid key_point {kp_id}"
+                    )
+                    logger.warning(f"Provenance: {warnings[-1]}")
+
+    if warnings:
+        logger.warning(f"Provenance validation found {len(warnings)} broken references")
+    else:
+        logger.debug("Provenance validation passed - all references valid")
+
+    return warnings
+
+
 def stage_document_assembly(ctx: PipelineContext) -> dict:
     """
     Pipeline stage: Assemble the 3 canonical documents.
@@ -328,9 +389,10 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
     PREREQUISITE: source_identity and semantic_extraction stages must run first.
 
     This stage:
-    1. Builds Doc 0 (Source Ledger) from source_identity_packages
-    2. Builds Doc 1 (Jump-Start) from extractions and gaps
-    3. Builds Doc 2 (Semantic Brief) from synthesis
+    1. Validates provenance chain (V8)
+    2. Builds Doc 0 (Source Ledger) from source_identity_packages
+    3. Builds Doc 1 (Jump-Start) from extractions and gaps
+    4. Builds Doc 2 (Semantic Brief) from synthesis
 
     Returns:
         Dict containing all three documents
@@ -342,6 +404,16 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
         stage="document_assembly",
         progress_percent=70,
     )
+
+    # V8: Validate provenance chain before document assembly
+    provenance_warnings = validate_provenance_chain(ctx)
+    for warning in provenance_warnings:
+        ctx.add_warning(warning)
+
+    if provenance_warnings:
+        logger.warning(
+            f"[{ctx.job_id}] Provenance validation: {len(provenance_warnings)} issues found"
+        )
 
     # Get source identity packages (from source_identity stage)
     packages = getattr(ctx, "source_identity_packages", [])

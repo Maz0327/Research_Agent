@@ -62,8 +62,14 @@ class Quote:
     paragraph_index: Optional[int] = None
     approximate: bool = False  # True for caption_grounded mode
 
+    # Verification fields (Phase 4)
+    # Set by stage_semantic_validation after verifying against source text
+    verification_status: Optional[str] = None  # verified | partial | unverified
+    match_ratio: Optional[float] = None  # 0.0 to 1.0 similarity score
+    _verification_warning: Optional[str] = None  # Warning message if unverified
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "quote_id": self.quote_id,
             "text": self.text,
             "source_id": self.source_id,
@@ -71,6 +77,14 @@ class Quote:
             "paragraph_index": self.paragraph_index,
             "approximate": self.approximate,
         }
+        # Include verification fields if set
+        if self.verification_status is not None:
+            result["verification_status"] = self.verification_status
+        if self.match_ratio is not None:
+            result["match_ratio"] = self.match_ratio
+        if self._verification_warning is not None:
+            result["_verification_warning"] = self._verification_warning
+        return result
 
 
 # -----------------------------------------------------------------------------

@@ -799,6 +799,7 @@ def validate_semantic_extraction(
     source_word_count: Optional[int] = None,
     source_duration_minutes: Optional[float] = None,
     has_source_metadata: bool = False,
+    verification_rate: Optional[float] = None,
 ) -> ValidationReport:
     """
     Run all validation levels on semantic extraction output.
@@ -810,6 +811,8 @@ def validate_semantic_extraction(
         source_duration_minutes: Duration in minutes (for video)
         has_source_metadata: True if user provided source info (URL, author, title)
                              Used for quote warning messages in text_provided mode
+        verification_rate: Quote verification rate (0.0 to 1.0). If None, defaults to 0.5.
+                          Calculated by stage_semantic_validation from actual quote checks.
 
     Returns:
         ValidationReport with all results and overall status
@@ -855,11 +858,13 @@ def validate_semantic_extraction(
 
     # Level 4: Confidence Calibration
     logger.debug("Calibrating confidence...")
+    # Use actual verification rate if provided, otherwise default to 0.5
+    actual_rate = verification_rate if verification_rate is not None else 0.5
     confidence, reasons = calibrate_confidence(
         data,
         analysis_mode,
         source_count=1,  # Single source extraction
-        verification_rate=0.5,  # Default - should be calculated from actual data
+        verification_rate=actual_rate,
     )
     report.confidence_ceiling = confidence
     for reason in reasons:
