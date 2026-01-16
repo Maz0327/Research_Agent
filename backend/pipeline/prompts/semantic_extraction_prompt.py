@@ -23,10 +23,36 @@ You do not decide what is true.
 You do not fill gaps with assumptions."""
 
 
-# Source Identity Contract - injected before any reasoning
-SOURCE_IDENTITY_CONTRACT = """## SOURCE IDENTITY CONTRACT (BEFORE REASONING)
+# Source Identity Lock Block - per INDEX.md Section 2.1
+# This boxed format prevents LLM from modifying or inferring source identity
+SOURCE_IDENTITY_LOCK_BLOCK = """
+╔══════════════════════════════════════════════════════════╗
+║  SOURCE IDENTITY LOCK — DO NOT MODIFY OR INFER          ║
+╠══════════════════════════════════════════════════════════╣
+║  source_id: {source_id}                                  ║
+║  title: {title}                                          ║
+║  analysis_mode: {analysis_mode}                          ║
+║  confidence_ceiling: {confidence_ceiling}                ║
+╚══════════════════════════════════════════════════════════╝
+"""
 
-The source_id and source metadata provided are CANONICAL.
+# Confidence Ceiling Declaration - per RASS 6.3
+CONFIDENCE_CEILING_DECLARATION = """
+## CONFIDENCE CEILING: {confidence_ceiling}
+
+Your maximum allowed confidence for any output is: {confidence_ceiling}
+Output with higher confidence will be REJECTED by validation.
+
+Confidence rules:
+- HIGH: Only for transcript_grounded or article_fetched sources with verified quotes
+- MEDIUM: For caption_grounded, text_provided, or ocr_extracted sources
+- LOW: For video_only sources (always LOW, no exceptions)
+"""
+
+# Source Identity Contract - additional rules after lock block
+SOURCE_IDENTITY_CONTRACT = """## SOURCE IDENTITY CONTRACT (AFTER LOCK BLOCK)
+
+The source_id and source metadata in the lock block above are CANONICAL.
 
 You MUST NOT:
 - Guess or infer which video/article this is
@@ -45,16 +71,19 @@ SEMANTIC_EXTRACTION_PROMPT = """You are analyzing source material for research p
 
 The goal is to extract SEMANTIC STRUCTURE, not summaries.
 
-INPUT:
-- Source ID: {source_id}
-- Analysis Mode: {analysis_mode}
-- Source Content:
+{source_identity_lock_block}
 
-{source_content}
+{confidence_ceiling_declaration}
 
 ---
 
 {source_identity_contract}
+
+---
+
+## SOURCE CONTENT
+
+{source_content}
 
 ---
 
@@ -149,6 +178,91 @@ GOOD: "Inconsistent explanations regarding funding sources"
 - At least 3 key points for long-form content (30+ minutes or 3000+ words)
 - At least 2 themes
 - Each theme must reference at least 2 key points
+
+## EXAMPLE OUTPUT (for a video about "Theranos Blood Testing Scandal")
+
+NOTE: This example shows output for a long-form documentary with multiple speakers.
+Your output may be shorter for simpler content. Match the QUALITY and SPECIFICITY,
+not the QUANTITY of items.
+
+```json
+{{
+  "source_id": "SRC_1",
+  "analysis_mode": "transcript_grounded",
+  "key_points": [
+    {{
+      "key_point_id": "KP_1",
+      "statement": "The Edison device was demonstrated to investors without functional blood testing capability",
+      "supporting_claims": ["CLM_1", "CLM_2"],
+      "confidence": "high"
+    }},
+    {{
+      "key_point_id": "KP_2",
+      "statement": "Lab technicians were instructed to run samples on conventional analyzers while presenting results as Edison-generated",
+      "supporting_claims": ["CLM_3"],
+      "confidence": "high"
+    }},
+    {{
+      "key_point_id": "KP_3",
+      "statement": "George Shultz chose to believe company leadership over his grandson's internal concerns",
+      "supporting_claims": ["CLM_4"],
+      "confidence": "medium"
+    }},
+    {{
+      "key_point_id": "KP_4",
+      "statement": "Walgreens proceeded with partnership despite incomplete due diligence",
+      "supporting_claims": ["CLM_5"],
+      "confidence": "medium"
+    }}
+  ],
+  "claims": [
+    {{
+      "claim_id": "CLM_1",
+      "statement": "Elizabeth Holmes demonstrated a working device to Walgreens executives in 2010",
+      "supporting_quotes": ["QUOTE_001"]
+    }},
+    {{
+      "claim_id": "CLM_2",
+      "statement": "The device shown was running pre-loaded results, not actual blood analysis",
+      "supporting_quotes": ["QUOTE_003", "QUOTE_004"]
+    }},
+    {{
+      "claim_id": "CLM_3",
+      "statement": "Former technician describes being told to use Siemens machines for patient samples",
+      "supporting_quotes": ["QUOTE_007"]
+    }},
+    {{
+      "claim_id": "CLM_4",
+      "statement": "Tyler Shultz raised concerns to his grandfather who dismissed them as jealousy",
+      "supporting_quotes": ["QUOTE_012"]
+    }},
+    {{
+      "claim_id": "CLM_5",
+      "statement": "Walgreens executives were not allowed to inspect the lab before signing the contract",
+      "supporting_quotes": ["QUOTE_015"]
+    }}
+  ],
+  "themes": [
+    {{
+      "theme_id": "THEME_1",
+      "label": "Systematic concealment of technical failures from investors and partners",
+      "related_key_points": ["KP_1", "KP_2", "KP_4"]
+    }},
+    {{
+      "theme_id": "THEME_2",
+      "label": "Authority figures dismissing internal dissent in favor of charismatic leadership",
+      "related_key_points": ["KP_3", "KP_4"]
+    }}
+  ],
+  "tensions": [
+    {{
+      "tension_id": "TEN_1",
+      "description": "Holmes claimed the technology worked at scale while technicians describe workarounds for every patient sample",
+      "involved_key_points": ["KP_1", "KP_2"]
+    }}
+  ]
+}}
+```
 """
 
 
@@ -195,6 +309,113 @@ Your output JSON must include:
     "No transcript available — all observations are approximate",
     "Timestamps may be imprecise",
     "No quote verification possible"
+  ],
+  "key_points": [...],
+  "claims": [...],
+  "themes": [...],
+  "tensions": [...]
+}}
+"""
+
+
+# Text-provided mode instructions (user-pasted content)
+TEXT_PROVIDED_INSTRUCTIONS = """
+IMPORTANT: You are analyzing USER-PROVIDED TEXT content.
+
+## Analysis Mode: text_provided
+
+This content was pasted by the user (e.g., paywalled article, email, document).
+The source cannot be independently verified by the system.
+
+You MUST:
+- Maximum confidence is MEDIUM (never HIGH)
+- Focus on semantic content extraction
+
+You MAY:
+- Extract quotes if verbatim text is available in the content
+- All quotes MUST be marked with `_accuracy_unverified: true`
+- Include warning: "User-provided source; accuracy unconfirmed"
+
+QUOTE HANDLING:
+- Quotes ARE allowed but carry verification warnings
+- System cannot confirm quotes match any original source
+- User should verify quote accuracy
+
+Your output JSON must include:
+{{
+  "source_id": "{source_id}",
+  "analysis_mode": "text_provided",
+  "quotes": [
+    {{
+      "quote_id": "QT_1",
+      "text": "verbatim text from user-provided content",
+      "speaker": "...",
+      "context": "...",
+      "_accuracy_unverified": true,
+      "_verification_warning": "User-provided source; accuracy unconfirmed"
+    }}
+  ],
+  "analysis_limitations": [
+    "Source is user-provided text — cannot verify authenticity",
+    "Content may be incomplete or modified",
+    "Quote accuracy cannot be confirmed by system"
+  ],
+  "key_points": [...],
+  "claims": [...],
+  "themes": [...],
+  "tensions": [...]
+}}
+"""
+
+
+# OCR-extracted mode instructions (screenshot OCR)
+OCR_EXTRACTED_INSTRUCTIONS = """
+IMPORTANT: You are analyzing text extracted from a SCREENSHOT via OCR.
+
+## Analysis Mode: ocr_extracted
+
+This content was extracted via Optical Character Recognition (OCR).
+OCR may introduce errors, missing characters, or formatting issues.
+
+You MUST:
+- Maximum confidence is MEDIUM (never HIGH)
+- Account for potential OCR errors in your analysis
+- Note any text that appears garbled or uncertain
+
+You MAY:
+- Extract quotes if clear text is visible in the OCR output
+- All quotes MUST be marked with `_accuracy_unverified: true`
+- Include warning: "OCR-extracted; may contain errors"
+
+QUOTE HANDLING:
+- Quotes ARE allowed but carry accuracy warnings
+- OCR may introduce character errors (rn→m, l→I, 0→O)
+- User should verify quote accuracy against original
+
+OCR ERROR AWARENESS:
+- Missing spaces: "thedetective" should be "the detective"
+- Misread characters: "rn" vs "m", "l" vs "I", "0" vs "O"
+- Truncated text: content may be cut off at edges
+
+Your output JSON must include:
+{{
+  "source_id": "{source_id}",
+  "analysis_mode": "ocr_extracted",
+  "quotes": [
+    {{
+      "quote_id": "QT_1",
+      "text": "text from OCR extraction",
+      "speaker": "...",
+      "context": "...",
+      "_accuracy_unverified": true,
+      "_verification_warning": "OCR-extracted; may contain transcription errors",
+      "ocr_confidence": "high | medium | low"
+    }}
+  ],
+  "analysis_limitations": [
+    "Content extracted via OCR — text may contain transcription errors",
+    "Quote accuracy cannot be guaranteed",
+    "Visual context from original image may be lost"
   ],
   "key_points": [...],
   "claims": [...],
@@ -255,16 +476,48 @@ If meaning is sparse:
 - extract fewer but precise key points
 - explicitly surface uncertainty
 - identify what cannot be determined
+- MUST include "extraction_warnings" explaining why fields are limited
 
 Do NOT pad output.
 
-Return JSON in the same schema."""
+Return JSON with "extraction_warnings" field:
+```json
+{
+  "themes": [],
+  "tensions": [],
+  "extraction_warnings": [
+    "themes empty: Source is single-topic explainer with no recurring conceptual patterns",
+    "tensions empty: No conflicting statements or meaning shifts detected in source"
+  ]
+}
+```"""
+
+
+def get_confidence_ceiling_for_mode(analysis_mode: str) -> str:
+    """Return confidence ceiling based on analysis mode.
+
+    Per INDEX.md "Six Analysis Modes":
+    - transcript_grounded, article_fetched: HIGH
+    - caption_grounded, text_provided, ocr_extracted: MEDIUM
+    - video_only: LOW
+    """
+    ceilings = {
+        "transcript_grounded": "HIGH",
+        "caption_grounded": "MEDIUM",
+        "video_only": "LOW",
+        "text_provided": "MEDIUM",
+        "ocr_extracted": "MEDIUM",
+        "article_fetched": "HIGH",
+    }
+    return ceilings.get(analysis_mode, "LOW")
 
 
 def build_semantic_extraction_prompt(
     source_id: str,
     source_content: str,
     analysis_mode: str,
+    title: str = "Unknown",
+    confidence_ceiling: str | None = None,
 ) -> str:
     """
     Build the complete semantic extraction prompt.
@@ -272,16 +525,37 @@ def build_semantic_extraction_prompt(
     Args:
         source_id: Stable source identifier (e.g., "SRC_1")
         source_content: Full source text or description
-        analysis_mode: One of "transcript_grounded", "caption_grounded", "video_only"
+        analysis_mode: One of the 6 analysis modes
+        title: Source title for lock block
+        confidence_ceiling: Override ceiling (defaults to mode-based ceiling)
 
     Returns:
         Complete prompt string ready for Gemini
     """
+    # Determine confidence ceiling
+    if confidence_ceiling is None:
+        confidence_ceiling = get_confidence_ceiling_for_mode(analysis_mode)
+
+    # Build lock block
+    lock_block = SOURCE_IDENTITY_LOCK_BLOCK.format(
+        source_id=source_id,
+        title=title,
+        analysis_mode=analysis_mode,
+        confidence_ceiling=confidence_ceiling,
+    )
+
+    # Build ceiling declaration
+    ceiling_declaration = CONFIDENCE_CEILING_DECLARATION.format(
+        confidence_ceiling=confidence_ceiling,
+    )
+
     # Base prompt
     prompt = SEMANTIC_EXTRACTION_PROMPT.format(
         source_id=source_id,
         source_content=source_content,
         analysis_mode=analysis_mode,
+        source_identity_lock_block=lock_block,
+        confidence_ceiling_declaration=ceiling_declaration,
         source_identity_contract=SOURCE_IDENTITY_CONTRACT,
     )
 
@@ -290,5 +564,9 @@ def build_semantic_extraction_prompt(
         prompt += "\n\n" + VIDEO_ONLY_INSTRUCTIONS.format(source_id=source_id)
     elif analysis_mode == "caption_grounded":
         prompt += "\n\n" + CAPTION_GROUNDED_INSTRUCTIONS.format(source_id=source_id)
+    elif analysis_mode == "text_provided":
+        prompt += "\n\n" + TEXT_PROVIDED_INSTRUCTIONS.format(source_id=source_id)
+    elif analysis_mode == "ocr_extracted":
+        prompt += "\n\n" + OCR_EXTRACTED_INSTRUCTIONS.format(source_id=source_id)
 
     return prompt

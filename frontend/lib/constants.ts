@@ -58,4 +58,28 @@ export const VALIDATION_LIMITS = {
   MAX_PROMPT_LENGTH: 2000,
   /** Maximum transcript jobs */
   MAX_TRANSCRIPT_JOBS: 50,
+  /** Maximum text content length for text input (50k chars) */
+  MAX_TEXT_CONTENT_LENGTH: 50000,
+  /** Minimum text content length for text input */
+  MIN_TEXT_CONTENT_LENGTH: 50,
+  /** Maximum screenshot file size (10MB) */
+  MAX_SCREENSHOT_SIZE: 10 * 1024 * 1024,
 } as const;
+
+/** Platform hints for content input modes */
+export const PLATFORM_HINTS = [
+  { value: 'reddit', label: 'Reddit', icon: '📱' },
+  { value: 'twitter', label: 'Twitter/X', icon: '🐦' },
+  { value: 'forum', label: 'Forum', icon: '💬' },
+  { value: 'email', label: 'Email', icon: '📧' },
+  { value: 'article', label: 'Article', icon: '📰' },
+  { value: 'other', label: 'Other', icon: '📄' },
+] as const;
+
+/** Screenshot platform hints (subset for OCR) */
+export const SCREENSHOT_PLATFORM_HINTS = [
+  { value: 'reddit', label: 'Reddit', icon: '📱' },
+  { value: 'twitter', label: 'Twitter/X', icon: '🐦' },
+  { value: 'forum', label: 'Forum', icon: '💬' },
+  { value: 'other', label: 'Other', icon: '📄' },
+] as const;

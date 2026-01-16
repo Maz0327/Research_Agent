@@ -24,6 +24,7 @@ from backend.models.semantic_units import (
     Claim,
     ConfidenceLevel,
     KeyPoint,
+    Quote,
     SemanticExtractionResult,
     Tension,
     Theme,
@@ -34,6 +35,7 @@ from backend.pipeline.prompts.semantic_extraction_prompt import (
     SEMANTIC_EXTRACTION_RETRY_PROMPT,
     SEMANTIC_EXTRACTION_ROLE,
 )
+from backend.pipeline.quote_verification import verify_quote
 from backend.pipeline.semantic_validation import (
     should_retry,
     validate_semantic_extraction,
@@ -132,11 +134,93 @@ def parse_extraction_response(
     return result
 
 
-async def extract_semantic_structure(
+def verify_quotes_in_extraction(
+    result: SemanticExtractionResult,
+    transcript: str,
+    source_id: str,
+) -> tuple[SemanticExtractionResult, list[str]]:
+    """
+    Verify quotes in SemanticExtractionResult against transcript.
+
+    Per QV-003: All quotes must be verified before downstream processing.
+
+    This verifies:
+    - Quotes in result.quotes
+    - Supporting quotes in result.claims
+
+    Args:
+        result: Extraction result to verify
+        transcript: Source transcript to match against
+        source_id: Source ID for logging
+
+    Returns:
+        Tuple of (updated_result, warnings)
+    """
+    warnings = []
+
+    if not transcript:
+        warnings.append(f"[{source_id}] Quote verification skipped: no transcript")
+        return result, warnings
+
+    # Verify standalone quotes
+    verified_quotes = []
+    quotes_removed = 0
+    for quote in result.quotes:
+        verification = verify_quote(quote.text, transcript)
+        if verification["status"] == "LIKELY_HALLUCINATED":
+            warnings.append(
+                f"[{source_id}] Quote {quote.quote_id} REMOVED: "
+                f"not found in transcript (score={verification['score']:.2f})"
+            )
+            quotes_removed += 1
+        else:
+            # Mark verification status
+            if verification["status"] == "UNCERTAIN":
+                quote.approximate = True
+                warnings.append(
+                    f"[{source_id}] Quote {quote.quote_id} UNCERTAIN: "
+                    f"may be paraphrased (score={verification['score']:.2f})"
+                )
+            verified_quotes.append(quote)
+
+    result.quotes = verified_quotes
+
+    # Verify supporting_quotes in claims
+    for claim in result.claims:
+        verified_supporting = []
+        for quote_text in claim.supporting_quotes:
+            verification = verify_quote(quote_text, transcript)
+            if verification["status"] != "LIKELY_HALLUCINATED":
+                verified_supporting.append(quote_text)
+            else:
+                warnings.append(
+                    f"[{source_id}] Claim {claim.claim_id}: "
+                    f"supporting quote not found in transcript"
+                )
+        claim.supporting_quotes = verified_supporting
+
+        # Downgrade confidence if all supporting quotes removed
+        if not claim.supporting_quotes and claim.confidence != ConfidenceLevel.LOW:
+            claim.confidence = ConfidenceLevel.LOW
+            warnings.append(
+                f"[{source_id}] Claim {claim.claim_id}: confidence downgraded to LOW "
+                "due to no verified supporting quotes"
+            )
+
+    if quotes_removed > 0:
+        logger.info(
+            f"[{source_id}] Quote verification: {quotes_removed} quotes removed"
+        )
+
+    return result, warnings
+
+
+def extract_semantic_structure(
     gemini_client: Any,
     source_id: str,
     source_content: str,
     analysis_mode: AnalysisMode,
+    title: str = "Unknown",
     source_word_count: Optional[int] = None,
     source_duration_minutes: Optional[float] = None,
 ) -> tuple[SemanticExtractionResult, ValidationReport, float]:
@@ -144,10 +228,11 @@ async def extract_semantic_structure(
     Extract semantic structure from source content.
 
     Args:
-        gemini_client: Initialized Gemini client
+        gemini_client: Initialized Gemini client (GeminiClient instance)
         source_id: Stable source identifier
         source_content: Full source text or description
         analysis_mode: How source was analyzed
+        title: Source title for lock block
         source_word_count: Word count (for validation)
         source_duration_minutes: Video duration (for validation)
 
@@ -156,11 +241,12 @@ async def extract_semantic_structure(
     """
     logger.info(f"Extracting semantic structure from {source_id} (mode: {analysis_mode.value})")
 
-    # Build prompt
+    # Build prompt with lock block and confidence ceiling
     prompt = build_semantic_extraction_prompt(
         source_id=source_id,
         source_content=source_content,
         analysis_mode=analysis_mode.value,
+        title=title,
     )
 
     total_cost = 0.0
@@ -169,8 +255,8 @@ async def extract_semantic_structure(
 
     while retry_count <= max_retries:
         try:
-            # Call Gemini for extraction
-            response = await gemini_client.generate_json(
+            # Call Gemini for extraction (sync)
+            response = gemini_client.generate_json(
                 prompt=prompt,
                 system_message=SEMANTIC_EXTRACTION_ROLE,
             )
@@ -298,20 +384,48 @@ def stage_semantic_extraction(ctx: PipelineContext) -> None:
         )
 
         try:
-            # Build extraction parameters from identity package
-            # In actual implementation, this would call Gemini via extract_semantic_structure()
-            extraction_params = {
-                "source_id": source_id,
-                "source_type": package.source_type,
-                "analysis_mode": analysis_mode.value,
-                "content_length": package.content_word_count or 0,
-                "transcript_source": package.transcript_source,
-                "confidence_ceiling": package.confidence_ceiling.value,
-                "title": package.title,
-                "url": package.url,
-            }
-            ctx.semantic_extractions.append(extraction_params)
+            # Initialize Gemini client (lazy init per source for error isolation)
+            from backend.integrations.gemini_client import GeminiClient
+            gemini_client = GeminiClient()
+
+            # Call Gemini for semantic extraction
+            result, validation_report, cost = extract_semantic_structure(
+                gemini_client=gemini_client,
+                source_id=source_id,
+                source_content=content,
+                analysis_mode=analysis_mode,
+                title=package.title,
+                source_word_count=package.content_word_count,
+                source_duration_minutes=package.duration_minutes,
+            )
+
+            # Track cost
+            if hasattr(ctx, "add_cost"):
+                ctx.add_cost("gemini_semantic_extraction", cost)
+
+            # Add validation warnings to context
+            for warning in validation_report.warnings:
+                ctx.add_warning(f"[{source_id}] {warning}")
+
+            # Step 5: Quote verification post-extraction (QV-003)
+            # Only verify if transcript available (not video_only mode)
+            if content and analysis_mode != AnalysisMode.VIDEO_ONLY:
+                result, quote_warnings = verify_quotes_in_extraction(
+                    result=result,
+                    transcript=content,
+                    source_id=source_id,
+                )
+                for warning in quote_warnings:
+                    ctx.add_warning(warning)
+
+            # Store result (now stores actual SemanticExtractionResult, not just params)
+            ctx.semantic_extractions.append(result)
             sources_processed += 1
+
+            logger.info(
+                f"Extracted from {source_id}: {len(result.key_points)} key points, "
+                f"{len(result.themes)} themes, {len(result.quotes)} quotes, cost=${cost:.4f}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to process {source_id}: {e}")

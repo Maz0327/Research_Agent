@@ -172,8 +172,21 @@ def validate_extraction_schema(data: dict) -> list[ValidationResult]:
 
 
 # -----------------------------------------------------------------------------
-# Level 2: Grounding Validation (Hard Fail with video_only exception)
+# Level 2: Grounding Validation (Hard Fail with NO_QUOTE_MODES exceptions)
 # -----------------------------------------------------------------------------
+
+# No-quote modes: ONLY video_only prohibits quotes
+# text_provided and ocr_extracted allow quotes with warnings
+_NO_QUOTE_MODES_FOR_GROUNDING = {
+    AnalysisMode.VIDEO_ONLY,
+}
+
+# Modes where quotes are allowed but require warnings
+_DEGRADED_QUOTE_MODES = {
+    AnalysisMode.TEXT_PROVIDED,
+    AnalysisMode.OCR_EXTRACTED,
+}
+
 
 def validate_grounding(
     data: dict,
@@ -184,13 +197,13 @@ def validate_grounding(
 
     Hard failure if:
     - A Key Point has no source references
-    - A Claim has no supporting Quote (except video_only mode)
+    - A Claim has no supporting Quote (except NO_QUOTE_MODES)
     - A Theme references fewer than 2 Key Points
 
-    Exception for video_only mode:
-    - Claims are not required to have supporting Quotes
-    - Claims must reference approximate timestamp ranges
-    - Claims must be marked confidence: low
+    NO_QUOTE_MODES exceptions (video_only, text_provided, ocr_extracted):
+    - Claims are NOT required to have supporting Quotes
+    - For video_only: Claims should have timestamp ranges + low confidence
+    - For text_provided/ocr_extracted: No timestamp requirement (text content)
     """
     results = []
 
@@ -204,14 +217,14 @@ def validate_grounding(
                 field="key_points",
             ))
 
-    # Validate Claims have supporting quotes (with video_only exception)
+    # Validate Claims have supporting quotes (with mode-specific rules)
     for claim in data.get("claims", []):
         quotes = claim.get("supporting_quotes", [])
         timestamp = claim.get("timestamp_range")
         confidence = claim.get("confidence", "medium")
 
-        if analysis_mode == AnalysisMode.VIDEO_ONLY:
-            # video_only exception: no quotes required, but need timestamp + low confidence
+        if analysis_mode in _NO_QUOTE_MODES_FOR_GROUNDING:
+            # video_only: NO quotes allowed, use observations with timestamps
             if not timestamp:
                 results.append(ValidationResult(
                     level=ValidationLevel.SOFT_FAIL,
@@ -224,8 +237,15 @@ def validate_grounding(
                     message=f"Claim {claim.get('claim_id')} in video_only mode must have confidence: low",
                     field="claims",
                 ))
+
+        elif analysis_mode in _DEGRADED_QUOTE_MODES:
+            # text_provided/ocr_extracted: quotes ALLOWED but with warnings
+            # No requirement for quotes - they're optional
+            # If quotes present, they'll be flagged with warnings in ceiling validation
+            pass
+
         else:
-            # Normal mode: quotes required
+            # Quote-required modes: quotes required for claims
             if not quotes:
                 results.append(ValidationResult(
                     level=ValidationLevel.HARD_FAIL,
@@ -352,11 +372,14 @@ def calibrate_confidence(
     """
     reasons = []
 
-    # Apply mode ceiling
+    # Apply mode ceiling - all 6 analysis modes (Phase 2B)
     mode_ceilings = {
         AnalysisMode.TRANSCRIPT_GROUNDED: ConfidenceLevel.HIGH,
         AnalysisMode.CAPTION_GROUNDED: ConfidenceLevel.MEDIUM,
         AnalysisMode.VIDEO_ONLY: ConfidenceLevel.LOW,
+        AnalysisMode.TEXT_PROVIDED: ConfidenceLevel.MEDIUM,
+        AnalysisMode.OCR_EXTRACTED: ConfidenceLevel.MEDIUM,
+        AnalysisMode.ARTICLE_FETCHED: ConfidenceLevel.HIGH,
     }
     ceiling = mode_ceilings.get(analysis_mode, ConfidenceLevel.LOW)
 
@@ -400,6 +423,390 @@ def calibrate_confidence(
 
 
 # -----------------------------------------------------------------------------
+# Mode-Based Ceiling Enforcement (Phase 2B)
+# -----------------------------------------------------------------------------
+
+# Modes where quotes are FORBIDDEN (must use observations)
+NO_QUOTE_MODES = {
+    AnalysisMode.VIDEO_ONLY,
+}
+
+# Modes where quotes are allowed but require warnings (degraded accuracy)
+DEGRADED_QUOTE_MODES = {
+    AnalysisMode.TEXT_PROVIDED,
+    AnalysisMode.OCR_EXTRACTED,
+}
+
+# Mode ceiling mapping
+MODE_CEILINGS = {
+    AnalysisMode.TRANSCRIPT_GROUNDED: ConfidenceLevel.HIGH,
+    AnalysisMode.CAPTION_GROUNDED: ConfidenceLevel.MEDIUM,
+    AnalysisMode.VIDEO_ONLY: ConfidenceLevel.LOW,
+    AnalysisMode.TEXT_PROVIDED: ConfidenceLevel.MEDIUM,
+    AnalysisMode.OCR_EXTRACTED: ConfidenceLevel.MEDIUM,
+    AnalysisMode.ARTICLE_FETCHED: ConfidenceLevel.HIGH,
+}
+
+
+def validate_confidence_ceiling(
+    data: dict,
+    analysis_mode: AnalysisMode,
+    has_source_metadata: bool = False,
+) -> list[ValidationResult]:
+    """
+    Enforce mode-based confidence ceilings and quote warnings.
+
+    Quote Rules:
+    - video_only: HARD FAIL if quotes exist (must use observations)
+    - text_provided/ocr_extracted: Quotes ALLOWED with warnings
+    - Other modes: Quotes required (no warning)
+
+    Args:
+        data: Semantic extraction output dict
+        analysis_mode: One of the 6 analysis modes
+        has_source_metadata: True if user provided source info (URL, author, title)
+
+    Returns:
+        List of validation results (may include auto-fix notes)
+    """
+    results = []
+    ceiling = MODE_CEILINGS.get(analysis_mode, ConfidenceLevel.LOW)
+
+    # Count all quotes
+    quotes = data.get("quotes", [])
+    supporting_quotes = []
+    for claim in data.get("claims", []):
+        sq = claim.get("supporting_quotes", [])
+        if sq:
+            supporting_quotes.extend(sq)
+    quote_count = len(quotes) + len(supporting_quotes)
+
+    # Check for quotes in FORBIDDEN mode (video_only only)
+    if analysis_mode in NO_QUOTE_MODES:
+        if quote_count > 0:
+            results.append(ValidationResult(
+                level=ValidationLevel.HARD_FAIL,
+                message=(
+                    f"QUOTES NOT ALLOWED in {analysis_mode.value} mode. "
+                    f"Found {quote_count} quote(s). Use approximate_observations instead."
+                ),
+                field="quotes",
+                details={
+                    "analysis_mode": analysis_mode.value,
+                    "quotes_found": len(quotes),
+                    "supporting_quotes_found": len(supporting_quotes),
+                },
+            ))
+
+    # Check for quotes in DEGRADED mode (text_provided, ocr_extracted)
+    elif analysis_mode in DEGRADED_QUOTE_MODES and quote_count > 0:
+        # Quotes allowed but add warning
+        if analysis_mode == AnalysisMode.TEXT_PROVIDED:
+            if has_source_metadata:
+                warning_msg = (
+                    f"User-provided source with {quote_count} quote(s). "
+                    "Accuracy unconfirmed by system. User should verify quotes match original."
+                )
+            else:
+                warning_msg = (
+                    f"Source not identified. {quote_count} quote(s) extracted from user-pasted text. "
+                    "Cannot verify authenticity. User should confirm source and quote accuracy."
+                )
+        else:  # OCR_EXTRACTED
+            warning_msg = (
+                f"OCR-extracted content with {quote_count} quote(s). "
+                "May contain transcription errors. User should verify accuracy."
+            )
+
+        results.append(ValidationResult(
+            level=ValidationLevel.WARNING,
+            message=warning_msg,
+            field="quotes",
+            details={
+                "analysis_mode": analysis_mode.value,
+                "quote_count": quote_count,
+                "has_source_metadata": has_source_metadata,
+                "_quote_accuracy_unverified": True,
+            },
+        ))
+
+        # Mark all quotes as unverified
+        for quote in quotes:
+            quote["_accuracy_unverified"] = True
+            quote["_verification_warning"] = warning_msg
+
+    # Auto-downgrade confidence if above ceiling
+    confidence_order = [ConfidenceLevel.LOW, ConfidenceLevel.MEDIUM, ConfidenceLevel.HIGH]
+    ceiling_idx = confidence_order.index(ceiling)
+
+    for kp in data.get("key_points", []):
+        kp_confidence = kp.get("confidence", "medium")
+        try:
+            kp_level = ConfidenceLevel(kp_confidence)
+            kp_idx = confidence_order.index(kp_level)
+
+            if kp_idx > ceiling_idx:
+                # Auto-downgrade
+                kp["confidence"] = ceiling.value
+                kp["_confidence_downgraded"] = True
+                results.append(ValidationResult(
+                    level=ValidationLevel.WARNING,
+                    message=(
+                        f"Key point {kp.get('key_point_id')} confidence downgraded "
+                        f"from {kp_confidence} to {ceiling.value} (mode ceiling)"
+                    ),
+                    field="key_points",
+                ))
+        except ValueError:
+            # Invalid confidence value - will be caught by schema validation
+            pass
+
+    for claim in data.get("claims", []):
+        claim_confidence = claim.get("confidence", "medium")
+        try:
+            claim_level = ConfidenceLevel(claim_confidence)
+            claim_idx = confidence_order.index(claim_level)
+
+            if claim_idx > ceiling_idx:
+                # Auto-downgrade
+                claim["confidence"] = ceiling.value
+                claim["_confidence_downgraded"] = True
+                results.append(ValidationResult(
+                    level=ValidationLevel.WARNING,
+                    message=(
+                        f"Claim {claim.get('claim_id')} confidence downgraded "
+                        f"from {claim_confidence} to {ceiling.value} (mode ceiling)"
+                    ),
+                    field="claims",
+                ))
+        except ValueError:
+            pass
+
+    return results
+
+
+# -----------------------------------------------------------------------------
+# Hallucination Prevention: Timestamp Validation (TV-001)
+# -----------------------------------------------------------------------------
+
+def validate_timestamp_bounds(
+    timestamps: list[str],
+    duration_seconds: int,
+    tolerance_seconds: int = 30,
+) -> tuple[list[str], list[str]]:
+    """
+    Validate and fix timestamps that exceed video duration.
+
+    Rule TV-001: Timestamps must not exceed video duration.
+    - Soft fail: timestamps exceeding duration are clamped
+    - Warning: Invalid format timestamps are preserved with warning
+
+    Args:
+        timestamps: List of timestamp strings (e.g., "1:23", "1:23:45")
+        duration_seconds: Video duration in seconds
+        tolerance_seconds: Allow timestamps up to this much past duration (default 30s)
+
+    Returns:
+        Tuple of (fixed_timestamps, warnings)
+    """
+    warnings = []
+    fixed = []
+
+    for ts in timestamps:
+        try:
+            parts = ts.split(":")
+            if len(parts) == 2:
+                # MM:SS format
+                seconds = int(parts[0]) * 60 + int(parts[1])
+            elif len(parts) == 3:
+                # HH:MM:SS format
+                seconds = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            else:
+                warnings.append(f"Invalid timestamp format: {ts}")
+                fixed.append(ts)
+                continue
+
+            if seconds > duration_seconds + tolerance_seconds:
+                warnings.append(
+                    f"Timestamp {ts} ({seconds}s) exceeds duration {duration_seconds}s, "
+                    f"clamping to duration"
+                )
+                # Clamp to duration
+                hours, remainder = divmod(duration_seconds, 3600)
+                mins, secs = divmod(remainder, 60)
+                if hours > 0:
+                    ts = f"{hours}:{mins:02d}:{secs:02d}"
+                else:
+                    ts = f"{mins}:{secs:02d}"
+
+            fixed.append(ts)
+
+        except (ValueError, IndexError) as e:
+            warnings.append(f"Invalid timestamp format '{ts}': {e}")
+            fixed.append(ts)
+
+    if warnings:
+        logger.warning(f"Timestamp validation: {len(warnings)} issues found")
+
+    return fixed, warnings
+
+
+def validate_clip_timestamps(
+    clips: list[dict],
+    duration_seconds: int,
+) -> tuple[list[dict], list[str]]:
+    """
+    Validate timestamps in clip objects.
+
+    Args:
+        clips: List of clip dicts with start_time/end_time fields
+        duration_seconds: Video duration in seconds
+
+    Returns:
+        Tuple of (validated_clips, warnings)
+    """
+    warnings = []
+
+    for clip in clips:
+        clip_id = clip.get("clip_id", "UNKNOWN")
+
+        # Validate start_time
+        start = clip.get("start_time", "")
+        if start:
+            fixed_starts, start_warnings = validate_timestamp_bounds(
+                [start], duration_seconds
+            )
+            if start_warnings:
+                warnings.extend([f"Clip {clip_id} start: {w}" for w in start_warnings])
+                clip["start_time"] = fixed_starts[0]
+                clip["_timestamp_clamped"] = True
+
+        # Validate end_time
+        end = clip.get("end_time", "")
+        if end:
+            fixed_ends, end_warnings = validate_timestamp_bounds(
+                [end], duration_seconds
+            )
+            if end_warnings:
+                warnings.extend([f"Clip {clip_id} end: {w}" for w in end_warnings])
+                clip["end_time"] = fixed_ends[0]
+                clip["_timestamp_clamped"] = True
+
+    return clips, warnings
+
+
+# -----------------------------------------------------------------------------
+# Hallucination Prevention: Citation Validation (CV-001)
+# -----------------------------------------------------------------------------
+
+def validate_based_on_references(
+    assertions: list[dict],
+    valid_ids: set[str],
+) -> tuple[list[dict], list[str]]:
+    """
+    Validate that based_on references point to existing IDs.
+
+    Rule CV-001: Citation IDs must exist - hard fail removes invalid refs.
+
+    Args:
+        assertions: List of assertion dicts with "based_on" field
+        valid_ids: Set of valid IDs that can be referenced
+
+    Returns:
+        Tuple of (validated_assertions, warnings)
+    """
+    warnings = []
+    valid_assertions = []
+
+    for assertion in assertions:
+        based_on = assertion.get("based_on", [])
+
+        # Skip if no references
+        if not based_on:
+            valid_assertions.append(assertion)
+            continue
+
+        # Separate valid and invalid references
+        valid_refs = [ref for ref in based_on if ref in valid_ids]
+        invalid_refs = [ref for ref in based_on if ref not in valid_ids]
+
+        if invalid_refs:
+            assertion_id = assertion.get("key_point_id") or assertion.get("claim_id") or "UNKNOWN"
+            warning = f"Assertion {assertion_id}: removed invalid refs {invalid_refs}"
+            warnings.append(warning)
+            logger.warning(warning)
+            assertion["_validation_warning"] = f"Removed invalid refs: {invalid_refs}"
+            assertion["_removed_refs"] = invalid_refs
+
+        assertion["based_on"] = valid_refs
+
+        # Only keep if at least one valid reference remains
+        if valid_refs:
+            valid_assertions.append(assertion)
+        else:
+            # All references were invalid - keep assertion but mark it
+            assertion["_all_refs_invalid"] = True
+            assertion["confidence"] = "low"  # Downgrade confidence
+            valid_assertions.append(assertion)
+            warnings.append(
+                f"Assertion {assertion.get('key_point_id', 'UNKNOWN')}: "
+                "all based_on refs invalid, confidence downgraded to low"
+            )
+
+    return valid_assertions, warnings
+
+
+def collect_valid_ids(data: dict) -> set[str]:
+    """
+    Collect all valid IDs from extraction data for citation validation.
+
+    Args:
+        data: Semantic extraction output dict
+
+    Returns:
+        Set of valid IDs (SRC_*, QUOTE_*, CLIP_*, etc.)
+    """
+    valid_ids = set()
+
+    # Source IDs
+    source_id = data.get("source_id")
+    if source_id:
+        valid_ids.add(source_id)
+
+    # Quote IDs
+    for quote in data.get("quotes", []):
+        quote_id = quote.get("quote_id")
+        if quote_id:
+            valid_ids.add(quote_id)
+
+    # Clip IDs
+    for clip in data.get("clips", []):
+        clip_id = clip.get("clip_id")
+        if clip_id:
+            valid_ids.add(clip_id)
+
+    # Key Point IDs
+    for kp in data.get("key_points", []):
+        kp_id = kp.get("key_point_id")
+        if kp_id:
+            valid_ids.add(kp_id)
+
+    # Claim IDs
+    for claim in data.get("claims", []):
+        claim_id = claim.get("claim_id")
+        if claim_id:
+            valid_ids.add(claim_id)
+
+    # Theme IDs
+    for theme in data.get("themes", []):
+        theme_id = theme.get("theme_id")
+        if theme_id:
+            valid_ids.add(theme_id)
+
+    return valid_ids
+
+
+# -----------------------------------------------------------------------------
 # Combined Validation
 # -----------------------------------------------------------------------------
 
@@ -408,6 +815,7 @@ def validate_semantic_extraction(
     analysis_mode: AnalysisMode,
     source_word_count: Optional[int] = None,
     source_duration_minutes: Optional[float] = None,
+    has_source_metadata: bool = False,
 ) -> ValidationReport:
     """
     Run all validation levels on semantic extraction output.
@@ -417,6 +825,8 @@ def validate_semantic_extraction(
         analysis_mode: How source was analyzed
         source_word_count: Word count of source (for long-form detection)
         source_duration_minutes: Duration in minutes (for video)
+        has_source_metadata: True if user provided source info (URL, author, title)
+                             Used for quote warning messages in text_provided mode
 
     Returns:
         ValidationReport with all results and overall status
@@ -438,6 +848,17 @@ def validate_semantic_extraction(
     grounding_results = validate_grounding(data, analysis_mode)
     for result in grounding_results:
         report.add_result(result)
+
+    # Level 2.5: Mode-Based Ceiling Enforcement (Phase 2B)
+    logger.debug("Running ceiling enforcement validation...")
+    ceiling_results = validate_confidence_ceiling(data, analysis_mode, has_source_metadata)
+    for result in ceiling_results:
+        report.add_result(result)
+
+    # If ceiling validation has hard failures (quotes in no-quote mode), stop
+    if any(r.level == ValidationLevel.HARD_FAIL for r in ceiling_results):
+        logger.warning("Ceiling validation failed - quotes found in non-quote mode")
+        return report
 
     # Level 3: Structural Sufficiency
     logger.debug("Running structural sufficiency validation...")

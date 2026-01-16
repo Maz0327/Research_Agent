@@ -23,6 +23,21 @@ Your job is to externalize structured understanding,
 not to decide what is true or what story should be told."""
 
 
+# Synthesis Context Lock - prevents fabrication during synthesis
+SYNTHESIS_CONTEXT_LOCK = """
+╔══════════════════════════════════════════════════════════╗
+║  SYNTHESIS CONTEXT LOCK — STRICT INPUT BOUNDARY          ║
+╠══════════════════════════════════════════════════════════╣
+║  Input Type: Pre-extracted semantic units                ║
+║  Source Count: {source_count}                            ║
+║  Verification Rate: {verification_rate}                  ║
+║  Maximum Synthesis Confidence: MEDIUM (unless all HIGH)  ║
+╚══════════════════════════════════════════════════════════╝
+
+RULE: You may ONLY reference information from the JSON input.
+Any external knowledge = FABRICATION = REJECTED.
+"""
+
 # Primary synthesis prompt
 SEMANTIC_SYNTHESIS_PROMPT = """## HIGHEST PRIORITY CONSTRAINT
 
@@ -178,9 +193,83 @@ If synthesis feels thin:
 - Do NOT generalize
 - Return fewer sections
 - Confidence must be downgraded
+- MUST include "synthesis_warnings" explaining what's missing and why
 
 Thin synthesis is acceptable.
 Dishonest synthesis is not.
+
+**Warning format:**
+```json
+{{
+  "speculative_observations": [],
+  "synthesis_warnings": [
+    "speculative_observations empty: Insufficient cross-source patterns to support speculation",
+    "tensions limited: Only 1 source provided - cross-source tensions require 2+ sources"
+  ]
+}}
+```
+
+## EXAMPLE OUTPUT (for synthesis of Theranos research)
+
+NOTE: This example shows output for a multi-source corpus with clear tensions.
+Your output may be shorter if input is limited. Match QUALITY and SPECIFICITY,
+not QUANTITY.
+
+```json
+{{
+  "semantic_core": {{
+    "text": "This topic centers on the gap between public demonstrations of blood testing technology and the documented practices inside the laboratory. Multiple sources describe parallel processes: one presented externally and another used for actual patient samples. The central unresolved question is when leadership became aware of this divergence.",
+    "based_on": ["KP_1", "KP_2", "KP_4"]
+  }},
+  "themes": [
+    {{
+      "theme_id": "THEME_1",
+      "description": "Systematic concealment of technical limitations from external stakeholders, including demonstrations with predetermined results and restricted lab access during partnership negotiations.",
+      "supporting_key_points": ["KP_1", "KP_2", "KP_4"]
+    }},
+    {{
+      "theme_id": "THEME_2",
+      "description": "Authority figures prioritizing institutional relationships over internal whistleblower concerns, resulting in delayed response to documented problems.",
+      "supporting_key_points": ["KP_3", "KP_4"]
+    }}
+  ],
+  "tensions": [
+    {{
+      "tension_id": "TEN_1",
+      "description": "Leadership's public statements about technology readiness contradict technician accounts of workarounds required for every patient sample. This tension remains unresolved because no primary documentation of internal testing protocols has been made public.",
+      "involved_key_points": ["KP_1", "KP_2"]
+    }}
+  ],
+  "gaps": [
+    {{
+      "gap_id": "GAP_1",
+      "impact_on_understanding": "Without internal technical memos, we cannot determine whether leadership was aware of device limitations or genuinely believed in its capabilities.",
+      "what_would_help": "FDA inspection reports or internal engineering documents from 2014-2015."
+    }},
+    {{
+      "gap_id": "GAP_2",
+      "impact_on_understanding": "No perspective from patients who received test results, limiting understanding of real-world impact.",
+      "what_would_help": "Court testimony from affected patients or medical professionals who acted on Theranos results."
+    }}
+  ],
+  "speculative_observations": [
+    {{
+      "text": "The pattern of board member responses suggests a possible information silo where technical staff concerns did not reach decision-makers through normal channels.",
+      "based_on": ["KP_3", "KP_4"],
+      "label": "speculative"
+    }}
+  ],
+  "confidence_assessment": {{
+    "level": "medium",
+    "reasoning": [
+      "High source diversity (5 sources)",
+      "Verification rate: 70%",
+      "Unresolved tension between leadership claims and technician accounts",
+      "Missing internal documentation limits certainty on intent"
+    ]
+  }}
+}}
+```
 """
 
 
@@ -285,6 +374,51 @@ If fewer than 3 gaps identified for a multi-source corpus:
 - It is acceptable to return few gaps if the corpus is narrow
 
 Prefer PRECISION over QUANTITY.
+
+## EXAMPLE OUTPUT (for gap identification on Theranos corpus)
+
+NOTE: This example shows output for a corpus with significant documentation gaps.
+Your output may have fewer gaps if the corpus is more complete. Match QUALITY,
+not QUANTITY.
+
+```json
+{{
+  "gaps": [
+    {{
+      "gap_id": "GAP_1",
+      "description": "No internal engineering documentation showing device accuracy metrics",
+      "why_expected": "Medical device companies typically maintain validation protocols; regulatory filings would reference these documents",
+      "related_themes": ["THEME_1"],
+      "related_key_points": ["KP_1", "KP_2"],
+      "suggested_research_direction": "Search for FDA 483 inspection reports or SEC filings that reference internal quality data"
+    }},
+    {{
+      "gap_id": "GAP_2",
+      "description": "Missing perspective from Walgreens due diligence team",
+      "why_expected": "A $350M partnership would involve legal and technical review; those reviewers could describe what they were shown",
+      "related_themes": ["THEME_1"],
+      "related_key_points": ["KP_4"],
+      "suggested_research_direction": "Search for interviews with former Walgreens executives involved in the Theranos partnership"
+    }},
+    {{
+      "gap_id": "GAP_3",
+      "description": "No primary documentation of board meeting discussions about technology status",
+      "why_expected": "Board members testified about their knowledge; meeting minutes could verify timeline of awareness",
+      "related_themes": ["THEME_2"],
+      "related_key_points": ["KP_3"],
+      "suggested_research_direction": "Check trial exhibits or court filings for board meeting records"
+    }},
+    {{
+      "gap_id": "GAP_4",
+      "description": "Missing patient outcomes data from Theranos test results",
+      "why_expected": "Claims about harm require documentation of actual medical decisions made based on faulty results",
+      "related_themes": [],
+      "related_key_points": [],
+      "suggested_research_direction": "Search for class action lawsuit filings that document specific patient cases"
+    }}
+  ]
+}}
+```
 """
 
 
@@ -314,7 +448,14 @@ def build_semantic_synthesis_prompt(
     """
     import json
 
-    return SEMANTIC_SYNTHESIS_PROMPT.format(
+    # Build context lock
+    context_lock = SYNTHESIS_CONTEXT_LOCK.format(
+        source_count=source_diversity,
+        verification_rate=f"{verification_rate:.0%}",
+    )
+
+    # Build full prompt with context lock prepended
+    prompt = context_lock + "\n\n" + SEMANTIC_SYNTHESIS_PROMPT.format(
         scope_lock=scope_lock,
         key_points_json=json.dumps(key_points, indent=2),
         themes_json=json.dumps(themes, indent=2),
@@ -323,6 +464,8 @@ def build_semantic_synthesis_prompt(
         verification_rate=f"{verification_rate:.0%}",
         source_diversity=f"{source_diversity} sources",
     )
+
+    return prompt
 
 
 def build_gap_identification_prompt(

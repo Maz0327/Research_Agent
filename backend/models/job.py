@@ -225,3 +225,126 @@ class VideoAnalysisStatusResponse(BaseModel):
         None, description="Full ProducerPacket when job completes"
     )
 
+
+# =============================================================================
+# Extended Input Models (Phase 2B - Text and Screenshot inputs)
+# =============================================================================
+
+class TextInputRequest(BaseModel):
+    """Request model for user-provided text input job.
+
+    Used for paywalled articles, emails, or other text content the user
+    pastes directly. Analysis mode is TEXT_PROVIDED with MEDIUM confidence.
+
+    Quotes ARE allowed but carry warnings. If source metadata is provided
+    (source_url, author, title), the warning acknowledges user verification.
+    Without metadata, warnings recommend user verify source and accuracy.
+    """
+    topic: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Research topic for this content"
+    )
+    content: str = Field(
+        ...,
+        min_length=50,
+        max_length=50000,
+        description="User-provided text content (50-50000 characters)"
+    )
+    source_label: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="What this content is (e.g., 'WSJ Article', 'Internal Email')"
+    )
+    # Source metadata - if provided, quote warnings are less severe
+    source_url: Optional[str] = Field(
+        None,
+        max_length=2000,
+        description="URL of the original source (not verified by system)"
+    )
+    author: Optional[str] = Field(
+        None,
+        max_length=200,
+        description="Author name (not verified by system)"
+    )
+    publication_date: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Publication date (not verified by system)"
+    )
+    context_note: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Optional context about the content (e.g., 'From paywall, may be incomplete')"
+    )
+    platform_hint: Optional[Literal["reddit", "twitter", "forum", "email", "article", "other"]] = Field(
+        None,
+        description="Hint about content origin for better processing"
+    )
+
+    @property
+    def has_source_metadata(self) -> bool:
+        """True if user provided any source identification info."""
+        return bool(self.source_url or self.author)
+
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate and sanitize content."""
+        v = v.strip()
+        if len(v) < 50:
+            raise ValueError("Content must be at least 50 characters")
+        return v
+
+
+class TextInputResponse(BaseModel):
+    """Response model for text input job creation."""
+    job_id: str
+    word_count: int = Field(..., description="Word count of provided content")
+    confidence_ceiling: str = Field(
+        "MEDIUM",
+        description="Maximum confidence level for claims (TEXT_PROVIDED mode)"
+    )
+    warnings: Optional[list[str]] = Field(None, description="Processing warnings")
+
+
+class ScreenshotInputRequest(BaseModel):
+    """Request model for screenshot-based input job.
+
+    Used for screenshots of social media, forums, etc. OCR extracts text
+    then semantic extraction runs. Analysis mode is OCR_EXTRACTED with
+    MEDIUM confidence. NO QUOTES allowed - OCR may have errors.
+    """
+    topic: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Research topic for this screenshot content"
+    )
+    platform_hint: Literal["reddit", "twitter", "forum", "other"] = Field(
+        "other",
+        description="Platform this screenshot is from (helps OCR extraction)"
+    )
+    context_note: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Optional context about the screenshot"
+    )
+
+    # Note: The actual image file is handled as UploadFile in the endpoint,
+    # not in the Pydantic model. This model is for the form data.
+
+
+class ScreenshotInputResponse(BaseModel):
+    """Response model for screenshot input job creation."""
+    job_id: str
+    ocr_word_count: int = Field(..., description="Word count extracted via OCR")
+    confidence_ceiling: str = Field(
+        "MEDIUM",
+        description="Maximum confidence level for claims (OCR_EXTRACTED mode)"
+    )
+    platform_detected: Optional[str] = Field(None, description="Platform detected from content")
+    warnings: Optional[list[str]] = Field(None, description="OCR or processing warnings")
+

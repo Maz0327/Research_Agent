@@ -40,6 +40,14 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
         if ctx.outputs.get("documentary_blueprint_md"):
             doc_contents["11_DOCUMENTARY_BLUEPRINT"] = ctx.outputs["documentary_blueprint_md"]
 
+        # Add Semantic Pipeline Documents (Phase 2A: Doc 0/1/2)
+        if ctx.outputs.get("source_ledger_md"):
+            doc_contents["20_SOURCE_LEDGER"] = ctx.outputs["source_ledger_md"]
+        if ctx.outputs.get("jump_start_md"):
+            doc_contents["21_JUMP_START"] = ctx.outputs["jump_start_md"]
+        if ctx.outputs.get("semantic_brief_md"):
+            doc_contents["22_SEMANTIC_BRIEF"] = ctx.outputs["semantic_brief_md"]
+
         # Generate new format exports
         try:
             export_manager = ExportManager()

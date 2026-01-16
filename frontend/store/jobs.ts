@@ -160,6 +160,41 @@ export interface VideoAnalysisResponse {
   warnings?: string[];
 }
 
+/**
+ * Text input job request - for user-pasted content
+ */
+export interface TextInputRequest {
+  topic: string;
+  content: string;
+  source_label: string;
+  source_url?: string;
+  author?: string;
+  publication_date?: string;
+  context_note?: string;
+  platform_hint?: 'reddit' | 'twitter' | 'forum' | 'email' | 'article' | 'other';
+}
+
+/**
+ * Text input job response
+ */
+export interface TextInputResponse {
+  job_id: string;
+  word_count: number;
+  confidence_ceiling: string;
+  warnings: string[];
+}
+
+/**
+ * Screenshot input job response
+ */
+export interface ScreenshotInputResponse {
+  job_id: string;
+  ocr_word_count: number;
+  confidence_ceiling: string;
+  platform_detected?: string;
+  warnings: string[];
+}
+
 interface JobsState {
   jobs: Job[];
   isLoading: boolean;
@@ -175,6 +210,8 @@ interface JobsState {
   previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
   createJob: (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => Promise<string>;
   createVideoAnalysisJob: (videoUrls: string[], title?: string, model?: 'gemini-2.5-flash' | 'gemini-2.5-pro') => Promise<VideoAnalysisResponse>;
+  createTextInputJob: (request: TextInputRequest) => Promise<TextInputResponse>;
+  createScreenshotInputJob: (file: File, topic: string, platformHint?: string, contextNote?: string) => Promise<ScreenshotInputResponse>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -402,6 +439,120 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to create video analysis job',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  createTextInputJob: async (request: TextInputRequest): Promise<TextInputResponse> => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/text-input`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create text input job');
+      }
+
+      const data: TextInputResponse = await response.json();
+
+      // Add job to local state
+      const newJob: Job = {
+        id: data.job_id,
+        prompt: request.source_label || 'Text Analysis',
+        pipeline: 'text_provided',
+        status: 'queued',
+        progress_percent: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        jobs: [newJob, ...state.jobs],
+        isLoading: false,
+      }));
+
+      return data;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create text input job',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  createScreenshotInputJob: async (
+    file: File,
+    topic: string,
+    platformHint?: string,
+    contextNote?: string
+  ): Promise<ScreenshotInputResponse> => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await getAccessToken();
+
+      // Use FormData for file upload - do NOT set Content-Type header
+      const formData = new FormData();
+      formData.append('screenshot', file);
+      formData.append('topic', topic);
+      if (platformHint) {
+        formData.append('platform_hint', platformHint);
+      }
+      if (contextNote) {
+        formData.append('context_note', contextNote);
+      }
+
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // IMPORTANT: Do NOT set Content-Type for FormData - browser handles it
+
+      const response = await fetch(`${API_URL}/jobs/screenshot-input`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create screenshot input job');
+      }
+
+      const data: ScreenshotInputResponse = await response.json();
+
+      // Add job to local state
+      const newJob: Job = {
+        id: data.job_id,
+        prompt: `Screenshot Analysis (${data.platform_detected || platformHint || 'other'})`,
+        pipeline: 'ocr_extracted',
+        status: 'queued',
+        progress_percent: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        jobs: [newJob, ...state.jobs],
+        isLoading: false,
+      }));
+
+      return data;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create screenshot input job',
         isLoading: false,
       });
       throw error;

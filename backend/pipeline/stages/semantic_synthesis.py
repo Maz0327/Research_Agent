@@ -1,0 +1,290 @@
+"""
+Semantic Synthesis Stage - Create unified semantic understanding.
+
+This stage synthesizes a coherent semantic understanding from all
+extracted semantic units across sources. It produces:
+- Semantic Core (2-4 sentence description of topic's essence)
+- Synthesized Themes (cross-source patterns)
+- Confidence Assessment (calibrated for source quality)
+- Speculative Observations (explicitly labeled)
+
+Based on: docs/authoritative/spec/RASS.md Section 4.5
+Consumes: ctx.semantic_extractions + ctx.identified_gaps
+Produces: ctx.semantic_core, ctx.synthesized_themes, ctx.speculative_observations
+"""
+
+from typing import Any
+
+from loguru import logger
+
+from backend.integrations.gemini_client import GeminiClient
+from backend.models.semantic_units import (
+    ConfidenceLevel,
+    Theme,
+)
+from backend.pipeline.context import PipelineContext
+from backend.pipeline.prompts.semantic_synthesis_prompt import (
+    build_semantic_synthesis_prompt,
+    SEMANTIC_SYNTHESIS_ROLE,
+)
+from backend.state import update_job
+
+
+def aggregate_for_synthesis(ctx: PipelineContext) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+    """
+    Aggregate semantic units for synthesis prompt.
+
+    Returns:
+        Tuple of (key_points, themes, tensions, gaps) as lists of dicts
+    """
+    key_points = []
+    themes = []
+    tensions = []
+
+    extractions = getattr(ctx, "semantic_extractions", [])
+    for extraction in extractions:
+        # Key points
+        for kp in extraction.key_points:
+            key_points.append({
+                "key_point_id": kp.key_point_id,
+                "statement": kp.statement,
+                "source_ids": kp.source_ids,
+                "confidence": kp.confidence.value,
+            })
+
+        # Themes
+        for theme in extraction.themes:
+            themes.append({
+                "theme_id": theme.theme_id,
+                "label": theme.label,
+                "description": theme.description,
+                "related_key_points": theme.related_key_points,
+            })
+
+        # Tensions
+        for tension in extraction.tensions:
+            tensions.append({
+                "tension_id": tension.tension_id,
+                "description": tension.description,
+                "involved_key_points": tension.involved_key_points,
+            })
+
+    # Gaps from gap analysis stage
+    gaps = []
+    for gap in getattr(ctx, "identified_gaps", []):
+        gaps.append({
+            "gap_id": gap.gap_id,
+            "description": gap.description,
+            "why_expected": gap.why_expected,
+            "related_themes": gap.related_themes,
+            "related_key_points": gap.related_key_points,
+        })
+
+    return key_points, themes, tensions, gaps
+
+
+def calculate_verification_rate(ctx: PipelineContext) -> float:
+    """Calculate percentage of claims with verified quotes."""
+    total_claims = 0
+    verified_claims = 0
+
+    for extraction in getattr(ctx, "semantic_extractions", []):
+        for claim in extraction.claims:
+            total_claims += 1
+            if claim.supporting_quotes:
+                verified_claims += 1
+
+    if total_claims == 0:
+        return 0.0
+
+    return verified_claims / total_claims
+
+
+def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
+    """
+    Parse Gemini response into synthesis outputs.
+
+    Returns:
+        Dict with semantic_core, themes, tensions, gaps, speculative_observations, confidence
+    """
+    result = {
+        "semantic_core": "",
+        "semantic_core_based_on": [],
+        "themes": [],
+        "speculative_observations": [],
+        "confidence_level": ConfidenceLevel.MEDIUM,
+        "confidence_reasoning": [],
+    }
+
+    # Parse semantic core
+    semantic_core_data = response_data.get("semantic_core", {})
+    if isinstance(semantic_core_data, dict):
+        result["semantic_core"] = semantic_core_data.get("text", "")
+        result["semantic_core_based_on"] = semantic_core_data.get("based_on", [])
+    elif isinstance(semantic_core_data, str):
+        result["semantic_core"] = semantic_core_data
+
+    # Parse synthesized themes
+    for theme_data in response_data.get("themes", []):
+        theme = Theme(
+            theme_id=theme_data.get("theme_id", f"THEME_{len(result['themes']) + 1}"),
+            label=theme_data.get("label", theme_data.get("description", "")[:50]),
+            description=theme_data.get("description", ""),
+            related_key_points=theme_data.get("supporting_key_points", []),
+        )
+        result["themes"].append(theme)
+
+    # Parse speculative observations
+    for obs_data in response_data.get("speculative_observations", []):
+        result["speculative_observations"].append({
+            "text": obs_data.get("text", ""),
+            "based_on": obs_data.get("based_on", []),
+            "label": obs_data.get("label", "speculative"),
+        })
+
+    # Parse confidence assessment
+    confidence_data = response_data.get("confidence_assessment", {})
+    level_str = confidence_data.get("level", "medium")
+    try:
+        result["confidence_level"] = ConfidenceLevel(level_str.lower())
+    except ValueError:
+        result["confidence_level"] = ConfidenceLevel.MEDIUM
+
+    result["confidence_reasoning"] = confidence_data.get("reasoning", [])
+
+    return result
+
+
+def stage_semantic_synthesis(ctx: PipelineContext) -> None:
+    """
+    Pipeline stage: Synthesize unified semantic understanding.
+
+    PREREQUISITE: semantic_extraction and gap_analysis stages must run first.
+
+    This stage:
+    1. Aggregates all semantic units from extractions
+    2. Includes identified gaps from gap analysis
+    3. Calls Gemini to synthesize semantic core
+    4. Stores synthesis results in context
+
+    Output is consumed by document_assembly for Doc 2 (Semantic Brief).
+    """
+    logger.info(f"[{ctx.job_id}] Stage: Semantic Synthesis")
+
+    update_job(
+        ctx.job_id,
+        stage="semantic_synthesis",
+        progress_percent=60,
+    )
+
+    # Check prerequisites
+    extractions = getattr(ctx, "semantic_extractions", [])
+    if not extractions:
+        logger.warning("No semantic extractions found - skipping synthesis")
+        ctx.add_warning("Semantic synthesis skipped: no extractions available")
+        return
+
+    # Aggregate inputs
+    key_points, themes, tensions, gaps = aggregate_for_synthesis(ctx)
+
+    # Build scope lock
+    scope_lock = f"Research topic: {ctx.topic}"
+    if hasattr(ctx, "scope_in") and ctx.scope_in:
+        scope_lock += f"\nIn scope: {', '.join(ctx.scope_in)}"
+    if hasattr(ctx, "scope_out") and ctx.scope_out:
+        scope_lock += f"\nOut of scope: {', '.join(ctx.scope_out)}"
+
+    # Calculate verification rate
+    verification_rate = calculate_verification_rate(ctx)
+
+    # Count unique sources
+    source_diversity = len(set(
+        kp.get("source_ids", ["unknown"])[0]
+        for kp in key_points
+        if kp.get("source_ids")
+    ))
+
+    # Build prompt
+    prompt = build_semantic_synthesis_prompt(
+        scope_lock=scope_lock,
+        key_points=key_points,
+        themes=themes,
+        tensions=tensions,
+        gaps=gaps,
+        verification_rate=verification_rate,
+        source_diversity=source_diversity,
+    )
+
+    try:
+        # Initialize Gemini client
+        gemini_client = GeminiClient()
+
+        # Call Gemini for synthesis
+        response = gemini_client.generate_json(
+            prompt=prompt,
+            system_message=SEMANTIC_SYNTHESIS_ROLE,
+        )
+
+        if "error" in response:
+            logger.error(f"Gemini error during synthesis: {response['error']}")
+            ctx.add_warning(f"Semantic synthesis error: {response['error']}")
+            return
+
+        # Track cost
+        cost = response.get("cost", 0)
+        if hasattr(ctx, "add_cost"):
+            ctx.add_cost("gemini_semantic_synthesis", cost)
+
+        # Parse response
+        data = response.get("data", {})
+        synthesis_result = parse_synthesis_response(data)
+
+        # Store results in context
+        # These are used by document_assembly for Doc 2
+        ctx.semantic_core = synthesis_result["semantic_core"]
+        ctx.synthesized_themes = synthesis_result["themes"]
+        ctx.speculative_observations = synthesis_result["speculative_observations"]
+        ctx.confidence_reasoning = synthesis_result["confidence_reasoning"]
+
+        # Store semantic_core_based_on for Doc 2
+        if not hasattr(ctx, "semantic_core_based_on"):
+            ctx.semantic_core_based_on = []
+        ctx.semantic_core_based_on = synthesis_result["semantic_core_based_on"]
+
+        # Store overall confidence for downstream use
+        if not hasattr(ctx, "overall_confidence"):
+            ctx.overall_confidence = ConfidenceLevel.MEDIUM
+        ctx.overall_confidence = synthesis_result["confidence_level"]
+
+        logger.info(
+            f"Semantic synthesis complete: "
+            f"core={len(synthesis_result['semantic_core'])} chars, "
+            f"themes={len(synthesis_result['themes'])}, "
+            f"confidence={synthesis_result['confidence_level'].value}, "
+            f"cost=${cost:.4f}"
+        )
+
+        # Update job with synthesis summary
+        update_job(
+            ctx.job_id,
+            partial_outputs={
+                "semantic_synthesis_summary": {
+                    "semantic_core_length": len(synthesis_result["semantic_core"]),
+                    "themes_synthesized": len(synthesis_result["themes"]),
+                    "speculative_observations": len(synthesis_result["speculative_observations"]),
+                    "confidence_level": synthesis_result["confidence_level"].value,
+                    "verification_rate": f"{verification_rate:.0%}",
+                    "source_diversity": source_diversity,
+                    "cost": cost,
+                }
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Semantic synthesis failed: {e}")
+        ctx.add_warning(f"Semantic synthesis error: {str(e)}")
+        # Set defaults to allow pipeline to continue
+        ctx.semantic_core = ""
+        ctx.synthesized_themes = []
+        ctx.speculative_observations = []
+        ctx.confidence_reasoning = ["Synthesis failed"]

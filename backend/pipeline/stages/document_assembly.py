@@ -365,7 +365,7 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
             "captions_status": "success" if pkg.transcript_source == "youtube_captions" else "missing",
         })
 
-    extractions = getattr(ctx, "semantic_extraction_results", [])
+    extractions = getattr(ctx, "semantic_extractions", [])
     gaps = getattr(ctx, "identified_gaps", [])
     scope_in = getattr(ctx, "scope_in", ["Research topic"])
     scope_out = getattr(ctx, "scope_out", ["Unrelated topics"])

@@ -1,7 +1,7 @@
 # System Architecture
 
-**Last Updated:** January 1, 2026
-**Status:** Production + Export Formats + Reliability Fixes
+**Last Updated:** January 15, 2026
+**Status:** Production + Semantic Pipeline Complete (Phase 2)
 
 ## Overview
 
@@ -39,13 +39,30 @@
 | POST | `/jobs/{id}/select-interpretation` | Select disambiguation option |
 | GET | `/jobs/{id}/export` | Export job in specified format |
 | GET | `/jobs/{id}/export/all` | Export all formats at once |
+| POST | `/jobs/text-input` | Create job from user-provided text (Phase 2B) |
+| POST | `/jobs/screenshot-input` | Create job from screenshot image (Phase 2B) |
 
 ### Celery Worker (`backend/worker.py`)
 - Async task processing
-- 11-stage research pipeline
+- 11-stage research pipeline + 5-stage semantic pipeline
 - Graceful error handling
 
-### Pipeline Stages
+### Semantic Pipeline Stages (Phase 2 Complete)
+
+| # | Stage | File | Status |
+|---|-------|------|--------|
+| 1 | Source Identity | `stages/source_identity.py` | ✅ Complete |
+| 2 | Semantic Extraction | `stages/semantic_extraction.py` | ✅ Complete |
+| 3 | Gap Analysis | `stages/gap_analysis.py` | ✅ Complete (219 lines) |
+| 4 | Semantic Synthesis | `stages/semantic_synthesis.py` | ✅ Complete (291 lines) |
+| 5 | Document Assembly | `stages/document_assembly.py` | ✅ Complete (459 lines) |
+
+**Output Documents:**
+- Doc 0: Source Ledger (canonical data layer)
+- Doc 1: Jump-Start (research direction)
+- Doc 2: Semantic Brief (80% output)
+
+### Legacy Pipeline Stages
 
 | # | Stage | Current Service | Optimal Service | Cloud Status |
 |---|-------|-----------------|-----------------|--------------|

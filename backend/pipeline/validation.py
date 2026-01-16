@@ -1,5 +1,13 @@
-"""Claim validation using Perplexity AI."""
+"""Claim validation using Perplexity AI.
+
+Includes optional semantic entropy detection for hallucination prevention.
+When enabled, high-confidence claims are checked for consistency across
+multiple LLM samples. High entropy indicates potential hallucination.
+
+Reference: backend/pipeline/hallucination_detection.py
+"""
 import re
+from typing import Optional
 
 from loguru import logger
 
@@ -8,6 +16,7 @@ from backend.config import require_perplexity, MissingRequiredSettingError
 from backend.integrations import perplexity_client
 from backend.models.claim import Claim, Citation, EvidenceRecord, EvidenceStatus
 from backend.models.job_config import JobConfig
+from backend.pipeline.hallucination_detection import batch_check_claims
 
 
 def _validate_single_claim(
@@ -165,20 +174,99 @@ Provide a structured analysis with clear recommendations."""
         return f"# Missing Angles Analysis\n\n*Analysis failed: {str(e)}*"
 
 
+def _create_entropy_generator(api_key: str):
+    """Create a generator function for semantic entropy detection.
+
+    Uses Perplexity sonar model for lightweight rephrasing.
+    """
+    def generate_fn(prompt: str, temperature: float) -> str:
+        try:
+            response = perplexity_client._perplexity_search(prompt, model="sonar")
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return content
+        except Exception as e:
+            logger.warning(f"Entropy generation failed: {e}")
+            return ""
+    return generate_fn
+
+
+def _run_semantic_entropy_check(
+    claims: list[Claim],
+    job: JobConfig,
+    api_key: str,
+) -> tuple[list[Claim], list[str]]:
+    """Run semantic entropy detection on high-confidence claims.
+
+    Hallucination Prevention Rule SE-001: High semantic entropy indicates hallucination.
+
+    Args:
+        claims: List of claims to check
+        job: JobConfig with hallucination settings
+        api_key: API key for LLM calls
+
+    Returns:
+        Tuple of (updated_claims, entropy_warnings)
+    """
+    if not job.should_enable_semantic_entropy():
+        return claims, []
+
+    logger.info(
+        f"Running consistency checks on claims "
+        f"({job.hallucination.entropy_samples} checks per claim)"
+    )
+
+    # Convert Claim objects to dicts for batch_check_claims
+    claim_dicts = []
+    for claim in claims:
+        claim_dict = {
+            "claim_id": claim.claim_id,
+            "statement": claim.canonical_claim,
+            "confidence": "high" if claim.confidence >= 0.8 else "medium" if claim.confidence >= 0.5 else "low",
+        }
+        claim_dicts.append(claim_dict)
+
+    # Run batch entropy check
+    generate_fn = _create_entropy_generator(api_key)
+    checked_dicts, warnings = batch_check_claims(
+        claim_dicts,
+        generate_fn,
+        samples=job.hallucination.entropy_samples,
+        entropy_threshold=job.hallucination.entropy_threshold,
+    )
+
+    # Update original claims with entropy results
+    entropy_results = {d["claim_id"]: d for d in checked_dicts}
+    for claim in claims:
+        if claim.claim_id in entropy_results:
+            result = entropy_results[claim.claim_id]
+            if result.get("_hallucination_flag"):
+                # Downgrade confidence for flagged claims
+                claim.confidence = min(claim.confidence, 0.3)
+                logger.warning(
+                    f"Claim {claim.claim_id} gave inconsistent answers, "
+                    f"lowering confidence to {claim.confidence}"
+                )
+
+    return claims, warnings
+
+
 def validate_claims(
     claims: list[Claim],
     job: JobConfig,
 ) -> tuple[list[EvidenceRecord], str, str]:
     """
     Validate claims using Perplexity AI.
-    
+
+    Optionally runs semantic entropy detection on high-confidence claims
+    if job.should_enable_semantic_entropy() returns True.
+
     Args:
         claims: List of Claim objects to validate
         job: JobConfig with budgets and topic
-        
+
     Returns:
         Tuple of (evidence_records, evidence_table_md, missing_angles_md)
-        
+
     Raises:
         MissingRequiredSettingError: If PERPLEXITY_API_KEY is not configured
     """
@@ -186,7 +274,7 @@ def validate_claims(
     if not claims:
         logger.warning("No claims provided for validation")
         return [], "# Evidence Table\n\n*No claims to validate.*", "# Missing Angles\n\n*No claims available.*"
-    
+
     try:
         settings = require_perplexity()
         api_key = settings.perplexity_api_key
@@ -197,12 +285,19 @@ def validate_claims(
             "# Evidence Table\n\n*Perplexity API key required for claim validation.*",
             "# Missing Angles\n\n*Perplexity API key required for analysis.*",
         )
-    
+
+    # SE-001: Run consistency checks BEFORE validation (if enabled)
+    entropy_warnings: list[str] = []
+    if job.should_enable_semantic_entropy():
+        claims, entropy_warnings = _run_semantic_entropy_check(claims, job, api_key)
+        if entropy_warnings:
+            logger.info(f"Found {len(entropy_warnings)} claims that need review")
+
     # Select top N claims (by confidence or just first N)
     # Sort by confidence descending
     sorted_claims = sorted(claims, key=lambda c: c.confidence, reverse=True)
     claims_to_validate = sorted_claims[:job.budgets.max_claims_to_validate]
-    
+
     logger.info(f"Validating {len(claims_to_validate)} claims (top {job.budgets.max_claims_to_validate} by confidence)")
     
     evidence_records: list[EvidenceRecord] = []
@@ -237,9 +332,11 @@ def validate_claims(
         logger.warning(f"Missing angles analysis failed: {e}")
         missing_angles_md = f"# Missing Angles\n\n*Analysis failed: {str(e)}*"
     
-    # Generate evidence table markdown
-    evidence_table_md = _generate_evidence_table_md(claims, evidence_records, job.topic)
-    
+    # Generate evidence table markdown (include entropy warnings if any)
+    evidence_table_md = _generate_evidence_table_md(
+        claims, evidence_records, job.topic, entropy_warnings
+    )
+
     return evidence_records, evidence_table_md, missing_angles_md
 
 
@@ -247,15 +344,17 @@ def _generate_evidence_table_md(
     claims: list[Claim],
     evidence_records: list[EvidenceRecord],
     topic: str,
+    entropy_warnings: Optional[list[str]] = None,
 ) -> str:
     """
     Generate evidence table markdown.
-    
+
     Args:
         claims: List of all claims
         evidence_records: List of EvidenceRecord objects
         topic: Research topic
-        
+        entropy_warnings: Optional list of semantic entropy warnings
+
     Returns:
         Markdown string with evidence table
     """
@@ -264,10 +363,28 @@ def _generate_evidence_table_md(
         "",
         f"**Topic:** {topic}",
         f"**Claims Validated:** {len(evidence_records)}",
+    ]
+
+    # Add consistency check section if warnings exist
+    if entropy_warnings:
+        lines.append(f"**Claims Needing Review:** {len(entropy_warnings)}")
+        lines.append("")
+        lines.append("> ⚠️ **Consistency Check**: Some claims gave inconsistent answers when ")
+        lines.append("> checked multiple times, which may indicate they're unreliable. ")
+        lines.append("> We've lowered their confidence rating.")
+        lines.append(">")
+        for warning in entropy_warnings[:10]:  # Cap at 10 to avoid cluttering
+            # Reformat technical warnings to be user-friendly
+            lines.append(f"> - {warning}")
+        if len(entropy_warnings) > 10:
+            lines.append(f"> - *...and {len(entropy_warnings) - 10} more*")
+        lines.append("")
+
+    lines.extend([
         "",
         "| Claim ID | Canonical Claim | Status | Evidence For | Evidence Against | Notes |",
         "|----------|----------------|--------|--------------|------------------|-------|",
-    ]
+    ])
     
     if not evidence_records:
         lines.append("| *No claims validated* | | | | | |")

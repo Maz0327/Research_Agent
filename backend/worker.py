@@ -125,6 +125,12 @@ def run_research_job(
         stage_9_drive_upload,
         stage_10_completion,
         post_slack_message,
+        # Semantic Pipeline Stages (Phase 2A)
+        stage_source_identity,
+        stage_semantic_extraction,
+        stage_gap_analysis,
+        stage_semantic_synthesis,
+        stage_document_assembly,
     )
     from backend.pipeline.stages.planning import DisambiguationRequired
     from backend.pipeline.parallel_executor import (
@@ -185,6 +191,25 @@ def run_research_job(
                 stage_6_5_reddit, ctx, "reddit",
                 fallback_fn=fallback_reddit_skip
             )
+
+        # === SEMANTIC PIPELINE STAGES (Phase 2A) ===
+        # These stages build Doc 0/1/2 from collected sources
+        logger.info(f"[{job_id}] Running semantic pipeline stages")
+
+        # Stage A: Source Identity (resolve analysis modes)
+        run_stage_with_recovery(stage_source_identity, ctx, "source_identity")
+
+        # Stage B: Semantic Extraction (Gemini)
+        run_stage_with_recovery(stage_semantic_extraction, ctx, "semantic_extraction")
+
+        # Stage C: Gap Analysis (Gemini)
+        run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
+
+        # Stage D: Semantic Synthesis (Gemini)
+        run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
+
+        # Stage E: Document Assembly (Doc 0/1/2)
+        run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
 
         # Stage 7: Claim extraction (must wait for all sources)
         run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
@@ -294,6 +319,12 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
         stage_9_drive_upload,
         stage_10_completion,
         post_slack_message,
+        # Semantic Pipeline Stages (Phase 2A)
+        stage_source_identity,
+        stage_semantic_extraction,
+        stage_gap_analysis,
+        stage_semantic_synthesis,
+        stage_document_assembly,
     )
     from backend.pipeline.parallel_executor import (
         run_collection_stages_parallel,
@@ -388,6 +419,13 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
                     stage_6_5_reddit, ctx, "reddit",
                     fallback_fn=fallback_reddit_skip
                 )
+
+            # === SEMANTIC PIPELINE STAGES (Phase 2A) ===
+            run_stage_with_recovery(stage_source_identity, ctx, "source_identity")
+            run_stage_with_recovery(stage_semantic_extraction, ctx, "semantic_extraction")
+            run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
+            run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
+            run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
 
             # Extraction
             run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")

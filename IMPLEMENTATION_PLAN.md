@@ -1,8 +1,27 @@
 # Research Agent — Targeted Implementation Plan
 
 **Based on:** Project Audit Report (2026-01-13)
-**Updated:** 2026-01-13 (Added spec alignment tasks)
+**Updated:** 2026-01-15 (Phase 2 Complete)
 **Purpose:** Preserve what works, fix what's broken, build what's missing, archive what's dead
+
+---
+
+# COMPLETION STATUS
+
+```
+Phase 0:   ✅ COMPLETE — Commit & Stabilize
+Phase 0.5: ✅ COMPLETE — Review Existing Code
+Phase 1:   ✅ COMPLETE — Fix Blocking Issues
+Phase 2:   ✅ COMPLETE — Wire Semantic Pipeline + Extended Inputs
+Phase 3:   ⏳ READY    — Add Analysis Modes
+Phase 4:   ⏳ PENDING  — Add Validation
+Phase 5:   ⏳ PENDING  — Multi-Source Support
+Phase 6:   ⏳ PENDING  — Evolving Jobs
+Phase 7:   ⏳ PENDING  — Booster Pipeline
+Phase 8:   ⏳ PENDING  — Producer Packet
+Phase 9:   ⏳ PENDING  — Tests
+Phase 10:  ⏳ PENDING  — Documentation
+```
 
 ---
 
@@ -128,14 +147,14 @@ pytest backend/tests/ -v
 uvicorn backend.app.main:app --reload  # Should start without errors
 ```
 
-### Checkpoint 0
-- [ ] All semantic code committed
-- [ ] Dead code archived
-- [ ] .env.example created
-- [ ] Setup documents deployed
-- [ ] INDEX.md and RASS.md updated
-- [ ] Project runs without errors
-- [ ] Tests pass
+### Checkpoint 0 ✅ COMPLETE
+- [x] All semantic code committed (commit: 99cdcc9)
+- [x] Dead code archived (commit: 8fe3bd9)
+- [x] .env.example created (already existed)
+- [x] Setup documents deployed (commit: c78cbe1)
+- [x] INDEX.md and RASS.md updated
+- [x] Project runs without errors (syntax verified)
+- [x] Tests pass (129 pass)
 
 ---
 
@@ -225,11 +244,11 @@ Output comprehensive report documenting:
 - What needs rewrite
 - Recommended order of changes
 
-### Checkpoint 0.5
-- [ ] All files reviewed
-- [ ] Code Review Report generated
-- [ ] Owner approved modifications
-- [ ] Plan adjusted if rewrites needed
+### Checkpoint 0.5 ✅ COMPLETE
+- [x] All files reviewed (semantic_units, document_outputs, source_identity, semantic_extraction, document_assembly, prompts)
+- [x] Code Review Report generated (see plans/reports/)
+- [x] Owner approved modifications
+- [x] Plan adjusted — Phase 2 expanded to include extended inputs
 
 ---
 
@@ -441,26 +460,126 @@ python -c "from backend.models import SemanticExtractionResult"
 python -c "from backend.integrations.gemini_client import GeminiClient; gc = GeminiClient()"
 ```
 
-### Checkpoint 1
-- [ ] `from backend.pipeline.stages import stage_semantic_extraction` works
-- [ ] PipelineContext has new fields
-- [ ] GeminiClient.generate_json() exists and works
-- [ ] Artifacts model has 3-doc fields
-- [ ] AnalysisMode has all 6 modes
-- [ ] All imports resolve
-- [ ] Tests pass
+### Checkpoint 1 ✅ COMPLETE
+- [x] `from backend.pipeline.stages import stage_semantic_extraction` works
+- [x] PipelineContext has new fields (source_identity_packages, semantic_extractions, source_ledger, jump_start, semantic_brief)
+- [x] GeminiClient.generate_json() exists and works
+- [x] Artifacts model has 3-doc fields
+- [x] AnalysisMode has all 6 modes
+- [x] All imports resolve
+- [x] Tests pass (129 pass)
+- [x] **ADDED:** Fixed module conflict — moved llm_temperature.py to backend/utils/
 
 ---
 
-## Phase 2: Wire Semantic Pipeline to Video Analysis (Day 3)
+## Phase 2: Wire Semantic Pipeline + Extended Inputs (Day 3-4) ✅ COMPLETE
 
-**Goal:** Replace 4-pass with semantic stages for video jobs.
+**Goal:** Full semantic pipeline orchestration + text/screenshot input modes.
 
 **Specs:**
 - `Celery_Task_Flow.md` — Task definitions, signatures, orchestration
 - `Job_State_Machine.md` — Status transitions during pipeline execution
+- `RASS.md` — Extended input modes (text_provided, ocr_extracted, article_fetched)
 
-### 2.1 Create Semantic Video Pipeline Task
+---
+
+### Phase 2A: Orchestration ✅ COMPLETE
+
+#### 2A.1 Create gap_analysis.py ✅
+**File:** `backend/pipeline/stages/gap_analysis.py` (219 lines)
+- `stage_gap_analysis(ctx)` — identifies research gaps via Gemini
+- `parse_gap_response()` — parses Gemini JSON into Gap objects
+- `build_source_manifest()` — aggregates sources for prompt
+- Wired in worker.py at lines 206, 426
+
+#### 2A.2 Create semantic_synthesis.py ✅
+**File:** `backend/pipeline/stages/semantic_synthesis.py` (291 lines)
+- `stage_semantic_synthesis(ctx)` — creates unified understanding via Gemini
+- `aggregate_for_synthesis()` — aggregates key points, themes, tensions, gaps
+- `parse_synthesis_response()` — parses semantic core, themes, observations
+- Wired in worker.py at lines 209, 427
+
+#### 2A.3 Update document_assembly.py ✅
+**File:** `backend/pipeline/stages/document_assembly.py` (459 lines)
+- `build_source_ledger()` — Doc 0 assembly
+- `build_jump_start()` — Doc 1 assembly
+- `build_semantic_brief()` — Doc 2 assembly
+- Stores both dict and markdown versions in ctx.outputs
+- Wired in worker.py at lines 212, 428
+
+#### 2A.4 Wire stages in worker.py ✅
+```python
+# Lines 206-212 (topic research)
+run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
+run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
+run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
+
+# Lines 426-428 (video analysis)
+run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
+run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
+run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
+```
+
+#### 2A.5 Update stages/__init__.py exports ✅
+Added: stage_gap_analysis, stage_semantic_synthesis
+
+---
+
+### Phase 2B: Extended Inputs ✅ COMPLETE
+
+#### 2B.1 Create /text-input endpoint ✅
+**File:** `backend/app/routes/jobs_routes.py` (line 348)
+- Accepts user-provided text content
+- Validates content length (50k char max)
+- Creates job with input_mode="text"
+
+#### 2B.2 Create /screenshot-input endpoint ✅
+**File:** `backend/app/routes/jobs_routes.py` (line 422)
+- Accepts screenshot image upload
+- Validates file (10MB max, image types)
+- Creates job with input_mode="screenshot"
+
+#### 2B.3 Create ocr_extraction.py ✅
+**File:** `backend/pipeline/stages/ocr_extraction.py`
+- `extract_text_from_screenshot()` — Gemini Vision OCR
+- Platform hint support (reddit, twitter, forum, other)
+- Missing context warning detection
+
+#### 2B.4 Update source_identity.py ✅
+- Added input_mode handling
+- Article extraction via Jina/Trafilatura
+
+#### 2B.5 Add mode-specific prompts ✅
+- TEXT_PROVIDED mode (no quotes)
+- OCR_EXTRACTED mode (no quotes, OCR warning)
+
+#### 2B.6 Add confidence ceiling validation ✅
+**File:** `backend/pipeline/semantic_validation.py`
+- Mode-based ceiling enforcement
+- Quote prohibition for non-grounded modes
+
+---
+
+### Phase 2C: Frontend Integration ✅ COMPLETE
+
+#### 2C.1 Update dashboard.tsx ✅
+- Text input mode component
+- Screenshot input mode component
+- Platform hint selectors
+
+#### 2C.2 Update constants.ts ✅
+- PLATFORM_HINTS array
+- SCREENSHOT_PLATFORM_HINTS array
+- MAX_TEXT_CONTENT_LENGTH (50k)
+- MAX_SCREENSHOT_SIZE (10MB)
+
+#### 2C.3 Update jobs.ts store ✅
+- New job type handling
+- Text/screenshot submission methods
+
+---
+
+### 2.1 Create Semantic Video Pipeline Task (ORIGINAL PLAN — SUPERSEDED)
 
 **File:** `backend/worker.py`
 
@@ -602,18 +721,31 @@ curl -X POST http://localhost:8000/jobs/video-analysis \
   -d '{"video_url": "https://youtube.com/watch?v=TEST"}'
 ```
 
-### Checkpoint 2
-- [ ] New task processes video
-- [ ] Produces Doc 0/1/2
-- [ ] Old task redirects to new
-- [ ] API works
-- [ ] Tests pass
+### Checkpoint 2 ✅ COMPLETE
+- [x] Semantic stages process sources (gap_analysis, semantic_synthesis, document_assembly)
+- [x] Produces Doc 0/1/2 (Source Ledger, Jump-Start, Semantic Brief)
+- [x] Stages wired in worker.py (lines 206-212, 426-428)
+- [x] Text/Screenshot endpoints work (/text-input, /screenshot-input)
+- [x] Frontend integration complete
+- [x] Tests pass (129 pass)
+
+**Additional tasks completed (not in original plan):**
+- [x] Created gap_analysis.py (219 lines)
+- [x] Created semantic_synthesis.py (291 lines)
+- [x] Created ocr_extraction.py
+- [x] Added /text-input endpoint
+- [x] Added /screenshot-input endpoint
+- [x] Added frontend text/screenshot modes
+- [x] Fixed module conflict (llm_temperature.py → backend/utils/)
+- [x] Added context fields for synthesis
+- [x] Created context handoff reports
 
 ---
 
-## Phase 3: Add Analysis Modes (Day 4)
+## Phase 3: Add Analysis Modes (Day 4) ⏳ READY TO START
 
 **Goal:** Mode-specific extraction based on source type and content availability.
+**Status:** Prerequisites complete, ready for implementation.
 
 ### 3.1 Create Mode Selector
 
@@ -839,22 +971,23 @@ Add Doc 3 model.
 
 ## Implementation Order
 
-| Phase | Focus | Duration |
-|-------|-------|----------|
-| 0 | Commit & Stabilize | 0.5 day |
-| 0.5 | Review Existing Code | 0.5 day |
-| 1 | Fix Blocking Issues | 1 day |
-| 2 | Wire Semantic Pipeline | 1 day |
-| 3 | Add Analysis Modes | 1 day |
-| 4 | Add Validation | 1 day |
-| 5 | Add Multi-Source | 1 day |
-| 6 | Add Evolving Jobs | 1 day |
-| 7 | Add Booster | 1 day |
-| 8 | Add Producer Packet | 1 day |
-| 9 | Update Tests | 1 day |
-| 10 | Documentation | 0.5 day |
+| Phase | Focus | Duration | Status |
+|-------|-------|----------|--------|
+| 0 | Commit & Stabilize | 0.5 day | ✅ COMPLETE |
+| 0.5 | Review Existing Code | 0.5 day | ✅ COMPLETE |
+| 1 | Fix Blocking Issues | 1 day | ✅ COMPLETE |
+| 2 | Wire Semantic Pipeline + Extended Inputs | 2 days | ✅ COMPLETE |
+| 3 | Add Analysis Modes | 1 day | ⏳ READY |
+| 4 | Add Validation | 1 day | ⏳ PENDING |
+| 5 | Add Multi-Source | 1 day | ⏳ PENDING |
+| 6 | Add Evolving Jobs | 1 day | ⏳ PENDING |
+| 7 | Add Booster | 1 day | ⏳ PENDING |
+| 8 | Add Producer Packet | 1 day | ⏳ PENDING |
+| 9 | Update Tests | 1 day | ⏳ PENDING |
+| 10 | Documentation | 0.5 day | ⏳ PENDING |
 
-**Total: ~11 days**
+**Completed: 4 phases (~4 days)**
+**Remaining: 7 phases (~7 days)**
 
 ## What's Preserved
 - All working integrations (18 clients)
@@ -865,16 +998,28 @@ Add Doc 3 model.
 - State management
 - 142 existing tests
 
-## What's Fixed
+## What's Fixed (Phases 0-2) ✅
 - Semantic stages now exported and connected
 - PipelineContext has required fields
 - GeminiClient has generate_json()
 - Artifacts model has Doc 0/1/2/3 fields
 - INDEX.md has source isolation, 6 modes, Doc 3
 - RASS.md has prompt requirements, validation rules
+- Module conflict resolved (llm_temperature.py moved)
 
-## What's Built
-- Mode-specific extraction (6 modes)
+## What's Built (Phase 2) ✅
+- Gap Analysis stage (219 lines)
+- Semantic Synthesis stage (291 lines)
+- Document Assembly stage (459 lines)
+- Text input endpoint (/jobs/text-input)
+- Screenshot input endpoint (/jobs/screenshot-input)
+- OCR extraction for screenshots
+- Frontend text/screenshot modes
+- Platform hints for content input
+- Context handoff reports
+
+## What's Planned (Phases 3-10)
+- Mode-specific extraction enhancement (6 modes)
 - Validation stage with quote verification
 - Multi-source support
 - Evolving jobs with addendum

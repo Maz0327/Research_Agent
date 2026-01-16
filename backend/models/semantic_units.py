@@ -20,10 +20,22 @@ class ConfidenceLevel(str, Enum):
 
 
 class AnalysisMode(str, Enum):
-    """How the source was analyzed based on transcript availability."""
+    """How the source was analyzed based on content availability.
+
+    Per INDEX.md Section "Six Analysis Modes":
+    - Mode determines confidence ceiling
+    - Mode determines quote permissions
+    - Mode is set BEFORE extraction, not during
+    """
+    # Video sources
     TRANSCRIPT_GROUNDED = "transcript_grounded"  # Full transcript (Supadata/Whisper)
     CAPTION_GROUNDED = "caption_grounded"  # YouTube captions used
     VIDEO_ONLY = "video_only"  # No transcript available
+
+    # Non-video sources (per RASS 4.2)
+    TEXT_PROVIDED = "text_provided"  # User-pasted content
+    OCR_EXTRACTED = "ocr_extracted"  # Screenshot with OCR
+    ARTICLE_FETCHED = "article_fetched"  # Article URL with full text
 
 
 # -----------------------------------------------------------------------------
@@ -365,11 +377,22 @@ class SemanticExtractionResult:
 
     @property
     def confidence_ceiling(self) -> ConfidenceLevel:
-        """Return max allowed confidence based on analysis mode."""
+        """Return max allowed confidence based on analysis mode.
+
+        Per INDEX.md "Six Analysis Modes":
+        - transcript_grounded, article_fetched: HIGH
+        - caption_grounded, text_provided, ocr_extracted: MEDIUM
+        - video_only: LOW
+        """
         ceilings = {
+            # Video sources
             AnalysisMode.TRANSCRIPT_GROUNDED: ConfidenceLevel.HIGH,
             AnalysisMode.CAPTION_GROUNDED: ConfidenceLevel.MEDIUM,
             AnalysisMode.VIDEO_ONLY: ConfidenceLevel.LOW,
+            # Non-video sources
+            AnalysisMode.TEXT_PROVIDED: ConfidenceLevel.MEDIUM,
+            AnalysisMode.OCR_EXTRACTED: ConfidenceLevel.MEDIUM,
+            AnalysisMode.ARTICLE_FETCHED: ConfidenceLevel.HIGH,
         }
         return ceilings.get(self.analysis_mode, ConfidenceLevel.LOW)
 

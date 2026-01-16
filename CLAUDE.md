@@ -1,7 +1,7 @@
 # CLAUDE.md — Research Agent
 
-**Last Updated:** 2026-01-13
-**Version:** 2.0 (Semantic Pipeline)
+**Last Updated:** 2026-01-15
+**Version:** 2.1 (Phase 2 Complete)
 
 ---
 
@@ -54,11 +54,12 @@ Research Agent analyzes video and text sources to produce structured research do
 - Every claim traces back to source with timestamp/quote
 - Prevents hallucination through validation and confidence ceilings
 
-### Current State
+### Current State (2026-01-15)
 
-- **Video Analysis Pipeline:** Being replaced with semantic pipeline
-- **Semantic Pipeline:** Code exists, being connected and completed
-- **Target:** Full semantic pipeline with Doc 0/1/2/3 outputs
+- **Phase 2:** ✅ COMPLETE — Semantic pipeline orchestration + extended inputs
+- **Semantic Pipeline:** Fully wired (5 stages in worker.py)
+- **Extended Inputs:** Text + Screenshot endpoints implemented
+- **Next:** Phase 3 — Add Analysis Modes OR E2E testing
 
 ### Key Documents
 

@@ -24,6 +24,8 @@ from loguru import logger
 
 from backend.utils.error_handling import sanitize_error_message
 from backend.utils.rate_limiter import with_rate_limit
+from backend.utils.llm_temperature import get_temperature, TaskType, TEMP_FACTUAL
+from backend.pipeline.quote_verification import verify_extraction_results
 
 # =============================================================================
 # Constants (L-002, L-007: Extract magic numbers)
@@ -502,6 +504,84 @@ class GeminiClient:
         return input_cost + output_cost
 
     # =========================================================================
+    # Semantic Extraction Support (Phase 1)
+    # =========================================================================
+
+    @with_rate_limit("gemini")
+    def generate_json(
+        self,
+        prompt: str,
+        system_message: Optional[str] = None,
+        model: str = "gemini-2.5-flash",
+        temperature: Optional[float] = None,
+    ) -> dict[str, Any]:
+        """Generate JSON output with structured parsing.
+
+        Used for semantic extraction where we need strict JSON output.
+
+        Args:
+            prompt: The extraction prompt
+            system_message: Optional system instruction/role
+            model: Model to use
+            temperature: Override temperature (defaults to TEMP_FACTUAL)
+
+        Returns:
+            Dict with 'data' (parsed JSON), 'cost', and optional 'error'
+        """
+        try:
+            logger.info(f"Gemini JSON generation: {prompt[:80]}...")
+
+            # Use factual temperature for extraction tasks
+            if temperature is None:
+                temperature = TEMP_FACTUAL  # 0.0 for deterministic extraction
+
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=8192,  # Larger for extraction output
+                system_instruction=system_message,
+            )
+
+            response = self._client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=config,
+            )
+            text = response.text
+
+            # Parse JSON from response
+            try:
+                data = parse_json_from_llm_response(text)
+            except GeminiParseError as e:
+                logger.warning(f"JSON parse failed: {e.message}")
+                return {
+                    "data": {},
+                    "cost": 0,
+                    "error": f"JSON parse error: {e.message}",
+                    "raw_response": e.raw_response,
+                }
+
+            # Estimate cost
+            input_tokens = len(prompt.split()) * 1.3
+            output_tokens = len(text.split()) * 1.3
+            cost = self._estimate_cost(model, input_tokens, output_tokens)
+
+            logger.info(f"Gemini JSON response: {len(text)} chars, ~${cost:.4f}")
+
+            return {
+                "data": data,
+                "cost": cost,
+            }
+
+        except Exception as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Gemini JSON generation failed: {sanitized}")
+            return {
+                "data": {},
+                "cost": 0,
+                "error": sanitized,
+            }
+
+    # =========================================================================
     # Phase 1.5: YouTube Video Analysis
     # =========================================================================
 
@@ -567,9 +647,16 @@ RULES:
             # This replaces just passing URL as text which may not properly fetch video content
             video_part = types.Part.from_uri(file_uri=video_url, mime_type="video/*")
 
+            # TO-001: Use deterministic temperature for factual quote/clip extraction
+            config = types.GenerateContentConfig(
+                temperature=TEMP_FACTUAL,  # 0.0 for verbatim extraction
+                max_output_tokens=4096,
+            )
+
             response = self._client.models.generate_content(
                 model=model,
                 contents=[video_part, extraction_prompt],
+                config=config,
             )
             text = response.text
 
@@ -965,8 +1052,9 @@ YouTube Video URL: {chunk_url}"""
                 )
 
             # C-002: Add timeout configuration
+            # TO-001: Structure analysis uses moderate temperature (some interpretation allowed)
             config = types.GenerateContentConfig(
-                temperature=0.7,
+                temperature=get_temperature(TaskType.STRUCTURE_ANALYSIS),  # 0.3
                 max_output_tokens=4096,
             )
 
@@ -1158,11 +1246,12 @@ YouTube Video URL: {chunk_url}"""
                 )
 
             # C-002: Add timeout configuration
+            # TO-001: Gap analysis allows moderate exploration
             config = types.GenerateContentConfig(
-                temperature=0.7,
+                temperature=get_temperature(TaskType.GAP_ANALYSIS),  # 0.4
                 max_output_tokens=4096,
             )
-            
+
             response = self._client.models.generate_content(
                 model=model,
                 contents=[prompt],
@@ -1314,12 +1403,12 @@ YouTube Video URL: {chunk_url}"""
                     f"Prompt template error: {e}"
                 )
 
-            # C-002: Add timeout configuration
+            # TO-001: Research starter allows moderate exploration
             config = types.GenerateContentConfig(
-                temperature=0.7,
+                temperature=get_temperature(TaskType.RESEARCH_STARTER),  # 0.5
                 max_output_tokens=4096,
             )
-            
+
             response = self._client.models.generate_content(
                 model=model,
                 contents=[prompt],
@@ -1409,10 +1498,12 @@ YouTube Video URL: {chunk_url}"""
         research_topic: str,
         model: str = "gemini-2.5-flash",
         progress_callback: Optional[callable] = None,
+        transcripts: Optional[dict[str, str]] = None,
     ) -> dict[str, Any]:
         """Run complete 4-pass analysis pipeline.
 
         Pass 1: Extract clips and quotes (existing)
+        Pass 1.5: Verify quotes against transcripts (QV-003)
         Pass 2: Structure analysis per video (ContentBlueprint)
         Pass 3: Gap analysis across all videos (GapAnalysis)
         Pass 4: Research starter with actionable queries (ResearchStarter)
@@ -1422,6 +1513,7 @@ YouTube Video URL: {chunk_url}"""
             research_topic: The topic being researched
             model: Model to use
             progress_callback: Optional callback(pass_num, total_passes, status, detail)
+            transcripts: Optional dict mapping video_url -> transcript_text for quote verification
 
         Returns:
             Dict with all pipeline outputs including cost and error tracking
@@ -1485,6 +1577,54 @@ YouTube Video URL: {chunk_url}"""
 
         # C-003: Limit results to prevent runaway processing
         results = batch_result.get("results", [])[:MAX_VIDEOS_PER_JOB]
+
+        # QV-003: Quote verification against transcripts (if available)
+        # This catches hallucinated quotes before they propagate downstream
+        verification_warnings = []
+        if transcripts:
+            safe_progress(1, total_passes, "verifying", "Verifying quotes against transcripts...")
+            verified_results = []
+            for result in results:
+                video_url = result.get("video_url", "")
+                # Find transcript for this video
+                transcript_text = transcripts.get(video_url)
+                if transcript_text:
+                    verified_result, warnings = verify_extraction_results(
+                        result, transcript_text, video_url
+                    )
+                    verified_results.append(verified_result)
+                    verification_warnings.extend(warnings)
+                else:
+                    # No transcript - keep unverified but flag
+                    result["quote_verification"] = {
+                        "transcript_available": False,
+                        "clips_verified": 0,
+                        "clips_removed": 0,
+                    }
+                    verification_warnings.append(
+                        f"Quote verification skipped for {video_url}: no transcript"
+                    )
+                    verified_results.append(result)
+            results = verified_results
+
+            # Update batch_result with verified clips/quotes
+            all_verified_clips = []
+            all_verified_quotes = []
+            for r in results:
+                all_verified_clips.extend(r.get("clips", []))
+                all_verified_quotes.extend(r.get("quotes", []))
+            batch_result["clips"] = all_verified_clips
+            batch_result["quotes"] = all_verified_quotes
+
+            # Log verification summary
+            total_removed = sum(
+                r.get("quote_verification", {}).get("clips_removed", 0) +
+                r.get("quote_verification", {}).get("quotes_removed", 0)
+                for r in results
+            )
+            if total_removed > 0:
+                logger.info(f"Quote verification: {total_removed} hallucinated items removed")
+                pipeline_errors.extend(verification_warnings)
 
         # Prepare summaries for Pass 3
         clips_summary = "\n".join([

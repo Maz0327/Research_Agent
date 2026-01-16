@@ -638,3 +638,241 @@ class SemanticBrief:
                 )
 
         return len(issues) == 0, issues
+
+
+# -----------------------------------------------------------------------------
+# DOC 3: PRODUCER PACKET (Optional Creative Layer)
+# -----------------------------------------------------------------------------
+
+@dataclass
+class NarrativeAngle:
+    """A potential narrative angle for content production."""
+    angle_id: str
+    description: str
+    hook: str
+    based_on: list[str] = field(default_factory=list)  # KeyPoint/Theme IDs
+    confidence: ConfidenceLevel = ConfidenceLevel.MEDIUM
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "angle_id": self.angle_id,
+            "description": self.description,
+            "hook": self.hook,
+            "based_on": self.based_on,
+            "confidence": self.confidence.value,
+        }
+
+
+@dataclass
+class StructureOption:
+    """A structure option for organizing the content."""
+    structure_type: str  # "chronological", "thematic", "mystery", "villain_origin"
+    description: str
+    act_breakdown: list[str] = field(default_factory=list)
+    why_it_works: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "structure_type": self.structure_type,
+            "description": self.description,
+            "act_breakdown": self.act_breakdown,
+            "why_it_works": self.why_it_works,
+        }
+
+
+@dataclass
+class ProducerPacket:
+    """
+    Doc 3: Producer Packet (Optional Creative Layer)
+
+    Purpose:
+    - Provide production-ready creative guidance
+    - Bridge research output to content creation
+
+    Gating Requirements (all must be met):
+    - 4+ sources in job
+    - At least 1 high-confidence source
+    - Job status = complete
+    - User explicitly requests OR job mode = documentary
+
+    Note: This document MAY include speculative elements but must
+    distinguish them from research-backed content.
+    """
+    job_id: str
+
+    # Story Core (What's the compelling narrative?)
+    story_core: str  # 2-3 sentences
+    story_core_based_on: list[str] = field(default_factory=list)  # KeyPoint IDs
+
+    # Narrative Angles (Multiple options for creator to choose)
+    narrative_angles: list[NarrativeAngle] = field(default_factory=list)
+
+    # Structure Options
+    structure_options: list[StructureOption] = field(default_factory=list)
+
+    # Creative Elements
+    opening_hooks: list[str] = field(default_factory=list)
+    title_concepts: list[str] = field(default_factory=list)
+    thumbnail_concepts: list[str] = field(default_factory=list)
+    call_to_action: list[str] = field(default_factory=list)
+
+    # Risk Assessment
+    sensitivity_notes: list[str] = field(default_factory=list)
+    risk_assessment: str = ""
+    legal_considerations: list[str] = field(default_factory=list)
+
+    # Source Quality Summary
+    source_count: int = 0
+    high_confidence_sources: int = 0
+    verification_rate: float = 0.0
+
+    # Quality Indicators
+    triage: TriageLevel = TriageLevel.USABLE
+    warnings: list[str] = field(default_factory=list)
+    created_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "document_type": "producer_packet",
+            "job_id": self.job_id,
+            "story_core": {
+                "text": self.story_core,
+                "based_on": self.story_core_based_on,
+            },
+            "narrative_angles": [na.to_dict() for na in self.narrative_angles],
+            "structure_options": [so.to_dict() for so in self.structure_options],
+            "creative_elements": {
+                "opening_hooks": self.opening_hooks,
+                "title_concepts": self.title_concepts,
+                "thumbnail_concepts": self.thumbnail_concepts,
+                "call_to_action": self.call_to_action,
+            },
+            "risk_assessment": {
+                "sensitivity_notes": self.sensitivity_notes,
+                "risk_assessment": self.risk_assessment,
+                "legal_considerations": self.legal_considerations,
+            },
+            "source_quality": {
+                "source_count": self.source_count,
+                "high_confidence_sources": self.high_confidence_sources,
+                "verification_rate": self.verification_rate,
+            },
+            "triage": self.triage.value,
+            "warnings": self.warnings,
+            "created_at": self.created_at,
+        }
+
+    def to_markdown(self) -> str:
+        """Render Producer Packet as markdown."""
+        lines = ["# PRODUCER PACKET", ""]
+
+        # Warning for thin content
+        if self.triage in (TriageLevel.THIN, TriageLevel.DEGRADED):
+            lines.extend([
+                "> **Caution:** This packet is based on limited sources.",
+                "> Verify key claims before production.",
+                "",
+            ])
+
+        lines.extend([
+            "## STORY CORE",
+            self.story_core,
+            f"(Based on: {', '.join(self.story_core_based_on)})",
+            "",
+            "---",
+            "",
+            "## NARRATIVE ANGLES",
+        ])
+
+        for angle in self.narrative_angles:
+            lines.extend([
+                f"### {angle.angle_id}: {angle.description}",
+                f"**Hook:** {angle.hook}",
+                f"**Confidence:** {angle.confidence.value}",
+                "",
+            ])
+
+        lines.extend(["---", "", "## STRUCTURE OPTIONS"])
+
+        for opt in self.structure_options:
+            lines.extend([
+                f"### {opt.structure_type.title()}",
+                f"Description: {opt.description}",
+                "",
+                "Act Breakdown:",
+            ])
+            for i, act in enumerate(opt.act_breakdown, 1):
+                lines.append(f"{i}. {act}")
+            lines.extend([f"Why it works: {opt.why_it_works}", ""])
+
+        lines.extend([
+            "---",
+            "",
+            "## CREATIVE ELEMENTS",
+            "",
+            "### Opening Hooks",
+        ])
+        for hook in self.opening_hooks:
+            lines.append(f"- {hook}")
+
+        lines.extend(["", "### Title Concepts"])
+        for title in self.title_concepts:
+            lines.append(f"- {title}")
+
+        lines.extend(["", "### Thumbnail Concepts"])
+        for thumb in self.thumbnail_concepts:
+            lines.append(f"- {thumb}")
+
+        lines.extend([
+            "",
+            "---",
+            "",
+            "## RISK ASSESSMENT",
+            "",
+            "### Sensitivity Notes",
+        ])
+        for note in self.sensitivity_notes:
+            lines.append(f"- {note}")
+
+        lines.extend([
+            "",
+            f"**Overall Risk:** {self.risk_assessment}",
+            "",
+            "### Legal Considerations",
+        ])
+        for legal in self.legal_considerations:
+            lines.append(f"- {legal}")
+
+        lines.extend([
+            "",
+            "---",
+            "",
+            "## SOURCE QUALITY",
+            f"- Total sources: {self.source_count}",
+            f"- High-confidence sources: {self.high_confidence_sources}",
+            f"- Verification rate: {self.verification_rate:.0%}",
+        ])
+
+        return "\n".join(lines)
+
+    def meets_gating_requirements(self) -> tuple[bool, list[str]]:
+        """
+        Check if the packet meets gating requirements.
+
+        Per RASS 3.4:
+        - 4+ sources
+        - At least 1 high-confidence source
+
+        Returns (passes, list of failed requirements).
+        """
+        failed = []
+
+        if self.source_count < 4:
+            failed.append(f"Only {self.source_count} sources (minimum 4)")
+
+        if self.high_confidence_sources < 1:
+            failed.append("No high-confidence sources (minimum 1)")
+
+        return len(failed) == 0, failed

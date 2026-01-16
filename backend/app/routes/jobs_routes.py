@@ -3,7 +3,7 @@ import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from loguru import logger
 
 from backend.app.rate_limiter import limiter, RATE_LIMITS
@@ -15,6 +15,8 @@ from backend.models.job import (
     CreateJobRequest, CreateJobResponse, JobStatusResponse,
     SelectInterpretationRequest, PreviewJobRequest, PreviewJobResponse,
     VideoAnalysisRequest, VideoAnalysisResponse, VideoAnalysisStatusResponse,
+    TextInputRequest, TextInputResponse,
+    ScreenshotInputRequest, ScreenshotInputResponse,
 )
 from backend.state import create_job, get_job, update_job, list_jobs
 from backend.utils.validators import ValidationError, validate_video_job_inputs
@@ -336,6 +338,195 @@ async def get_video_analysis_status(
         error=error,
         created_at=job.created_at,
         producer_packet=producer_packet,
+    )
+
+
+# =============================================================================
+# Extended Input Endpoints (Phase 2B - Text and Screenshot inputs)
+# =============================================================================
+
+@router.post("/text-input", response_model=TextInputResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def create_text_input_job(
+    request: Request,
+    job_request: TextInputRequest,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Create a semantic extraction job from user-provided text content.
+
+    Used for paywalled articles, emails, or other text the user pastes directly.
+    Analysis mode is TEXT_PROVIDED with MEDIUM confidence ceiling.
+    NO QUOTES will be extracted - observations only.
+
+    Returns job ID and word count for the content.
+    """
+    content = job_request.content.strip()
+    word_count = len(content.split())
+
+    # Build config_json for the job
+    config_json = {
+        "topic": job_request.topic,
+        "job_type": "text_input",
+        "input_mode": "text",
+        "content": content,
+        "source_label": job_request.source_label,
+        "context_note": job_request.context_note,
+        "platform_hint": job_request.platform_hint,
+        "word_count": word_count,
+        "analysis_mode": "text_provided",
+        "confidence_ceiling": "MEDIUM",
+    }
+
+    # Store user info
+    if user:
+        config_json["user_email"] = user.email
+        config_json["user_id"] = user.user_id
+
+    # Create job
+    user_id = user.user_id if user else None
+    job = create_job(config_json=config_json, user_id=user_id)
+
+    # Audit log
+    logger.info(
+        "Text input job created",
+        extra={
+            "job_id": job.job_id,
+            "user_id": user_id or "anonymous",
+            "word_count": word_count,
+            "source_label": job_request.source_label,
+            "ip": request.client.host if request.client else None,
+            "event": "text_input_job_created",
+        }
+    )
+
+    # Enqueue Celery task for semantic pipeline
+    logger.info(f"Enqueuing text input job {job.job_id} ({word_count} words)")
+    run_research_job.apply_async((job.job_id, job_request.topic), task_id=job.job_id)
+
+    # Build warnings
+    warnings = []
+    if word_count < 100:
+        warnings.append("Content is quite short - extraction may be limited")
+    if word_count > 20000:
+        warnings.append("Large content - processing may take longer")
+
+    return TextInputResponse(
+        job_id=job.job_id,
+        word_count=word_count,
+        confidence_ceiling="MEDIUM",
+        warnings=warnings if warnings else None,
+    )
+
+
+@router.post("/screenshot-input", response_model=ScreenshotInputResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def create_screenshot_input_job(
+    request: Request,
+    topic: str = Form(..., min_length=1, max_length=500),
+    platform_hint: str = Form("other"),
+    context_note: Optional[str] = Form(None, max_length=500),
+    screenshot: UploadFile = File(...),
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Create a semantic extraction job from a screenshot image.
+
+    OCR extracts text from the screenshot, then semantic extraction runs.
+    Analysis mode is OCR_EXTRACTED with MEDIUM confidence ceiling.
+    NO QUOTES will be extracted - OCR may have errors.
+
+    Accepts image files up to 10MB (PNG, JPG, WEBP).
+    Returns job ID and extracted word count.
+    """
+    # Validate file type
+    allowed_types = {"image/png", "image/jpeg", "image/webp", "image/jpg"}
+    if screenshot.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid file type: {screenshot.content_type}. Allowed: PNG, JPG, WEBP"
+        )
+
+    # Validate file size (10MB max)
+    max_size = 10 * 1024 * 1024  # 10MB
+    content = await screenshot.read()
+    if len(content) > max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large: {len(content) / 1024 / 1024:.1f}MB. Maximum: 10MB"
+        )
+
+    # Save screenshot temporarily for OCR processing
+    import tempfile
+    import os
+    from pathlib import Path
+
+    # Create temp directory if needed
+    temp_dir = Path(tempfile.gettempdir()) / "research_agent_screenshots"
+    temp_dir.mkdir(exist_ok=True)
+
+    # Save file
+    file_ext = Path(screenshot.filename or "image.png").suffix or ".png"
+    temp_file = temp_dir / f"{uuid.uuid4()}{file_ext}"
+
+    with open(temp_file, "wb") as f:
+        f.write(content)
+
+    # Run OCR extraction
+    # For now, we'll placeholder this and do OCR in the pipeline
+    # The OCR stage will be implemented in Step 2B-4
+    ocr_text = ""  # Placeholder - will be extracted in pipeline
+    ocr_word_count = 0  # Placeholder
+
+    # Build config_json for the job
+    config_json = {
+        "topic": topic,
+        "job_type": "screenshot_input",
+        "input_mode": "screenshot",
+        "screenshot_path": str(temp_file),
+        "platform_hint": platform_hint,
+        "context_note": context_note,
+        "analysis_mode": "ocr_extracted",
+        "confidence_ceiling": "MEDIUM",
+    }
+
+    # Store user info
+    if user:
+        config_json["user_email"] = user.email
+        config_json["user_id"] = user.user_id
+
+    # Create job
+    user_id = user.user_id if user else None
+    job = create_job(config_json=config_json, user_id=user_id)
+
+    # Audit log
+    logger.info(
+        "Screenshot input job created",
+        extra={
+            "job_id": job.job_id,
+            "user_id": user_id or "anonymous",
+            "platform_hint": platform_hint,
+            "file_size_kb": len(content) / 1024,
+            "ip": request.client.host if request.client else None,
+            "event": "screenshot_input_job_created",
+        }
+    )
+
+    # Enqueue Celery task for OCR + semantic pipeline
+    logger.info(f"Enqueuing screenshot input job {job.job_id}")
+    run_research_job.apply_async((job.job_id, topic), task_id=job.job_id)
+
+    # Build warnings
+    warnings = []
+    if platform_hint == "other":
+        warnings.append("No platform specified - OCR extraction may be less accurate")
+
+    return ScreenshotInputResponse(
+        job_id=job.job_id,
+        ocr_word_count=ocr_word_count,  # Will be updated after OCR
+        confidence_ceiling="MEDIUM",
+        platform_detected=platform_hint,
+        warnings=warnings if warnings else None,
     )
 
 

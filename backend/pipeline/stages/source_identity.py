@@ -36,7 +36,7 @@ class SourceIdentityPackage:
     """
     # Stable identifiers
     source_id: str  # SRC_1, SRC_2, etc.
-    source_type: str  # "youtube", "article", "reddit"
+    source_type: str  # "youtube", "article", "reddit", "user_text", "screenshot"
 
     # Canonical metadata
     url: str
@@ -60,6 +60,14 @@ class SourceIdentityPackage:
     # Provenance metadata (full object)
     provenance: Optional[TranscriptProvenance] = None
 
+    # Phase 2B: Extended Input Mode fields
+    input_mode: str = "url"  # "url", "text", "screenshot"
+    user_provided: bool = False  # True if user pasted content
+    ocr_extracted: bool = False  # True if from screenshot OCR
+    platform_hint: Optional[str] = None  # "reddit", "twitter", "forum", "other"
+    context_note: Optional[str] = None  # User-provided context for missing info
+    duration_minutes: Optional[float] = None  # For validation (video length)
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
         return {
@@ -76,15 +84,26 @@ class SourceIdentityPackage:
             "is_accessible": self.is_accessible,
             "failure_reason": self.failure_reason,
             "provenance": self.provenance.to_dict() if self.provenance else None,
+            # Phase 2B fields
+            "input_mode": self.input_mode,
+            "user_provided": self.user_provided,
+            "ocr_extracted": self.ocr_extracted,
+            "platform_hint": self.platform_hint,
+            "context_note": self.context_note,
         }
 
     @property
     def confidence_ceiling(self) -> ConfidenceLevel:
         """Return max allowed confidence based on analysis mode."""
         ceilings = {
+            # Video sources
             AnalysisMode.TRANSCRIPT_GROUNDED: ConfidenceLevel.HIGH,
             AnalysisMode.CAPTION_GROUNDED: ConfidenceLevel.MEDIUM,
             AnalysisMode.VIDEO_ONLY: ConfidenceLevel.LOW,
+            # Non-video sources (Phase 2B)
+            AnalysisMode.TEXT_PROVIDED: ConfidenceLevel.MEDIUM,
+            AnalysisMode.OCR_EXTRACTED: ConfidenceLevel.MEDIUM,
+            AnalysisMode.ARTICLE_FETCHED: ConfidenceLevel.HIGH,
         }
         return ceilings.get(self.analysis_mode, ConfidenceLevel.LOW)
 
@@ -303,6 +322,153 @@ def build_source_identity_from_reddit(
         is_accessible=is_accessible,
         failure_reason=failure_reason,
         provenance=provenance,
+    )
+
+
+def build_source_identity_from_text(
+    content: str,
+    source_label: str,
+    source_index: int,
+    context_note: Optional[str] = None,
+    platform_hint: Optional[str] = None,
+) -> SourceIdentityPackage:
+    """
+    Build identity package from user-provided text content.
+
+    Used for paywalled articles, emails, or other text the user pastes directly.
+    Analysis mode is TEXT_PROVIDED with MEDIUM confidence ceiling.
+    NO QUOTES allowed in this mode - observations only.
+
+    Args:
+        content: User-provided text content
+        source_label: What the user says this is (e.g., "WSJ Article")
+        source_index: 0-based index for source_id generation
+        context_note: Optional context the user provides
+        platform_hint: Optional platform hint ("reddit", "twitter", "forum", "other")
+
+    Returns:
+        SourceIdentityPackage with TEXT_PROVIDED mode
+    """
+    source_id = f"SRC_{source_index + 1}"
+
+    # Text provided mode - no URL, user-provided content
+    analysis_mode = AnalysisMode.TEXT_PROVIDED
+    is_accessible = bool(content and content.strip())
+    failure_reason = None if is_accessible else "No content provided"
+    content_word_count = len(content.split()) if content else 0
+
+    logger.info(f"Building identity for {source_id}: {source_label[:50]} (text input)")
+
+    # Build provenance for user-provided text
+    provenance = TranscriptProvenance(
+        transcript_source="user_text",
+        transcript_status="success" if content else "failed",
+        captions_status="n/a",
+        gemini_analysis_mode=analysis_mode,
+        quote_verification=False,  # NO quotes in text_provided mode
+        timestamp_grounding=False,
+        semantic_precision=ConfidenceLevel.MEDIUM if content else ConfidenceLevel.LOW,
+        notes=context_note,
+    )
+
+    return SourceIdentityPackage(
+        source_id=source_id,
+        source_type="user_text",
+        url="",  # No URL for user-provided text
+        title=source_label,
+        creator=None,
+        published=None,
+        transcript_source="user_text" if content else "none",
+        analysis_mode=analysis_mode,
+        content=content,
+        content_word_count=content_word_count,
+        is_accessible=is_accessible,
+        failure_reason=failure_reason,
+        provenance=provenance,
+        # Phase 2B fields
+        input_mode="text",
+        user_provided=True,
+        ocr_extracted=False,
+        platform_hint=platform_hint,
+        context_note=context_note,
+    )
+
+
+def build_source_identity_from_screenshot(
+    ocr_text: str,
+    source_index: int,
+    platform_hint: str = "other",
+    context_note: Optional[str] = None,
+    original_image_path: Optional[str] = None,
+) -> SourceIdentityPackage:
+    """
+    Build identity package from screenshot OCR extraction.
+
+    Used for social media screenshots, forum posts, etc.
+    Analysis mode is OCR_EXTRACTED with MEDIUM confidence ceiling.
+    NO QUOTES allowed - OCR may contain errors.
+
+    Args:
+        ocr_text: Text extracted via OCR from screenshot
+        source_index: 0-based index for source_id generation
+        platform_hint: Platform type ("reddit", "twitter", "forum", "other")
+        context_note: Optional context the user provides
+        original_image_path: Path to original screenshot (for reference)
+
+    Returns:
+        SourceIdentityPackage with OCR_EXTRACTED mode
+    """
+    source_id = f"SRC_{source_index + 1}"
+
+    # OCR extracted mode - content from image
+    analysis_mode = AnalysisMode.OCR_EXTRACTED
+    is_accessible = bool(ocr_text and ocr_text.strip())
+    failure_reason = None if is_accessible else "OCR extraction failed or empty"
+    content_word_count = len(ocr_text.split()) if ocr_text else 0
+
+    # Generate title from platform hint
+    title_map = {
+        "reddit": "Reddit Screenshot",
+        "twitter": "Twitter/X Screenshot",
+        "forum": "Forum Screenshot",
+        "other": "Screenshot Content",
+    }
+    title = title_map.get(platform_hint, "Screenshot Content")
+
+    logger.info(f"Building identity for {source_id}: {title} (screenshot OCR)")
+
+    # Build provenance for OCR-extracted content
+    provenance = TranscriptProvenance(
+        transcript_source="ocr",
+        transcript_status="success" if ocr_text else "failed",
+        captions_status="n/a",
+        gemini_analysis_mode=analysis_mode,
+        quote_verification=False,  # NO quotes in OCR mode - may have errors
+        timestamp_grounding=False,
+        semantic_precision=ConfidenceLevel.MEDIUM if ocr_text else ConfidenceLevel.LOW,
+        notes=f"OCR from {platform_hint}. {context_note or ''}".strip(),
+    )
+
+    return SourceIdentityPackage(
+        source_id=source_id,
+        source_type="screenshot",
+        url=original_image_path or "",  # Store image path if available
+        title=title,
+        creator=None,
+        published=None,
+        transcript_source="ocr" if ocr_text else "none",
+        analysis_mode=analysis_mode,
+        content=ocr_text,
+        content_word_count=content_word_count,
+        is_accessible=is_accessible,
+        failure_reason=failure_reason,
+        provenance=provenance,
+        # Phase 2B fields
+        input_mode="screenshot",
+        user_provided=False,
+        ocr_extracted=True,
+        platform_hint=platform_hint,
+        context_note=context_note,
     )
 
 

@@ -168,6 +168,44 @@ class SourcesConfig(BaseModel):
         }
 
 
+class HallucinationConfig(BaseModel):
+    """Hallucination detection configuration.
+
+    Controls semantic entropy detection for high-confidence claims.
+    When enabled, generates multiple LLM samples and measures consistency.
+    High entropy (inconsistent outputs) suggests potential hallucination.
+
+    Cost: ~$0.0005 per claim checked (5 samples × Gemini Flash)
+    Latency: +2-5 seconds per claim
+    """
+    enable_semantic_entropy: bool = Field(
+        False,
+        description="Enable semantic entropy detection for high-confidence claims"
+    )
+    entropy_samples: int = Field(
+        5, ge=2, le=10,
+        description="Number of samples to generate per claim (more = higher accuracy, higher cost)"
+    )
+    entropy_threshold: float = Field(
+        0.75, ge=0.5, le=1.0,
+        description="Entropy threshold above which claims are flagged (0.75 = balanced)"
+    )
+    auto_enable_for_investigation: bool = Field(
+        True,
+        description="Automatically enable for investigation mode regardless of manual setting"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "enable_semantic_entropy": False,
+                "entropy_samples": 5,
+                "entropy_threshold": 0.75,
+                "auto_enable_for_investigation": True,
+            }
+        }
+
+
 class BudgetsConfig(BaseModel):
     """Resource budget constraints."""
     max_web_urls: int = Field(30, ge=1, le=200, description="Maximum URLs to fetch from web search")
@@ -235,6 +273,25 @@ class JobConfig(BaseModel):
     output: OutputConfig = Field(
         default_factory=OutputConfig, description="Output configuration"
     )
+    hallucination: HallucinationConfig = Field(
+        default_factory=HallucinationConfig,
+        description="Hallucination detection settings (semantic entropy)"
+    )
+
+    def should_enable_semantic_entropy(self) -> bool:
+        """Determine if semantic entropy detection should run.
+
+        Returns True if:
+        - Manually enabled via hallucination.enable_semantic_entropy
+        - OR auto_enable_for_investigation=True AND mode is INVESTIGATION
+        """
+        if self.hallucination.enable_semantic_entropy:
+            return True
+        if self.hallucination.auto_enable_for_investigation:
+            # Check both legacy and documentary modes
+            if self.mode == ResearchMode.INVESTIGATION:
+                return True
+        return False
 
     class Config:
         json_schema_extra = {

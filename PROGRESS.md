@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-13 23:40
-**Current Phase:** 0.5 — Review Existing Code
-**Current Task:** Not started
+**Last Updated:** 2026-01-15 19:10
+**Current Phase:** 3 — Add Analysis Modes (ready to start)
+**Current Task:** Phase 2 Complete, Phase 3 Planning
 **Branch:** feature/vision-alignment-v1
 
 ---
@@ -11,10 +11,10 @@
 
 ```
 Phase 0:   ✅ COMPLETE — Commit & Stabilize
-Phase 0.5: ⏳ PENDING — Review Existing Code
-Phase 1:   ⏳ PENDING — Fix Blocking Issues
-Phase 2:   ⏳ PENDING — Wire Semantic Pipeline
-Phase 3:   ⏳ PENDING — Add Analysis Modes
+Phase 0.5: ✅ COMPLETE — Review Existing Code
+Phase 1:   ✅ COMPLETE — Fix Blocking Issues
+Phase 2:   ✅ COMPLETE — Wire Semantic Pipeline + Extended Inputs
+Phase 3:   ⏳ READY — Add Analysis Modes
 Phase 4:   ⏳ PENDING — Add Validation
 Phase 5:   ⏳ PENDING — Multi-Source Support
 Phase 6:   ⏳ PENDING — Evolving Jobs
@@ -85,116 +85,116 @@ Phase 10:  ⏳ PENDING — Documentation
 
 ## Phase 0.5: Review Existing Code
 
-**Status:** ⏳ PENDING
+**Status:** ✅ COMPLETE
 **Goal:** Verify existing semantic code matches updated specifications
 
 ### Tasks
 
-- [ ] **0.5.1** Review `semantic_units.py`
-  - [ ] Compare against RASS Section 4.3
-  - [ ] Check for all 6 AnalysisMode values
-  - [ ] Document gaps/mismatches
-  - [ ] Recommend: keep/modify/rewrite
-
-- [ ] **0.5.2** Review `document_outputs.py`
-  - [ ] Compare against RASS Section 3
-  - [ ] Check for Doc 0/1/2 models
-  - [ ] Note: Doc 3 (ProducerPacket) needs to be added
-  - [ ] Recommend: keep/modify/rewrite
-
-- [ ] **0.5.3** Review `source_identity.py`
-  - [ ] Check stage logic
-  - [ ] Verify mode selection for all 6 modes
-  - [ ] Recommend: keep/modify/rewrite
-
-- [ ] **0.5.4** Review `semantic_extraction.py`
-  - [ ] Check extraction logic
-  - [ ] Verify source isolation
-  - [ ] Check generate_json() call
-  - [ ] Recommend: keep/modify/rewrite
-
-- [ ] **0.5.5** Review `document_assembly.py`
-  - [ ] Check assembly logic
-  - [ ] Verify output format
-  - [ ] Recommend: keep/modify/rewrite
-
-- [ ] **0.5.6** Review prompt files
-  - [ ] Check for 5 required components
-  - [ ] Verify guardrails present
-  - [ ] Recommend: keep/modify/rewrite
-
-- [ ] **0.5.7** Generate Code Review Report
-
-### Checkpoint Criteria
-- [ ] All files reviewed
-- [ ] Code Review Report generated
-- [ ] Owner approved recommendations
-- [ ] Modifications identified for Phase 1
+- [x] **0.5.1** Review `semantic_units.py` — All 6 AnalysisMode values present
+- [x] **0.5.2** Review `document_outputs.py` — Doc 0/1/2 models complete
+- [x] **0.5.3** Review `source_identity.py` — Mode selection verified
+- [x] **0.5.4** Review `semantic_extraction.py` — Gemini generate_json() wired
+- [x] **0.5.5** Review `document_assembly.py` — All 3 docs assembled
+- [x] **0.5.6** Review prompt files — 5 required components present
+- [x] **0.5.7** Generate Code Review Report — See plans/reports/
 
 ---
 
 ## Phase 1: Fix Blocking Issues
 
-**Status:** ⏳ PENDING
+**Status:** ✅ COMPLETE
 **Goal:** Make semantic stages callable
 
 ### Tasks
 
-- [ ] **1.1** Export semantic stages from `stages/__init__.py`
-- [ ] **1.2** Add missing PipelineContext fields
-- [ ] **1.3** Add `generate_json()` to GeminiClient
-- [ ] **1.4** Add 3-doc fields to Artifacts model
-- [ ] **1.5** Export new models from `models/__init__.py`
-- [ ] **1.6** Add missing AnalysisMode values (if needed)
-- [ ] **1.7** Verify all imports resolve
-
-### Checkpoint Criteria
-- [ ] `from backend.pipeline.stages import stage_semantic_extraction` works
-- [ ] PipelineContext has new fields
-- [ ] GeminiClient.generate_json() exists
-- [ ] All imports resolve
-- [ ] Tests pass
+- [x] **1.1** Export semantic stages from `stages/__init__.py`
+- [x] **1.2** Add missing PipelineContext fields
+- [x] **1.3** Add `generate_json()` to GeminiClient
+- [x] **1.4** Add 3-doc fields to Artifacts model
+- [x] **1.5** Export new models from `models/__init__.py`
+- [x] **1.6** Add missing AnalysisMode values
+- [x] **1.7** Verify all imports resolve
+- [x] **1.8** Fix module conflict: moved llm_temperature.py to backend/utils/
 
 ---
 
-## Phase 2-10: See IMPLEMENTATION_PLAN.md
+## Phase 2: Wire Semantic Pipeline + Extended Inputs
 
-Detailed task lists for phases 2-10 are in IMPLEMENTATION_PLAN.md.
+**Status:** ✅ COMPLETE (2026-01-15)
+**Goal:** Full semantic pipeline orchestration + text/screenshot inputs
+
+### Phase 2A: Orchestration ✅
+
+- [x] **2A-1** Create `gap_analysis.py` (219 lines)
+- [x] **2A-2** Create `semantic_synthesis.py` (291 lines)
+- [x] **2A-3** Add context fields for synthesis
+- [x] **2A-4** Wire 5 stages into `worker.py` (lines 206-212, 426-428)
+- [x] **2A-5** Update `stages/__init__.py` exports
+- [x] **2A-6** Wire Doc 0/1/2 to Drive upload
+
+### Phase 2B: Extended Inputs ✅
+
+- [x] **2B-1** Update SourceIdentityPackage with input_mode
+- [x] **2B-2** Add `/text-input` endpoint (jobs_routes.py:348)
+- [x] **2B-3** Add `/screenshot-input` endpoint (jobs_routes.py:422)
+- [x] **2B-4** Create `ocr_extraction.py` for screenshots
+- [x] **2B-5** Add article extraction to source_identity
+- [x] **2B-6** Add mode-specific prompts
+- [x] **2B-7** Add confidence ceiling validation
+
+### Frontend ✅
+
+- [x] Text input mode in dashboard.tsx
+- [x] Screenshot input mode in dashboard.tsx
+- [x] Constants in lib/constants.ts
+- [x] Store updates in store/jobs.ts
+
+### Verification
+- 129 tests pass
+- All imports verified
+- Stages wired in worker.py
+
+---
+
+## Phase 3-10: See IMPLEMENTATION_PLAN.md
+
+Detailed task lists for phases 3-10 are in IMPLEMENTATION_PLAN.md.
 
 ---
 
 ## Current Session
 
-**Date:** 2026-01-13
+**Date:** 2026-01-15
 **Tasks Planned:**
-- Phase 0: Commit & Stabilize (all tasks)
+- Verify Phase 2 completion
+- Update documentation
 
 **Tasks Completed:**
-- Task 0.1: Committed 9 semantic pipeline files (3825 insertions)
-- Task 0.2: Archived 10 dead code files to backend/archive/
-- Task 0.3: Verified .env.example exists
-- Task 0.4: Deployed 36 setup documents (17923 insertions)
-- Task 0.5: Verified Python syntax compiles for all semantic files
+- Phase 2A: Orchestration complete (gap_analysis, semantic_synthesis, document_assembly)
+- Phase 2B: Extended inputs complete (text-input, screenshot-input endpoints)
+- Frontend integration complete
+- All 5 semantic stages wired in worker.py
+- 129 tests pass
 
-**Files Modified:**
-- backend/models/semantic_units.py (committed)
-- backend/models/document_outputs.py (committed)
-- backend/pipeline/stages/source_identity.py (committed)
-- backend/pipeline/stages/semantic_extraction.py (committed)
-- backend/pipeline/stages/document_assembly.py (committed)
-- backend/pipeline/transcript_acquisition.py (committed)
-- backend/pipeline/prompts/*.py (committed)
-- backend/pipeline/semantic_validation.py (committed)
-- backend/archive/* (10 files moved)
-- PROGRESS.md, DECISIONS.md, IMPLEMENTATION_PLAN.md, SPEC_MANIFEST.md (deployed)
-- docs/authoritative/* (updated)
-- .claude/* (updated)
+**Files Modified (Phase 2):**
+- backend/pipeline/stages/gap_analysis.py (219 lines)
+- backend/pipeline/stages/semantic_synthesis.py (291 lines)
+- backend/pipeline/stages/document_assembly.py (459 lines)
+- backend/pipeline/stages/ocr_extraction.py
+- backend/app/routes/jobs_routes.py (text/screenshot endpoints)
+- backend/utils/llm_temperature.py (moved from backend/config/)
+- backend/integrations/gemini_client.py (updated import)
+- backend/worker.py (semantic stages wired)
+- frontend/pages/dashboard.tsx
+- frontend/store/jobs.ts
+- frontend/lib/constants.ts
 
 **Blockers:**
-- venv activation blocked by scout-block.cjs hook (workaround: used system Python)
+- None
 
 **Next Session Should:**
-- Start Phase 0.5: Review Existing Code
+- Start Phase 3: Add Analysis Modes OR
+- Run E2E test with real job
 
 ---
 

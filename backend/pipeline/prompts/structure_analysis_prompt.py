@@ -89,15 +89,125 @@ Return valid JSON:
   "sources": {{
     "likely_primary_sources": ["List of probable main sources"],
     "referenced_materials": ["Explicitly mentioned books, articles, etc."]
-  }}
+  }},
+  "analysis_warnings": ["Required if any field returned empty - explain WHY"]
+}}
+```
+
+## EXAMPLE OUTPUT (for a video about "The Rise and Fall of WeWork"):
+
+NOTE: This example shows a video with clear structure and multiple open loops.
+Some videos may have simpler structures or fewer hooks. Match the QUALITY
+and SPECIFICITY of analysis, not the QUANTITY of items.
+
+```json
+{{
+  "video_url": "https://youtube.com/watch?v=example",
+  "title": "WeWork: How a $47 Billion Company Lost Everything",
+  "hook": {{
+    "timestamp_end": "0:42",
+    "technique": "shocking statement",
+    "description": "Opens with 'In 2019, WeWork was worth $47 billion. Six weeks later, it was nearly bankrupt.' Uses extreme contrast to create immediate curiosity about how such a dramatic fall happened."
+  }},
+  "narrative": {{
+    "structure_type": "villain-origin-story",
+    "acts": [
+      {{
+        "name": "The Vision",
+        "timestamp_start": "0:42",
+        "timestamp_end": "8:30",
+        "description": "Introduces Adam Neumann's charisma and the 'community company' pitch. Shows early success and how investors bought in."
+      }},
+      {{
+        "name": "The Cracks",
+        "timestamp_start": "8:30",
+        "timestamp_end": "18:15",
+        "description": "Reveals self-dealing, bizarre spending, and governance issues. Introduces Masayoshi Son and SoftBank's $100B fund."
+      }},
+      {{
+        "name": "The IPO Disaster",
+        "timestamp_start": "18:15",
+        "timestamp_end": "26:40",
+        "description": "The S-1 filing exposes the problems. Valuation collapses from $47B to $8B. Neumann ousted."
+      }},
+      {{
+        "name": "The Aftermath",
+        "timestamp_start": "26:40",
+        "timestamp_end": "31:20",
+        "description": "Layoffs, Neumann's $1.7B exit package controversy, and questions about startup culture."
+      }}
+    ]
+  }},
+  "open_loops": [
+    {{
+      "timestamp": "3:15",
+      "technique": "tease",
+      "description": "Mentions 'But there's one investor who would change everything' then cuts away - makes viewer wonder who."
+    }},
+    {{
+      "timestamp": "12:45",
+      "technique": "question",
+      "description": "Asks 'How did no one notice?' after showing accounting issues - promises answer later."
+    }},
+    {{
+      "timestamp": "22:10",
+      "technique": "cliffhanger",
+      "description": "Shows Neumann's face during IPO prep and says 'What the public didn't know yet...' - creates suspense."
+    }}
+  ],
+  "style": {{
+    "pacing": "medium",
+    "editing_style": "documentary"
+  }},
+  "sources": {{
+    "likely_primary_sources": ["The Wall Street Journal's WeWork reporting", "Billion Dollar Loser by Reeves Wiedeman", "WeWork S-1 filing"],
+    "referenced_materials": ["Interview clips from CNBC", "We Crashed podcast mentioned at 15:20"]
+  }},
+  "analysis_warnings": []
+}}
+```
+
+**Example with warnings (sparse video):**
+```json
+{{
+  "open_loops": [],
+  "analysis_warnings": [
+    "open_loops empty: Video uses straightforward chronological structure without explicit re-engagement hooks",
+    "referenced_materials empty: No specific sources mentioned by name in video"
+  ]
 }}
 ```
 
 ## IMPORTANT RULES
 1. Timestamps must be in MM:SS format for videos under 1 hour, or HH:MM:SS for longer videos (M-001)
-2. Be specific about techniques - don't just say "good hook", explain WHY
+2. Be specific about techniques - don't just say "good hook", explain WHY it works
 3. Include at least 2-4 acts in the structure
 4. Identify at least 2-3 open loops if present
-5. NEVER use "unclear" or empty values. Always make your best assessment based on available information (M-002)
+5. If video lacks certain elements (e.g., no clear open loops), return empty array for that field - don't invent them
 6. If the video structure is unconventional, describe it in detail rather than forcing it into standard categories
+
+## ANTI-HALLUCINATION RULES (SA-001)
+
+You MUST NOT:
+- Invent timestamps you didn't observe in the video
+- Speculate about creator intent beyond what's explicitly stated or shown
+- Add open loops that weren't explicitly planted by the creator
+- Guess sources the creator didn't mention or clearly reference
+- Fabricate act boundaries that aren't clearly signaled in the video
+
+If uncertain about any element:
+- Return empty array for that field
+- Add explanation to "analysis_warnings" array (REQUIRED if any field is empty)
+- Do NOT guess or approximate
+- Prefer honest sparsity over false specificity
+
+Every timestamp must be:
+- Observed directly in the video content
+- Formatted as MM:SS (or HH:MM:SS for videos over 1 hour)
+- Within the video's actual duration
+
+Sources must be:
+- Explicitly mentioned OR clearly visible (on-screen text, logos)
+- Categorized as "likely_primary_sources" only if strongly implied
+- Listed in "referenced_materials" only if explicitly named
 """

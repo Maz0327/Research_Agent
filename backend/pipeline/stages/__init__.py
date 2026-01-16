@@ -13,6 +13,16 @@ from .extraction_stages import stage_7_extraction, stage_7_5_timeline, stage_7_6
 from .analysis import stage_8_validation, stage_8_5_angle_discovery, stage_8_6_documentary_intelligence
 from .output import stage_9_drive_upload
 
+# Semantic Pipeline Stages (Phase 2A)
+from .source_identity import stage_source_identity
+from .semantic_extraction import stage_semantic_extraction
+from .gap_analysis import stage_gap_analysis
+from .semantic_synthesis import stage_semantic_synthesis
+from .document_assembly import stage_document_assembly
+
+# Extended Input Stages (Phase 2B)
+from .ocr_extraction import stage_ocr_extraction
+
 __all__ = [
     # Helpers
     "post_slack_message",
@@ -42,4 +52,12 @@ __all__ = [
     "stage_9_drive_upload",
     # Stage 10: Completion
     "stage_10_completion",
+    # Semantic Pipeline Stages (Phase 2A)
+    "stage_source_identity",
+    "stage_semantic_extraction",
+    "stage_gap_analysis",
+    "stage_semantic_synthesis",
+    "stage_document_assembly",
+    # Extended Input Stages (Phase 2B)
+    "stage_ocr_extraction",
 ]

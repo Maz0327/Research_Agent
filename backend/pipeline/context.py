@@ -69,6 +69,33 @@ class PipelineContext:
     # Stage 8.6: Documentary analysis
     documentary_analysis: dict = field(default_factory=dict)
 
+    # Semantic Pipeline (Phase 1)
+    # Source Identity stage outputs
+    source_identity_packages: list = field(default_factory=list)
+    # Semantic Extraction stage outputs
+    semantic_extractions: list = field(default_factory=list)
+    # Gap Analysis outputs
+    identified_gaps: list = field(default_factory=list)
+    # Scope Lock
+    scope_in: list = field(default_factory=list)
+    scope_out: list = field(default_factory=list)
+    # Document Assembly outputs (Doc 0/1/2)
+    source_ledger: dict = field(default_factory=dict)
+    jump_start: dict = field(default_factory=dict)
+    semantic_brief: dict = field(default_factory=dict)
+
+    # Semantic Synthesis outputs (Phase 2A)
+    semantic_core: str = ""  # 2-4 sentence core from synthesis
+    semantic_core_based_on: list = field(default_factory=list)  # KeyPoint IDs
+    synthesized_themes: list = field(default_factory=list)  # Theme objects
+    speculative_observations: list = field(default_factory=list)  # Labeled speculation
+    confidence_reasoning: list = field(default_factory=list)  # Reasons for confidence level
+    overall_confidence: Optional[str] = None  # "high", "medium", "low"
+
+    # Phase 2B: Extended Inputs
+    ocr_result: Optional[object] = None  # OCRResult from screenshot extraction
+    job_config_dict: dict = field(default_factory=dict)  # Raw config dict from job
+
     # Stage 9: Drive
     folder_url: Optional[str] = None
     doc_urls: dict = field(default_factory=dict)
