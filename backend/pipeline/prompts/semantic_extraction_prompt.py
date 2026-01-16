@@ -3,7 +3,18 @@
 Based on: docs/authoritative/prompts/Gemini_Semantic_Extraction.md
 
 Gemini is treated as a semantic analyst, not a summarizer, narrator, or producer.
+
+This module provides backward-compatible interface while delegating to
+mode-specific prompts in prompts/modes/ directory.
+
+For new code, prefer importing directly from:
+- backend.pipeline.prompts.modes (for mode-specific prompts)
+- backend.pipeline.mode_selector (for mode configuration)
 """
+
+# Import mode-specific prompt dispatcher
+from backend.pipeline.prompts.modes import get_prompt_for_mode
+from backend.pipeline.mode_selector import get_confidence_ceiling_string
 
 # Role definition for system message
 SEMANTIC_EXTRACTION_ROLE = """You are a semantic research analyst.
@@ -496,20 +507,15 @@ Return JSON with "extraction_warnings" field:
 def get_confidence_ceiling_for_mode(analysis_mode: str) -> str:
     """Return confidence ceiling based on analysis mode.
 
+    DEPRECATED: Use backend.pipeline.mode_selector.get_confidence_ceiling_string() instead.
+
     Per INDEX.md "Six Analysis Modes":
     - transcript_grounded, article_fetched: HIGH
     - caption_grounded, text_provided, ocr_extracted: MEDIUM
     - video_only: LOW
     """
-    ceilings = {
-        "transcript_grounded": "HIGH",
-        "caption_grounded": "MEDIUM",
-        "video_only": "LOW",
-        "text_provided": "MEDIUM",
-        "ocr_extracted": "MEDIUM",
-        "article_fetched": "HIGH",
-    }
-    return ceilings.get(analysis_mode, "LOW")
+    # Delegate to mode_selector (single source of truth)
+    return get_confidence_ceiling_string(analysis_mode)
 
 
 def build_semantic_extraction_prompt(
@@ -518,9 +524,13 @@ def build_semantic_extraction_prompt(
     analysis_mode: str,
     title: str = "Unknown",
     confidence_ceiling: str | None = None,
+    use_legacy_prompt: bool = False,
 ) -> str:
     """
     Build the complete semantic extraction prompt.
+
+    This function now delegates to mode-specific prompts in prompts/modes/
+    unless use_legacy_prompt=True is specified.
 
     Args:
         source_id: Stable source identifier (e.g., "SRC_1")
@@ -528,10 +538,25 @@ def build_semantic_extraction_prompt(
         analysis_mode: One of the 6 analysis modes
         title: Source title for lock block
         confidence_ceiling: Override ceiling (defaults to mode-based ceiling)
+        use_legacy_prompt: If True, use inline prompts (backward compat)
 
     Returns:
         Complete prompt string ready for Gemini
     """
+    # Use new mode-specific prompts by default
+    if not use_legacy_prompt:
+        try:
+            return get_prompt_for_mode(
+                mode=analysis_mode,
+                source_id=source_id,
+                source_content=source_content,
+                title=title,
+            )
+        except (ImportError, ValueError):
+            # Fall back to legacy prompt if mode dispatch fails
+            pass
+
+    # Legacy inline prompt (backward compatibility)
     # Determine confidence ceiling
     if confidence_ceiling is None:
         confidence_ceiling = get_confidence_ceiling_for_mode(analysis_mode)
@@ -559,7 +584,7 @@ def build_semantic_extraction_prompt(
         source_identity_contract=SOURCE_IDENTITY_CONTRACT,
     )
 
-    # Add mode-specific instructions
+    # Add mode-specific instructions (legacy inline approach)
     if analysis_mode == "video_only":
         prompt += "\n\n" + VIDEO_ONLY_INSTRUCTIONS.format(source_id=source_id)
     elif analysis_mode == "caption_grounded":

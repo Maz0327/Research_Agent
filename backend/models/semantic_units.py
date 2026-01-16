@@ -379,11 +379,16 @@ class SemanticExtractionResult:
     def confidence_ceiling(self) -> ConfidenceLevel:
         """Return max allowed confidence based on analysis mode.
 
+        NOTE: This mapping mirrors backend.pipeline.mode_selector.CONFIDENCE_CEILINGS.
+        Cannot import from mode_selector to avoid circular import.
+        Keep in sync with mode_selector (single source of truth for pipeline).
+
         Per INDEX.md "Six Analysis Modes":
         - transcript_grounded, article_fetched: HIGH
         - caption_grounded, text_provided, ocr_extracted: MEDIUM
         - video_only: LOW
         """
+        # Mirrors mode_selector.CONFIDENCE_CEILINGS - keep in sync
         ceilings = {
             # Video sources
             AnalysisMode.TRANSCRIPT_GROUNDED: ConfidenceLevel.HIGH,

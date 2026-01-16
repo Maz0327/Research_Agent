@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-15 19:10
-**Current Phase:** 3 — Add Analysis Modes (ready to start)
-**Current Task:** Phase 2 Complete, Phase 3 Planning
+**Last Updated:** 2026-01-15 21:30
+**Current Phase:** 4 — Add Validation (ready to start)
+**Current Task:** Phase 3 Complete, Phase 4 Planning
 **Branch:** feature/vision-alignment-v1
 
 ---
@@ -14,8 +14,8 @@ Phase 0:   ✅ COMPLETE — Commit & Stabilize
 Phase 0.5: ✅ COMPLETE — Review Existing Code
 Phase 1:   ✅ COMPLETE — Fix Blocking Issues
 Phase 2:   ✅ COMPLETE — Wire Semantic Pipeline + Extended Inputs
-Phase 3:   ⏳ READY — Add Analysis Modes
-Phase 4:   ⏳ PENDING — Add Validation
+Phase 3:   ✅ COMPLETE — Add Analysis Modes
+Phase 4:   ⏳ READY — Add Validation
 Phase 5:   ⏳ PENDING — Multi-Source Support
 Phase 6:   ⏳ PENDING — Evolving Jobs
 Phase 7:   ⏳ PENDING — Booster Pipeline
@@ -156,9 +156,86 @@ Phase 10:  ⏳ PENDING — Documentation
 
 ---
 
-## Phase 3-10: See IMPLEMENTATION_PLAN.md
+## Phase 3: Add Analysis Modes
 
-Detailed task lists for phases 3-10 are in IMPLEMENTATION_PLAN.md.
+**Status:** ✅ COMPLETE (2026-01-15)
+**Goal:** Create mode_selector.py (single source of truth) + mode-specific prompts
+
+### Tasks
+
+- [x] **3.1** Update architecture.md quote table with owner decision
+  - TEXT_PROVIDED and OCR_EXTRACTED now allow quotes with warnings
+  - Added owner decision note (2026-01-15)
+
+- [x] **3.2** Create `mode_selector.py` module (single source of truth)
+  - CONFIDENCE_CEILINGS mapping
+  - QUOTES_ALLOWED mapping
+  - DEGRADED_QUOTE_MODES set
+  - NO_QUOTE_MODES set
+  - Helper functions: get_confidence_ceiling(), are_quotes_allowed(), etc.
+
+- [x] **3.3** Create `/prompts/modes/` directory with 6 mode-specific prompts
+  - base.py (shared 5 components)
+  - transcript_grounded.py (HIGH, verbatim quotes)
+  - caption_grounded.py (MEDIUM, approximate quotes)
+  - video_only.py (LOW, NO quotes)
+  - text_provided.py (MEDIUM, unverified quotes)
+  - ocr_extracted.py (MEDIUM, OCR warning quotes)
+  - article_fetched.py (HIGH, verbatim quotes)
+  - __init__.py (get_prompt_for_mode dispatcher)
+
+- [x] **3.4** Refactor semantic_extraction_prompt.py to use mode imports
+  - Delegates to get_prompt_for_mode()
+  - Legacy fallback preserved
+
+- [x] **3.5** Update semantic_extraction.py
+  - No changes needed (uses prompt builder)
+
+- [x] **3.6** Update semantic_validation.py to use mode_selector
+  - Imports from mode_selector
+  - Removed duplicate mappings
+
+- [x] **3.7** Update semantic_units.py
+  - Added sync note with mode_selector
+  - (Kept local mapping to avoid circular import)
+
+- [x] **3.8** Update exports
+  - backend/pipeline/__init__.py exports mode_selector
+  - backend/pipeline/prompts/__init__.py exports get_prompt_for_mode
+
+- [x] **3.9** Verify syntax (py_compile passed)
+
+### Files Created (9 new files)
+- backend/pipeline/mode_selector.py
+- backend/pipeline/prompts/modes/__init__.py
+- backend/pipeline/prompts/modes/base.py
+- backend/pipeline/prompts/modes/transcript_grounded.py
+- backend/pipeline/prompts/modes/caption_grounded.py
+- backend/pipeline/prompts/modes/video_only.py
+- backend/pipeline/prompts/modes/text_provided.py
+- backend/pipeline/prompts/modes/ocr_extracted.py
+- backend/pipeline/prompts/modes/article_fetched.py
+
+### Files Modified (6 files)
+- .claude/rules/architecture.md
+- backend/pipeline/prompts/semantic_extraction_prompt.py
+- backend/pipeline/semantic_validation.py
+- backend/models/semantic_units.py
+- backend/pipeline/__init__.py
+- backend/pipeline/prompts/__init__.py
+
+### Checkpoint Criteria
+- [x] mode_selector.py is single source of truth
+- [x] All 6 mode prompts have 5 required components
+- [x] No duplicate CONFIDENCE_CEILINGS (except semantic_units.py for circular import)
+- [x] architecture.md updated with owner quote decision
+- [x] Syntax verified via py_compile
+
+---
+
+## Phase 4-10: See IMPLEMENTATION_PLAN.md
+
+Detailed task lists for phases 4-10 are in IMPLEMENTATION_PLAN.md.
 
 ---
 
@@ -166,35 +243,29 @@ Detailed task lists for phases 3-10 are in IMPLEMENTATION_PLAN.md.
 
 **Date:** 2026-01-15
 **Tasks Planned:**
-- Verify Phase 2 completion
-- Update documentation
+- Complete Phase 3: Add Analysis Modes
 
 **Tasks Completed:**
-- Phase 2A: Orchestration complete (gap_analysis, semantic_synthesis, document_assembly)
-- Phase 2B: Extended inputs complete (text-input, screenshot-input endpoints)
-- Frontend integration complete
-- All 5 semantic stages wired in worker.py
-- 129 tests pass
+- Phase 3 complete (mode_selector.py + 6 mode-specific prompts)
+- Updated architecture.md with owner decision on quotes
+- All syntax checks pass
 
-**Files Modified (Phase 2):**
-- backend/pipeline/stages/gap_analysis.py (219 lines)
-- backend/pipeline/stages/semantic_synthesis.py (291 lines)
-- backend/pipeline/stages/document_assembly.py (459 lines)
-- backend/pipeline/stages/ocr_extraction.py
-- backend/app/routes/jobs_routes.py (text/screenshot endpoints)
-- backend/utils/llm_temperature.py (moved from backend/config/)
-- backend/integrations/gemini_client.py (updated import)
-- backend/worker.py (semantic stages wired)
-- frontend/pages/dashboard.tsx
-- frontend/store/jobs.ts
-- frontend/lib/constants.ts
+**Files Modified (Phase 3):**
+- backend/pipeline/mode_selector.py (NEW)
+- backend/pipeline/prompts/modes/ (NEW directory, 8 files)
+- .claude/rules/architecture.md
+- backend/pipeline/prompts/semantic_extraction_prompt.py
+- backend/pipeline/semantic_validation.py
+- backend/models/semantic_units.py
+- backend/pipeline/__init__.py
+- backend/pipeline/prompts/__init__.py
 
 **Blockers:**
 - None
 
 **Next Session Should:**
-- Start Phase 3: Add Analysis Modes OR
-- Run E2E test with real job
+- Run `pytest backend/tests/ -v` to verify tests
+- Start Phase 4: Add Validation
 
 ---
 

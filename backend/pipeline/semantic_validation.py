@@ -28,6 +28,13 @@ from backend.models.semantic_units import (
     ConfidenceLevel,
     SemanticExtractionResult,
 )
+from backend.pipeline.mode_selector import (
+    CONFIDENCE_CEILINGS,
+    DEGRADED_QUOTE_MODES,
+    NO_QUOTE_MODES,
+    get_confidence_ceiling,
+    get_quote_warning,
+)
 
 
 class ValidationLevel(str, Enum):
@@ -175,17 +182,10 @@ def validate_extraction_schema(data: dict) -> list[ValidationResult]:
 # Level 2: Grounding Validation (Hard Fail with NO_QUOTE_MODES exceptions)
 # -----------------------------------------------------------------------------
 
-# No-quote modes: ONLY video_only prohibits quotes
-# text_provided and ocr_extracted allow quotes with warnings
-_NO_QUOTE_MODES_FOR_GROUNDING = {
-    AnalysisMode.VIDEO_ONLY,
-}
-
-# Modes where quotes are allowed but require warnings
-_DEGRADED_QUOTE_MODES = {
-    AnalysisMode.TEXT_PROVIDED,
-    AnalysisMode.OCR_EXTRACTED,
-}
+# Use mode_selector for quote rules (single source of truth)
+# NO_QUOTE_MODES and DEGRADED_QUOTE_MODES imported from backend.pipeline.mode_selector
+_NO_QUOTE_MODES_FOR_GROUNDING = NO_QUOTE_MODES
+_DEGRADED_QUOTE_MODES = DEGRADED_QUOTE_MODES
 
 
 def validate_grounding(
@@ -426,26 +426,9 @@ def calibrate_confidence(
 # Mode-Based Ceiling Enforcement (Phase 2B)
 # -----------------------------------------------------------------------------
 
-# Modes where quotes are FORBIDDEN (must use observations)
-NO_QUOTE_MODES = {
-    AnalysisMode.VIDEO_ONLY,
-}
-
-# Modes where quotes are allowed but require warnings (degraded accuracy)
-DEGRADED_QUOTE_MODES = {
-    AnalysisMode.TEXT_PROVIDED,
-    AnalysisMode.OCR_EXTRACTED,
-}
-
-# Mode ceiling mapping
-MODE_CEILINGS = {
-    AnalysisMode.TRANSCRIPT_GROUNDED: ConfidenceLevel.HIGH,
-    AnalysisMode.CAPTION_GROUNDED: ConfidenceLevel.MEDIUM,
-    AnalysisMode.VIDEO_ONLY: ConfidenceLevel.LOW,
-    AnalysisMode.TEXT_PROVIDED: ConfidenceLevel.MEDIUM,
-    AnalysisMode.OCR_EXTRACTED: ConfidenceLevel.MEDIUM,
-    AnalysisMode.ARTICLE_FETCHED: ConfidenceLevel.HIGH,
-}
+# NOTE: Mode configurations (NO_QUOTE_MODES, DEGRADED_QUOTE_MODES, CONFIDENCE_CEILINGS)
+# are now imported from backend.pipeline.mode_selector (single source of truth).
+# See imports at top of file.
 
 
 def validate_confidence_ceiling(
@@ -470,7 +453,7 @@ def validate_confidence_ceiling(
         List of validation results (may include auto-fix notes)
     """
     results = []
-    ceiling = MODE_CEILINGS.get(analysis_mode, ConfidenceLevel.LOW)
+    ceiling = CONFIDENCE_CEILINGS.get(analysis_mode, ConfidenceLevel.LOW)
 
     # Count all quotes
     quotes = data.get("quotes", [])

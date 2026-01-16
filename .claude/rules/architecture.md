@@ -42,9 +42,11 @@ Never skip stages. Never reorder stages.
 | `transcript_grounded` | HIGH | Yes (verbatim) |
 | `caption_grounded` | MEDIUM | Yes (approximate) |
 | `video_only` | LOW | **NO** |
-| `text_provided` | MEDIUM | **NO** |
-| `ocr_extracted` | MEDIUM | **NO** |
-| `article_fetched` | HIGH | Yes |
+| `text_provided` | MEDIUM | Yes (unverified)* |
+| `ocr_extracted` | MEDIUM | Yes (unverified)* |
+| `article_fetched` | HIGH | Yes (verbatim) |
+
+> *\*Owner Decision (2026-01-15): TEXT_PROVIDED and OCR_EXTRACTED allow quotes but marked as unverified. System cannot verify authenticity of user-provided content, but extracting quotes provides better UX than omitting them entirely.*
 
 ### Rule 5: Ceiling Enforcement
 If extraction returns confidence higher than ceiling:
@@ -60,10 +62,16 @@ if key_point.confidence > ceiling:
 ```
 
 ### Rule 6: No Quotes in No-Quote Modes
-For `video_only`, `text_provided`, `ocr_extracted`:
+For `video_only` mode only:
 - Prompt must NOT have quotes field
 - Schema must NOT have quotes field
 - Validation must reject if quotes present
+- Use `approximate_observations` instead
+
+For `text_provided` and `ocr_extracted` modes:
+- Quotes ARE allowed (per owner decision)
+- All quotes must be marked with `unverified: true`
+- Validation adds warning: "Quote accuracy unconfirmed by system"
 
 ---
 
