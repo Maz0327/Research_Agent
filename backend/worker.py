@@ -1616,8 +1616,9 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
 # PRODUCER PACKET TASK (Phase 8 - Doc 3 Generation)
 # =============================================================================
 
-@celery.task(
+@celery_app.task(
     bind=True,
+    name="backend.worker.run_producer_task",
     max_retries=1,
     soft_time_limit=300,  # 5 min soft limit
 )
