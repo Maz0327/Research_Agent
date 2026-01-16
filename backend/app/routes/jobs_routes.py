@@ -1106,7 +1106,7 @@ async def generate_producer_packet(
 
     # Job must be completed
     job_status = job.status if hasattr(job, "status") else job.get("status")
-    if job_status == "generating_producer_packet":
+    if job_status == "running_producer":
         raise HTTPException(
             status_code=409,
             detail="Producer packet is already being generated for this job"
@@ -1153,7 +1153,7 @@ async def generate_producer_packet(
         logger.warning(f"[{job_id}] Producer packet re-run requested (previous output exists)")
 
     # Update status
-    update_job(job_id, status="generating_producer_packet", stage="producer")
+    update_job(job_id, status="running_producer", stage="producer")
 
     # Queue producer task
     from backend.worker import run_producer_task
@@ -1176,7 +1176,7 @@ async def generate_producer_packet(
 
     return {
         "job_id": job_id,
-        "status": "generating_producer_packet",
+        "status": "running_producer",
         "message": "Producer Packet (Doc 3) generation started. This is creative interpretation, not factual research.",
     }
 

@@ -18,6 +18,7 @@ from backend.models.job_config import (
     YouTubeConfig,
 )
 from backend.models.source import SourceItem, SourceType
+from backend.models.semantic_units import SemanticExtractionResult
 from backend.models.booster_models import (
     ContextBundle,
     BoosterOutput,
@@ -70,6 +71,8 @@ __all__ = [
     # Source models
     "SourceItem",
     "SourceType",
+    # Semantic models
+    "SemanticExtractionResult",
     # Claim models
     "Claim",
     "ClaimType",

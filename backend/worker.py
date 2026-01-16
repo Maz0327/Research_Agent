@@ -1683,7 +1683,7 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
 
     try:
         # Update status
-        update_job(job_id, status="generating_producer_packet", stage="producer")
+        update_job(job_id, status="running_producer", stage="producer")
 
         # Run producer pipeline
         logger.info(f"[{job_id}] Running producer pipeline")
