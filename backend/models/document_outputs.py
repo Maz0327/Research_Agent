@@ -355,14 +355,19 @@ class JumpStartDirections:
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
 
+    # Deep Research Booster Expansion (Phase 7)
+    # Added when user triggers booster on completed job
+    booster_expansion: Optional[dict[str, Any]] = None  # BoosterOutput as dict
+    booster_expansion_md: Optional[str] = None  # Markdown format for display
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "document_type": "jump_start",
             "scope_lock": {
                 "in": self.scope_in,
                 "out": self.scope_out,
             },
-            "corpus_overview": {
+            "current_corpus": {
                 "source_count": self.source_count,
                 "perspectives_represented": self.perspectives_represented,
                 "time_span_covered": self.time_span_covered,
@@ -377,6 +382,14 @@ class JumpStartDirections:
             "warnings": self.warnings,
             "created_at": self.created_at,
         }
+
+        # Include booster expansion if present (Phase 7)
+        if self.booster_expansion:
+            result["booster_expansion"] = self.booster_expansion
+        if self.booster_expansion_md:
+            result["booster_expansion_md"] = self.booster_expansion_md
+
+        return result
 
     def to_markdown(self) -> str:
         """Render Jump-Start as markdown."""
@@ -435,6 +448,10 @@ class JumpStartDirections:
 
         for i, step in enumerate(self.next_steps[:3], 1):
             lines.append(f"{i}. {step}")
+
+        # Append booster expansion if present (Phase 7)
+        if self.booster_expansion_md:
+            lines.append(self.booster_expansion_md)
 
         return "\n".join(lines)
 
@@ -876,3 +893,165 @@ class ProducerPacket:
             failed.append("No high-confidence sources (minimum 1)")
 
         return len(failed) == 0, failed
+
+
+# -----------------------------------------------------------------------------
+# ADDENDUM & CROSS-REFERENCE (Phase 6: Evolving Jobs)
+# -----------------------------------------------------------------------------
+
+@dataclass
+class CrossReferenceNotes:
+    """
+    Connections between new and original content.
+
+    When new sources are added to a completed job, this structure
+    tracks how the new content relates to existing analysis.
+
+    Per EXTENDED_SPECIFICATIONS.md Part 2:
+    - supports: New content that reinforces existing themes/points
+    - contradicts: New content that conflicts with existing points
+    - new_tensions: Tensions created by cross-source comparison
+    - new_gaps: Additional gaps identified from new perspective
+    """
+    supports: list[dict] = field(default_factory=list)
+    # Format: {"new_id": "KP_5", "supports_id": "THEME_1", "reason": "..."}
+
+    contradicts: list[dict] = field(default_factory=list)
+    # Format: {"new_id": "KP_6", "contradicts_id": "KP_2", "reason": "..."}
+
+    new_tensions: list[Tension] = field(default_factory=list)
+    new_gaps: list[Gap] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "supports": self.supports,
+            "contradicts": self.contradicts,
+            "new_tensions": [t.to_dict() for t in self.new_tensions],
+            "new_gaps": [g.to_dict() for g in self.new_gaps],
+        }
+
+    def to_markdown(self) -> str:
+        """Render cross-reference notes as markdown."""
+        lines = ["## Cross-Reference Notes", ""]
+
+        if self.supports:
+            lines.append("### Supports Existing")
+            for s in self.supports:
+                lines.append(f"- {s['new_id']} **supports** {s['supports_id']}")
+                if s.get("reason"):
+                    lines.append(f"  Reason: {s['reason']}")
+            lines.append("")
+
+        if self.contradicts:
+            lines.append("### Contradictions")
+            for c in self.contradicts:
+                lines.append(f"- {c['new_id']} **contradicts** {c['contradicts_id']}")
+                if c.get("reason"):
+                    lines.append(f"  Reason: {c['reason']}")
+            lines.append("")
+
+        if self.new_tensions:
+            lines.append("### New Tensions (Cross-Source)")
+            for t in self.new_tensions:
+                lines.append(f"- {t.tension_id}: {t.description}")
+            lines.append("")
+
+        if self.new_gaps:
+            lines.append("### New Gaps Identified")
+            for g in self.new_gaps:
+                lines.append(f"- {g.gap_id}: {g.description}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+
+@dataclass
+class AddendumSection:
+    """
+    Content added when new sources are added to a completed job.
+
+    Per EXTENDED_SPECIFICATIONS.md Part 2:
+    - Original document content is preserved (frozen)
+    - New content is appended in a clearly marked addendum section
+    - Cross-references link new content to original analysis
+
+    This structure holds the new content for all three document types.
+    """
+    added_at: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    source_ids: list[str] = field(default_factory=list)
+
+    # Doc 0: New source entries
+    new_sources: list[SourceEntry] = field(default_factory=list)
+
+    # Doc 1: New directions/gaps from new sources
+    new_directions: list[ResearchDirection] = field(default_factory=list)
+    new_gaps: list[Gap] = field(default_factory=list)
+
+    # Doc 2: New semantic content
+    new_key_points: list[KeyPoint] = field(default_factory=list)
+    new_themes: list[Theme] = field(default_factory=list)
+    new_tensions: list[Tension] = field(default_factory=list)
+
+    # Cross-reference to original content
+    cross_reference: Optional[CrossReferenceNotes] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "added_at": self.added_at,
+            "source_ids": self.source_ids,
+            "new_sources": [s.to_dict() for s in self.new_sources],
+            "new_directions": [d.to_dict() for d in self.new_directions],
+            "new_gaps": [g.to_dict() for g in self.new_gaps],
+            "new_key_points": [kp.to_dict() for kp in self.new_key_points],
+            "new_themes": [t.to_dict() for t in self.new_themes],
+            "new_tensions": [t.to_dict() for t in self.new_tensions],
+            "cross_reference": self.cross_reference.to_dict() if self.cross_reference else None,
+        }
+
+    def to_markdown(self) -> str:
+        """Render addendum section as markdown."""
+        lines = [
+            "",
+            "---",
+            f"## Addendum: Sources Added {self.added_at[:10]}",
+            f"*Sources: {', '.join(self.source_ids)}*",
+            "",
+        ]
+
+        if self.new_key_points:
+            lines.append("### New Key Points")
+            for kp in self.new_key_points:
+                lines.append(f"- {kp.key_point_id}: {kp.statement} [{', '.join(kp.source_ids)}]")
+            lines.append("")
+
+        if self.new_themes:
+            lines.append("### New Themes")
+            for t in self.new_themes:
+                lines.append(f"- {t.theme_id}: {t.label}")
+                lines.append(f"  {t.description}")
+            lines.append("")
+
+        if self.new_tensions:
+            lines.append("### New Tensions")
+            for t in self.new_tensions:
+                lines.append(f"- {t.tension_id}: {t.description}")
+            lines.append("")
+
+        if self.new_directions:
+            lines.append("### New Research Directions")
+            for d in self.new_directions:
+                lines.append(f"- Priority {d.priority}: {d.what_to_look_for}")
+            lines.append("")
+
+        if self.new_gaps:
+            lines.append("### New Gaps Identified")
+            for g in self.new_gaps:
+                lines.append(f"- {g.gap_id}: {g.description}")
+            lines.append("")
+
+        if self.cross_reference:
+            lines.append(self.cross_reference.to_markdown())
+
+        return "\n".join(lines)

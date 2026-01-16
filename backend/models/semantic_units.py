@@ -198,13 +198,22 @@ class Theme:
     description: str
     related_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
 
+    # Phase 5: Multi-Source Attribution
+    sources_supporting: list[str] = field(default_factory=list)  # source_ids that support this theme
+    is_consensus: bool = False  # True if 2+ sources agree on this theme
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "theme_id": self.theme_id,
             "label": self.label,
             "description": self.description,
             "related_key_points": self.related_key_points,
         }
+        # Include Phase 5 fields if populated
+        if self.sources_supporting:
+            result["sources_supporting"] = self.sources_supporting
+            result["is_consensus"] = self.is_consensus
+        return result
 
 
 # -----------------------------------------------------------------------------
@@ -230,12 +239,23 @@ class Tension:
     description: str
     involved_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
 
+    # Phase 5: Cross-Source Attribution
+    sources_position_a: list[str] = field(default_factory=list)  # source_ids supporting one side
+    sources_position_b: list[str] = field(default_factory=list)  # source_ids supporting the other
+    is_cross_source: bool = False  # True if tension spans multiple sources
+
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "tension_id": self.tension_id,
             "description": self.description,
             "involved_key_points": self.involved_key_points,
         }
+        # Include Phase 5 fields if populated
+        if self.is_cross_source:
+            result["sources_position_a"] = self.sources_position_a
+            result["sources_position_b"] = self.sources_position_b
+            result["is_cross_source"] = self.is_cross_source
+        return result
 
 
 # -----------------------------------------------------------------------------

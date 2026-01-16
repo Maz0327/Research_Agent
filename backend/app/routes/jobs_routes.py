@@ -17,6 +17,10 @@ from backend.models.job import (
     VideoAnalysisRequest, VideoAnalysisResponse, VideoAnalysisStatusResponse,
     TextInputRequest, TextInputResponse,
     ScreenshotInputRequest, ScreenshotInputResponse,
+    MixedInputRequest, MixedInputResponse, SourceAccepted,
+    # Phase 6: Evolving Jobs
+    AddSourcesRequest, AddSourcesResponse, ProcessPendingResponse,
+    SourceStateEnum, JobSource,
 )
 from backend.state import create_job, get_job, update_job, list_jobs
 from backend.utils.validators import ValidationError, validate_video_job_inputs
@@ -528,6 +532,653 @@ async def create_screenshot_input_job(
         platform_detected=platform_hint,
         warnings=warnings if warnings else None,
     )
+
+
+# =============================================================================
+# Mixed-Input Endpoint (Phase 5 - Multi-Source Support)
+# =============================================================================
+
+@router.post("/mixed-input", response_model=MixedInputResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def create_mixed_input_job(
+    request: Request,
+    job_request: MixedInputRequest,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Create a semantic extraction job with mixed input sources.
+
+    Accepts any combination of:
+    - YouTube video URLs → TRANSCRIPT_GROUNDED or VIDEO_ONLY mode
+    - Article URLs → ARTICLE_FETCHED mode
+    - User-provided text → TEXT_PROVIDED mode
+
+    At least one input required. Maximum 20 total sources.
+    Each source extracted in isolation, then synthesized together.
+
+    Returns job ID and details of accepted sources.
+    """
+    from backend.pipeline.utils.url_dedup import deduplicate_urls
+
+    # Deduplicate URLs
+    unique_video_urls, video_dupes = deduplicate_urls(job_request.video_urls)
+    unique_article_urls, article_dupes = deduplicate_urls(job_request.article_urls)
+    duplicates_removed = len(video_dupes) + len(article_dupes)
+
+    # Build sources_accepted list and assign source IDs
+    sources_accepted = []
+    source_counter = 1
+
+    # Videos
+    for url in unique_video_urls:
+        sources_accepted.append(SourceAccepted(
+            source_id=f"SRC_{source_counter}",
+            source_type="youtube",
+            url=url,
+            title=None,  # Will be resolved in pipeline
+        ))
+        source_counter += 1
+
+    # Articles
+    for url in unique_article_urls:
+        sources_accepted.append(SourceAccepted(
+            source_id=f"SRC_{source_counter}",
+            source_type="article",
+            url=url,
+            title=None,  # Will be resolved in pipeline
+        ))
+        source_counter += 1
+
+    # Text inputs
+    for text_input in job_request.text_inputs:
+        sources_accepted.append(SourceAccepted(
+            source_id=f"SRC_{source_counter}",
+            source_type="user_text",
+            url=None,
+            title=text_input.title,
+        ))
+        source_counter += 1
+
+    # Build config_json for the job
+    config_json = {
+        "topic": job_request.topic,
+        "job_type": "mixed_input",
+        "input_mode": "mixed",
+        "video_urls": unique_video_urls,
+        "article_urls": unique_article_urls,
+        "text_inputs": [
+            {
+                "title": ti.title,
+                "content": ti.content,
+                "platform_hint": ti.platform_hint,
+            }
+            for ti in job_request.text_inputs
+        ],
+        "source_count": len(sources_accepted),
+        "duplicates_removed": duplicates_removed,
+    }
+
+    # Store user info
+    if user:
+        config_json["user_email"] = user.email
+        config_json["user_id"] = user.user_id
+
+    # Create job
+    user_id = user.user_id if user else None
+    job = create_job(config_json=config_json, user_id=user_id)
+
+    # Audit log
+    logger.info(
+        "Mixed input job created",
+        extra={
+            "job_id": job.job_id,
+            "user_id": user_id or "anonymous",
+            "video_count": len(unique_video_urls),
+            "article_count": len(unique_article_urls),
+            "text_count": len(job_request.text_inputs),
+            "duplicates_removed": duplicates_removed,
+            "ip": request.client.host if request.client else None,
+            "event": "mixed_input_job_created",
+        }
+    )
+
+    # Enqueue Celery task for semantic pipeline
+    logger.info(
+        f"Enqueuing mixed input job {job.job_id} "
+        f"({len(sources_accepted)} sources)"
+    )
+    run_research_job.apply_async((job.job_id, job_request.topic), task_id=job.job_id)
+
+    # Build warnings
+    warnings = []
+    if duplicates_removed > 0:
+        warnings.append(f"{duplicates_removed} duplicate URL(s) removed")
+    if len(unique_video_urls) > 5:
+        warnings.append("Many videos - processing may take longer")
+    if len(sources_accepted) > 10:
+        warnings.append("Large source count - synthesis may be complex")
+
+    return MixedInputResponse(
+        job_id=job.job_id,
+        status="pending",
+        source_count=len(sources_accepted),
+        sources_accepted=sources_accepted,
+        duplicates_removed=duplicates_removed,
+        warnings=warnings if warnings else None,
+    )
+
+
+# =============================================================================
+# Evolving Jobs Endpoints (Phase 6 - Add Sources to Completed Jobs)
+# =============================================================================
+
+@router.post("/{job_id}/sources", response_model=AddSourcesResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def add_sources_to_job(
+    request: Request,
+    job_id: str,
+    add_request: AddSourcesRequest,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Add new sources to an existing completed job.
+
+    The job must be in 'completed' status. New sources are:
+    1. Added with status 'pending'
+    2. Either processed immediately (process_immediately=True)
+    3. Or batched with other pending sources (default, 60s timeout)
+
+    Original document content is preserved (frozen).
+    New content is appended in a clearly marked addendum section.
+    Cross-references link new content to original analysis.
+    """
+    from datetime import datetime
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only (no anonymous)
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    if job.status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot add sources to job with status '{job.status}'. "
+                   f"Job must be completed first."
+        )
+
+    # Deduplicate URLs against each other and existing sources
+    from backend.pipeline.utils.url_dedup import deduplicate_urls
+
+    unique_video_urls, video_dupes = deduplicate_urls(add_request.video_urls)
+    unique_article_urls, article_dupes = deduplicate_urls(add_request.article_urls)
+    duplicates_removed = len(video_dupes) + len(article_dupes)
+
+    # Check if URLs already exist in the job
+    existing_urls = set()
+    if job.config_json:
+        existing_urls.update(job.config_json.get("video_urls", []))
+        existing_urls.update(job.config_json.get("article_urls", []))
+
+    already_in_job = []
+    new_video_urls = []
+    for url in unique_video_urls:
+        if url in existing_urls:
+            already_in_job.append(url)
+        else:
+            new_video_urls.append(url)
+
+    new_article_urls = []
+    for url in unique_article_urls:
+        if url in existing_urls:
+            already_in_job.append(url)
+        else:
+            new_article_urls.append(url)
+
+    # Build list of new sources with source IDs
+    # Continue numbering from existing source count
+    existing_count = job.config_json.get("source_count", 0) if job.config_json else 0
+    source_counter = existing_count + 1
+    new_sources = []
+
+    for url in new_video_urls:
+        new_sources.append(JobSource(
+            source_id=f"SRC_{source_counter}",
+            source_type="youtube",
+            url=url,
+            title=None,  # Will be resolved in pipeline
+            status=SourceStateEnum.PENDING,
+            added_at=datetime.utcnow(),
+            is_original=False,  # Mark as addendum source
+        ))
+        source_counter += 1
+
+    for url in new_article_urls:
+        new_sources.append(JobSource(
+            source_id=f"SRC_{source_counter}",
+            source_type="article",
+            url=url,
+            title=None,
+            status=SourceStateEnum.PENDING,
+            added_at=datetime.utcnow(),
+            is_original=False,
+        ))
+        source_counter += 1
+
+    for text_input in add_request.text_inputs:
+        new_sources.append(JobSource(
+            source_id=f"SRC_{source_counter}",
+            source_type="user_text",
+            url=None,
+            title=text_input.title,
+            status=SourceStateEnum.PENDING,
+            added_at=datetime.utcnow(),
+            is_original=False,
+        ))
+        source_counter += 1
+
+    # Validation: at least one new source
+    if not new_sources:
+        detail = "No new sources to add."
+        if already_in_job:
+            detail += f" {len(already_in_job)} URL(s) already in job."
+        raise HTTPException(status_code=422, detail=detail)
+
+    # Update job config with pending sources
+    config_update = job.config_json.copy() if job.config_json else {}
+    pending_sources = config_update.get("pending_sources", [])
+    pending_sources.extend([s.model_dump() for s in new_sources])
+    config_update["pending_sources"] = pending_sources
+    config_update["source_count"] = source_counter - 1
+
+    # Store text inputs for later extraction
+    if add_request.text_inputs:
+        pending_text_inputs = config_update.get("pending_text_inputs", [])
+        pending_text_inputs.extend([
+            {
+                "title": ti.title,
+                "content": ti.content,
+                "platform_hint": ti.platform_hint,
+            }
+            for ti in add_request.text_inputs
+        ])
+        config_update["pending_text_inputs"] = pending_text_inputs
+
+    # Update job status
+    new_status = "sources_pending"
+    if add_request.process_immediately:
+        new_status = "processing"
+
+    update_job(
+        job_id,
+        config_json=config_update,
+        status=new_status,
+        stage="sources_added",
+    )
+
+    # Audit log
+    logger.info(
+        "Sources added to evolving job",
+        extra={
+            "job_id": job_id,
+            "user_id": user.user_id,
+            "sources_added": len(new_sources),
+            "video_count": len(new_video_urls),
+            "article_count": len(new_article_urls),
+            "text_count": len(add_request.text_inputs),
+            "duplicates_removed": duplicates_removed + len(already_in_job),
+            "process_immediately": add_request.process_immediately,
+            "event": "evolving_job_sources_added",
+        }
+    )
+
+    # If process_immediately, trigger processing now
+    if add_request.process_immediately:
+        from backend.worker import process_evolving_job
+        logger.info(f"Immediately processing pending sources for job {job_id}")
+        process_evolving_job.apply_async(
+            (job_id, user.user_id),
+            task_id=f"{job_id}_evolving"
+        )
+
+    # Build warnings
+    warnings = []
+    if duplicates_removed > 0:
+        warnings.append(f"{duplicates_removed} duplicate URL(s) removed")
+    if already_in_job:
+        warnings.append(f"{len(already_in_job)} URL(s) already in job")
+
+    return AddSourcesResponse(
+        job_id=job_id,
+        sources_added=len(new_sources),
+        pending_count=len(pending_sources),
+        status=new_status,
+        batch_timeout_seconds=60,
+        warnings=warnings if warnings else None,
+    )
+
+
+@router.post("/{job_id}/process-pending", response_model=ProcessPendingResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def process_pending_sources(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Trigger processing of pending sources for an evolving job.
+
+    Call this endpoint when:
+    - User has added sources with process_immediately=False
+    - User wants to start processing before the batch timeout
+
+    This endpoint:
+    1. Validates job has pending sources
+    2. Updates job status to 'processing'
+    3. Enqueues the evolving job worker task
+    """
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must have pending sources
+    if job.status not in ("sources_pending", "completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot process sources for job with status '{job.status}'"
+        )
+
+    # Check for pending sources in config
+    pending_sources = []
+    if job.config_json:
+        pending_sources = job.config_json.get("pending_sources", [])
+
+    if not pending_sources:
+        raise HTTPException(
+            status_code=400,
+            detail="No pending sources to process"
+        )
+
+    # Update job status
+    update_job(
+        job_id,
+        status="processing",
+        stage="evolving_extraction",
+    )
+
+    # Enqueue worker task
+    from backend.worker import process_evolving_job
+    logger.info(f"Processing {len(pending_sources)} pending sources for job {job_id}")
+    process_evolving_job.apply_async(
+        (job_id, user.user_id),
+        task_id=f"{job_id}_evolving"
+    )
+
+    # Audit log
+    logger.info(
+        "Processing triggered for evolving job",
+        extra={
+            "job_id": job_id,
+            "user_id": user.user_id,
+            "pending_count": len(pending_sources),
+            "event": "evolving_job_processing_triggered",
+        }
+    )
+
+    return ProcessPendingResponse(
+        job_id=job_id,
+        status="processing",
+        pending_count=len(pending_sources),
+    )
+
+
+# =============================================================================
+# Deep Research Booster Endpoint (Phase 7)
+# =============================================================================
+
+@router.post("/{job_id}/booster")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def run_job_booster(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Trigger Deep Research Booster for a completed job.
+
+    Prerequisites:
+    - Job must be in 'completed' or 'completed_with_warnings' status
+    - Doc 1 (JumpStartDirections) and Doc 2 (SemanticBrief) must exist
+
+    The booster expands Doc 1 with additional research directions,
+    search queries, and perspectives to investigate.
+
+    CRITICAL: The booster produces DIRECTIONS, not FACTS.
+    Booster failure does NOT affect existing documents.
+
+    Returns status and message. Poll job status for completion.
+    """
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status == "running_booster":
+        raise HTTPException(
+            status_code=409,
+            detail="Booster is already running for this job"
+        )
+
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to run booster. Current status: '{job_status}'"
+        )
+
+    # Verify required docs exist
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    jump_start = artifacts_dict.get("jump_start")
+    semantic_brief = artifacts_dict.get("semantic_brief")
+
+    if not jump_start or not semantic_brief:
+        raise HTTPException(
+            status_code=400,
+            detail="Doc 1 (JumpStartDirections) and Doc 2 (SemanticBrief) must exist to run booster"
+        )
+
+    # Check if booster already ran (warn but allow)
+    booster_output = artifacts_dict.get("booster_output")
+    if booster_output:
+        logger.warning(f"[{job_id}] Booster re-run requested (previous output exists)")
+
+    # Update status
+    update_job(job_id, status="running_booster", stage="booster")
+
+    # Queue booster task
+    from backend.worker import run_booster_task
+    logger.info(f"Enqueuing booster task for job {job_id}")
+    run_booster_task.apply_async(
+        (job_id, user.user_id),
+        task_id=f"{job_id}_booster"
+    )
+
+    # Audit log
+    logger.info(
+        "Booster triggered",
+        extra={
+            "job_id": job_id,
+            "user_id": user.user_id,
+            "is_re_run": booster_output is not None,
+            "event": "booster_triggered",
+        }
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "running_booster",
+        "message": "Deep Research Booster started. Results will append to Doc 1 (Jump-Start Directions).",
+    }
+
+
+# =============================================================================
+# PRODUCER PACKET ENDPOINT (Phase 8 - Doc 3)
+# =============================================================================
+
+@router.post("/{job_id}/producer-packet")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def generate_producer_packet(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Generate Producer Packet (Doc 3) for a completed job.
+
+    Prerequisites (V10 Gating):
+    - Job must be in 'completed' status
+    - 4+ sources in job
+    - At least 1 source with high confidence ceiling
+    - User explicitly requests (this endpoint)
+
+    Doc 3 contains CREATIVE INTERPRETATION:
+    - Story core and narrative angles
+    - Opening hooks and structure options
+    - Title options and thumbnail concepts
+    - Risk assessment and interview suggestions
+
+    CRITICAL: Doc 3 is NOT factual research. It's creative guidance.
+    Producer failure does NOT affect Doc 0/1/2.
+
+    Returns status and message. Poll job status for completion.
+    """
+    from backend.pipeline.producer.gating import can_generate_producer_packet
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status == "generating_producer_packet":
+        raise HTTPException(
+            status_code=409,
+            detail="Producer packet is already being generated for this job"
+        )
+
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to generate producer packet. Current status: '{job_status}'"
+        )
+
+    # Get job as dict for gating check
+    if hasattr(job, "model_dump"):
+        job_dict = job.model_dump(exclude_none=True)
+    elif hasattr(job, "__dict__"):
+        job_dict = {k: v for k, v in job.__dict__.items() if not k.startswith("_")}
+    else:
+        job_dict = {}
+
+    # Add sources from job record
+    if hasattr(job, "sources"):
+        job_dict["sources"] = job.sources
+
+    # Check gating requirements
+    can_generate, reason = can_generate_producer_packet(job_dict)
+    if not can_generate:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot generate producer packet: {reason}"
+        )
+
+    # Get existing artifacts
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    # Check if producer packet already exists (warn but allow re-run)
+    producer_packet = artifacts_dict.get("producer_packet")
+    if producer_packet:
+        logger.warning(f"[{job_id}] Producer packet re-run requested (previous output exists)")
+
+    # Update status
+    update_job(job_id, status="generating_producer_packet", stage="producer")
+
+    # Queue producer task
+    from backend.worker import run_producer_task
+    logger.info(f"Enqueuing producer task for job {job_id}")
+    run_producer_task.apply_async(
+        (job_id, user.user_id),
+        task_id=f"{job_id}_producer"
+    )
+
+    # Audit log
+    logger.info(
+        "Producer packet triggered",
+        extra={
+            "job_id": job_id,
+            "user_id": user.user_id,
+            "is_re_run": producer_packet is not None,
+            "event": "producer_triggered",
+        }
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "generating_producer_packet",
+        "message": "Producer Packet (Doc 3) generation started. This is creative interpretation, not factual research.",
+    }
 
 
 @router.post("/preview", response_model=PreviewJobResponse)

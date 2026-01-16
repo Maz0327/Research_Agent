@@ -38,6 +38,54 @@ RULE: You may ONLY reference information from the JSON input.
 Any external knowledge = FABRICATION = REJECTED.
 """
 
+# Phase 5: Cross-Source Analysis Instructions
+CROSS_SOURCE_INSTRUCTIONS = """
+## CROSS-SOURCE ANALYSIS (Phase 5)
+
+When synthesizing from multiple sources, you MUST track source agreement:
+
+### 1. CONVERGENCE (Multiple Sources Agree)
+When 2+ sources support the same claim/theme:
+- Mark theme with "is_consensus": true
+- List all supporting source_ids in "sources_supporting"
+- Higher confidence justified when sources agree
+
+### 2. DIVERGENCE (Sources Disagree)
+When sources provide conflicting information:
+- Surface as a Tension (do NOT resolve)
+- Tag with "is_cross_source": true
+- List which sources support each position
+- Present BOTH positions neutrally
+
+### 3. SINGLE-SOURCE CLAIMS
+When only one source supports a claim:
+- Note it comes from single source
+- Confidence should NOT exceed MEDIUM unless transcript_grounded
+
+### Source Attribution Format
+For each theme, include:
+```json
+{
+    "theme_id": "THEME_1",
+    "description": "...",
+    "supporting_key_points": ["KP_1", "KP_2"],
+    "sources_supporting": ["SRC_1", "SRC_2"],
+    "is_consensus": true
+}
+```
+
+For cross-source tensions:
+```json
+{
+    "tension_id": "TEN_1",
+    "description": "Source A claims X while Source B claims Y",
+    "is_cross_source": true,
+    "sources_position_a": ["SRC_1"],
+    "sources_position_b": ["SRC_2"]
+}
+```
+"""
+
 # Primary synthesis prompt
 SEMANTIC_SYNTHESIS_PROMPT = """## HIGHEST PRIORITY CONSTRAINT
 
@@ -430,6 +478,7 @@ def build_semantic_synthesis_prompt(
     gaps: list[dict],
     verification_rate: float,
     source_diversity: int,
+    source_coverage: dict | None = None,
 ) -> str:
     """
     Build the complete semantic synthesis prompt.
@@ -442,6 +491,7 @@ def build_semantic_synthesis_prompt(
         gaps: List of Gap dicts
         verification_rate: Percentage of claims verified (0-1)
         source_diversity: Number of unique sources
+        source_coverage: Optional dict mapping key_point_id → [source_ids] (Phase 5)
 
     Returns:
         Complete prompt string ready for Gemini
@@ -454,8 +504,16 @@ def build_semantic_synthesis_prompt(
         verification_rate=f"{verification_rate:.0%}",
     )
 
+    # Phase 5: Include cross-source instructions when multiple sources
+    cross_source_section = ""
+    if source_diversity > 1:
+        cross_source_section = CROSS_SOURCE_INSTRUCTIONS
+        # Add source coverage data if provided
+        if source_coverage:
+            cross_source_section += f"\n\nSource Coverage Map:\n{json.dumps(source_coverage, indent=2)}\n"
+
     # Build full prompt with context lock prepended
-    prompt = context_lock + "\n\n" + SEMANTIC_SYNTHESIS_PROMPT.format(
+    prompt = context_lock + cross_source_section + "\n\n" + SEMANTIC_SYNTHESIS_PROMPT.format(
         scope_lock=scope_lock,
         key_points_json=json.dumps(key_points, indent=2),
         themes_json=json.dumps(themes, indent=2),

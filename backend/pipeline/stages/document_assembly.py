@@ -247,6 +247,8 @@ def build_semantic_brief(
     gaps: list[Gap],
     overall_confidence: ConfidenceLevel,
     confidence_reasoning: list[str],
+    source_contributions: dict | None = None,
+    source_coverage: dict | None = None,
 ) -> SemanticBrief:
     """
     Build Doc 2: Semantic Research Brief from synthesis results.
@@ -257,6 +259,8 @@ def build_semantic_brief(
         gaps: List of identified Gaps
         overall_confidence: Calibrated confidence level
         confidence_reasoning: List of reasons for confidence level
+        source_contributions: Optional dict mapping source_id → {key_points, claims, ...} (Phase 5)
+        source_coverage: Optional dict mapping key_point_id → [source_ids] (Phase 5)
 
     Returns:
         Assembled SemanticBrief (Doc 2)
@@ -276,6 +280,32 @@ def build_semantic_brief(
 
         if extraction.key_points:
             based_on_kps.append(extraction.key_points[0].key_point_id)
+
+    # Phase 5: Enrich themes with source attribution
+    if source_coverage and len(extractions) > 1:
+        for theme in all_themes:
+            # Collect unique source IDs from related key points
+            theme_sources = set()
+            for kp_id in theme.related_key_points:
+                if kp_id in source_coverage:
+                    theme_sources.update(source_coverage[kp_id])
+            theme.sources_supporting = list(theme_sources)
+            theme.is_consensus = len(theme_sources) >= 2
+
+    # Phase 5: Mark cross-source tensions
+    if source_coverage and len(extractions) > 1:
+        for tension in all_tensions:
+            tension_sources = set()
+            for kp_id in tension.involved_key_points:
+                if kp_id in source_coverage:
+                    tension_sources.update(source_coverage[kp_id])
+            if len(tension_sources) > 1:
+                tension.is_cross_source = True
+                # Split sources into positions (simple split for now)
+                sources_list = list(tension_sources)
+                mid = len(sources_list) // 2 or 1
+                tension.sources_position_a = sources_list[:mid]
+                tension.sources_position_b = sources_list[mid:]
 
     # Determine triage level
     triage = TriageLevel.USABLE
@@ -477,12 +507,18 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
     if len(doc_1.tensions) > 0:
         confidence_reasoning.append(f"{len(doc_1.tensions)} unresolved tensions")
 
+    # Phase 5: Get source tracking from context if available
+    source_contributions = getattr(ctx, "source_contributions", None)
+    source_coverage = getattr(ctx, "source_coverage", None)
+
     doc_2 = build_semantic_brief(
         semantic_core=semantic_core,
         extractions=extractions,
         gaps=gaps,
         overall_confidence=doc_1.confidence,
         confidence_reasoning=confidence_reasoning,
+        source_contributions=source_contributions,
+        source_coverage=source_coverage,
     )
 
     # Store documents in context (dict format)

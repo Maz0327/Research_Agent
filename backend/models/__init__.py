@@ -18,6 +18,37 @@ from backend.models.job_config import (
     YouTubeConfig,
 )
 from backend.models.source import SourceItem, SourceType
+from backend.models.booster_models import (
+    ContextBundle,
+    BoosterOutput,
+    MissingPerspective,
+    PrimarySourceDirection,
+    PrimarySourceType,
+    PlatformSuggestion,
+    SearchQuery,
+    ResearchQuestion,
+    ThemeSummary,
+    TensionSummary,
+    GapSummary,
+)
+from backend.models.producer_models import (
+    ProducerPacket,
+    StoryCore,
+    NarrativeAngle,
+    OpeningHook,
+    StructureOption,
+    KeyMoment,
+    TitleOption,
+    ThumbnailConcept,
+    RiskAssessment,
+    InterviewSuggestions,
+    InterviewCandidate,
+    BRollSuggestion,
+    HookType,
+    StructureType,
+    TitleTone,
+    SensitivityLevel,
+)
 
 __all__ = [
     # Job models
@@ -45,5 +76,34 @@ __all__ = [
     "Citation",
     "EvidenceRecord",
     "EvidenceStatus",
+    # Booster models (Phase 7)
+    "ContextBundle",
+    "BoosterOutput",
+    "MissingPerspective",
+    "PrimarySourceDirection",
+    "PrimarySourceType",
+    "PlatformSuggestion",
+    "SearchQuery",
+    "ResearchQuestion",
+    "ThemeSummary",
+    "TensionSummary",
+    "GapSummary",
+    # Producer models (Phase 8)
+    "ProducerPacket",
+    "StoryCore",
+    "NarrativeAngle",
+    "OpeningHook",
+    "StructureOption",
+    "KeyMoment",
+    "TitleOption",
+    "ThumbnailConcept",
+    "RiskAssessment",
+    "InterviewSuggestions",
+    "InterviewCandidate",
+    "BRollSuggestion",
+    "HookType",
+    "StructureType",
+    "TitleTone",
+    "SensitivityLevel",
 ]
 

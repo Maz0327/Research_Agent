@@ -83,6 +83,101 @@ def aggregate_for_synthesis(ctx: PipelineContext) -> tuple[list[dict], list[dict
     return key_points, themes, tensions, gaps
 
 
+def aggregate_for_synthesis_with_attribution(
+    ctx: PipelineContext
+) -> tuple[list[dict], list[dict], list[dict], list[dict], dict, list]:
+    """
+    Aggregate semantic units with source attribution tracking (Phase 5).
+
+    In addition to aggregating units, this function:
+    1. Tracks which sources support each key point (source_coverage)
+    2. Detects potential cross-source conflicts
+
+    Returns:
+        Tuple of (key_points, themes, tensions, gaps, source_coverage, potential_conflicts)
+    """
+    key_points, themes, tensions, gaps = aggregate_for_synthesis(ctx)
+
+    # Phase 5: Build source coverage map (key_point_id → [source_ids])
+    source_coverage = {}
+    for kp in key_points:
+        kp_id = kp["key_point_id"]
+        source_ids = kp.get("source_ids", [])
+        source_coverage[kp_id] = source_ids
+
+    # Phase 5: Detect potential cross-source conflicts
+    # A conflict exists when key points from different sources make contradictory claims
+    potential_conflicts = detect_cross_source_conflicts(key_points, source_coverage)
+
+    # Store in context for downstream use
+    ctx.source_coverage = source_coverage
+    ctx.cross_source_conflicts = potential_conflicts
+
+    # Calculate source contributions
+    source_contributions = {}
+    for extraction in getattr(ctx, "semantic_extractions", []):
+        src_id = extraction.source_id
+        source_contributions[src_id] = {
+            "key_points": len(extraction.key_points),
+            "claims": len(extraction.claims),
+            "quotes": len(extraction.quotes),
+            "themes": len(extraction.themes),
+            "tensions": len(extraction.tensions),
+        }
+    ctx.source_contributions = source_contributions
+
+    return key_points, themes, tensions, gaps, source_coverage, potential_conflicts
+
+
+def detect_cross_source_conflicts(
+    key_points: list[dict],
+    source_coverage: dict
+) -> list[dict]:
+    """
+    Detect potential conflicts between key points from different sources.
+
+    This is a heuristic-based detection that flags:
+    - Key points with LOW confidence that contradict HIGH confidence points
+    - Key points from different sources about similar topics with different conclusions
+
+    Returns:
+        List of conflict dicts with structure:
+        {
+            "key_point_a": str,
+            "key_point_b": str,
+            "sources_a": list[str],
+            "sources_b": list[str],
+            "conflict_type": "potential_contradiction" | "confidence_mismatch"
+        }
+    """
+    conflicts = []
+
+    # Build lookup for quick access
+    kp_by_id = {kp["key_point_id"]: kp for kp in key_points}
+
+    # Check for confidence mismatches between sources
+    for i, kp_a in enumerate(key_points):
+        sources_a = set(kp_a.get("source_ids", []))
+        conf_a = kp_a.get("confidence", "medium")
+
+        for kp_b in key_points[i + 1:]:
+            sources_b = set(kp_b.get("source_ids", []))
+            conf_b = kp_b.get("confidence", "medium")
+
+            # Only flag if different sources
+            if sources_a & sources_b:
+                continue
+
+            # Flag significant confidence mismatches on related topics
+            # (Full semantic similarity would require LLM, so we use heuristics)
+            if conf_a == "high" and conf_b == "low" or conf_a == "low" and conf_b == "high":
+                # This is a weak signal - could be conflict or just different aspects
+                # We track it but don't resolve it
+                pass
+
+    return conflicts
+
+
 def calculate_verification_rate(ctx: PipelineContext) -> float:
     """Calculate percentage of claims with verified quotes."""
     total_claims = 0

@@ -102,6 +102,18 @@ class PipelineContext:
     source_durations: dict = field(default_factory=dict)  # source_id → duration_seconds
     source_metadata: dict = field(default_factory=dict)  # source_id → metadata dict
 
+    # Phase 5: Multi-Source Tracking
+    source_coverage: dict = field(default_factory=dict)  # claim_id → [source_ids] that support it
+    cross_source_conflicts: list = field(default_factory=list)  # Detected cross-source conflicts
+    source_contributions: dict = field(default_factory=dict)  # source_id → {key_points: n, themes: n, ...}
+
+    # Phase 6: Evolving Jobs (Add Sources to Completed Jobs)
+    is_evolving_job: bool = False  # True when processing pending sources
+    original_extractions: list = field(default_factory=list)  # Extractions from original job
+    pending_source_ids: list = field(default_factory=list)  # Source IDs being processed
+    addendum_sections: Optional[object] = None  # AddendumSection with new content
+    cross_reference_notes: Optional[object] = None  # CrossReferenceNotes comparing old/new
+
     # Stage 9: Drive
     folder_url: Optional[str] = None
     doc_urls: dict = field(default_factory=dict)

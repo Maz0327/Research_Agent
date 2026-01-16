@@ -31,6 +31,15 @@ from .quote_verification import (
     QuoteVerification,
 )
 
+# Cross-Reference Stage (Phase 6 - Evolving Jobs)
+from .cross_reference import stage_cross_reference
+
+# Booster Stage (Phase 7 - Deep Research Booster)
+from .booster_stage import run_booster, booster_output_to_dict
+
+# Producer Stage (Phase 8 - Doc 3)
+from .producer_stage import run_producer_pipeline, validate_producer_cardinality
+
 __all__ = [
     # Helpers
     "post_slack_message",
@@ -73,4 +82,12 @@ __all__ = [
     "verify_quote",
     "verify_all_quotes",
     "QuoteVerification",
+    # Cross-Reference Stage (Phase 6)
+    "stage_cross_reference",
+    # Booster Stage (Phase 7)
+    "run_booster",
+    "booster_output_to_dict",
+    # Producer Stage (Phase 8)
+    "run_producer_pipeline",
+    "validate_producer_cardinality",
 ]

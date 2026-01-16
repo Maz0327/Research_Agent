@@ -13,8 +13,21 @@ class Artifacts(BaseModel):
     # Video analysis artifacts (Gemini pivot)
     clips: Optional[list[dict[str, Any]]] = Field(None, description="Extracted video clips")
     quotes: Optional[list[dict[str, Any]]] = Field(None, description="Extracted quotes with timestamps")
-    producer_packet: Optional[dict[str, Any]] = Field(None, description="Full ProducerPacket for video production")
     quality_gate_passed: Optional[bool] = Field(None, description="Whether ProducerPacket passed quality gate")
+
+    # Semantic Pipeline Docs (Phase 2+)
+    source_ledger: Optional[dict[str, Any]] = Field(None, description="Doc 0 - Source Ledger")
+    jump_start: Optional[dict[str, Any]] = Field(None, description="Doc 1 - Jump-Start Directions")
+    semantic_brief: Optional[dict[str, Any]] = Field(None, description="Doc 2 - Semantic Research Brief")
+    semantic_extractions: Optional[list[dict[str, Any]]] = Field(None, description="Per-source extractions")
+
+    # Booster (Phase 7)
+    booster_output: Optional[dict[str, Any]] = Field(None, description="Booster output for Doc 1 expansion")
+    booster_expansion_md: Optional[str] = Field(None, description="Booster markdown for Doc 1")
+
+    # Producer Packet (Phase 8 - Doc 3)
+    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (creative interpretation)")
+    producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
 
     # Phase 3: Full Research Assistant Pipeline (Jan 2026)
     # Pass 2: Content Blueprints - structure analysis per video

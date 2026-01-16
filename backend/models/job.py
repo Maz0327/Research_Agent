@@ -1,5 +1,6 @@
 """Job-related Pydantic models."""
 from datetime import datetime
+from enum import Enum
 from typing import Any, Literal, Optional
 import re
 
@@ -348,3 +349,241 @@ class ScreenshotInputResponse(BaseModel):
     platform_detected: Optional[str] = Field(None, description="Platform detected from content")
     warnings: Optional[list[str]] = Field(None, description="OCR or processing warnings")
 
+
+# =============================================================================
+# Mixed-Input Models (Phase 5 - Multi-Source Support)
+# =============================================================================
+
+class MixedTextInput(BaseModel):
+    """Individual text input within a mixed-input request."""
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Title/label for this text content"
+    )
+    content: str = Field(
+        ...,
+        min_length=50,
+        max_length=50000,
+        description="Text content (50-50000 characters)"
+    )
+    platform_hint: Optional[Literal["reddit", "twitter", "forum", "email", "article", "other"]] = Field(
+        None,
+        description="Platform origin hint for better processing"
+    )
+
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate and sanitize content."""
+        v = v.strip()
+        if len(v) < 50:
+            raise ValueError("Content must be at least 50 characters")
+        return v
+
+
+class MixedInputRequest(BaseModel):
+    """Request model for mixed-input job with multiple source types.
+
+    Accepts any combination of:
+    - YouTube video URLs
+    - Article URLs (for fetch + extract)
+    - User-provided text snippets
+
+    At least one input source required. Maximum 20 total sources.
+    Each source type processed with appropriate analysis mode.
+    """
+    topic: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Research topic / scope lock for all sources"
+    )
+    video_urls: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="YouTube video URLs to analyze"
+    )
+    article_urls: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Article URLs to fetch and analyze"
+    )
+    text_inputs: list[MixedTextInput] = Field(
+        default_factory=list,
+        max_length=20,
+        description="User-provided text snippets"
+    )
+
+    @field_validator('video_urls')
+    @classmethod
+    def validate_video_urls(cls, v: list[str]) -> list[str]:
+        """Validate YouTube URLs."""
+        if not v:
+            return v
+
+        from backend.utils.validators import validate_youtube_url, ValidationError as ValidatorError
+
+        validated_urls = []
+        for url in v:
+            try:
+                validated_url, _ = validate_youtube_url(url.strip())
+                validated_urls.append(validated_url)
+            except ValidatorError as e:
+                raise ValueError(f"Invalid YouTube URL: {e}")
+
+        return validated_urls
+
+    @field_validator('article_urls')
+    @classmethod
+    def validate_article_urls(cls, v: list[str]) -> list[str]:
+        """Validate article URLs are properly formatted."""
+        if not v:
+            return v
+
+        import re
+        url_pattern = re.compile(
+            r'^https?://'  # http:// or https://
+            r'(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # Domain
+            r'(?:/[^\s]*)?$'  # Optional path
+        )
+
+        validated_urls = []
+        for url in v:
+            url = url.strip()
+            if not url_pattern.match(url):
+                raise ValueError(f"Invalid article URL: {url}")
+            validated_urls.append(url)
+
+        return validated_urls
+
+    def model_post_init(self, __context) -> None:
+        """Validate total source count and at least one input."""
+        total = len(self.video_urls) + len(self.article_urls) + len(self.text_inputs)
+        if total == 0:
+            raise ValueError("At least one input source required")
+        if total > 20:
+            raise ValueError(f"Maximum 20 sources allowed, got {total}")
+
+
+class SourceAccepted(BaseModel):
+    """Information about an accepted source in mixed-input response."""
+    source_id: str = Field(..., description="Assigned source ID (SRC_1, SRC_2, etc.)")
+    source_type: str = Field(..., description="Source type (youtube, article, user_text)")
+    url: Optional[str] = Field(None, description="URL if applicable")
+    title: Optional[str] = Field(None, description="Title if applicable")
+
+
+class MixedInputResponse(BaseModel):
+    """Response model for mixed-input job creation."""
+    job_id: str
+    status: str = Field("pending", description="Initial job status")
+    source_count: int = Field(..., description="Total sources accepted")
+    sources_accepted: list[SourceAccepted] = Field(
+        ..., description="Details of each accepted source"
+    )
+    duplicates_removed: int = Field(
+        0, description="Number of duplicate URLs removed"
+    )
+    warnings: Optional[list[str]] = Field(None, description="Processing warnings")
+
+
+# =============================================================================
+# Evolving Jobs Models (Phase 6 - Add Sources to Completed Jobs)
+# =============================================================================
+
+class SourceStateEnum(str, Enum):
+    """Status of individual source within a job.
+
+    Sources can be added to completed jobs and tracked individually.
+    """
+    PENDING = "pending"         # Added, not yet processed
+    PROCESSING = "processing"   # Currently being extracted
+    PROCESSED = "processed"     # Extraction complete
+    FAILED = "failed"           # Extraction failed
+    EXCLUDED = "excluded"       # User removed from job
+
+
+class JobSource(BaseModel):
+    """Individual source within a job with status tracking.
+
+    Used for evolving jobs where sources can be added after initial completion.
+    """
+    source_id: str = Field(..., description="Unique source identifier (SRC_1, SRC_2, etc.)")
+    source_type: str = Field(..., description="Source type: youtube, article, user_text")
+    url: Optional[str] = Field(None, description="URL if applicable")
+    title: Optional[str] = Field(None, description="Title or label")
+    status: SourceStateEnum = Field(SourceStateEnum.PENDING, description="Processing status")
+    added_at: datetime = Field(..., description="When source was added to job")
+    processed_at: Optional[datetime] = Field(None, description="When extraction completed")
+    error: Optional[str] = Field(None, description="Error message if failed")
+    is_original: bool = Field(True, description="True if part of initial job, False if added later")
+
+
+class AddSourcesRequest(BaseModel):
+    """Request to add sources to an existing completed job.
+
+    Job must be in 'completed' or 'completed_with_warnings' status.
+    Sources are marked 'pending' until processed.
+    """
+    video_urls: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="YouTube video URLs to add"
+    )
+    article_urls: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Article URLs to add"
+    )
+    text_inputs: list[MixedTextInput] = Field(
+        default_factory=list,
+        max_length=10,
+        description="User-provided text snippets to add"
+    )
+    process_immediately: bool = Field(
+        False,
+        description="If True, process now. If False, batch with other pending sources."
+    )
+
+    @field_validator('video_urls')
+    @classmethod
+    def validate_video_urls(cls, v: list[str]) -> list[str]:
+        """Validate YouTube URLs."""
+        if not v:
+            return v
+        from backend.utils.validators import validate_youtube_url, ValidationError as ValidatorError
+        validated = []
+        for url in v:
+            try:
+                validated_url, _ = validate_youtube_url(url.strip())
+                validated.append(validated_url)
+            except ValidatorError as e:
+                raise ValueError(f"Invalid YouTube URL: {e}")
+        return validated
+
+    def model_post_init(self, __context) -> None:
+        """Validate at least one source provided."""
+        total = len(self.video_urls) + len(self.article_urls) + len(self.text_inputs)
+        if total == 0:
+            raise ValueError("At least one source required")
+        if total > 10:
+            raise ValueError(f"Maximum 10 sources per addition, got {total}")
+
+
+class AddSourcesResponse(BaseModel):
+    """Response after adding sources to a job."""
+    job_id: str = Field(..., description="Job identifier")
+    sources_added: int = Field(..., description="Number of sources added")
+    pending_count: int = Field(..., description="Total pending sources awaiting processing")
+    status: str = Field(..., description="Job status: sources_pending or processing")
+    batch_timeout_seconds: int = Field(60, description="Seconds until auto-process if not immediate")
+    warnings: Optional[list[str]] = Field(None, description="Any warnings")
+
+
+class ProcessPendingResponse(BaseModel):
+    """Response after triggering processing of pending sources."""
+    job_id: str = Field(..., description="Job identifier")
+    status: str = Field(..., description="Job status: processing")
+    pending_count: int = Field(..., description="Number of sources being processed")
