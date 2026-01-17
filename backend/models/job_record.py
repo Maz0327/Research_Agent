@@ -10,12 +10,9 @@ class Artifacts(BaseModel):
     drive_folder_url: Optional[str] = Field(None, description="Google Drive folder URL")
     doc_urls: Optional[list[str]] = Field(None, description="List of Google Doc URLs")
 
-    # Video analysis artifacts (Gemini pivot)
-    clips: Optional[list[dict[str, Any]]] = Field(None, description="Extracted video clips")
-    quotes: Optional[list[dict[str, Any]]] = Field(None, description="Extracted quotes with timestamps")
-    quality_gate_passed: Optional[bool] = Field(None, description="Whether ProducerPacket passed quality gate")
-
-    # Semantic Pipeline Docs (Phase 2+)
+    # =========================================================================
+    # SEMANTIC PIPELINE (Active) - Doc 0/1/2/3
+    # =========================================================================
     source_ledger: Optional[dict[str, Any]] = Field(None, description="Doc 0 - Source Ledger")
     jump_start: Optional[dict[str, Any]] = Field(None, description="Doc 1 - Jump-Start Directions")
     semantic_brief: Optional[dict[str, Any]] = Field(None, description="Doc 2 - Semantic Research Brief")
@@ -29,18 +26,32 @@ class Artifacts(BaseModel):
     producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (creative interpretation)")
     producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
 
-    # Phase 3: Full Research Assistant Pipeline (Jan 2026)
-    # Pass 2: Content Blueprints - structure analysis per video
+    # =========================================================================
+    # LEGACY (Deprecated per D5 - 2026-01-17)
+    # Fields preserved for backward compatibility but NOT populated by
+    # new jobs. Legacy pipeline stages (7-8.6) are completely disabled.
+    # =========================================================================
+    # Video analysis artifacts (Legacy Gemini pivot - run_gemini_video_job only)
+    clips: Optional[list[dict[str, Any]]] = Field(
+        None, description="DEPRECATED: Legacy extracted video clips (D5)"
+    )
+    quotes: Optional[list[dict[str, Any]]] = Field(
+        None, description="DEPRECATED: Legacy extracted quotes (D5)"
+    )
+    quality_gate_passed: Optional[bool] = Field(
+        None, description="DEPRECATED: Legacy ProducerPacket quality gate (D5)"
+    )
+
+    # Legacy Phase 3: Full Research Assistant Pipeline (Jan 2026)
+    # These were from the old 4-pass Gemini pipeline, now replaced by semantic pipeline
     content_blueprints: Optional[list[dict[str, Any]]] = Field(
-        None, description="ContentBlueprint per video (hook, structure, open loops, sources)"
+        None, description="DEPRECATED: Legacy ContentBlueprint per video (D5)"
     )
-    # Pass 3: Gap Analysis - cross-video gaps
     gap_analysis: Optional[dict[str, Any]] = Field(
-        None, description="GapAnalysis (missing perspectives, unanswered questions, contradictions)"
+        None, description="DEPRECATED: Legacy GapAnalysis (D5)"
     )
-    # Pass 4: Research Starter - actionable next steps
     research_starter: Optional[dict[str, Any]] = Field(
-        None, description="ResearchStarter (search queries, source suggestions, content angles)"
+        None, description="DEPRECATED: Legacy ResearchStarter (D5)"
     )
 
 
