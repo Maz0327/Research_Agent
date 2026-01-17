@@ -189,8 +189,36 @@ def stage_ocr_extraction(ctx: PipelineContext) -> None:
         progress_percent=15,
     )
 
+    # Check for Supabase storage path first (cloud deployment)
+    screenshot_storage_path = ctx.job_config_dict.get("screenshot_storage_path")
     screenshot_path = ctx.job_config_dict.get("screenshot_path")
     platform_hint = ctx.job_config_dict.get("platform_hint", "other")
+
+    local_temp_file: Path | None = None
+
+    if screenshot_storage_path:
+        # Download from Supabase Storage
+        from backend.integrations.supabase_storage import get_storage_client
+        import tempfile
+
+        storage_client = get_storage_client()
+        if storage_client:
+            try:
+                content = storage_client.download(screenshot_storage_path)
+                # Save to temp file for OCR processing
+                temp_dir = Path(tempfile.gettempdir()) / "research_agent_screenshots"
+                temp_dir.mkdir(exist_ok=True)
+                ext = Path(screenshot_storage_path).suffix or ".png"
+                local_temp_file = temp_dir / f"ocr_{ctx.job_id}{ext}"
+                with open(local_temp_file, "wb") as f:
+                    f.write(content)
+                screenshot_path = str(local_temp_file)
+                logger.info(f"Downloaded screenshot from Supabase: {screenshot_storage_path}")
+            except Exception as e:
+                ctx.add_warning(f"Failed to download from Supabase: {e}")
+                logger.error(f"Supabase download failed: {e}")
+        else:
+            ctx.add_warning("Supabase storage not configured")
 
     if not screenshot_path:
         ctx.add_warning("No screenshot path found in job config")
@@ -228,11 +256,27 @@ def stage_ocr_extraction(ctx: PipelineContext) -> None:
     else:
         ctx.add_warning("OCR extraction returned no text")
 
-    # Cleanup temp file after extraction
+    # Cleanup after extraction
+    # 1. Clean up local temp file
     try:
-        path = Path(screenshot_path)
-        if path.exists():
-            path.unlink()
-            logger.debug(f"Cleaned up temp screenshot: {screenshot_path}")
+        if local_temp_file and local_temp_file.exists():
+            local_temp_file.unlink()
+            logger.debug(f"Cleaned up temp file: {local_temp_file}")
+        elif screenshot_path:
+            path = Path(screenshot_path)
+            if path.exists():
+                path.unlink()
+                logger.debug(f"Cleaned up temp screenshot: {screenshot_path}")
     except Exception as e:
         logger.warning(f"Failed to cleanup temp screenshot: {e}")
+
+    # 2. Clean up Supabase storage (optional - saves storage costs)
+    if screenshot_storage_path:
+        try:
+            from backend.integrations.supabase_storage import get_storage_client
+            storage_client = get_storage_client()
+            if storage_client:
+                storage_client.delete(screenshot_storage_path)
+                logger.debug(f"Cleaned up Supabase storage: {screenshot_storage_path}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup Supabase storage: {e}")

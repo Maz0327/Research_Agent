@@ -460,21 +460,40 @@ async def create_screenshot_input_job(
             detail=f"File too large: {len(content) / 1024 / 1024:.1f}MB. Maximum: 10MB"
         )
 
-    # Save screenshot temporarily for OCR processing
-    import tempfile
-    import os
+    # Upload screenshot to Supabase Storage (cloud-compatible)
     from pathlib import Path
+    from backend.integrations.supabase_storage import get_storage_client
 
-    # Create temp directory if needed
-    temp_dir = Path(tempfile.gettempdir()) / "research_agent_screenshots"
-    temp_dir.mkdir(exist_ok=True)
-
-    # Save file
     file_ext = Path(screenshot.filename or "image.png").suffix or ".png"
-    temp_file = temp_dir / f"{uuid.uuid4()}{file_ext}"
+    user_id_for_storage = user.user_id if user else "anonymous"
 
-    with open(temp_file, "wb") as f:
-        f.write(content)
+    # Try Supabase storage first, fall back to local temp if not configured
+    storage_client = get_storage_client()
+    screenshot_storage_path: str | None = None
+    screenshot_path: str | None = None
+
+    if storage_client:
+        try:
+            screenshot_storage_path = storage_client.upload_screenshot(
+                file_content=content,
+                user_id=user_id_for_storage,
+                file_extension=file_ext
+            )
+            logger.info(f"Uploaded screenshot to Supabase: {screenshot_storage_path}")
+        except Exception as e:
+            logger.warning(f"Supabase upload failed, falling back to local: {e}")
+            storage_client = None
+
+    # Fallback to local temp file if Supabase not available
+    if not screenshot_storage_path:
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "research_agent_screenshots"
+        temp_dir.mkdir(exist_ok=True)
+        temp_file = temp_dir / f"{uuid.uuid4()}{file_ext}"
+        with open(temp_file, "wb") as f:
+            f.write(content)
+        screenshot_path = str(temp_file)
+        logger.info(f"Saved screenshot locally: {screenshot_path}")
 
     # Run OCR extraction
     # For now, we'll placeholder this and do OCR in the pipeline
@@ -487,12 +506,17 @@ async def create_screenshot_input_job(
         "topic": topic,
         "job_type": "screenshot_input",
         "input_mode": "screenshot",
-        "screenshot_path": str(temp_file),
         "platform_hint": platform_hint,
         "context_note": context_note,
         "analysis_mode": "ocr_extracted",
         "confidence_ceiling": "MEDIUM",
     }
+
+    # Store storage path (Supabase preferred) or local path as fallback
+    if screenshot_storage_path:
+        config_json["screenshot_storage_path"] = screenshot_storage_path
+    elif screenshot_path:
+        config_json["screenshot_path"] = screenshot_path
 
     # Store user info
     if user:

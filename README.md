@@ -21,22 +21,35 @@ AI-powered documentary research assistant that makes long-form video content sca
 
 ## Features
 
-### Video Analysis (Primary - Jan 2026)
-- **Gemini 2.5 Extraction**: Direct YouTube URL analysis with Gemini 2.5 Flash/Pro
-- **Timestamped Clips**: MM:SS timestamps for every extracted moment
-- **Quote Verification**: Three-tier verification (verified/probable/unverified)
-- **Quality Gate**: Minimum thresholds (4 clips, 8 quotes, 2 verified claims)
-- **ProducerPacket Output**: Structured data for video production workflows
+### Semantic Pipeline (Primary)
+- **6 Analysis Modes**: transcript_grounded, caption_grounded, video_only, text_provided, ocr_extracted, article_fetched
+- **Source Isolation**: Each source extracted in separate LLM call (prevents cross-contamination)
+- **Confidence Ceilings**: Mode-based confidence limits (HIGH/MEDIUM/LOW)
+- **Quote Verification**: Fuzzy matching against source transcripts
+- **Provenance Tracking**: Every claim traces back to source with timestamp/quote
+- **Multi-Source Synthesis**: Cross-source themes, tensions, and gaps
 
-### Topic Research (Legacy)
-- **Multi-mode Pipelines**: Quick, Full, Breaking News, Investigation, Profile, Controversy
-- **AI-Powered Planning**: OpenAI-based research planning and claim extraction
-- **Source Aggregation**: YouTube transcripts, web articles, Reddit discussions
-- **Claim Validation**: Multi-source claim verification with evidence scoring
-- **Timeline Extraction**: Automatic extraction of chronological events
-- **Entity Extraction**: Identification of key people, organizations, and places
-- **Angle Discovery**: AI-powered discovery of unique documentary angles
-- **Google Drive Integration**: Automatic document generation and sharing
+### Input Types
+- **YouTube Videos**: Full transcript or caption-based analysis
+- **Web Articles**: Article text extraction via Jina/Trafilatura
+- **Text Input**: User-provided text content (copy-paste)
+- **Screenshots**: OCR extraction with platform hints
+
+### Output Documents
+- **Doc 0 (Source Ledger)**: Full transcripts, metadata, indexes
+- **Doc 1 (Jump-Start)**: Gaps, research directions, next steps
+- **Doc 2 (Semantic Brief)**: Themes, key points, tensions, confidence
+- **Doc 3 (Producer Packet)**: Creative interpretation (optional, gated)
+
+### Extended Features
+- **Evolving Jobs**: Add sources to completed jobs with addendum
+- **Deep Research Booster**: Suggests research directions (not facts)
+- **Cross-Reference Stage**: Identifies supports/contradicts between sources
+
+### Quality Assurance
+- **948 Automated Tests**: Comprehensive test coverage
+- **Validation Stage**: Quote verification, ceiling enforcement, provenance check
+- **Rate Limiting**: 60 req/min with exponential backoff
 
 ### User Experience
 - **Dark Mode UI**: Modern dark-mode-first design with glow effects and animations

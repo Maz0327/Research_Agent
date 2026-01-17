@@ -300,6 +300,148 @@ Permanently deletes a job and all associated data.
 
 ---
 
+### 2.6 Create Text Input Job
+
+**POST** `/api/v1/jobs/text-input`
+
+Creates a job from user-provided text content.
+
+**Request Body:**
+
+```json
+{
+  "title": "My Research Notes",
+  "content": "The full text content to analyze...",
+  "platform_hint": "reddit"
+}
+```
+
+**Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | string | Yes | Title for the text source |
+| `content` | string | Yes | Text content (max 50,000 chars) |
+| `platform_hint` | string | No | Source platform hint |
+
+**Platform Hints:** `reddit`, `twitter`, `forum`, `article`, `notes`, `other`
+
+**Response (201 Created):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "job_abc123",
+    "status": "pending",
+    "analysis_mode": "text_provided",
+    "confidence_ceiling": "medium"
+  },
+  "error": null
+}
+```
+
+---
+
+### 2.7 Create Screenshot Input Job
+
+**POST** `/api/v1/jobs/screenshot-input`
+
+Creates a job from a screenshot image (OCR extraction).
+
+**Request:** `multipart/form-data`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | file | Yes | Image file (PNG, JPG, max 10MB) |
+| `platform_hint` | string | No | Platform hint for context |
+
+**Response (201 Created):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "job_abc123",
+    "status": "pending",
+    "analysis_mode": "ocr_extracted",
+    "confidence_ceiling": "medium",
+    "ocr_preview": "First 200 chars of extracted text..."
+  },
+  "error": null
+}
+```
+
+**Errors:**
+
+| Code | Status | Condition |
+|------|--------|-----------|
+| `INVALID_IMAGE` | 400 | Cannot decode image |
+| `FILE_TOO_LARGE` | 400 | Exceeds 10MB limit |
+| `UNSUPPORTED_FORMAT` | 400 | Not PNG/JPG/JPEG |
+
+---
+
+### 2.8 Create Mixed Input Job
+
+**POST** `/api/v1/jobs/mixed-input`
+
+Creates a job with multiple source types in one request.
+
+**Request Body:**
+
+```json
+{
+  "video_urls": ["https://youtube.com/watch?v=..."],
+  "article_urls": ["https://example.com/article"],
+  "text_inputs": [
+    {"title": "Notes", "content": "..."}
+  ]
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "job_abc123",
+    "status": "pending",
+    "sources_queued": 3
+  },
+  "error": null
+}
+```
+
+---
+
+### 2.9 Process Pending Sources
+
+**POST** `/api/v1/jobs/{job_id}/process-pending`
+
+Triggers processing of pending sources added to a completed job.
+
+**Preconditions:**
+- Job has pending sources (added via POST /jobs/{job_id}/sources)
+
+**Response (202 Accepted):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "job_abc123",
+    "status": "processing",
+    "pending_sources": 3,
+    "message": "Processing started"
+  },
+  "error": null
+}
+```
+
+---
+
 ## 3. Sources Endpoints
 
 ### 3.1 List Job Sources
