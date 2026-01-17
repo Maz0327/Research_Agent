@@ -660,8 +660,7 @@ RULES:
             )
             text = response.text
 
-            # Parse JSON from response
-            import json
+            # Parse JSON from response (json imported at module level)
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0].strip()
             elif "```" in text:
@@ -799,8 +798,7 @@ YouTube Video URL: {chunk_url}"""
                 )
                 text = response.text
 
-                # Parse JSON
-                import json
+                # Parse JSON (json imported at module level)
                 if "```json" in text:
                     text = text.split("```json")[1].split("```")[0].strip()
                 elif "```" in text:
