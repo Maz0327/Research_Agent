@@ -330,6 +330,10 @@ def _run_mixed_input_job(ctx, job) -> dict:
         build_source_identity_from_article,
         build_source_identity_from_text,
     )
+    from backend.integrations.web_capture import (
+        _fetch_url_content,
+        _extract_text_with_trafilatura,
+    )
 
     config = job.config_json or {}
     job_id = ctx.job_id
@@ -356,15 +360,30 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 ctx.add_warning(f"Failed to process video {url}: {e}")
                 logger.warning(f"[{job_id}] Video processing failed: {e}")
 
-        # Process articles
+        # Process articles - fetch content first
         for url in config.get("article_urls", []):
-            logger.info(f"[{job_id}] Building identity for article: {url}")
+            logger.info(f"[{job_id}] Fetching content for article: {url}")
             try:
+                # Fetch HTML content
+                html_content, status_code, error_msg = _fetch_url_content(url)
+                if html_content is None:
+                    ctx.add_warning(f"Failed to fetch article {url}: {error_msg}")
+                    logger.warning(f"[{job_id}] Article fetch failed: {error_msg}")
+                    continue
+
+                # Extract readable text
+                text_content = _extract_text_with_trafilatura(html_content, url)
+                if not text_content:
+                    ctx.add_warning(f"No text extracted from {url}")
+                    logger.warning(f"[{job_id}] No text extracted from article")
+                    continue
+
                 # build_source_identity_from_article expects (article_data: dict, source_index: int)
-                article_data = {"url": url}
+                article_data = {"url": url, "content": text_content}
                 pkg = build_source_identity_from_article(article_data, source_counter - 1)
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
+                logger.info(f"[{job_id}] Article processed: {len(text_content)} chars extracted")
             except Exception as e:
                 ctx.add_warning(f"Failed to process article {url}: {e}")
                 logger.warning(f"[{job_id}] Article processing failed: {e}")
