@@ -4,3 +4,4 @@
 export { VideoSourceForm } from './VideoSourceForm';
 export { TextSourceForm } from './TextSourceForm';
 export { ArticleSourceForm } from './ArticleSourceForm';
+export { ScreenshotSourceForm } from './ScreenshotSourceForm';

@@ -2,14 +2,20 @@
  * AddSourceModal - Modal for selecting and adding source type.
  */
 import { useState } from 'react';
-import { VideoSourceForm, TextSourceForm, ArticleSourceForm } from './source-forms';
+import { VideoSourceForm, TextSourceForm, ArticleSourceForm, ScreenshotSourceForm } from './source-forms';
 
-type SourceFormType = 'video' | 'text' | 'article' | null;
+type SourceFormType = 'video' | 'text' | 'article' | 'screenshot' | null;
 
 interface TextInputData {
   title: string;
   content: string;
   platform_hint?: string;
+}
+
+interface ScreenshotData {
+  file: File;
+  base64: string;
+  platformHint: string;
 }
 
 interface AddSourceModalProps {
@@ -18,9 +24,10 @@ interface AddSourceModalProps {
   onAddVideos: (urls: string[]) => void;
   onAddText: (data: TextInputData) => void;
   onAddArticles: (urls: string[]) => void;
+  onAddScreenshot: (data: ScreenshotData) => void;
 }
 
-export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddArticles }: AddSourceModalProps) {
+export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddArticles, onAddScreenshot }: AddSourceModalProps) {
   const [activeForm, setActiveForm] = useState<SourceFormType>(null);
 
   if (!isOpen) return null;
@@ -42,6 +49,11 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
 
   const handleAddArticles = (urls: string[]) => {
     onAddArticles(urls);
+    handleClose();
+  };
+
+  const handleAddScreenshot = (data: ScreenshotData) => {
+    onAddScreenshot(data);
     handleClose();
   };
 
@@ -67,7 +79,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
         <div className="p-5">
           {!activeForm ? (
             // Source type selection
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <button
                 onClick={() => setActiveForm('video')}
                 className="flex flex-col items-center gap-2 rounded-lg border border-purple-700/50 bg-purple-900/20 p-4 text-purple-300 hover:bg-purple-900/30 transition"
@@ -101,6 +113,17 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                 <span className="text-sm font-medium">Article</span>
                 <span className="text-xs text-gray-500">Fetch URL</span>
               </button>
+
+              <button
+                onClick={() => setActiveForm('screenshot')}
+                className="flex flex-col items-center gap-2 rounded-lg border border-amber-700/50 bg-amber-900/20 p-4 text-amber-300 hover:bg-amber-900/30 transition"
+              >
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium">Screenshot</span>
+                <span className="text-xs text-gray-500">Upload image</span>
+              </button>
             </div>
           ) : activeForm === 'video' ? (
             <VideoSourceForm
@@ -115,6 +138,11 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
           ) : activeForm === 'article' ? (
             <ArticleSourceForm
               onAdd={handleAddArticles}
+              onCancel={() => setActiveForm(null)}
+            />
+          ) : activeForm === 'screenshot' ? (
+            <ScreenshotSourceForm
+              onAdd={handleAddScreenshot}
               onCancel={() => setActiveForm(null)}
             />
           ) : null}

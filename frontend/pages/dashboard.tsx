@@ -249,6 +249,7 @@ function DashboardContent() {
     videoUrls: string[];
     articleUrls: string[];
     textInputs: { title: string; content: string; platform_hint?: string }[];
+    screenshots: { filename: string; base64: string; platformHint: string }[];
   }) => {
     setIsMixedSubmitting(true);
     try {
@@ -257,6 +258,11 @@ function DashboardContent() {
         video_urls: data.videoUrls.length > 0 ? data.videoUrls : undefined,
         article_urls: data.articleUrls.length > 0 ? data.articleUrls : undefined,
         text_inputs: data.textInputs.length > 0 ? data.textInputs : undefined,
+        screenshots: data.screenshots.length > 0 ? data.screenshots.map(s => ({
+          filename: s.filename,
+          base64: s.base64,
+          platform_hint: s.platformHint,
+        })) : undefined,
       };
       await createMixedInputJob(request);
     } catch (error) {

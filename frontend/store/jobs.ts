@@ -221,6 +221,15 @@ export interface MixedTextInput {
 }
 
 /**
+ * Mixed screenshot input for unified input
+ */
+export interface MixedScreenshotInput {
+  filename: string;
+  base64: string;
+  platform_hint?: string;
+}
+
+/**
  * Mixed-input job request (unified input panel)
  */
 export interface MixedInputRequest {
@@ -228,6 +237,7 @@ export interface MixedInputRequest {
   video_urls?: string[];
   article_urls?: string[];
   text_inputs?: MixedTextInput[];
+  screenshots?: MixedScreenshotInput[];
 }
 
 /**

@@ -623,6 +623,16 @@ async def create_mixed_input_job(
         ))
         source_counter += 1
 
+    # Screenshots
+    for screenshot in job_request.screenshots:
+        sources_accepted.append(SourceAccepted(
+            source_id=f"SRC_{source_counter}",
+            source_type="screenshot",
+            url=None,
+            title=screenshot.filename,
+        ))
+        source_counter += 1
+
     # Build config_json for the job
     config_json = {
         "topic": job_request.topic,
@@ -637,6 +647,14 @@ async def create_mixed_input_job(
                 "platform_hint": ti.platform_hint,
             }
             for ti in job_request.text_inputs
+        ],
+        "screenshots": [
+            {
+                "filename": s.filename,
+                "base64": s.base64,
+                "platform_hint": s.platform_hint,
+            }
+            for s in job_request.screenshots
         ],
         "source_count": len(sources_accepted),
         "duplicates_removed": duplicates_removed,

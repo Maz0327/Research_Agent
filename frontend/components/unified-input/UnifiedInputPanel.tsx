@@ -1,7 +1,7 @@
 /**
  * UnifiedInputPanel - Main component for multi-source research job creation.
  *
- * Supports adding multiple sources of different types (video, text, article)
+ * Supports adding multiple sources of different types (video, text, article, screenshot)
  * to a single research job with a unified topic.
  */
 import { useState, useCallback } from 'react';
@@ -15,11 +15,19 @@ interface TextInputData {
   platform_hint?: string;
 }
 
+// Screenshot data structure
+interface ScreenshotInputData {
+  filename: string;
+  base64: string;
+  platformHint: string;
+}
+
 // Internal source data stored alongside display info
 interface SourceData {
   videoUrls: string[];
   articleUrls: string[];
   textInputs: TextInputData[];
+  screenshots: ScreenshotInputData[];
 }
 
 interface UnifiedInputPanelProps {
@@ -28,6 +36,7 @@ interface UnifiedInputPanelProps {
     videoUrls: string[];
     articleUrls: string[];
     textInputs: TextInputData[];
+    screenshots: ScreenshotInputData[];
   }) => Promise<void>;
   isSubmitting?: boolean;
 }
@@ -39,6 +48,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
     videoUrls: [],
     articleUrls: [],
     textInputs: [],
+    screenshots: [],
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -103,6 +113,26 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
     }));
   }, []);
 
+  // Add screenshot source
+  const handleAddScreenshot = useCallback((data: { file: File; base64: string; platformHint: string }) => {
+    const newSource: Source = {
+      id: generateId(),
+      type: 'screenshot',
+      label: data.file.name,
+      detail: `${(data.file.size / 1024).toFixed(1)} KB • ${data.platformHint}`,
+    };
+
+    setSources((prev) => [...prev, newSource]);
+    setSourceData((prev) => ({
+      ...prev,
+      screenshots: [...prev.screenshots, {
+        filename: data.file.name,
+        base64: data.base64,
+        platformHint: data.platformHint,
+      }],
+    }));
+  }, []);
+
   // Remove source by ID
   const handleRemoveSource = useCallback((id: string) => {
     setSources((prev) => {
@@ -123,6 +153,12 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
           if (idx >= 0) {
             newData.textInputs = [...prevData.textInputs.slice(0, idx), ...prevData.textInputs.slice(idx + 1)];
           }
+        } else if (sourceToRemove.type === 'screenshot') {
+          // Find index based on matching label (filename)
+          const idx = prevData.screenshots.findIndex((s) => s.filename === sourceToRemove.label);
+          if (idx >= 0) {
+            newData.screenshots = [...prevData.screenshots.slice(0, idx), ...prevData.screenshots.slice(idx + 1)];
+          }
         }
 
         return newData;
@@ -142,12 +178,13 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
       videoUrls: sourceData.videoUrls,
       articleUrls: sourceData.articleUrls,
       textInputs: sourceData.textInputs,
+      screenshots: sourceData.screenshots,
     });
 
     // Clear form on success
     setTopic('');
     setSources([]);
-    setSourceData({ videoUrls: [], articleUrls: [], textInputs: [] });
+    setSourceData({ videoUrls: [], articleUrls: [], textInputs: [], screenshots: [] });
   };
 
   const totalSources = sources.length;
@@ -234,7 +271,9 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
               {sourceData.videoUrls.length !== 1 ? 's' : ''},{' '}
               <span className="text-green-400">{sourceData.textInputs.length}</span> text,{' '}
               <span className="text-blue-400">{sourceData.articleUrls.length}</span> article
-              {sourceData.articleUrls.length !== 1 ? 's' : ''}
+              {sourceData.articleUrls.length !== 1 ? 's' : ''},{' '}
+              <span className="text-amber-400">{sourceData.screenshots.length}</span> screenshot
+              {sourceData.screenshots.length !== 1 ? 's' : ''}
             </>
           ) : (
             'Add at least one source to continue'
@@ -272,6 +311,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
         onAddVideos={handleAddVideos}
         onAddText={handleAddText}
         onAddArticles={handleAddArticles}
+        onAddScreenshot={handleAddScreenshot}
       />
     </div>
   );

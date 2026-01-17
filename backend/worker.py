@@ -329,11 +329,16 @@ def _run_mixed_input_job(ctx, job) -> dict:
         build_source_identity_from_video,
         build_source_identity_from_article,
         build_source_identity_from_text,
+        build_source_identity_from_screenshot,
     )
     from backend.integrations.web_capture import (
         _fetch_url_content,
         _extract_text_with_trafilatura,
     )
+    from backend.integrations.gemini_client import GeminiClient
+    import base64
+    import tempfile
+    import os
 
     config = job.config_json or {}
     job_id = ctx.job_id
@@ -404,6 +409,71 @@ def _run_mixed_input_job(ctx, job) -> dict:
             except Exception as e:
                 ctx.add_warning(f"Failed to process text input: {e}")
                 logger.warning(f"[{job_id}] Text processing failed: {e}")
+
+        # Process screenshots with OCR
+        for screenshot in config.get("screenshots", []):
+            filename = screenshot.get("filename", "screenshot.png")
+            logger.info(f"[{job_id}] Processing screenshot with OCR: {filename}")
+            try:
+                # Decode base64 to temp file
+                base64_data = screenshot.get("base64", "")
+                if not base64_data:
+                    ctx.add_warning(f"No base64 data for screenshot {filename}")
+                    continue
+
+                # Handle data URL format if present
+                if "," in base64_data:
+                    base64_data = base64_data.split(",", 1)[1]
+
+                # Decode and save to temp file
+                image_bytes = base64.b64decode(base64_data)
+
+                # Determine file extension
+                ext = os.path.splitext(filename)[1].lower() or ".png"
+                if ext not in [".jpg", ".jpeg", ".png", ".gif", ".webp"]:
+                    ext = ".png"
+
+                with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp_file:
+                    tmp_file.write(image_bytes)
+                    temp_path = tmp_file.name
+
+                try:
+                    # Run OCR with Gemini Vision
+                    gemini_client = GeminiClient()
+                    ocr_prompt = (
+                        "Extract all visible text from this image. "
+                        "Return the text exactly as it appears, preserving formatting. "
+                        "If there is no readable text, respond with 'NO_TEXT_FOUND'."
+                    )
+                    ocr_result = gemini_client.analyze_image(temp_path, ocr_prompt)
+                    ocr_text = ocr_result.get("text", "").strip()
+
+                    if ocr_text == "NO_TEXT_FOUND" or not ocr_text:
+                        ctx.add_warning(f"No text extracted from screenshot {filename}")
+                        logger.warning(f"[{job_id}] No text in screenshot {filename}")
+                        continue
+
+                    logger.info(f"[{job_id}] OCR extracted {len(ocr_text)} chars from {filename}")
+
+                    # Build source identity from OCR text
+                    platform_hint = screenshot.get("platform_hint", "other")
+                    pkg = build_source_identity_from_screenshot(
+                        ocr_text=ocr_text,
+                        source_index=source_counter - 1,
+                        platform_hint=platform_hint,
+                        original_image_path=temp_path,
+                    )
+                    ctx.source_identity_packages.append(pkg)
+                    source_counter += 1
+
+                finally:
+                    # Clean up temp file
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+
+            except Exception as e:
+                ctx.add_warning(f"Failed to process screenshot {filename}: {e}")
+                logger.warning(f"[{job_id}] Screenshot OCR failed: {e}")
 
         # Check we have at least one source
         if not ctx.source_identity_packages:

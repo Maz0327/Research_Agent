@@ -383,6 +383,25 @@ class MixedTextInput(BaseModel):
         return v
 
 
+class MixedScreenshotInput(BaseModel):
+    """Individual screenshot input within a mixed-input request."""
+    filename: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Original filename of the screenshot"
+    )
+    base64: str = Field(
+        ...,
+        min_length=100,
+        description="Base64-encoded image data (data:image/...;base64,...)"
+    )
+    platform_hint: Optional[Literal["reddit", "twitter", "forum", "email", "other"]] = Field(
+        None,
+        description="Platform origin hint for better OCR processing"
+    )
+
+
 class MixedInputRequest(BaseModel):
     """Request model for mixed-input job with multiple source types.
 
@@ -390,6 +409,7 @@ class MixedInputRequest(BaseModel):
     - YouTube video URLs
     - Article URLs (for fetch + extract)
     - User-provided text snippets
+    - Screenshot images (for OCR extraction)
 
     At least one input source required. Maximum 20 total sources.
     Each source type processed with appropriate analysis mode.
@@ -414,6 +434,11 @@ class MixedInputRequest(BaseModel):
         default_factory=list,
         max_length=20,
         description="User-provided text snippets"
+    )
+    screenshots: list[MixedScreenshotInput] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Screenshot images for OCR extraction (max 10)"
     )
 
     @field_validator('video_urls')
@@ -460,7 +485,7 @@ class MixedInputRequest(BaseModel):
 
     def model_post_init(self, __context) -> None:
         """Validate total source count and at least one input."""
-        total = len(self.video_urls) + len(self.article_urls) + len(self.text_inputs)
+        total = len(self.video_urls) + len(self.article_urls) + len(self.text_inputs) + len(self.screenshots)
         if total == 0:
             raise ValueError("At least one input source required")
         if total > 20:
