@@ -116,12 +116,13 @@ def run_research_job(
         stage_5_transcripts,
         stage_6_web_capture,
         stage_6_5_reddit,
-        stage_7_extraction,
-        stage_7_5_timeline,
-        stage_7_6_entities,
-        stage_8_validation,
-        stage_8_5_angle_discovery,
-        stage_8_6_documentary_intelligence,
+        # LEGACY DISABLED (D5) - These stages replaced by semantic pipeline
+        # stage_7_extraction,
+        # stage_7_5_timeline,
+        # stage_7_6_entities,
+        # stage_8_validation,
+        # stage_8_5_angle_discovery,
+        # stage_8_6_documentary_intelligence,
         stage_9_drive_upload,
         stage_10_completion,
         post_slack_message,
@@ -137,7 +138,8 @@ def run_research_job(
     from backend.pipeline.stages.planning import DisambiguationRequired
     from backend.pipeline.parallel_executor import (
         run_collection_stages_parallel,
-        run_extraction_stages_parallel,
+        # LEGACY DISABLED (D5) - Legacy extraction stages no longer used
+        # run_extraction_stages_parallel,
     )
 
     logger.info(f"Starting research job {job_id} for topic: {topic}")
@@ -221,22 +223,24 @@ def run_research_job(
         # Stage E: Document Assembly (Doc 0/1/2)
         run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
 
-        # Stage 7: Claim extraction (must wait for all sources)
-        run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
+        # =====================================================================
+        # LEGACY STAGES DISABLED (D5 - Decision: 2026-01-17)
+        # Legacy pipeline preserved but completely disabled.
+        # Semantic pipeline (stages A-E above) now produces Doc 0/1/2.
+        # =====================================================================
+        # run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
+        # extraction_group = StageGroup("extraction")
+        # if enable_parallel:
+        #     run_extraction_stages_parallel(ctx)
+        # else:
+        #     extraction_group.run(stage_7_5_timeline, ctx, "timeline_extraction")
+        #     extraction_group.run(stage_7_6_entities, ctx, "entity_extraction")
+        #     extraction_group.run(stage_8_validation, ctx, "validation")
+        # run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
+        # run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
+        # =====================================================================
 
-        # Extraction stages - can degrade gracefully
-        extraction_group = StageGroup("extraction")
-        if enable_parallel:
-            logger.info(f"[{job_id}] Running extraction stages in parallel")
-            run_extraction_stages_parallel(ctx)
-        else:
-            extraction_group.run(stage_7_5_timeline, ctx, "timeline_extraction")
-            extraction_group.run(stage_7_6_entities, ctx, "entity_extraction")
-            extraction_group.run(stage_8_validation, ctx, "validation")
-
-        # Stage 8.5+: Sequential synthesis and output
-        run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
-        run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
+        # Stage 9: Drive upload (uploads Doc 0/1/2 only)
         run_stage_with_recovery(
             stage_9_drive_upload, ctx, "drive_upload",
             fallback_fn=fallback_drive_upload_skip
@@ -343,10 +347,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
         for url in config.get("video_urls", []):
             logger.info(f"[{job_id}] Building identity for video: {url}")
             try:
-                pkg = build_source_identity_from_video(
-                    video_url=url,
-                    source_id=f"SRC_{source_counter}",
-                )
+                # build_source_identity_from_video expects (video_data: dict, source_index: int)
+                video_data = {"url": url}
+                pkg = build_source_identity_from_video(video_data, source_counter - 1)
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
             except Exception as e:
@@ -357,10 +360,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
         for url in config.get("article_urls", []):
             logger.info(f"[{job_id}] Building identity for article: {url}")
             try:
-                pkg = build_source_identity_from_article(
-                    article_url=url,
-                    source_id=f"SRC_{source_counter}",
-                )
+                # build_source_identity_from_article expects (article_data: dict, source_index: int)
+                article_data = {"url": url}
+                pkg = build_source_identity_from_article(article_data, source_counter - 1)
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
             except Exception as e:
@@ -371,10 +373,11 @@ def _run_mixed_input_job(ctx, job) -> dict:
         for text_input in config.get("text_inputs", []):
             logger.info(f"[{job_id}] Building identity for text: {text_input.get('title', 'Untitled')}")
             try:
+                # build_source_identity_from_text expects (content, source_label, source_index, context_note, platform_hint)
                 pkg = build_source_identity_from_text(
-                    title=text_input.get("title", "User-provided text"),
                     content=text_input.get("content", ""),
-                    source_id=f"SRC_{source_counter}",
+                    source_label=text_input.get("title", "User-provided text"),
+                    source_index=source_counter - 1,
                     platform_hint=text_input.get("platform_hint"),
                 )
                 ctx.source_identity_packages.append(pkg)
@@ -454,12 +457,13 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
         stage_5_transcripts,
         stage_6_web_capture,
         stage_6_5_reddit,
-        stage_7_extraction,
-        stage_7_5_timeline,
-        stage_7_6_entities,
-        stage_8_validation,
-        stage_8_5_angle_discovery,
-        stage_8_6_documentary_intelligence,
+        # LEGACY DISABLED (D5) - These stages replaced by semantic pipeline
+        # stage_7_extraction,
+        # stage_7_5_timeline,
+        # stage_7_6_entities,
+        # stage_8_validation,
+        # stage_8_5_angle_discovery,
+        # stage_8_6_documentary_intelligence,
         stage_9_drive_upload,
         stage_10_completion,
         post_slack_message,
@@ -474,7 +478,8 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
     )
     from backend.pipeline.parallel_executor import (
         run_collection_stages_parallel,
-        run_extraction_stages_parallel,
+        # LEGACY DISABLED (D5) - Legacy extraction stages no longer used
+        # run_extraction_stages_parallel,
     )
     from backend.integrations.openai_client import _safe_default_config
 
@@ -575,20 +580,21 @@ def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
             run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
             run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
 
-            # Extraction
-            run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
-
-            # Extraction stages
-            if enable_parallel:
-                run_extraction_stages_parallel(ctx)
-            else:
-                run_stage_with_recovery(stage_7_5_timeline, ctx, "timeline_extraction")
-                run_stage_with_recovery(stage_7_6_entities, ctx, "entity_extraction")
-                run_stage_with_recovery(stage_8_validation, ctx, "validation")
-
-            # Synthesis
-            run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
-            run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
+            # =================================================================
+            # LEGACY STAGES DISABLED (D5 - Decision: 2026-01-17)
+            # Legacy pipeline preserved but completely disabled.
+            # Semantic pipeline (stages above) now produces Doc 0/1/2.
+            # =================================================================
+            # run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
+            # if enable_parallel:
+            #     run_extraction_stages_parallel(ctx)
+            # else:
+            #     run_stage_with_recovery(stage_7_5_timeline, ctx, "timeline_extraction")
+            #     run_stage_with_recovery(stage_7_6_entities, ctx, "entity_extraction")
+            #     run_stage_with_recovery(stage_8_validation, ctx, "validation")
+            # run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
+            # run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
+            # =================================================================
 
             all_results.append({
                 "label": label,
