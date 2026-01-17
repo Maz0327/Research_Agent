@@ -437,17 +437,7 @@ function DashboardContent() {
               >
                 📝 Content Input
               </button>
-              <button
-                type="button"
-                onClick={() => setJobMode('topic')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                  jobMode === 'topic'
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                📚 Topic Research
-              </button>
+              {/* Topic Research tab hidden - legacy feature */}
             </div>
           </div>
 

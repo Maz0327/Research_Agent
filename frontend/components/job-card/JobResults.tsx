@@ -7,6 +7,11 @@
  * - Pass 2: Content Blueprints (structure analysis)
  * - Pass 3: Gap Analysis (missing perspectives)
  * - Pass 4: Research Starter (actionable queries)
+ *
+ * Document Outputs:
+ * - Doc 0: Source Ledger (what was analyzed)
+ * - Doc 1: Jump-Start Directions (where to go next)
+ * - Doc 2: Semantic Brief (what sources reveal)
  */
 import { useState } from 'react';
 import { JobStatus } from './job-card-config';
@@ -16,6 +21,14 @@ import { ContentBlueprintView, ContentBlueprint } from './ContentBlueprintView';
 import { GapAnalysisView, GapAnalysis } from './GapAnalysisView';
 import { ResearchStarterView, ResearchStarter } from './ResearchStarterView';
 import { ExportButton } from './ExportButton';
+import { DocumentCard } from './DocumentCard';
+import { DocumentViewerModal } from './DocumentViewerModal';
+
+// Document output structure from backend
+interface DocumentOutput {
+  data: Record<string, unknown>;
+  markdown?: string;
+}
 
 interface VideoArtifacts {
   clips?: Clip[];
@@ -36,6 +49,10 @@ interface VideoArtifacts {
   content_blueprints?: ContentBlueprint[];
   gap_analysis?: GapAnalysis;
   research_starter?: ResearchStarter;
+  // Document outputs (Doc 0/1/2)
+  source_ledger?: DocumentOutput;
+  jump_start?: DocumentOutput;
+  semantic_brief?: DocumentOutput;
 }
 
 interface JobResultsProps {
@@ -49,8 +66,73 @@ interface JobResultsProps {
 
 type ResultTab = 'clips' | 'quotes' | 'blueprints' | 'gaps' | 'research';
 
+/**
+ * Extract stats from document data for display on DocumentCard.
+ */
+function getDocStats(data: Record<string, unknown>, docNumber: 0 | 1 | 2): { label: string; value: number | string }[] {
+  const stats: { label: string; value: number | string }[] = [];
+
+  if (docNumber === 0) {
+    // Source Ledger stats
+    const sources = Array.isArray(data.sources) ? data.sources.length : 0;
+    const rawDuration = data.total_duration ?? data.totalDuration;
+    const duration = typeof rawDuration === 'number' ? `${Math.round(rawDuration / 60)}m` : '-';
+    stats.push({ label: 'Sources', value: sources });
+    stats.push({ label: 'Duration', value: duration });
+  } else if (docNumber === 1) {
+    // Jump-Start stats
+    const directions = Array.isArray(data.directions) ? data.directions.length : 0;
+    const queriesData = data.search_queries ?? data.searchQueries;
+    const queries = Array.isArray(queriesData) ? queriesData.length : 0;
+    stats.push({ label: 'Directions', value: directions });
+    stats.push({ label: 'Queries', value: queries });
+  } else if (docNumber === 2) {
+    // Semantic Brief stats
+    const keyPointsData = data.key_points ?? data.keyPoints;
+    const keyPoints = Array.isArray(keyPointsData) ? keyPointsData.length : 0;
+    const themes = Array.isArray(data.themes) ? data.themes.length : 0;
+    const claims = Array.isArray(data.claims) ? data.claims.length : 0;
+    stats.push({ label: 'Key Points', value: keyPoints });
+    stats.push({ label: 'Themes', value: themes });
+    if (claims > 0) stats.push({ label: 'Claims', value: claims });
+  }
+
+  return stats;
+}
+
+// Document viewer state
+interface ViewerState {
+  isOpen: boolean;
+  docNumber: 0 | 1 | 2;
+  title: string;
+  markdown?: string;
+  data: Record<string, unknown>;
+}
+
 export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, artifacts }: JobResultsProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>('clips');
+  const [viewer, setViewer] = useState<ViewerState>({
+    isOpen: false,
+    docNumber: 0,
+    title: '',
+    data: {},
+  });
+
+  // Open document viewer
+  const openDocument = (docNumber: 0 | 1 | 2, title: string, doc: DocumentOutput) => {
+    setViewer({
+      isOpen: true,
+      docNumber,
+      title,
+      markdown: doc.markdown,
+      data: doc.data,
+    });
+  };
+
+  // Close document viewer
+  const closeViewer = () => {
+    setViewer(prev => ({ ...prev, isOpen: false }));
+  };
 
   if (status === 'failed' && error) {
     return (
@@ -146,6 +228,48 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
           )}
         </div>
 
+        {/* Document Cards - Doc 0/1/2 */}
+        {(artifacts.source_ledger || artifacts.jump_start || artifacts.semantic_brief) && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-gray-400">Research Documents</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {artifacts.source_ledger && (
+                <DocumentCard
+                  docNumber={0}
+                  title="Source Ledger"
+                  subtitle="What was analyzed"
+                  stats={getDocStats(artifacts.source_ledger.data, 0)}
+                  data={artifacts.source_ledger.data}
+                  markdown={artifacts.source_ledger.markdown}
+                  onView={() => openDocument(0, 'Source Ledger', artifacts.source_ledger!)}
+                />
+              )}
+              {artifacts.jump_start && (
+                <DocumentCard
+                  docNumber={1}
+                  title="Jump-Start"
+                  subtitle="Where to go next"
+                  stats={getDocStats(artifacts.jump_start.data, 1)}
+                  data={artifacts.jump_start.data}
+                  markdown={artifacts.jump_start.markdown}
+                  onView={() => openDocument(1, 'Jump-Start Directions', artifacts.jump_start!)}
+                />
+              )}
+              {artifacts.semantic_brief && (
+                <DocumentCard
+                  docNumber={2}
+                  title="Semantic Brief"
+                  subtitle="What sources reveal"
+                  stats={getDocStats(artifacts.semantic_brief.data, 2)}
+                  data={artifacts.semantic_brief.data}
+                  markdown={artifacts.semantic_brief.markdown}
+                  onView={() => openDocument(2, 'Semantic Brief', artifacts.semantic_brief!)}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Tabs for all outputs */}
         {(clips.length > 0 || quotes.length > 0 || blueprints.length > 0 || hasGapAnalysis || hasResearchStarter) && (
           <div>
@@ -223,6 +347,16 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
             </div>
           </div>
         )}
+
+        {/* Document Viewer Modal */}
+        <DocumentViewerModal
+          isOpen={viewer.isOpen}
+          onClose={closeViewer}
+          docNumber={viewer.docNumber}
+          title={viewer.title}
+          markdown={viewer.markdown}
+          data={viewer.data}
+        />
       </div>
     );
   }
