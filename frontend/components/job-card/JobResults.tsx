@@ -6,12 +6,16 @@
  * - Doc 0: Source Ledger (what was analyzed)
  * - Doc 1: Jump-Start Directions (where to go next)
  * - Doc 2: Semantic Brief (what sources reveal)
+ *
+ * Supports both inline data (legacy) and storage paths (new jobs with lazy loading).
  */
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { JobStatus } from './job-card-config';
 import { ExportButton } from './ExportButton';
 import { DocumentCard } from './DocumentCard';
 import { DocumentViewerModal } from './DocumentViewerModal';
+import { authFetch, parseJsonResponse } from '@/lib/api-client';
+import { getAccessToken } from '@/lib/supabase';
 
 // Document output structure from backend
 interface DocumentOutput {
@@ -20,10 +24,17 @@ interface DocumentOutput {
 }
 
 interface JobArtifacts {
-  // Document outputs (Doc 0/1/2) - primary outputs
+  // Document outputs (Doc 0/1/2) - inline data (legacy jobs)
   source_ledger?: DocumentOutput;
   jump_start?: DocumentOutput;
   semantic_brief?: DocumentOutput;
+
+  // Storage paths (new jobs with lazy loading)
+  doc_0_path?: string;
+  doc_1_path?: string;
+  doc_2_path?: string;
+  doc_3_path?: string;
+
   // Quality gate (from semantic pipeline)
   quality_gate_passed?: boolean;
   producer_packet?: {
@@ -91,6 +102,14 @@ interface ViewerState {
   data: Record<string, unknown>;
 }
 
+// API response for lazy loading
+interface DocumentApiResponse {
+  url?: string;
+  expires_in?: number;
+  data?: Record<string, unknown>;
+  markdown?: string;
+}
+
 export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, artifacts }: JobResultsProps) {
   const [viewer, setViewer] = useState<ViewerState>({
     isOpen: false,
@@ -99,20 +118,112 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
     data: {},
   });
 
-  // Open document viewer
-  const openDocument = (docNumber: 0 | 1 | 2, title: string, doc: DocumentOutput) => {
-    setViewer({
-      isOpen: true,
-      docNumber,
-      title,
-      markdown: doc.markdown,
-      data: doc.data,
-    });
-  };
+  // Cache for lazy-loaded documents
+  const [loadedDocs, setLoadedDocs] = useState<Record<string, DocumentOutput>>({});
+  const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Check if job uses storage (new jobs) vs inline data (legacy)
+  const usesStorage = !!(artifacts?.doc_0_path || artifacts?.doc_1_path || artifacts?.doc_2_path);
+
+  // Fetch document from API (for storage-based jobs)
+  const fetchDocument = useCallback(async (docType: string): Promise<DocumentOutput | null> => {
+    try {
+      const token = await getAccessToken();
+      const response = await authFetch(`/jobs/${jobId}/documents/${docType}`, token);
+      const result = await parseJsonResponse<DocumentApiResponse>(response);
+
+      // If we got a signed URL, fetch the actual content
+      if (result.url) {
+        const contentResponse = await fetch(result.url);
+        if (!contentResponse.ok) {
+          throw new Error(`Failed to fetch document from storage: ${contentResponse.status}`);
+        }
+        const content = await contentResponse.json();
+        return {
+          data: content.data || content,
+          markdown: content.markdown,
+        };
+      }
+
+      // Direct inline data response (fallback)
+      if (result.data) {
+        return {
+          data: result.data,
+          markdown: result.markdown,
+        };
+      }
+
+      return null;
+    } catch (err) {
+      console.error(`Failed to fetch ${docType}:`, err);
+      throw err;
+    }
+  }, [jobId]);
+
+  // Open document viewer - lazy loads if needed
+  const openDocument = useCallback(async (
+    docNumber: 0 | 1 | 2,
+    title: string,
+    inlineDoc?: DocumentOutput
+  ) => {
+    const docType = `doc_${docNumber}`;
+
+    // If inline data provided (legacy), use it directly
+    if (inlineDoc) {
+      setViewer({
+        isOpen: true,
+        docNumber,
+        title,
+        markdown: inlineDoc.markdown,
+        data: inlineDoc.data,
+      });
+      return;
+    }
+
+    // Check cache first
+    const cached = loadedDocs[docType];
+    if (cached) {
+      setViewer({
+        isOpen: true,
+        docNumber,
+        title,
+        markdown: cached.markdown,
+        data: cached.data,
+      });
+      return;
+    }
+
+    // Lazy load from API
+    setLoadingDoc(docType);
+    setLoadError(null);
+
+    try {
+      const doc = await fetchDocument(docType);
+      if (doc) {
+        // Cache the loaded document
+        setLoadedDocs(prev => ({ ...prev, [docType]: doc }));
+        setViewer({
+          isOpen: true,
+          docNumber,
+          title,
+          markdown: doc.markdown,
+          data: doc.data,
+        });
+      } else {
+        setLoadError(`Document ${docType} not found`);
+      }
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load document');
+    } finally {
+      setLoadingDoc(null);
+    }
+  }, [fetchDocument, loadedDocs]);
 
   // Close document viewer
   const closeViewer = () => {
     setViewer(prev => ({ ...prev, isOpen: false }));
+    setLoadError(null);
   };
 
   // Error state
@@ -138,9 +249,46 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
 
   // Completed job with semantic pipeline artifacts (Doc 0/1/2)
   const isCompleted = ['completed', 'completed_with_warnings', 'failed_insufficient'].includes(status);
-  const hasDocuments = artifacts?.source_ledger || artifacts?.jump_start || artifacts?.semantic_brief;
+  const hasInlineDocuments = artifacts?.source_ledger || artifacts?.jump_start || artifacts?.semantic_brief;
+  const hasStorageDocuments = artifacts?.doc_0_path || artifacts?.doc_1_path || artifacts?.doc_2_path;
+  const hasDocuments = hasInlineDocuments || hasStorageDocuments;
 
   if (isCompleted && hasDocuments) {
+    // Helper to get document data - from cache, inline, or placeholder
+    const getDocData = (docNumber: 0 | 1 | 2) => {
+      const docType = `doc_${docNumber}`;
+      const cached = loadedDocs[docType];
+      if (cached) return cached;
+
+      // Inline data mapping
+      const inlineMap: Record<number, DocumentOutput | undefined> = {
+        0: artifacts?.source_ledger,
+        1: artifacts?.jump_start,
+        2: artifacts?.semantic_brief,
+      };
+      return inlineMap[docNumber];
+    };
+
+    // Check if document is available (inline or cached)
+    const hasDoc = (docNumber: 0 | 1 | 2) => {
+      const inlineMap: Record<number, boolean> = {
+        0: !!(artifacts?.source_ledger || artifacts?.doc_0_path),
+        1: !!(artifacts?.jump_start || artifacts?.doc_1_path),
+        2: !!(artifacts?.semantic_brief || artifacts?.doc_2_path),
+      };
+      return inlineMap[docNumber];
+    };
+
+    // Get inline document if available
+    const getInlineDoc = (docNumber: 0 | 1 | 2): DocumentOutput | undefined => {
+      const inlineMap: Record<number, DocumentOutput | undefined> = {
+        0: artifacts?.source_ledger,
+        1: artifacts?.jump_start,
+        2: artifacts?.semantic_brief,
+      };
+      return inlineMap[docNumber];
+    };
+
     return (
       <div className="space-y-4">
         {/* Completion Status */}
@@ -163,41 +311,54 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
           </div>
         </div>
 
+        {/* Loading Error */}
+        {loadError && (
+          <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
+            <p className="text-sm text-red-300">{loadError}</p>
+          </div>
+        )}
+
         {/* Document Cards - Doc 0/1/2 */}
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-gray-400">Research Documents</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {artifacts.source_ledger && (
+            {hasDoc(0) && (
               <DocumentCard
                 docNumber={0}
                 title="Source Ledger"
                 subtitle="What was analyzed"
-                stats={getDocStats(artifacts.source_ledger.data, 0)}
-                data={artifacts.source_ledger.data}
-                markdown={artifacts.source_ledger.markdown}
-                onView={() => openDocument(0, 'Source Ledger', artifacts.source_ledger!)}
+                stats={getDocData(0) ? getDocStats(getDocData(0)!.data, 0) : []}
+                data={getDocData(0)?.data || {}}
+                markdown={getDocData(0)?.markdown}
+                onView={() => openDocument(0, 'Source Ledger', getInlineDoc(0))}
+                isLoading={loadingDoc === 'doc_0'}
+                usesLazyLoading={!getInlineDoc(0) && !!artifacts?.doc_0_path}
               />
             )}
-            {artifacts.jump_start && (
+            {hasDoc(1) && (
               <DocumentCard
                 docNumber={1}
                 title="Jump-Start"
                 subtitle="Where to go next"
-                stats={getDocStats(artifacts.jump_start.data, 1)}
-                data={artifacts.jump_start.data}
-                markdown={artifacts.jump_start.markdown}
-                onView={() => openDocument(1, 'Jump-Start Directions', artifacts.jump_start!)}
+                stats={getDocData(1) ? getDocStats(getDocData(1)!.data, 1) : []}
+                data={getDocData(1)?.data || {}}
+                markdown={getDocData(1)?.markdown}
+                onView={() => openDocument(1, 'Jump-Start Directions', getInlineDoc(1))}
+                isLoading={loadingDoc === 'doc_1'}
+                usesLazyLoading={!getInlineDoc(1) && !!artifacts?.doc_1_path}
               />
             )}
-            {artifacts.semantic_brief && (
+            {hasDoc(2) && (
               <DocumentCard
                 docNumber={2}
                 title="Semantic Brief"
                 subtitle="What sources reveal"
-                stats={getDocStats(artifacts.semantic_brief.data, 2)}
-                data={artifacts.semantic_brief.data}
-                markdown={artifacts.semantic_brief.markdown}
-                onView={() => openDocument(2, 'Semantic Brief', artifacts.semantic_brief!)}
+                stats={getDocData(2) ? getDocStats(getDocData(2)!.data, 2) : []}
+                data={getDocData(2)?.data || {}}
+                markdown={getDocData(2)?.markdown}
+                onView={() => openDocument(2, 'Semantic Brief', getInlineDoc(2))}
+                isLoading={loadingDoc === 'doc_2'}
+                usesLazyLoading={!getInlineDoc(2) && !!artifacts?.doc_2_path}
               />
             )}
           </div>

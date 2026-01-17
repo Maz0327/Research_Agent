@@ -994,6 +994,115 @@ async def process_pending_sources(
 
 
 # =============================================================================
+# Document Retrieval Endpoint (for lazy loading)
+# =============================================================================
+
+@router.get("/{job_id}/documents/{doc_type}")
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_document(
+    request: Request,
+    job_id: str,
+    doc_type: str,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
+    Get document content - returns signed URL for storage jobs, inline data for legacy.
+
+    Args:
+        job_id: Job UUID
+        doc_type: Document type ("doc_0", "doc_1", "doc_2", "doc_3")
+
+    Returns:
+        Storage jobs: {"url": "signed_url", "expires_in": 3600}
+        Legacy jobs: {"data": {...}, "markdown": "..."}
+    """
+    from backend.integrations.supabase_storage import get_storage_client
+
+    # Validate doc_type
+    valid_doc_types = {"doc_0", "doc_1", "doc_2", "doc_3"}
+    if doc_type not in valid_doc_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid doc_type: {doc_type}. Valid: {', '.join(sorted(valid_doc_types))}"
+        )
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required to view this job",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get artifacts
+    artifacts = job.artifacts
+    if not artifacts:
+        raise HTTPException(status_code=404, detail="No artifacts found for this job")
+
+    if hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    # Map doc_type to path field and inline field
+    doc_mapping = {
+        "doc_0": {"path_field": "doc_0_path", "inline_field": "source_ledger"},
+        "doc_1": {"path_field": "doc_1_path", "inline_field": "jump_start"},
+        "doc_2": {"path_field": "doc_2_path", "inline_field": "semantic_brief"},
+        "doc_3": {"path_field": "doc_3_path", "inline_field": "producer_packet"},
+    }
+
+    mapping = doc_mapping[doc_type]
+    storage_path = artifacts_dict.get(mapping["path_field"])
+    inline_data = artifacts_dict.get(mapping["inline_field"])
+
+    # Try storage path first (new jobs)
+    if storage_path:
+        storage_client = get_storage_client()
+        if storage_client:
+            try:
+                signed_url = storage_client.get_document_url(storage_path, expires_in=3600)
+                if signed_url:
+                    logger.info(f"Returning signed URL for {doc_type} of job {job_id}")
+                    return {
+                        "url": signed_url,
+                        "expires_in": 3600,
+                        "storage_path": storage_path,
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to get signed URL for {storage_path}: {e}")
+                # Fall through to inline data
+
+    # Fall back to inline data (legacy jobs or storage failure)
+    if inline_data:
+        logger.info(f"Returning inline data for {doc_type} of job {job_id}")
+        # Inline data already has {data, markdown} structure
+        if isinstance(inline_data, dict):
+            return {
+                "data": inline_data.get("data", inline_data),
+                "markdown": inline_data.get("markdown"),
+            }
+        return {"data": inline_data, "markdown": None}
+
+    raise HTTPException(status_code=404, detail=f"Document {doc_type} not found for this job")
+
+
+# =============================================================================
 # Deep Research Booster Endpoint (Phase 7)
 # =============================================================================
 

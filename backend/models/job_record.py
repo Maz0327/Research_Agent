@@ -13,17 +13,25 @@ class Artifacts(BaseModel):
     # =========================================================================
     # SEMANTIC PIPELINE (Active) - Doc 0/1/2/3
     # =========================================================================
-    source_ledger: Optional[dict[str, Any]] = Field(None, description="Doc 0 - Source Ledger")
-    jump_start: Optional[dict[str, Any]] = Field(None, description="Doc 1 - Jump-Start Directions")
-    semantic_brief: Optional[dict[str, Any]] = Field(None, description="Doc 2 - Semantic Research Brief")
+    # Inline document data (backward compatible with existing jobs)
+    source_ledger: Optional[dict[str, Any]] = Field(None, description="Doc 0 - Source Ledger (inline)")
+    jump_start: Optional[dict[str, Any]] = Field(None, description="Doc 1 - Jump-Start Directions (inline)")
+    semantic_brief: Optional[dict[str, Any]] = Field(None, description="Doc 2 - Semantic Research Brief (inline)")
     semantic_extractions: Optional[list[dict[str, Any]]] = Field(None, description="Per-source extractions")
+
+    # Storage paths for new jobs (added 260117 - lazy loading support)
+    # When present, frontend fetches docs via API instead of inline data
+    doc_0_path: Optional[str] = Field(None, description="Storage path for Source Ledger (new jobs)")
+    doc_1_path: Optional[str] = Field(None, description="Storage path for Jump-Start (new jobs)")
+    doc_2_path: Optional[str] = Field(None, description="Storage path for Semantic Brief (new jobs)")
+    doc_3_path: Optional[str] = Field(None, description="Storage path for Producer Packet (new jobs)")
 
     # Booster (Phase 7)
     booster_output: Optional[dict[str, Any]] = Field(None, description="Booster output for Doc 1 expansion")
     booster_expansion_md: Optional[str] = Field(None, description="Booster markdown for Doc 1")
 
     # Producer Packet (Phase 8 - Doc 3)
-    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (creative interpretation)")
+    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline, legacy)")
     producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
 
     # =========================================================================

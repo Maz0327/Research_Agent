@@ -50,9 +50,10 @@ class TestInitializationStage:
 class TestCompletionStage:
     """Tests for stage_10_completion."""
 
+    @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
     @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_completion_sets_job_completed(self, mock_slack, mock_update, mock_context):
+    def test_completion_sets_job_completed(self, mock_slack, mock_update, mock_storage, mock_context):
         """Completion stage should set job status to completed."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
@@ -69,9 +70,10 @@ class TestCompletionStage:
         assert call_kwargs["status"] == "completed"
         assert call_kwargs["progress_percent"] == 100
 
+    @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
     @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_completion_returns_result_dict(self, mock_slack, mock_update, mock_context):
+    def test_completion_returns_result_dict(self, mock_slack, mock_update, mock_storage, mock_context):
         """Completion stage should return result dictionary."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
@@ -88,9 +90,10 @@ class TestCompletionStage:
         assert result["sources_count"] == 1
         assert result["youtube_videos_count"] == 1
 
+    @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
     @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_completion_handles_missing_drive_folder(self, mock_slack, mock_update, mock_context):
+    def test_completion_handles_missing_drive_folder(self, mock_slack, mock_update, mock_storage, mock_context):
         """Completion stage should handle missing Drive folder."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
