@@ -109,6 +109,22 @@ export interface JobArtifacts {
   gap_analysis?: GapAnalysis;
   /** Research Starter - actionable queries and content angles */
   research_starter?: ResearchStarter;
+  // Semantic Pipeline Documents (Doc 0/1/2)
+  /** Doc 0: Source Ledger - what was analyzed */
+  source_ledger?: {
+    data: Record<string, unknown>;
+    markdown?: string;
+  };
+  /** Doc 1: Jump-Start Directions - where to go next */
+  jump_start?: {
+    data: Record<string, unknown>;
+    markdown?: string;
+  };
+  /** Doc 2: Semantic Brief - what sources reveal */
+  semantic_brief?: {
+    data: Record<string, unknown>;
+    markdown?: string;
+  };
 }
 
 /**
@@ -195,6 +211,65 @@ export interface ScreenshotInputResponse {
   warnings: string[];
 }
 
+/**
+ * Mixed text input for unified input
+ */
+export interface MixedTextInput {
+  title: string;
+  content: string;
+  platform_hint?: string;
+}
+
+/**
+ * Mixed-input job request (unified input panel)
+ */
+export interface MixedInputRequest {
+  topic: string;
+  video_urls?: string[];
+  article_urls?: string[];
+  text_inputs?: MixedTextInput[];
+}
+
+/**
+ * Source accepted in mixed-input response
+ */
+export interface SourceAccepted {
+  source_id: string;
+  source_type: string;
+  url?: string;
+  title?: string;
+}
+
+/**
+ * Mixed-input job response
+ */
+export interface MixedInputResponse {
+  job_id: string;
+  status: string;
+  source_count: number;
+  sources_accepted: SourceAccepted[];
+  duplicates_removed: number;
+  warnings?: string[];
+}
+
+/**
+ * Booster trigger response
+ */
+export interface BoosterResponse {
+  job_id: string;
+  status: string;
+  message: string;
+}
+
+/**
+ * Producer packet trigger response
+ */
+export interface ProducerPacketResponse {
+  job_id: string;
+  status: string;
+  message: string;
+}
+
 interface JobsState {
   jobs: Job[];
   isLoading: boolean;
@@ -212,6 +287,9 @@ interface JobsState {
   createVideoAnalysisJob: (videoUrls: string[], title?: string, model?: 'gemini-2.5-flash' | 'gemini-2.5-pro') => Promise<VideoAnalysisResponse>;
   createTextInputJob: (request: TextInputRequest) => Promise<TextInputResponse>;
   createScreenshotInputJob: (file: File, topic: string, platformHint?: string, contextNote?: string) => Promise<ScreenshotInputResponse>;
+  createMixedInputJob: (request: MixedInputRequest) => Promise<MixedInputResponse>;
+  triggerBooster: (jobId: string) => Promise<BoosterResponse>;
+  triggerProducerPacket: (jobId: string) => Promise<ProducerPacketResponse>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -555,6 +633,137 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to create screenshot input job',
         isLoading: false,
       });
+      throw error;
+    }
+  },
+
+  createMixedInputJob: async (request: MixedInputRequest): Promise<MixedInputResponse> => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/mixed-input`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create mixed input job');
+      }
+
+      const data: MixedInputResponse = await response.json();
+
+      // Add job to local state
+      const sourceTypes: string[] = [];
+      if (request.video_urls?.length) sourceTypes.push(`${request.video_urls.length} video`);
+      if (request.text_inputs?.length) sourceTypes.push(`${request.text_inputs.length} text`);
+      if (request.article_urls?.length) sourceTypes.push(`${request.article_urls.length} article`);
+
+      const newJob: Job = {
+        id: data.job_id,
+        prompt: request.topic,
+        title: request.topic,
+        pipeline: 'mixed_input',
+        status: 'queued',
+        progress_percent: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        jobs: [newJob, ...state.jobs],
+        isLoading: false,
+      }));
+
+      return data;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create mixed input job',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  triggerBooster: async (jobId: string): Promise<BoosterResponse> => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/booster`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to trigger booster');
+      }
+
+      const data: BoosterResponse = await response.json();
+
+      // Update job status in local state
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId ? { ...job, status: 'running' as const, stage: 'booster' } : job
+        ),
+      }));
+
+      return data;
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to trigger booster:', error);
+      }
+      throw error;
+    }
+  },
+
+  triggerProducerPacket: async (jobId: string): Promise<ProducerPacketResponse> => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/producer-packet`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to trigger producer packet');
+      }
+
+      const data: ProducerPacketResponse = await response.json();
+
+      // Update job status in local state
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId ? { ...job, status: 'running' as const, stage: 'producer_packet' } : job
+        ),
+      }));
+
+      return data;
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to trigger producer packet:', error);
+      }
       throw error;
     }
   },
