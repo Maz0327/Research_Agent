@@ -84,6 +84,8 @@ class JobStatusResponse(BaseModel):
     pass_detail: Optional[str] = Field(None, description="Detailed progress info (e.g., 'Analyzing video 2/5')")
     artifacts: Optional[dict[str, Any]] = Field(None, description="Job artifacts (Drive folder, docs)")
     error: Optional[str] = Field(None, description="Error message if job failed")
+    warnings: Optional[list[str]] = Field(None, description="Warning messages for completed_with_warnings status")
+    warning_count: Optional[int] = Field(None, description="Number of warnings (for preview without full list)")
     created_at: Optional[datetime] = Field(None, description="Job creation timestamp")
     updated_at: Optional[datetime] = Field(None, description="Job last update timestamp")
     interpretations: Optional[list[dict[str, Any]]] = Field(

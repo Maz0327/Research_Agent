@@ -153,6 +153,10 @@ export interface Job {
   artifacts?: JobArtifacts;
   /** Error message if job failed */
   error?: string;
+  /** Warning messages for completed_with_warnings status */
+  warnings?: string[];
+  /** Number of warnings (for quick preview) */
+  warning_count?: number;
   /** Job creation timestamp (ISO format) */
   created_at: string;
   /** Possible interpretations when status is 'disambiguating' */
@@ -805,9 +809,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
                 stage: data.stage,
                 stage_started_at: data.stage_started_at,
                 progress_percent: data.progress_percent,
+                pass_detail: data.pass_detail,
                 title: data.title,
                 artifacts: data.artifacts,
                 error: data.error,
+                warnings: data.warnings,
+                warning_count: data.warning_count,
                 interpretations: data.interpretations,
               }
             : job

@@ -112,8 +112,23 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
               )}
             </div>
 
+            {/* Stage description for running/queued jobs */}
             {(job.status === 'running' || job.status === 'queued') && (
               <p className="mt-2 text-sm text-gray-500">{stageDescription}</p>
+            )}
+
+            {/* Error preview for failed jobs */}
+            {(job.status === 'failed' || job.status === 'failed_insufficient') && job.error && (
+              <p className="mt-2 text-sm text-red-400 truncate">
+                {job.error.length > 80 ? job.error.substring(0, 80) + '...' : job.error}
+              </p>
+            )}
+
+            {/* Warning count for completed_with_warnings */}
+            {job.status === 'completed_with_warnings' && job.warning_count && job.warning_count > 0 && (
+              <p className="mt-2 text-sm text-yellow-400">
+                {job.warning_count} warning{job.warning_count > 1 ? 's' : ''} during processing
+              </p>
             )}
           </div>
 

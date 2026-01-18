@@ -191,17 +191,28 @@ const STAGE_DESCRIPTIONS: Record<string, string> = {
   angle_discovery: 'Discovering unique angles...',
   documentary_analysis: 'Analyzing documentary structure...',
   drive_upload: 'Creating your documents...',
-  
+
+  // Semantic pipeline stages (mixed input)
+  source_identity: 'Identifying and validating sources...',
+  semantic_extraction: 'Extracting semantic content from sources...',
+  semantic_synthesis: 'Synthesizing insights across sources...',
+  document_assembly: 'Assembling research documents...',
+  gap_analysis: 'Analyzing gaps and missing perspectives...',
+  cross_reference: 'Cross-referencing claims and evidence...',
+  ocr_extraction: 'Extracting text from screenshots...',
+  quality_gate: 'Validating source quality...',
+  awaiting_disambiguation: 'Waiting for topic clarification...',
+
   // Gemini video pipeline stages (Phase 3)
   pass_1_extraction: 'Pass 1/4: Extracting clips & quotes from videos...',
   pass_2_structure: 'Pass 2/4: Analyzing video structure...',
   pass_3_gaps: 'Pass 3/4: Identifying research gaps...',
   pass_4_research: 'Pass 4/4: Generating research starter...',
-  
+
   // Transcript job stages
   extracting_transcripts: 'Extracting video transcripts...',
   generating_document: 'Creating your document...',
-  
+
   // Common stages
   completed: 'Complete!',
   error: 'Job failed',

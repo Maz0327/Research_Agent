@@ -25,7 +25,7 @@ export const statusConfig = {
     borderColor: 'border-green-500/50',
   },
   completed_with_warnings: {
-    label: 'Completed',
+    label: 'With Warnings',
     bgColor: 'bg-yellow-900/50',
     textColor: 'text-yellow-300',
     dotColor: 'bg-yellow-400',
@@ -69,6 +69,9 @@ export const pipelineLabels: Record<string, string> = {
   profile: 'Profile',
   controversy: 'Controversy',
   video_analysis: 'Video Analysis',
+  mixed_input: 'Multi-Source',
+  text_provided: 'Text Analysis',
+  ocr_extracted: 'Screenshot',
 };
 
 export type JobStatus = keyof typeof statusConfig;

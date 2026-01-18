@@ -1448,6 +1448,19 @@ async def list_jobs_endpoint(
         if job.config_json:
             pass_detail = job.config_json.get("pass_detail")
         
+        # Extract error for failed jobs, warnings for completed_with_warnings
+        error = None
+        warnings_list = None
+        warning_count = None
+        if job.status == "failed" and job.warnings:
+            error = job.warnings[-1]
+        elif job.status == "completed_with_warnings" and job.warnings:
+            warnings_list = job.warnings
+            warning_count = len(job.warnings)
+        elif job.status == "failed_insufficient" and job.warnings:
+            error = job.warnings[-1] if job.warnings else "Insufficient data to complete analysis"
+            warning_count = len(job.warnings) if job.warnings else 0
+
         jobs_data.append({
             "id": job.job_id,
             "prompt": prompt,
@@ -1459,7 +1472,9 @@ async def list_jobs_endpoint(
             "progress_percent": job.progress_percent,
             "pass_detail": pass_detail,
             "artifacts": artifacts_dict,
-            "error": job.warnings[-1] if job.status == "failed" and job.warnings else None,
+            "error": error,
+            "warnings": warnings_list,
+            "warning_count": warning_count,
             "created_at": job.created_at.isoformat(),
         })
 
@@ -1499,14 +1514,22 @@ async def get_job_status(
     # Check job_type first (for video analysis), then pipeline
     pipeline = job.config_json.get("job_type") or job.config_json.get("pipeline", "full")
 
-    # Extract error from warnings
+    # Extract error and warnings based on status
     error = None
+    warnings_list = None
+    warning_count = None
     if job.status == "failed":
         fatal_errors = [w for w in job.warnings if w.startswith("Fatal error:")]
         if fatal_errors:
             error = fatal_errors[-1].replace("Fatal error: ", "")
         elif job.warnings:
             error = job.warnings[-1]
+    elif job.status == "completed_with_warnings" and job.warnings:
+        warnings_list = job.warnings
+        warning_count = len(job.warnings)
+    elif job.status == "failed_insufficient" and job.warnings:
+        error = job.warnings[-1] if job.warnings else "Insufficient data to complete analysis"
+        warning_count = len(job.warnings) if job.warnings else 0
 
     artifacts_dict = None
     if job.artifacts:
@@ -1536,6 +1559,8 @@ async def get_job_status(
         pass_detail=pass_detail,
         artifacts=artifacts_dict,
         error=error,
+        warnings=warnings_list,
+        warning_count=warning_count,
         created_at=job.created_at,
         updated_at=None,
         interpretations=interpretations,
