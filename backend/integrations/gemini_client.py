@@ -552,33 +552,47 @@ class GeminiClient:
                 contents=prompt,
                 config=config,
             )
-            text = response.text
+            text = response.text or ""
 
-            # Parse JSON from response
+            # Estimate cost as best-effort regardless of parse status
+            input_tokens = len(prompt.split()) * 1.3
+            output_tokens = len(text.split()) * 1.3
+            cost = self._estimate_cost(model, input_tokens, output_tokens)
+
+            # Prefer structured parse from SDK when schema is provided
+            parsed_obj = None
             try:
-                data = parse_json_from_llm_response(text)
+                if hasattr(response, "parsed") and response.parsed:
+                    parsed_obj = response.parsed
+                    # Normalize to plain dict via JSON round-trip to handle BaseModel/TypedDict
+                    try:
+                        data = json.loads(json.dumps(parsed_obj))
+                    except Exception:
+                        # Fallback: attempt attribute-based dump if available (pydantic v2)
+                        if hasattr(parsed_obj, "model_dump_json"):
+                            data = json.loads(parsed_obj.model_dump_json())
+                        elif hasattr(parsed_obj, "model_dump"):
+                            data = parsed_obj.model_dump()  # already dict-like
+                        else:
+                            # Last resort: treat as plain mapping
+                            data = dict(parsed_obj)
+                else:
+                    # Parse JSON from text with robust utility
+                    data = parse_json_from_llm_response(text)
             except GeminiParseError as e:
                 logger.warning(f"JSON parse failed: {e.message}")
                 # Log raw response for debugging (first 500 chars)
                 logger.debug(f"Raw response that failed to parse: {text[:500]}...")
                 return {
                     "data": {},
-                    "cost": 0,
+                    "cost": cost,
                     "error": f"JSON parse error: {e.message}",
                     "raw_response": e.raw_response,
                 }
 
-            # Estimate cost
-            input_tokens = len(prompt.split()) * 1.3
-            output_tokens = len(text.split()) * 1.3
-            cost = self._estimate_cost(model, input_tokens, output_tokens)
-
             logger.info(f"Gemini JSON response: {len(text)} chars, ~${cost:.4f}")
 
-            return {
-                "data": data,
-                "cost": cost,
-            }
+            return {"data": data, "cost": cost}
 
         except Exception as e:
             sanitized = sanitize_error_message(e, include_type=False)
