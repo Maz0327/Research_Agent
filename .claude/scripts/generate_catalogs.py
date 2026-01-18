@@ -7,9 +7,10 @@ Use --output to write to a specific file instead.
 
 import argparse
 import sys
-import yaml
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import yaml  # third-party
 
 # Script directory for resolving relative paths
 SCRIPT_DIR = Path(__file__).parent

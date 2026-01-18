@@ -8,13 +8,23 @@ Reference: plans/reports/researcher-260114-1657-gemini-hallucination-prevention.
 
 This module verifies that extracted quotes actually exist in the source
 transcript, catching hallucinated quotes before they reach the output.
+
+Uses RapidFuzz for efficient fuzzy string matching when available,
+falls back to difflib.SequenceMatcher otherwise.
 """
 
 import re
-from difflib import SequenceMatcher
 from typing import Optional
 
 from loguru import logger
+
+# Try to import RapidFuzz for better performance
+try:
+    from rapidfuzz import fuzz as rapidfuzz_fuzz
+    RAPIDFUZZ_AVAILABLE = True
+except ImportError:
+    RAPIDFUZZ_AVAILABLE = False
+    from difflib import SequenceMatcher
 
 
 def normalize_text(text: str) -> str:
@@ -30,11 +40,61 @@ def normalize_text(text: str) -> str:
     return text.strip()
 
 
+def _fuzzy_ratio(s1: str, s2: str) -> float:
+    """Calculate fuzzy similarity ratio between two strings.
+
+    Uses RapidFuzz if available, otherwise difflib.
+    Returns float 0.0-1.0.
+    """
+    if RAPIDFUZZ_AVAILABLE:
+        return rapidfuzz_fuzz.ratio(s1, s2) / 100.0
+    else:
+        return SequenceMatcher(None, s1, s2).ratio()
+
+
+def _fuzzy_partial_ratio(s1: str, s2: str) -> float:
+    """Calculate partial fuzzy ratio (best substring match).
+
+    Uses RapidFuzz if available, otherwise difflib with sliding window.
+    Returns float 0.0-1.0.
+    """
+    if RAPIDFUZZ_AVAILABLE:
+        return rapidfuzz_fuzz.partial_ratio(s1, s2) / 100.0
+    else:
+        # Fallback: sliding window with SequenceMatcher
+        if len(s1) > len(s2):
+            s1, s2 = s2, s1
+        best_score = 0.0
+        for i in range(0, max(1, len(s2) - len(s1) + 1), 5):
+            window = s2[i : i + len(s1) + 10]
+            score = SequenceMatcher(None, s1, window).ratio()
+            best_score = max(best_score, score)
+        return best_score
+
+
+def _fuzzy_token_set_ratio(s1: str, s2: str) -> float:
+    """Calculate token set ratio (handles word reordering).
+
+    Uses RapidFuzz if available, otherwise word overlap.
+    Returns float 0.0-1.0.
+    """
+    if RAPIDFUZZ_AVAILABLE:
+        return rapidfuzz_fuzz.token_set_ratio(s1, s2) / 100.0
+    else:
+        # Fallback: word overlap ratio
+        words1 = set(s1.split())
+        words2 = set(s2.split())
+        if not words1:
+            return 0.0
+        intersection = words1 & words2
+        return len(intersection) / max(len(words1), len(words2))
+
+
 def verify_quote(
     quote_text: str,
     transcript: str,
     threshold: float = 0.7,
-    strict_threshold: float = 0.5,
+    strict_threshold: float = 0.6,
 ) -> dict:
     """Verify a quote against a transcript using fuzzy matching.
 
@@ -42,7 +102,7 @@ def verify_quote(
         quote_text: The extracted quote to verify
         transcript: The full transcript to match against
         threshold: Minimum score for VERIFIED status (default 0.7)
-        strict_threshold: Below this score = LIKELY_HALLUCINATED (default 0.5)
+        strict_threshold: Below this score = LIKELY_HALLUCINATED (default 0.6)
 
     Returns:
         dict with keys:
@@ -71,42 +131,41 @@ def verify_quote(
             "match_location": None,
         }
 
-    # Short quotes: exact substring match
-    if len(quote_norm) < 20:
-        if quote_norm in transcript_norm:
-            match_pos = transcript_norm.find(quote_norm)
-            return {
-                "verified": True,
-                "score": 1.0,
-                "status": "VERIFIED",
-                "match_location": match_pos,
-            }
-        # Try fuzzy for short quotes too
-        best_score = 0.0
-        for i in range(0, max(1, len(transcript_norm) - len(quote_norm)), 5):
-            window = transcript_norm[i : i + len(quote_norm) + 10]
-            score = SequenceMatcher(None, quote_norm, window).ratio()
-            best_score = max(best_score, score)
-
+    # Exact substring match (fastest check)
+    if quote_norm in transcript_norm:
+        match_pos = transcript_norm.find(quote_norm)
         return {
-            "verified": best_score >= threshold,
-            "score": best_score,
-            "status": _get_status(best_score, threshold, strict_threshold),
+            "verified": True,
+            "score": 1.0,
+            "status": "VERIFIED",
+            "match_location": match_pos,
+        }
+
+    # Short quotes: use partial ratio
+    if len(quote_norm) < 30:
+        score = _fuzzy_partial_ratio(quote_norm, transcript_norm)
+        return {
+            "verified": score >= threshold,
+            "score": score,
+            "status": _get_status(score, threshold, strict_threshold),
             "match_location": None,
         }
 
-    # Long quotes: sliding window fuzzy match
+    # Long quotes: sliding window with token_set_ratio for word order flexibility
     best_score = 0.0
     best_position = None
-    window_size = len(quote_norm) + 50  # Allow some extra for variations
-    step_size = 10  # Check every 10 characters
+    window_size = min(len(quote_norm) * 2, len(transcript_norm))
+    step_size = max(10, len(quote_norm) // 4)
 
     for i in range(0, max(1, len(transcript_norm) - len(quote_norm)), step_size):
         window = transcript_norm[i : i + window_size]
-        score = SequenceMatcher(None, quote_norm, window).ratio()
+        score = _fuzzy_token_set_ratio(quote_norm, window)
         if score > best_score:
             best_score = score
             best_position = i
+        # Early exit if we find a great match
+        if best_score >= 0.95:
+            break
 
     return {
         "verified": best_score >= threshold,

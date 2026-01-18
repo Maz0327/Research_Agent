@@ -48,6 +48,142 @@ if TYPE_CHECKING:
     from backend.pipeline.stages.source_identity import SourceIdentityPackage
 
 
+def extract_video_observations(
+    video_url: str,
+    source_id: str,
+) -> tuple[SemanticExtractionResult, float, list[str]]:
+    """
+    Extract observations from a video using Gemini video analysis.
+
+    Used for video_only mode when no transcript is available.
+    Returns ApproximateObservations (NO quotes - per spec).
+
+    Args:
+        video_url: YouTube video URL
+        source_id: Source ID for attribution
+
+    Returns:
+        Tuple of (SemanticExtractionResult, cost, warnings)
+    """
+    from backend.integrations.gemini_client import GeminiClient
+
+    warnings = []
+    cost = 0.0
+
+    try:
+        gemini_client = GeminiClient()
+
+        # Analyze video directly via Gemini
+        logger.info(f"[{source_id}] Extracting observations from video: {video_url}")
+        video_result = gemini_client.analyze_youtube_video(
+            video_url=video_url,
+            model="gemini-2.5-flash",
+            max_clips=12,
+        )
+
+        cost = video_result.get("cost", 0.0)
+
+        # Check for errors
+        if video_result.get("error"):
+            warnings.append(f"Video analysis error: {video_result['error']}")
+            return SemanticExtractionResult(
+                source_id=source_id,
+                analysis_mode=AnalysisMode.VIDEO_ONLY,
+                analysis_limitations=[
+                    f"Video analysis failed: {video_result['error']}",
+                    "Confidence ceiling: LOW",
+                ],
+            ), cost, warnings
+
+        # Convert clips to ApproximateObservations (NO quotes allowed in video_only)
+        observations = []
+        clips = video_result.get("clips", [])
+
+        for i, clip in enumerate(clips):
+            # Transform quote to observation description (not verbatim)
+            # Per spec: video_only mode cannot have quotes, only observations
+            quote_text = clip.get("quote", "")
+            speaker = clip.get("speaker", "Speaker")
+            timestamp_start = clip.get("timestamp_start", "00:00")
+            timestamp_end = clip.get("timestamp_end", timestamp_start)
+
+            # Create observation description from clip data
+            if quote_text:
+                # Transform to non-verbatim observation
+                observation_text = (
+                    f"{speaker} discusses: {_summarize_as_observation(quote_text)}"
+                )
+            else:
+                observation_text = f"{speaker} appears at this point in the video"
+
+            observations.append(ApproximateObservation(
+                observation_id=f"OBS_{i + 1}",
+                observation=observation_text,
+                source_id=source_id,
+                timestamp_range=f"~{timestamp_start} - {timestamp_end}",
+                approximate=True,
+                observation_type="observation",
+                confidence=ConfidenceLevel.LOW,
+            ))
+
+        # Build key points from observations
+        key_points = []
+        video_info = video_result.get("video_info", {})
+        video_title = video_info.get("title", "Video")
+
+        # Create summary key point if we have observations
+        if observations:
+            summary_points = [obs.observation for obs in observations[:3]]
+            key_points.append(KeyPoint(
+                key_point_id="KP_1",
+                statement=f"Video '{video_title}' contains {len(observations)} observed segments",
+                source_ids=[source_id],
+                supporting_claims=[],
+                confidence=ConfidenceLevel.LOW,
+            ))
+
+        logger.info(
+            f"[{source_id}] Video extraction: {len(observations)} observations, "
+            f"{len(key_points)} key points, cost=${cost:.4f}"
+        )
+
+        return SemanticExtractionResult(
+            source_id=source_id,
+            analysis_mode=AnalysisMode.VIDEO_ONLY,
+            key_points=key_points,
+            approximate_observations=observations,
+            analysis_limitations=[
+                "Video-only mode: Observations based on visual/audio analysis",
+                "Confidence ceiling: LOW - no transcript verification possible",
+                "Quotes not included (spec requirement for video_only mode)",
+            ],
+        ), cost, warnings
+
+    except Exception as e:
+        logger.error(f"[{source_id}] Video extraction failed: {e}")
+        warnings.append(f"Video extraction failed: {str(e)}")
+        return SemanticExtractionResult(
+            source_id=source_id,
+            analysis_mode=AnalysisMode.VIDEO_ONLY,
+            analysis_limitations=[
+                f"Video extraction failed: {str(e)}",
+                "Confidence ceiling: LOW",
+            ],
+        ), cost, warnings
+
+
+def _summarize_as_observation(quote_text: str) -> str:
+    """
+    Convert a verbatim quote to an observation description.
+
+    video_only mode cannot have quotes, so we summarize instead.
+    """
+    # Truncate long quotes and add ellipsis
+    if len(quote_text) > 100:
+        return f"'{quote_text[:97]}...'"
+    return f"'{quote_text}'"
+
+
 def parse_extraction_response(
     response: dict[str, Any],
     source_id: str,
@@ -390,28 +526,57 @@ def stage_semantic_extraction(ctx: PipelineContext) -> None:
             sources_failed += 1
             continue
 
-        # Handle video_only mode with no transcript - create placeholder result
+        # Handle video_only mode with no transcript - use Gemini video analysis
         if analysis_mode == AnalysisMode.VIDEO_ONLY and not content:
-            logger.warning(
-                f"[{source_id}] Video-only mode with no transcript - "
-                "creating placeholder result"
-            )
-            ctx.add_warning(
-                f"[{source_id}] Video-only mode: semantic extraction skipped "
-                "(requires transcript). Consider using Gemini video analysis for richer output."
-            )
-            # Create minimal result with limitation noted
-            result = SemanticExtractionResult(
-                source_id=source_id,
-                analysis_mode=analysis_mode,
-                analysis_limitations=[
-                    "Video-only mode: No transcript available for semantic extraction",
-                    "Confidence ceiling: LOW",
-                ],
-            )
-            ctx.semantic_extractions.append(result)
-            sources_skipped += 1
-            continue
+            video_url = package.url
+            if video_url and "youtube" in video_url.lower():
+                logger.info(
+                    f"[{source_id}] Video-only mode with no transcript - "
+                    "using Gemini video analysis"
+                )
+                # Extract observations directly from video
+                result, video_cost, video_warnings = extract_video_observations(
+                    video_url=video_url,
+                    source_id=source_id,
+                )
+                ctx.add_cost("gemini_video", video_cost)
+                for warning in video_warnings:
+                    ctx.add_warning(warning)
+
+                ctx.semantic_extractions.append(result)
+
+                if result.approximate_observations:
+                    sources_extracted += 1
+                    logger.info(
+                        f"[{source_id}] Video extraction complete: "
+                        f"{len(result.approximate_observations)} observations"
+                    )
+                else:
+                    sources_skipped += 1
+                    ctx.add_warning(
+                        f"[{source_id}] Video analysis produced no observations"
+                    )
+                continue
+            else:
+                # Non-YouTube video or no URL - create placeholder
+                logger.warning(
+                    f"[{source_id}] Video-only mode with no URL/non-YouTube - "
+                    "creating placeholder result"
+                )
+                ctx.add_warning(
+                    f"[{source_id}] Video-only mode: requires YouTube URL for analysis"
+                )
+                result = SemanticExtractionResult(
+                    source_id=source_id,
+                    analysis_mode=analysis_mode,
+                    analysis_limitations=[
+                        "Video-only mode: No YouTube URL available for video analysis",
+                        "Confidence ceiling: LOW",
+                    ],
+                )
+                ctx.semantic_extractions.append(result)
+                sources_skipped += 1
+                continue
 
         logger.info(
             f"Processing {source_id} ({package.source_type}) "

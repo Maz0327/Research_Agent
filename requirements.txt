@@ -76,6 +76,9 @@ datasketch>=1.6.0
 # BM25 for source relevance scoring
 rank-bm25>=0.2.2
 
+# RapidFuzz for fuzzy string matching (quote verification)
+rapidfuzz>=3.5.0
+
 # spaCy transformer model (optional, 500MB)
 # Run: python -m spacy download en_core_web_trf
 spacy>=3.7.0

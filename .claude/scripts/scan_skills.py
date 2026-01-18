@@ -6,7 +6,8 @@ Scan .claude/skills directory and extract skill metadata.
 import re
 from pathlib import Path
 from typing import Dict, List
-import yaml
+
+import yaml  # third-party
 
 def extract_frontmatter(content: str) -> Dict:
     """Extract YAML frontmatter from markdown content."""

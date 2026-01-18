@@ -1271,14 +1271,14 @@ def create_producer_packet_from_gemini(
 
 
 def _verify_quote(quote: str, transcript: str, threshold: float = 0.8) -> tuple[bool, float]:
-    """Verify a quote against transcript text.
+    """Verify a quote against transcript text using fuzzy matching.
 
     Returns (is_verified, match_score) where:
     - is_verified: True if match_score >= threshold
     - match_score: 0.0-1.0 similarity score
 
-    Uses simple substring matching for now.
-    TODO: Use fuzzy matching for better accuracy.
+    Uses RapidFuzz for efficient fuzzy string matching with sliding window.
+    Falls back to difflib if RapidFuzz unavailable.
     """
     if not quote or not transcript:
         return False, 0.0
@@ -1286,26 +1286,52 @@ def _verify_quote(quote: str, transcript: str, threshold: float = 0.8) -> tuple[
     quote_lower = quote.lower().strip()
     transcript_lower = transcript.lower()
 
-    # Exact substring match
+    # Exact substring match (fastest check)
     if quote_lower in transcript_lower:
         return True, 1.0
 
-    # Check for partial match (first 50 chars)
-    quote_start = quote_lower[:50]
-    if quote_start in transcript_lower:
-        return True, 0.9
+    # Try RapidFuzz for fuzzy matching
+    try:
+        from rapidfuzz import fuzz
+        from rapidfuzz.distance import Levenshtein
 
-    # Very basic word overlap score
-    quote_words = set(quote_lower.split())
-    transcript_words = set(transcript_lower.split())
+        # For short quotes, use partial_ratio (good for substring matching)
+        if len(quote_lower) < 50:
+            score = fuzz.partial_ratio(quote_lower, transcript_lower) / 100.0
+            return score >= threshold, score
 
-    if not quote_words:
-        return False, 0.0
+        # For longer quotes, use sliding window with token_set_ratio
+        # This handles word reordering and partial matches well
+        best_score = 0.0
+        window_size = min(len(quote_lower) * 2, len(transcript_lower))
+        step = max(10, len(quote_lower) // 4)
 
-    overlap = len(quote_words & transcript_words)
-    score = overlap / len(quote_words)
+        for i in range(0, max(1, len(transcript_lower) - len(quote_lower)), step):
+            window = transcript_lower[i : i + window_size]
+            # token_set_ratio handles word order variations
+            score = fuzz.token_set_ratio(quote_lower, window) / 100.0
+            best_score = max(best_score, score)
+            # Early exit if we find a good match
+            if best_score >= 0.95:
+                break
 
-    return score >= threshold, score
+        return best_score >= threshold, best_score
+
+    except ImportError:
+        # Fallback to difflib if RapidFuzz not installed
+        from difflib import SequenceMatcher
+
+        # Sliding window fuzzy match
+        best_score = 0.0
+        window_size = len(quote_lower) + 50
+        step_size = 10
+
+        for i in range(0, max(1, len(transcript_lower) - len(quote_lower)), step_size):
+            window = transcript_lower[i : i + window_size]
+            score = SequenceMatcher(None, quote_lower, window).ratio()
+            best_score = max(best_score, score)
+
+        return best_score >= threshold, best_score
 
 
 def _verify_timestamp_format(timestamp: str) -> bool:
