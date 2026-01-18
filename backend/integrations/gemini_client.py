@@ -556,25 +556,14 @@ class GeminiClient:
             # Pro thinking model uses separate thinking_budget for reasoning tokens
             max_tokens = 65536  # 64K tokens - Gemini 2.5 Flash/Pro max output
 
-            # Build config - Pro thinking model needs thinking_config
-            config_kwargs = {
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-                "system_instruction": system_message,
-                "response_mime_type": "application/json",  # Force JSON output
-                "response_schema": response_schema,  # Enforce JSON structure if provided
-            }
-
-            # Enable thinking for Pro model (improves extraction quality)
-            if "pro" in model.lower():
-                # Thinking budget: allocate tokens for internal reasoning
-                # This is separate from max_output_tokens
-                config_kwargs["thinking_config"] = types.ThinkingConfig(
-                    thinking_budget=8192,  # 8K tokens for reasoning
-                )
-                logger.debug(f"Enabled thinking mode for {model} with 8K budget")
-
-            config = types.GenerateContentConfig(**config_kwargs)
+            # Build config
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                system_instruction=system_message,
+                response_mime_type="application/json",  # Force JSON output
+                response_schema=response_schema,  # Enforce JSON structure if provided
+            )
 
             response = self._client.models.generate_content(
                 model=model,
