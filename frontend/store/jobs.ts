@@ -109,7 +109,7 @@ export interface JobArtifacts {
   gap_analysis?: GapAnalysis;
   /** Research Starter - actionable queries and content angles */
   research_starter?: ResearchStarter;
-  // Semantic Pipeline Documents (Doc 0/1/2)
+  // Semantic Pipeline Documents (Doc 0/1/2) - inline data (legacy)
   /** Doc 0: Source Ledger - what was analyzed */
   source_ledger?: {
     data: Record<string, unknown>;
@@ -125,6 +125,15 @@ export interface JobArtifacts {
     data: Record<string, unknown>;
     markdown?: string;
   };
+  // Storage paths for new jobs (lazy loading)
+  /** Storage path for Doc 0 (Source Ledger) */
+  doc_0_path?: string;
+  /** Storage path for Doc 1 (Jump-Start Directions) */
+  doc_1_path?: string;
+  /** Storage path for Doc 2 (Semantic Brief) */
+  doc_2_path?: string;
+  /** Storage path for Doc 3 (Producer Packet) */
+  doc_3_path?: string;
 }
 
 /**

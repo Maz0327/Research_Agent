@@ -539,6 +539,7 @@ class GeminiClient:
                 temperature=temperature,
                 max_output_tokens=8192,  # Larger for extraction output
                 system_instruction=system_message,
+                response_mime_type="application/json",  # Force JSON output
             )
 
             response = self._client.models.generate_content(
@@ -553,6 +554,8 @@ class GeminiClient:
                 data = parse_json_from_llm_response(text)
             except GeminiParseError as e:
                 logger.warning(f"JSON parse failed: {e.message}")
+                # Log raw response for debugging (first 500 chars)
+                logger.debug(f"Raw response that failed to parse: {text[:500]}...")
                 return {
                     "data": {},
                     "cost": 0,
