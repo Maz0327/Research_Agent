@@ -129,10 +129,36 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
     storage_paths = _try_upload_documents_to_storage(ctx)
 
     if storage_paths:
-        # New jobs: Store paths instead of inline data
-        artifacts_dict = storage_paths
+        # New jobs: Prefer storage paths, but include small inline stubs so UI can render
+        artifacts_dict = dict(storage_paths)
 
-        # Still include booster/producer outputs in artifacts (smaller data)
+        # Build diagnostic stub markdown including warnings to aid troubleshooting
+        warning_lines = []
+        if ctx.warnings:
+            top = ctx.warnings[:10]
+            warning_lines = [f"- {w}" for w in top]
+        stub_md_parts = [
+            "# Document Available via Cloud Storage",
+            "",
+            "This document is stored in Supabase Storage and will be fetched on demand.",
+            "",
+            f"- Job ID: {ctx.job_id}",
+            f"- Topic: {ctx.topic}",
+            "- Storage: path present (inline JSON omitted to reduce payload)",
+        ]
+        if warning_lines:
+            stub_md_parts.extend(["", "## Warnings (top)", *warning_lines])
+        inline_stub_md = "\n".join(stub_md_parts)
+
+        # For each stored document, add a minimal inline stub to ensure frontend can display
+        if ctx.outputs.get("source_ledger") or storage_paths.get("doc_0_path"):
+            artifacts_dict["source_ledger"] = {"data": {}, "markdown": inline_stub_md}
+        if ctx.outputs.get("jump_start") or storage_paths.get("doc_1_path"):
+            artifacts_dict["jump_start"] = {"data": {}, "markdown": inline_stub_md}
+        if ctx.outputs.get("semantic_brief") or storage_paths.get("doc_2_path"):
+            artifacts_dict["semantic_brief"] = {"data": {}, "markdown": inline_stub_md}
+
+        # Still include booster/producer outputs in artifacts (small payload)
         if ctx.outputs.get("booster_output"):
             artifacts_dict["booster_output"] = ctx.outputs["booster_output"]
             artifacts_dict["booster_expansion_md"] = ctx.outputs.get("booster_expansion_md")

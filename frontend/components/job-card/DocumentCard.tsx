@@ -77,8 +77,10 @@ export function DocumentCard({
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const config = docConfig[docNumber];
 
-  // Determine if data is available (for download menu)
+  // Determine if content is available (JSON data or markdown)
   const hasData = Object.keys(data).length > 0;
+  const hasMarkdown = !!markdown && markdown.length > 0;
+  const hasContent = hasData || hasMarkdown;
 
   // Download as JSON
   const handleDownloadJSON = () => {
@@ -225,8 +227,8 @@ export function DocumentCard({
           )}
         </button>
 
-        {/* Download dropdown - only show if data is available */}
-        {hasData && (
+        {/* Download dropdown - show if JSON or Markdown exists */}
+        {hasContent && (
           <div className="relative">
             <button
               onClick={() => setShowDownloadMenu(!showDownloadMenu)}
@@ -254,7 +256,7 @@ export function DocumentCard({
                     </svg>
                     Copy to Clipboard
                   </button>
-                  {markdown && (
+                  {hasMarkdown && (
                     <button
                       onClick={handleDownloadMarkdown}
                       className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
@@ -274,15 +276,17 @@ export function DocumentCard({
                     </svg>
                     Download PDF
                   </button>
-                  <button
-                    onClick={handleDownloadJSON}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    </svg>
-                    Download JSON
-                  </button>
+                  {hasData && (
+                    <button
+                      onClick={handleDownloadJSON}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                      Download JSON
+                    </button>
+                  )}
                 </div>
               </>
             )}

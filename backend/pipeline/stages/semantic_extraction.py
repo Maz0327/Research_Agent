@@ -546,7 +546,7 @@ def stage_semantic_extraction(ctx: PipelineContext) -> None:
                 ctx.semantic_extractions.append(result)
 
                 if result.approximate_observations:
-                    sources_extracted += 1
+                    sources_processed += 1
                     logger.info(
                         f"[{source_id}] Video extraction complete: "
                         f"{len(result.approximate_observations)} observations"

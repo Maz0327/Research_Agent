@@ -91,6 +91,11 @@ class JobStatusResponse(BaseModel):
     interpretations: Optional[list[dict[str, Any]]] = Field(
         None, description="Possible topic interpretations when status is 'disambiguating'"
     )
+    # Document availability map for UI diagnostics
+    # Example: {"doc_0": {"inline": true, "storage": false}, ...}
+    documents_ready: Optional[dict[str, Any]] = Field(
+        None, description="Per-document availability (inline/storage)"
+    )
 
     class Config:
         populate_by_name = True

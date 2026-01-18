@@ -177,48 +177,5 @@ class TestDiscoveryStages:
         mock_update.assert_called()
 
 
-class TestExtractionStages:
-    """Tests for extraction stages."""
-
-    @patch("backend.pipeline.stages.extraction_stages.update_job")
-    @patch("backend.pipeline.stages.extraction_stages.post_slack_message")
-    def test_extraction_handles_no_content(self, mock_slack, mock_update, mock_context):
-        """Extraction should handle empty transcripts and sources."""
-        from backend.pipeline.stages.extraction_stages import stage_7_extraction
-
-        mock_context.transcripts = []
-        mock_context.web_sources = []
-
-        stage_7_extraction(mock_context)
-
-        # Should set placeholder outputs
-        assert "quote_bank_md" in mock_context.outputs
-        assert "No content" in mock_context.outputs["quote_bank_md"]
-
-    @patch("backend.pipeline.stages.extraction_stages.update_job")
-    def test_timeline_handles_no_events(self, mock_update, mock_context):
-        """Timeline extraction should handle no events."""
-        from backend.pipeline.stages.extraction_stages import stage_7_5_timeline
-
-        mock_context.transcripts = []
-        mock_context.web_sources = []
-        mock_context.claims = []
-
-        stage_7_5_timeline(mock_context)
-
-        # Should set placeholder output
-        assert "timeline_md" in mock_context.outputs
-
-    @patch("backend.pipeline.stages.extraction_stages.update_job")
-    def test_entities_handles_no_content(self, mock_update, mock_context):
-        """Entity extraction should handle no content."""
-        from backend.pipeline.stages.extraction_stages import stage_7_6_entities
-
-        mock_context.transcripts = []
-        mock_context.web_sources = []
-        mock_context.claims = []
-
-        stage_7_6_entities(mock_context)
-
-        # Should set placeholder output
-        assert "entities_md" in mock_context.outputs
+# Legacy TestExtractionStages removed (D5 - 2026-01-17)
+# Stages 7-8.6 replaced by semantic pipeline

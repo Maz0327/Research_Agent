@@ -58,10 +58,23 @@ class GeminiParseError(Exception):
 
 class GeminiTimeoutError(Exception):
     """Raised when Gemini API call times out.
-    
+
     C-002: Explicit timeout handling.
     """
     pass
+
+
+class GeminiTruncationError(Exception):
+    """Raised when Gemini response is truncated due to max_output_tokens limit.
+
+    This typically happens with long transcripts where the extraction output
+    exceeds the token limit, resulting in incomplete JSON that cannot be parsed.
+    """
+    def __init__(self, message: str, partial_response: str = "", tokens_used: int = 0):
+        self.message = message
+        self.partial_response = partial_response
+        self.tokens_used = tokens_used
+        super().__init__(message)
 
 
 # =============================================================================
@@ -512,7 +525,7 @@ class GeminiClient:
         self,
         prompt: str,
         system_message: Optional[str] = None,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-2.5-pro",
         temperature: Optional[float] = None,
         response_schema: Optional[type] = None,
     ) -> dict[str, Any]:
@@ -523,7 +536,7 @@ class GeminiClient:
         Args:
             prompt: The extraction prompt
             system_message: Optional system instruction/role
-            model: Model to use
+            model: Model to use (default: gemini-2.5-pro for thinking/quality)
             temperature: Override temperature (defaults to TEMP_FACTUAL)
             response_schema: Optional Pydantic model for Gemini response_schema.
                              Must have NO default values (Gemini API requirement).
@@ -533,19 +546,35 @@ class GeminiClient:
             Dict with 'data' (parsed JSON), 'cost', and optional 'error'
         """
         try:
-            logger.info(f"Gemini JSON generation: {prompt[:80]}...")
+            logger.info(f"Gemini JSON generation ({model}): {prompt[:80]}...")
 
             # Use factual temperature for extraction tasks
             if temperature is None:
                 temperature = TEMP_FACTUAL  # 0.0 for deterministic extraction
 
-            config = types.GenerateContentConfig(
-                temperature=temperature,
-                max_output_tokens=16384,  # Increased: large extractions were truncating (was 8192)
-                system_instruction=system_message,
-                response_mime_type="application/json",  # Force JSON output
-                response_schema=response_schema,  # Enforce JSON structure if provided
-            )
+            # Model-aware max_output_tokens (both Flash and Pro support 65K)
+            # Pro thinking model uses separate thinking_budget for reasoning tokens
+            max_tokens = 65536  # 64K tokens - Gemini 2.5 Flash/Pro max output
+
+            # Build config - Pro thinking model needs thinking_config
+            config_kwargs = {
+                "temperature": temperature,
+                "max_output_tokens": max_tokens,
+                "system_instruction": system_message,
+                "response_mime_type": "application/json",  # Force JSON output
+                "response_schema": response_schema,  # Enforce JSON structure if provided
+            }
+
+            # Enable thinking for Pro model (improves extraction quality)
+            if "pro" in model.lower():
+                # Thinking budget: allocate tokens for internal reasoning
+                # This is separate from max_output_tokens
+                config_kwargs["thinking_config"] = types.ThinkingConfig(
+                    thinking_budget=8192,  # 8K tokens for reasoning
+                )
+                logger.debug(f"Enabled thinking mode for {model} with 8K budget")
+
+            config = types.GenerateContentConfig(**config_kwargs)
 
             response = self._client.models.generate_content(
                 model=model,
@@ -553,6 +582,29 @@ class GeminiClient:
                 config=config,
             )
             text = response.text or ""
+
+            # Check for truncation - finish_reason "MAX_TOKENS" means output was cut off
+            finish_reason = None
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if hasattr(candidate, "finish_reason"):
+                    finish_reason = str(candidate.finish_reason)
+
+            if finish_reason and "MAX_TOKENS" in finish_reason.upper():
+                logger.error(
+                    f"Gemini response TRUNCATED (model={model}, finish_reason={finish_reason}). "
+                    f"Output too large for max_output_tokens={max_tokens}. "
+                    f"Partial response: {len(text)} chars"
+                )
+                return {
+                    "data": {},
+                    "cost": self._estimate_cost(model, len(prompt.split()) * 1.3, len(text.split()) * 1.3),
+                    "error": f"Response truncated: extraction output exceeded {max_tokens // 1024}K token limit. "
+                             f"Try with shorter source content or increase chunking.",
+                    "truncated": True,
+                    "partial_response_length": len(text),
+                    "model": model,
+                }
 
             # Estimate cost as best-effort regardless of parse status
             input_tokens = len(prompt.split()) * 1.3

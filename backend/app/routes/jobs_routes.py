@@ -1547,6 +1547,24 @@ async def get_job_status(
     if job.config_json:
         pass_detail = job.config_json.get("pass_detail")
 
+    # Compute document availability (inline vs storage) for diagnostics/UX
+    documents_ready = None
+    if artifacts_dict:
+        # Map doc_type to path/inline keys (keep in sync with get_document)
+        doc_mapping = {
+            "doc_0": {"path_field": "doc_0_path", "inline_field": "source_ledger"},
+            "doc_1": {"path_field": "doc_1_path", "inline_field": "jump_start"},
+            "doc_2": {"path_field": "doc_2_path", "inline_field": "semantic_brief"},
+            "doc_3": {"path_field": "doc_3_path", "inline_field": "producer_packet"},
+        }
+        documents_ready = {}
+        for key, mapping in doc_mapping.items():
+            storage_ok = bool(artifacts_dict.get(mapping["path_field"]))
+            inline_ok = bool(artifacts_dict.get(mapping["inline_field"]))
+            # Only include entries that are relevant/present
+            if storage_ok or inline_ok:
+                documents_ready[key] = {"inline": inline_ok, "storage": storage_ok}
+
     return JobStatusResponse(
         job_id=job.job_id,
         prompt=prompt,
@@ -1564,6 +1582,7 @@ async def get_job_status(
         created_at=job.created_at,
         updated_at=None,
         interpretations=interpretations,
+        documents_ready=documents_ready,
     )
 
 

@@ -3,15 +3,10 @@
 Enables concurrent execution of I/O-bound stages to improve performance.
 Uses ThreadPoolExecutor for parallelism since stages are I/O-bound (API calls).
 
-Parallelization Strategy:
-- Group 1 (After Source Discovery) - ACTIVE:
-  - Track A: YouTube Enumeration → Transcripts (sequential)
-  - Track B: Web Capture (parallel)
-  - Track C: Reddit Collection (parallel)
-
-- Group 2 (DEPRECATED per D5 - 2026-01-17):
-  - run_extraction_stages_parallel() is no longer called
-  - Legacy stages (7-8.6) replaced by semantic pipeline
+Parallelization Strategy (After Source Discovery):
+- Track A: YouTube Enumeration → Transcripts (sequential, prioritized)
+- Track B: Web Capture (parallel)
+- Track C: Reddit Collection (parallel)
 """
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Dict, List, Optional
@@ -120,27 +115,3 @@ def run_collection_stages_parallel(ctx: PipelineContext) -> None:
     names = ["web_capture", "reddit_collection"]
 
     run_parallel_stages(ctx, stages, names, max_workers=2)
-
-
-def run_extraction_stages_parallel(ctx: PipelineContext) -> None:
-    """
-    DEPRECATED (D5 - 2026-01-17): Legacy extraction stages.
-
-    This function is no longer called by the main pipeline.
-    Legacy stages (7-8.6) have been replaced by the semantic pipeline.
-    Preserved for backward compatibility only.
-
-    All work on the same inputs (claims, transcripts, web_sources).
-    """
-    # LEGACY DISABLED (D5) - This function is no longer called
-    # Kept for backward compatibility but stages are not executed
-    from backend.pipeline.stages import (
-        stage_7_5_timeline,
-        stage_7_6_entities,
-        stage_8_validation,
-    )
-
-    stages = [stage_7_5_timeline, stage_7_6_entities, stage_8_validation]
-    names = ["timeline_extraction", "entity_extraction", "claim_validation"]
-
-    run_parallel_stages(ctx, stages, names, max_workers=3)
