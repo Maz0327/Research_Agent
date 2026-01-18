@@ -634,23 +634,56 @@ Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 
 ## Current Session
 
-**Date:** 2026-01-16
+**Date:** 2026-01-17
 **Tasks Planned:**
-- Complete Phase 10: Documentation & Cleanup
+- Implement D5: Disconnect legacy pipeline from semantic pipeline
 
 **Tasks Completed:**
-- Phase 10 complete
-- Updated API_Endpoint_Spec.md with 4 new endpoints
-- Updated README.md with semantic pipeline features
-- Updated CLAUDE.md status and phase table
-- Created QUICK_START.md guide
-- Created TROUBLESHOOTING.md guide
-- Verified 948 tests passing
+- ✅ D5 Implementation Complete - Legacy pipeline disconnected
+
+### D5 Implementation Details (2026-01-17)
+
+Per RESEARCH_AGENT_COMPLETE_CONTEXT.md Decision D5:
+- Legacy pipeline **PRESERVED** but **COMPLETELY DISABLED**
+- Legacy code NOT deleted (kept for reference)
+- Legacy fields NOT populated by new jobs
+
+**Files Modified:**
+1. `backend/worker.py`
+   - Commented out legacy stage imports (stage_7 through stage_8_6)
+   - Commented out run_extraction_stages_parallel import
+   - Disabled legacy stage calls in `run_research_job` (lines 226-241)
+   - Disabled legacy stage calls in `_run_disambiguated_job` (lines 584-598)
+
+2. `backend/models/job_record.py`
+   - Reorganized Artifacts class with clear sections
+   - Marked legacy fields as DEPRECATED with D5 reference
+   - Legacy fields: clips, quotes, quality_gate_passed, content_blueprints, gap_analysis, research_starter
+
+3. `backend/pipeline/parallel_executor.py`
+   - Updated module docstring with deprecation notice
+   - Marked `run_extraction_stages_parallel` as DEPRECATED
+
+**What Stays Active:**
+- ✅ Semantic pipeline (Doc 0/1/2 production)
+- ✅ Discovery stages (0-6) — feed semantic pipeline
+- ✅ Drive upload (stage_9) — uploads Doc 0/1/2 only
+- ✅ Completion (stage_10)
+- ✅ Booster pipeline (`POST /jobs/{id}/booster`)
+- ✅ Producer Packet (`POST /jobs/{id}/producer-packet`)
+- ✅ Extended input endpoints (video-analysis, text-input, screenshot-input, mixed-input)
+
+**What's Disabled:**
+- ❌ Legacy stages 7-8.6 (claim extraction, timeline, entities, validation, angles, documentary)
+- ❌ Legacy artifact population (clips, quotes, content_blueprints, etc.)
+
+**Tests:** 946 passed, 2 skipped, 18 warnings
 
 **All Phases Complete:**
 - Phase 0-9: Semantic pipeline fully implemented
 - Phase 10: Documentation updated
-- Test suite: 948 tests passing
+- D5: Legacy pipeline disconnected
+- Test suite: 946 tests passing
 
 **Next Steps:**
 - Merge feature/vision-alignment-v1 to main
