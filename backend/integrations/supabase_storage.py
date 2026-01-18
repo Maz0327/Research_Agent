@@ -211,7 +211,8 @@ def get_storage_client() -> Optional[SupabaseStorageClient]:
     global _storage_client
     if _storage_client is None:
         # Import settings here to avoid circular imports
-        from backend.config import settings
+        from backend.config import get_settings
+        settings = get_settings()
 
         if not settings.supabase_url or not settings.supabase_service_role_key:
             logger.warning("Supabase not configured - storage client unavailable")
