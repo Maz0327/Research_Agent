@@ -116,7 +116,7 @@ class Claim:
     claim_id: str
     statement: str
     source_id: str
-    supporting_quotes: list[str] = field(default_factory=list)  # Quote IDs
+    supporting_quotes: list[str] = field(default_factory=list)  # Quote texts (verified against transcript)
     confidence: ConfidenceLevel = ConfidenceLevel.MEDIUM
     timestamp_range: Optional[str] = None  # For video_only mode: "~MM:SS - MM:SS"
     source_mode: Optional[AnalysisMode] = None  # Required for video_only
