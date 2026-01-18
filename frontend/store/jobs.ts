@@ -134,6 +134,17 @@ export interface JobArtifacts {
   doc_2_path?: string;
   /** Storage path for Doc 3 (Producer Packet) */
   doc_3_path?: string;
+  // Per-source extraction data
+  /** Semantic extractions per source */
+  semantic_extractions?: Record<string, unknown>[];
+  // Booster Pipeline (Phase 7)
+  /** Booster output for Doc 1 expansion */
+  booster_output?: Record<string, unknown>;
+  /** Booster markdown for Doc 1 */
+  booster_expansion_md?: string;
+  // Producer Packet markdown (Phase 8)
+  /** Producer packet markdown output */
+  producer_packet_md?: string;
 }
 
 /**

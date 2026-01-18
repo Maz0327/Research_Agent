@@ -514,6 +514,7 @@ class GeminiClient:
         system_message: Optional[str] = None,
         model: str = "gemini-2.5-flash",
         temperature: Optional[float] = None,
+        response_schema: Optional[type] = None,
     ) -> dict[str, Any]:
         """Generate JSON output with structured parsing.
 
@@ -524,6 +525,9 @@ class GeminiClient:
             system_message: Optional system instruction/role
             model: Model to use
             temperature: Override temperature (defaults to TEMP_FACTUAL)
+            response_schema: Optional Pydantic model for Gemini response_schema.
+                             Must have NO default values (Gemini API requirement).
+                             See: backend/models/semantic_extraction_schema.py
 
         Returns:
             Dict with 'data' (parsed JSON), 'cost', and optional 'error'
@@ -537,9 +541,10 @@ class GeminiClient:
 
             config = types.GenerateContentConfig(
                 temperature=temperature,
-                max_output_tokens=8192,  # Larger for extraction output
+                max_output_tokens=16384,  # Increased: large extractions were truncating (was 8192)
                 system_instruction=system_message,
                 response_mime_type="application/json",  # Force JSON output
+                response_schema=response_schema,  # Enforce JSON structure if provided
             )
 
             response = self._client.models.generate_content(

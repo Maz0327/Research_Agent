@@ -636,8 +636,34 @@ Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 
 **Date:** 2026-01-17
 **Tasks Planned:**
-- Implement D5: Disconnect legacy pipeline from semantic pipeline
+- Fix Gemini JSON parsing production bug
+- Implement integration audit system
 
+**Tasks Completed:**
+- ✅ HOTFIX: Increased `max_output_tokens` from 8192 → 16384 (prevents JSON truncation)
+- ✅ Created `SemanticExtractionSchema` Pydantic model (no defaults for Gemini response_schema)
+- ✅ Updated `generate_json()` to accept optional `response_schema` parameter
+- ✅ Created `pyproject.toml` with mypy + ruff configuration
+- ✅ Created `scripts/validate-contracts.py` (detects backend/frontend drift)
+- ✅ Enhanced `.git/hooks/pre-push` with type + contract checks
+- ✅ Fixed frontend contract drift (added 4 missing fields to JobArtifacts)
+
+### Files Created
+- `backend/models/semantic_extraction_schema.py` - Gemini JSON schema (no defaults)
+- `pyproject.toml` - Static analysis configuration
+- `scripts/validate-contracts.py` - Contract drift detector
+
+### Files Modified
+- `backend/integrations/gemini_client.py` - Line 540: max_output_tokens 8192→16384, added response_schema param
+- `backend/models/__init__.py` - Export SemanticExtractionSchema
+- `frontend/store/jobs.ts` - Added: semantic_extractions, booster_output, booster_expansion_md, producer_packet_md
+- `.git/hooks/pre-push` - Added contract validation and TypeScript checks
+
+---
+
+## Previous Session (D5 Implementation)
+
+**Date:** 2026-01-17
 **Tasks Completed:**
 - ✅ D5 Implementation Complete - Legacy pipeline disconnected
 

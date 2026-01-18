@@ -1,0 +1,65 @@
+# Research Agent - Python Project Configuration
+# Static analysis and code quality tools
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]
+
+# Type checking paths
+files = ["backend"]
+
+# Ignore third-party packages without stubs
+[[tool.mypy.overrides]]
+module = [
+    "google.*",
+    "google.genai.*",
+    "loguru.*",
+    "celery.*",
+    "redis.*",
+    "trafilatura.*",
+    "supadata.*",
+    "bs4.*",
+    "PIL.*",
+    "httpx.*",
+    "googleapiclient.*",
+    "google_auth_oauthlib.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+    "B008",  # Do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]

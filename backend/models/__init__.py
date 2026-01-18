@@ -19,6 +19,7 @@ from backend.models.job_config import (
 )
 from backend.models.source import SourceItem, SourceType
 from backend.models.semantic_units import SemanticExtractionResult
+from backend.models.semantic_extraction_schema import SemanticExtractionSchema
 from backend.models.booster_models import (
     ContextBundle,
     BoosterOutput,
@@ -73,6 +74,7 @@ __all__ = [
     "SourceType",
     # Semantic models
     "SemanticExtractionResult",
+    "SemanticExtractionSchema",
     # Claim models
     "Claim",
     "ClaimType",
