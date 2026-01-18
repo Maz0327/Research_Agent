@@ -185,7 +185,7 @@ class TestBuildSourceIdentityFromArticle:
         assert package.source_type == "article"
         assert package.title == "Test Article"
         assert package.creator == "John Doe"
-        assert package.analysis_mode == AnalysisMode.TRANSCRIPT_GROUNDED
+        assert package.analysis_mode == AnalysisMode.ARTICLE_FETCHED  # Articles use ARTICLE_FETCHED
         assert package.is_accessible is True
 
 

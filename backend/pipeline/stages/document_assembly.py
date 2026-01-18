@@ -84,6 +84,9 @@ def build_source_ledger(
             status = SourceStatus.INGESTED
 
         # Build transcript provenance for video sources
+        # Note: Articles, Reddit, and other text sources don't have transcript provenance -
+        # their provenance is captured in the source metadata (author, url, etc.) rather
+        # than transcript chain (supadata → whisper → captions fallback).
         transcript_provenance = None
         if source_data.get("source_type") == "youtube":
             ts = source_data.get("transcript_source", "none")

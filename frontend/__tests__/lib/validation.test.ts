@@ -31,14 +31,14 @@ describe('Validation Utilities', () => {
     });
 
     it('should reject prompts exceeding max length', () => {
-      const longPrompt = 'a'.repeat(600);
+      const longPrompt = 'a'.repeat(2100);
       const result = validatePrompt(longPrompt);
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('500');
+      expect(result.error).toContain('2000');
     });
 
     it('should accept prompts at max length', () => {
-      const maxPrompt = 'a'.repeat(500);
+      const maxPrompt = 'a'.repeat(2000);
       const result = validatePrompt(maxPrompt);
       expect(result.valid).toBe(true);
     });

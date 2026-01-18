@@ -207,7 +207,7 @@ def build_source_identity_from_article(
     """
     Build identity package from web article data.
 
-    Articles are always TRANSCRIPT_GROUNDED since we have the full text.
+    Articles use ARTICLE_FETCHED mode with HIGH confidence ceiling.
 
     Args:
         article_data: Article metadata from web capture stage
@@ -223,8 +223,8 @@ def build_source_identity_from_article(
     published = article_data.get("published", article_data.get("date"))
     content = article_data.get("content", article_data.get("text", ""))
 
-    # Articles are always transcript_grounded (we have the text)
-    analysis_mode = AnalysisMode.TRANSCRIPT_GROUNDED
+    # Articles use ARTICLE_FETCHED mode (we have the full text)
+    analysis_mode = AnalysisMode.ARTICLE_FETCHED
     is_accessible = bool(content)
     failure_reason = None if content else "No content extracted"
 
@@ -267,7 +267,7 @@ def build_source_identity_from_reddit(
     """
     Build identity package from Reddit post data.
 
-    Reddit posts are TRANSCRIPT_GROUNDED since we have the text.
+    Reddit posts use ARTICLE_FETCHED mode since we fetch the full text.
 
     Args:
         post_data: Post metadata from Reddit stage
@@ -292,7 +292,7 @@ def build_source_identity_from_reddit(
 
     content = "\n\n".join(content_parts) if content_parts else ""
 
-    analysis_mode = AnalysisMode.TRANSCRIPT_GROUNDED
+    analysis_mode = AnalysisMode.ARTICLE_FETCHED
     is_accessible = bool(content)
     failure_reason = None if content else "No content extracted"
     content_word_count = len(content.split()) if content else 0
@@ -337,7 +337,7 @@ def build_source_identity_from_text(
 
     Used for paywalled articles, emails, or other text the user pastes directly.
     Analysis mode is TEXT_PROVIDED with MEDIUM confidence ceiling.
-    NO QUOTES allowed in this mode - observations only.
+    Quotes allowed but marked UNVERIFIED - system cannot verify user-provided text.
 
     Args:
         content: User-provided text content
@@ -365,7 +365,7 @@ def build_source_identity_from_text(
         transcript_status="success" if content else "failed",
         captions_status="n/a",
         gemini_analysis_mode=analysis_mode,
-        quote_verification=False,  # NO quotes in text_provided mode
+        quote_verification=False,  # Quotes unverified - user-provided content
         timestamp_grounding=False,
         semantic_precision=ConfidenceLevel.MEDIUM if content else ConfidenceLevel.LOW,
         notes=context_note,
@@ -406,7 +406,7 @@ def build_source_identity_from_screenshot(
 
     Used for social media screenshots, forum posts, etc.
     Analysis mode is OCR_EXTRACTED with MEDIUM confidence ceiling.
-    NO QUOTES allowed - OCR may contain errors.
+    Quotes allowed but marked UNVERIFIED - OCR may contain errors.
 
     Args:
         ocr_text: Text extracted via OCR from screenshot
@@ -443,7 +443,7 @@ def build_source_identity_from_screenshot(
         transcript_status="success" if ocr_text else "failed",
         captions_status="n/a",
         gemini_analysis_mode=analysis_mode,
-        quote_verification=False,  # NO quotes in OCR mode - may have errors
+        quote_verification=False,  # Quotes unverified - OCR may contain errors
         timestamp_grounding=False,
         semantic_precision=ConfidenceLevel.MEDIUM if ocr_text else ConfidenceLevel.LOW,
         notes=f"OCR from {platform_hint}. {context_note or ''}".strip(),

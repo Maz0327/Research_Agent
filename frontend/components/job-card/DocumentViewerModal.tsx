@@ -7,6 +7,7 @@
  * - Copy to clipboard functionality
  */
 import { useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 
 export interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -149,6 +150,7 @@ export function DocumentViewerModal({
 /**
  * Simple markdown renderer - converts basic markdown to HTML.
  * For full markdown support, consider using react-markdown.
+ * Uses DOMPurify to sanitize output and prevent XSS attacks.
  */
 function MarkdownRenderer({ content }: { content: string }) {
   // Simple markdown parsing for headers, lists, bold, italic, code
@@ -179,10 +181,13 @@ function MarkdownRenderer({ content }: { content: string }) {
       .replace(/\n/g, '');
   };
 
+  // Sanitize HTML to prevent XSS attacks
+  const sanitizedHtml = DOMPurify.sanitize(parseMarkdown(content));
+
   return (
     <div
       className="text-gray-300"
-      dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );
 }

@@ -234,7 +234,7 @@ class TestSourceIdentityBuilders:
 
         assert package.source_id == "SRC_1"
         assert package.source_type == "article"
-        assert package.analysis_mode == AnalysisMode.TRANSCRIPT_GROUNDED
+        assert package.analysis_mode == AnalysisMode.ARTICLE_FETCHED  # Articles use ARTICLE_FETCHED mode
         assert package.is_accessible is True
         assert package.content_word_count == 8  # "This is the article content with several words."
 
@@ -266,7 +266,7 @@ class TestSourceIdentityBuilders:
 
         assert package.source_id == "SRC_1"
         assert package.source_type == "reddit"
-        assert package.analysis_mode == AnalysisMode.TRANSCRIPT_GROUNDED
+        assert package.analysis_mode == AnalysisMode.ARTICLE_FETCHED  # Reddit uses ARTICLE_FETCHED mode
         assert "First comment" in package.content
         assert "Second comment" in package.content
 

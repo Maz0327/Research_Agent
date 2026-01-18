@@ -3,6 +3,7 @@
  * Converts image to base64 for API submission.
  */
 import { useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { SCREENSHOT_PLATFORM_HINTS } from '../../../lib/constants';
 
 interface ScreenshotSourceFormProps {
@@ -123,11 +124,15 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
       >
         {preview ? (
           <div className="space-y-3">
-            <img
-              src={preview}
-              alt="Preview"
-              className="max-h-48 mx-auto rounded-lg object-contain"
-            />
+            <div className="relative h-48 w-full">
+              <Image
+                src={preview}
+                alt="Preview"
+                fill
+                className="rounded-lg object-contain"
+                unoptimized  // Required for blob URLs from createObjectURL
+              />
+            </div>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
               <span>{file?.name}</span>
               <span className="text-gray-600">•</span>

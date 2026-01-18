@@ -7,6 +7,7 @@
  * - Doc 2 (Semantic Brief): Purple - insights/analysis
  */
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 
 export interface DocumentCardProps {
   docNumber: 0 | 1 | 2;
@@ -123,7 +124,7 @@ export function DocumentCard({
       const element = document.createElement('div');
 
       // Convert markdown to simple HTML or use JSON
-      const content = markdown
+      const rawContent = markdown
         ? markdown
             .replace(/^### (.*$)/gm, '<h3 style="margin-top:16px;margin-bottom:8px;font-size:14px;font-weight:600;">$1</h3>')
             .replace(/^## (.*$)/gm, '<h2 style="margin-top:20px;margin-bottom:10px;font-size:16px;font-weight:700;">$1</h2>')
@@ -135,11 +136,16 @@ export function DocumentCard({
             .replace(/\n/g, '<br/>')
         : `<pre style="white-space:pre-wrap;font-size:12px;">${JSON.stringify(data, null, 2)}</pre>`;
 
+      // Sanitize HTML to prevent XSS attacks
+      const sanitizedContent = DOMPurify.sanitize(rawContent);
+      const sanitizedTitle = DOMPurify.sanitize(title);
+      const sanitizedSubtitle = DOMPurify.sanitize(subtitle);
+
       element.innerHTML = `
         <div style="padding:20px;font-family:system-ui,-apple-system,sans-serif;max-width:800px;font-size:14px;line-height:1.6;color:#1a1a1a;">
-          <h1 style="margin-bottom:4px;font-size:24px;font-weight:700;">${title}</h1>
-          <p style="margin-bottom:24px;color:#666;font-size:12px;">${subtitle}</p>
-          <div style="margin-bottom:8px;">${content}</div>
+          <h1 style="margin-bottom:4px;font-size:24px;font-weight:700;">${sanitizedTitle}</h1>
+          <p style="margin-bottom:24px;color:#666;font-size:12px;">${sanitizedSubtitle}</p>
+          <div style="margin-bottom:8px;">${sanitizedContent}</div>
         </div>
       `;
 

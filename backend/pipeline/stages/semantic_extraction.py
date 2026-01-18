@@ -29,6 +29,7 @@ from backend.models.semantic_units import (
     Tension,
     Theme,
 )
+from backend.models.semantic_extraction_schema import SemanticExtractionSchema
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.prompts.semantic_extraction_prompt import (
     build_semantic_extraction_prompt,
@@ -95,6 +96,16 @@ def parse_extraction_response(
             confidence=confidence,
             timestamp_range=claim_data.get("timestamp_range"),
             source_mode=analysis_mode if analysis_mode == AnalysisMode.VIDEO_ONLY else None,
+        ))
+
+    # Parse quotes
+    for quote_data in response.get("quotes", []):
+        result.quotes.append(Quote(
+            quote_id=quote_data.get("quote_id", f"QT_{len(result.quotes) + 1}"),
+            text=quote_data.get("text", ""),
+            source_id=source_id,
+            timestamp=quote_data.get("timestamp", ""),
+            approximate=quote_data.get("approximate", False),
         ))
 
     # Parse themes
@@ -255,10 +266,11 @@ def extract_semantic_structure(
 
     while retry_count <= max_retries:
         try:
-            # Call Gemini for extraction (sync)
+            # Call Gemini for extraction (sync) with JSON schema
             response = gemini_client.generate_json(
                 prompt=prompt,
                 system_message=SEMANTIC_EXTRACTION_ROLE,
+                response_schema=SemanticExtractionSchema,
             )
 
             if "error" in response:
@@ -371,11 +383,34 @@ def stage_semantic_extraction(ctx: PipelineContext) -> None:
             sources_skipped += 1
             continue
 
-        # Skip sources without content (video_only with no transcript)
+        # Skip sources without content (except video_only)
         if not content and analysis_mode != AnalysisMode.VIDEO_ONLY:
             logger.warning(f"No content for source {source_id}, skipping extraction")
             ctx.add_warning(f"Skipped semantic extraction for {source_id}: no content")
             sources_failed += 1
+            continue
+
+        # Handle video_only mode with no transcript - create placeholder result
+        if analysis_mode == AnalysisMode.VIDEO_ONLY and not content:
+            logger.warning(
+                f"[{source_id}] Video-only mode with no transcript - "
+                "creating placeholder result"
+            )
+            ctx.add_warning(
+                f"[{source_id}] Video-only mode: semantic extraction skipped "
+                "(requires transcript). Consider using Gemini video analysis for richer output."
+            )
+            # Create minimal result with limitation noted
+            result = SemanticExtractionResult(
+                source_id=source_id,
+                analysis_mode=analysis_mode,
+                analysis_limitations=[
+                    "Video-only mode: No transcript available for semantic extraction",
+                    "Confidence ceiling: LOW",
+                ],
+            )
+            ctx.semantic_extractions.append(result)
+            sources_skipped += 1
             continue
 
         logger.info(
