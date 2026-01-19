@@ -67,7 +67,14 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
             ctx.add_warning(f"Export generation failed: {str(e)}")
 
         # Generate folder name with optional interpretation prefix
-        base_name = ctx.job_config.output.drive_folder_name or ctx.short_title or ctx.job_config.topic
+        # Handle cases where job_config may be None (e.g., mixed-input jobs)
+        drive_folder_name = None
+        topic = None
+        if ctx.job_config:
+            if ctx.job_config.output:
+                drive_folder_name = ctx.job_config.output.drive_folder_name
+            topic = ctx.job_config.topic
+        base_name = drive_folder_name or ctx.short_title or topic or "research_output"
         # Clean the name for folder use (replace spaces, limit length)
         clean_name = base_name.replace(" ", "_")[:50]
 

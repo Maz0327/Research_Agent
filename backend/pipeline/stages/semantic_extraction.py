@@ -55,6 +55,7 @@ if TYPE_CHECKING:
 def extract_video_observations(
     video_url: str,
     source_id: str,
+    duration_seconds: Optional[int] = None,
 ) -> tuple[SemanticExtractionResult, float, list[str]]:
     """
     Extract observations from a video using Gemini video analysis.
@@ -65,6 +66,7 @@ def extract_video_observations(
     Args:
         video_url: YouTube video URL
         source_id: Source ID for attribution
+        duration_seconds: Video duration in seconds (for chunked analysis)
 
     Returns:
         Tuple of (SemanticExtractionResult, cost, warnings)
@@ -74,16 +76,34 @@ def extract_video_observations(
     warnings = []
     cost = 0.0
 
+    # Threshold for chunked analysis (2 hours = 7200 seconds)
+    # Videos exceeding Gemini's 1M token limit (~2-3 hours) need chunking
+    CHUNK_THRESHOLD_SECONDS = 7200
+
     try:
         gemini_client = GeminiClient()
 
         # Analyze video directly via Gemini
+        # Use chunked analysis for long videos to avoid token limit errors
         logger.info(f"[{source_id}] Extracting observations from video: {video_url}")
-        video_result = gemini_client.analyze_youtube_video(
-            video_url=video_url,
-            model="gemini-2.5-flash",
-            max_clips=12,
-        )
+
+        if duration_seconds and duration_seconds > CHUNK_THRESHOLD_SECONDS:
+            logger.info(
+                f"[{source_id}] Long video detected ({duration_seconds}s), "
+                "using chunked analysis"
+            )
+            video_result = gemini_client.analyze_youtube_video_chunked(
+                video_url=video_url,
+                duration_seconds=duration_seconds,
+                model="gemini-2.5-flash",
+                chunk_duration_seconds=3600,  # 1 hour chunks
+            )
+        else:
+            video_result = gemini_client.analyze_youtube_video(
+                video_url=video_url,
+                model="gemini-2.5-flash",
+                max_clips=12,
+            )
 
         cost = video_result.get("cost", 0.0)
 
@@ -614,9 +634,11 @@ def stage_semantic_extraction(ctx: PipelineContext) -> None:
                     "using Gemini video analysis"
                 )
                 # Extract observations directly from video
+                # Pass duration for chunked analysis on long videos
                 result, video_cost, video_warnings = extract_video_observations(
                     video_url=video_url,
                     source_id=source_id,
+                    duration_seconds=getattr(package, 'duration_seconds', None),
                 )
                 ctx.add_cost("gemini_video", video_cost)
                 for warning in video_warnings:
