@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-16 23:30
+**Last Updated:** 2026-01-19 01:55
 **Current Phase:** 10 — Documentation ✅ COMPLETE
-**Current Task:** All Phases Complete
+**Current Task:** Maintenance & Hotfixes
 **Branch:** feature/vision-alignment-v1
 
 ---
@@ -634,6 +634,41 @@ Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 
 ## Current Session
 
+**Date:** 2026-01-19
+**Tasks Planned:**
+- Frontend-backend alignment fixes
+- Railway build fixes
+
+**Tasks Completed:**
+- ✅ Frontend error handling improvements (store re-throws errors, dashboard error toast)
+- ✅ Added loading state flags (isRefreshing, actionInProgress) to jobs store
+- ✅ Document fetch timeout with AbortController (30s)
+- ✅ Action error auto-dismiss (5s timeout)
+- ✅ Clear loadError on document change
+- ✅ Mobile TLS fix: Added HSTS header, enforced HTTPS for API URLs
+- ✅ Railway build fix: Updated google-auth constraint (>=2.45.0)
+- ✅ Railway build fix: Updated httpx constraint (>=0.28.1)
+
+### Files Modified (Frontend)
+- `frontend/store/jobs.ts` — Re-throw errors, add loading flags
+- `frontend/pages/dashboard.tsx` — Add error toast for job creation
+- `frontend/components/job-card/JobResults.tsx` — Fetch timeout, clear error
+- `frontend/components/job-card/JobActions.tsx` — Error auto-dismiss
+- `frontend/lib/constants.ts` — HTTPS enforcement for API URLs
+- `frontend/next.config.js` — HSTS header, CSP connect-src fix
+- `frontend/vercel.json` — HSTS header
+
+### Files Modified (Backend)
+- `requirements.txt` — google-auth>=2.45.0, httpx>=0.28.1
+
+### Commits
+- `572611b` — fix: Add HSTS header and enforce HTTPS for API URLs
+- `2c4aed2` — fix: Update httpx constraint for google-genai compatibility
+
+---
+
+## Previous Session
+
 **Date:** 2026-01-18
 **Tasks Planned:**
 - Implement Hallucination Prevention Improvements (8 features)
@@ -686,9 +721,8 @@ Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 
 ---
 
-## Previous Session
+## Session: 2026-01-17 (Gemini JSON Fix)
 
-**Date:** 2026-01-17
 **Tasks Planned:**
 - Fix Gemini JSON parsing production bug
 - Implement integration audit system
@@ -715,9 +749,7 @@ Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 
 ---
 
-## Previous Session (D5 Implementation)
-
-**Date:** 2026-01-17
+## Session: 2026-01-17 (D5 Implementation)
 **Tasks Completed:**
 - ✅ D5 Implementation Complete - Legacy pipeline disconnected
 
