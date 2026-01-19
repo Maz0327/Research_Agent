@@ -37,6 +37,7 @@ interface UnifiedInputPanelProps {
     articleUrls: string[];
     textInputs: TextInputData[];
     screenshots: ScreenshotInputData[];
+    enableRagGrounding: boolean;
   }) => Promise<void>;
   isSubmitting?: boolean;
 }
@@ -51,6 +52,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
     screenshots: [],
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [enableRagGrounding, setEnableRagGrounding] = useState(false);
 
   // Generate unique ID for sources
   const generateId = () => `src_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -179,12 +181,14 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
       articleUrls: sourceData.articleUrls,
       textInputs: sourceData.textInputs,
       screenshots: sourceData.screenshots,
+      enableRagGrounding,
     });
 
     // Clear form on success
     setTopic('');
     setSources([]);
     setSourceData({ videoUrls: [], articleUrls: [], textInputs: [], screenshots: [] });
+    setEnableRagGrounding(false);
   };
 
   const totalSources = sources.length;
@@ -261,6 +265,34 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
           </span>
         </button>
       )}
+
+      {/* Advanced Options */}
+      <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+        <label className="flex items-center justify-between cursor-pointer">
+          <div>
+            <span className="text-sm font-medium text-gray-300">RAG Grounding</span>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Extra verification that claims are supported by source text
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enableRagGrounding}
+            onClick={() => setEnableRagGrounding(!enableRagGrounding)}
+            disabled={isSubmitting}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 ${
+              enableRagGrounding ? 'bg-blue-600' : 'bg-gray-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                enableRagGrounding ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </label>
+      </div>
 
       {/* Submit Section */}
       <div className="flex items-center justify-between pt-2">
