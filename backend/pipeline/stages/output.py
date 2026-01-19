@@ -21,8 +21,16 @@ def stage_9_drive_upload(ctx: PipelineContext) -> None:
     post_slack_message(ctx, "Writing docs...")
 
     try:
+        # Guard: generate_master_index requires job_config
+        # For mixed-input jobs without full config, use a placeholder
+        master_index = ""
+        if ctx.job_config:
+            master_index = generate_master_index(ctx.job_config, ctx.outputs)
+        else:
+            master_index = f"# Master Index\n\n**Topic:** {ctx.topic or 'Research'}\n"
+
         doc_contents = {
-            "00_MASTER_INDEX": generate_master_index(ctx.job_config, ctx.outputs),
+            "00_MASTER_INDEX": master_index,
             "01_RESEARCH_MAP": ctx.outputs.get("research_map_md", ""),
             "02_SOURCE_SHORTLIST": ctx.outputs.get("source_shortlist_md", ""),
             "03_YOUTUBE_INDEX": ctx.outputs.get("youtube_index_md", ""),
