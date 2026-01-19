@@ -86,7 +86,8 @@ spacy>=3.7.0
 # === NEW LLM INTEGRATIONS ===
 
 # Google Gemini 2.5 Flash/Pro (new SDK - replaces deprecated google-generativeai)
-google-genai>=1.0.0
+# Pinned to 1.56.0 for stability - supports thinking_budget for 2.5 models
+google-genai==1.56.0
 
 # Anthropic Claude Sonnet (for complex synthesis)
 anthropic>=0.39.0
