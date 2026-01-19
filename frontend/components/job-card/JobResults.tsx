@@ -128,22 +128,36 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
 
   // Fetch document from API (for storage-based jobs)
   const fetchDocument = useCallback(async (docType: string): Promise<DocumentOutput | null> => {
+    // Clear previous error when fetching new document
+    setLoadError(null);
+
     try {
       const token = await getAccessToken();
       const response = await authFetch(`/jobs/${jobId}/documents/${docType}`, token);
       const result = await parseJsonResponse<DocumentApiResponse>(response);
 
-      // If we got a signed URL, fetch the actual content
+      // If we got a signed URL, fetch the actual content with timeout
       if (result.url) {
-        const contentResponse = await fetch(result.url);
-        if (!contentResponse.ok) {
-          throw new Error(`Failed to fetch document from storage: ${contentResponse.status}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        try {
+          const contentResponse = await fetch(result.url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!contentResponse.ok) {
+            throw new Error(`Failed to fetch document from storage: ${contentResponse.status}`);
+          }
+          const content = await contentResponse.json();
+          return {
+            data: content.data || content,
+            markdown: content.markdown,
+          };
+        } catch (err) {
+          clearTimeout(timeoutId);
+          if (err instanceof Error && err.name === 'AbortError') {
+            throw new Error('Document fetch timed out. Please try again.');
+          }
+          throw err;
         }
-        const content = await contentResponse.json();
-        return {
-          data: content.data || content,
-          markdown: content.markdown,
-        };
       }
 
       // Direct inline data response (fallback)

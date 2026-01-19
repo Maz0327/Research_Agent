@@ -1,7 +1,7 @@
 /**
  * Job action buttons component (cancel, delete, archive, view results, booster, producer packet).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { JobStatus } from './job-card-config';
 import { useJobsStore } from '../../store/jobs';
 
@@ -35,6 +35,14 @@ export function JobActions({
   const archiveJob = useJobsStore((state) => state.archiveJob);
   const triggerBooster = useJobsStore((state) => state.triggerBooster);
   const triggerProducerPacket = useJobsStore((state) => state.triggerProducerPacket);
+
+  // Auto-dismiss action errors after 5 seconds
+  useEffect(() => {
+    if (actionError) {
+      const timer = setTimeout(() => setActionError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionError]);
 
   const handleCancel = useCallback(async () => {
     if (isCancelling) return;

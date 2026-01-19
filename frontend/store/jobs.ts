@@ -310,6 +310,9 @@ interface JobsState {
   error: string | null;
   preview: JobPreview | null;
   isPreviewLoading: boolean;
+  // Action loading states
+  isRefreshing: boolean;
+  actionInProgress: 'booster' | 'producer' | 'cancel' | 'delete' | 'archive' | null;
   // Bulk selection state
   selectedJobIds: Set<string>;
   isEditMode: boolean;
@@ -348,6 +351,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   error: null,
   preview: null,
   isPreviewLoading: false,
+  // Action loading states
+  isRefreshing: false,
+  actionInProgress: null,
   // Bulk selection initial state
   selectedJobIds: new Set<string>(),
   isEditMode: false,
@@ -727,6 +733,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   },
 
   triggerBooster: async (jobId: string): Promise<BoosterResponse> => {
+    set({ actionInProgress: 'booster' });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -753,18 +760,19 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         jobs: state.jobs.map((job) =>
           job.id === jobId ? { ...job, status: 'running' as const, stage: 'booster' } : job
         ),
+        actionInProgress: null,
       }));
 
       return data;
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to trigger booster:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to trigger booster';
+      set({ error: message, actionInProgress: null });
       throw error;
     }
   },
 
   triggerProducerPacket: async (jobId: string): Promise<ProducerPacketResponse> => {
+    set({ actionInProgress: 'producer' });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -791,18 +799,19 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         jobs: state.jobs.map((job) =>
           job.id === jobId ? { ...job, status: 'running' as const, stage: 'producer_packet' } : job
         ),
+        actionInProgress: null,
       }));
 
       return data;
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to trigger producer packet:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to trigger producer packet';
+      set({ error: message, actionInProgress: null });
       throw error;
     }
   },
 
   refreshJob: async (jobId: string) => {
+    set({ isRefreshing: true });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -839,11 +848,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
               }
             : job
         ),
+        isRefreshing: false,
       }));
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to refresh job:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to refresh job';
+      set({ error: message, isRefreshing: false });
+      throw error;
     }
   },
 
@@ -880,14 +890,14 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       // Refresh the job to get latest status
       await get().refreshJob(jobId);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to select interpretation:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to select interpretation';
+      set({ error: message });
       throw error;
     }
   },
 
   cancelJob: async (jobId: string) => {
+    set({ actionInProgress: 'cancel' });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -914,16 +924,17 @@ export const useJobsStore = create<JobsState>((set, get) => ({
             ? { ...job, status: 'cancelled' as const }
             : job
         ),
+        actionInProgress: null,
       }));
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to cancel job:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to cancel job';
+      set({ error: message, actionInProgress: null });
       throw error;
     }
   },
 
   deleteJob: async (jobId: string) => {
+    set({ actionInProgress: 'delete' });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -946,16 +957,17 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       // Remove from local state
       set((state) => ({
         jobs: state.jobs.filter((job) => job.id !== jobId),
+        actionInProgress: null,
       }));
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to delete job:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to delete job';
+      set({ error: message, actionInProgress: null });
       throw error;
     }
   },
 
   archiveJob: async (jobId: string) => {
+    set({ actionInProgress: 'archive' });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -978,11 +990,11 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       // Remove from local state (archived jobs are hidden)
       set((state) => ({
         jobs: state.jobs.filter((job) => job.id !== jobId),
+        actionInProgress: null,
       }));
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to archive job:', error);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to archive job';
+      set({ error: message, actionInProgress: null });
       throw error;
     }
   },

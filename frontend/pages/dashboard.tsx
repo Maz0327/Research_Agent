@@ -67,6 +67,7 @@ function DashboardContent() {
 
   // Unified input state
   const [isMixedSubmitting, setIsMixedSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Topic Research state (LEGACY - kept for backward compatibility)
   const [prompt, setPrompt] = useState('');
@@ -251,6 +252,7 @@ function DashboardContent() {
     textInputs: { title: string; content: string; platform_hint?: string }[];
     screenshots: { filename: string; base64: string; platformHint: string }[];
   }) => {
+    setSubmitError(null);
     setIsMixedSubmitting(true);
     try {
       const request: MixedInputRequest = {
@@ -266,9 +268,7 @@ function DashboardContent() {
       };
       await createMixedInputJob(request);
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to create mixed input job:', error);
-      }
+      setSubmitError(error instanceof Error ? error.message : 'Failed to create job');
     } finally {
       setIsMixedSubmitting(false);
     }
@@ -353,6 +353,17 @@ function DashboardContent() {
                   onSubmit={handleMixedInputSubmit}
                   isSubmitting={isMixedSubmitting}
                 />
+                {submitError && (
+                  <div className="mt-4 rounded-lg border border-red-700 bg-red-900/30 p-3 flex items-center justify-between">
+                    <p className="text-sm text-red-300">{submitError}</p>
+                    <button
+                      onClick={() => setSubmitError(null)}
+                      className="text-red-400 hover:text-red-300 text-sm ml-4"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ) : jobMode === 'quick' ? (
               <motion.form
