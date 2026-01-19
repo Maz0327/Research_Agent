@@ -41,8 +41,13 @@ export const UI_TIMING = {
 } as const;
 
 /** Centralized API URL - use this instead of defining locally in stores */
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// Enforce HTTPS in production to prevent mixed-content issues on mobile
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  process.env.NODE_ENV === 'production' && rawApiUrl.startsWith('http://')
+    ? rawApiUrl.replace('http://', 'https://')
+    : rawApiUrl;
 
 /** Validation limits for form inputs and business logic */
 export const VALIDATION_LIMITS = {

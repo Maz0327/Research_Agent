@@ -25,7 +25,10 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https: blob:",  // Added blob: for image previews
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co https://*.up.railway.app http://localhost:8000 http://localhost:3000",
+      // Connect-src: Allow HTTPS APIs in production, localhost in development
+      process.env.NODE_ENV === 'production'
+        ? "connect-src 'self' https://*.supabase.co https://*.up.railway.app https://*.railway.app https:"
+        : "connect-src 'self' https://*.supabase.co https://*.up.railway.app http://localhost:8000 http://localhost:3000",
       "frame-ancestors 'none'",  // Prevent clickjacking
       "base-uri 'self'",
       "form-action 'self'",
@@ -34,6 +37,11 @@ const securityHeaders = [
       "media-src 'self' https:",  // For video/audio content
       process.env.NODE_ENV === 'production' ? "upgrade-insecure-requests" : "",
     ].filter(Boolean).join('; ')
+  },
+  // HSTS - enforce HTTPS for 1 year (prevents TLS downgrade attacks, fixes mobile cert issues)
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=31536000; includeSubDomains'
   },
   {
     key: 'X-Frame-Options',
