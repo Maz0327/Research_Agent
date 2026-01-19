@@ -109,6 +109,143 @@ class ValidationReport:
 
 
 # -----------------------------------------------------------------------------
+# Confidence Penalty Weights (Hallucination Prevention)
+# -----------------------------------------------------------------------------
+
+# HIGH confidence errors are penalized more severely than LOW confidence errors
+# Rationale: An LLM claiming HIGH confidence when wrong is more problematic
+CONFIDENCE_PENALTY_WEIGHTS = {
+    ConfidenceLevel.HIGH: 3.0,    # 3x penalty for confident errors
+    ConfidenceLevel.MEDIUM: 1.5,  # 1.5x penalty for medium confidence
+    ConfidenceLevel.LOW: 1.0,     # Baseline penalty
+}
+
+
+def calculate_weighted_error_score(
+    validation_results: list["ValidationResult"],
+    extraction_data: dict,
+) -> float:
+    """Calculate error score weighted by confidence of affected items.
+
+    Higher scores indicate more problematic extractions (high confidence + errors).
+
+    Args:
+        validation_results: List of validation results with errors
+        extraction_data: The extraction data being validated
+
+    Returns:
+        Weighted error score (0.0 = no errors)
+    """
+    if not validation_results:
+        return 0.0
+
+    total_score = 0.0
+
+    # Build confidence lookup for items
+    item_confidences = {}
+    for kp in extraction_data.get("key_points", []):
+        kp_id = kp.get("key_point_id", "")
+        conf_str = kp.get("confidence", "medium")
+        try:
+            item_confidences[kp_id] = ConfidenceLevel(conf_str.lower())
+        except ValueError:
+            item_confidences[kp_id] = ConfidenceLevel.MEDIUM
+
+    for claim in extraction_data.get("claims", []):
+        claim_id = claim.get("claim_id", "")
+        conf_str = claim.get("confidence", "medium")
+        try:
+            item_confidences[claim_id] = ConfidenceLevel(conf_str.lower())
+        except ValueError:
+            item_confidences[claim_id] = ConfidenceLevel.MEDIUM
+
+    # Calculate weighted score
+    for result in validation_results:
+        if result.level in (ValidationLevel.HARD_FAIL, ValidationLevel.SOFT_FAIL):
+            base_score = 2.0 if result.level == ValidationLevel.HARD_FAIL else 1.0
+
+            # Find affected item's confidence
+            affected_conf = ConfidenceLevel.MEDIUM  # Default
+            if result.details:
+                item_id = (
+                    result.details.get("key_point_id") or
+                    result.details.get("claim_id") or
+                    result.details.get("item_id", "")
+                )
+                if item_id in item_confidences:
+                    affected_conf = item_confidences[item_id]
+
+            # Apply weight
+            weight = CONFIDENCE_PENALTY_WEIGHTS.get(affected_conf, 1.0)
+            total_score += base_score * weight
+
+        elif result.level == ValidationLevel.WARNING:
+            total_score += 0.5
+
+    return total_score
+
+
+def should_downgrade_source_confidence(
+    weighted_score: float,
+    threshold: float = 5.0,
+) -> bool:
+    """Determine if source-level confidence should be downgraded.
+
+    High weighted error scores suggest systematic extraction issues.
+
+    Args:
+        weighted_score: Result from calculate_weighted_error_score
+        threshold: Score above which to recommend downgrade (default 5.0)
+
+    Returns:
+        True if source confidence should be downgraded
+    """
+    return weighted_score >= threshold
+
+
+def get_confidence_penalty_summary(
+    validation_results: list["ValidationResult"],
+    extraction_data: dict,
+) -> dict:
+    """Get summary of confidence penalties applied.
+
+    Args:
+        validation_results: Validation results with errors
+        extraction_data: The extraction data
+
+    Returns:
+        Summary dict with scores and recommendations
+    """
+    weighted_score = calculate_weighted_error_score(validation_results, extraction_data)
+    should_downgrade = should_downgrade_source_confidence(weighted_score)
+
+    # Count errors by confidence level
+    high_conf_errors = 0
+    medium_conf_errors = 0
+    low_conf_errors = 0
+
+    for result in validation_results:
+        if result.level in (ValidationLevel.HARD_FAIL, ValidationLevel.SOFT_FAIL):
+            if result.details:
+                conf = result.details.get("confidence", "medium")
+                if conf == "high":
+                    high_conf_errors += 1
+                elif conf == "medium":
+                    medium_conf_errors += 1
+                else:
+                    low_conf_errors += 1
+
+    return {
+        "weighted_error_score": round(weighted_score, 2),
+        "should_downgrade_source": should_downgrade,
+        "high_confidence_errors": high_conf_errors,
+        "medium_confidence_errors": medium_conf_errors,
+        "low_confidence_errors": low_conf_errors,
+        "threshold": 5.0,
+    }
+
+
+# -----------------------------------------------------------------------------
 # Level 1: Schema Validation (Hard Fail)
 # -----------------------------------------------------------------------------
 

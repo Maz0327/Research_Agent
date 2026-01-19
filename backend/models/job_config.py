@@ -169,18 +169,78 @@ class SourcesConfig(BaseModel):
 
 
 class HallucinationConfig(BaseModel):
-    """Hallucination detection configuration.
+    """Hallucination detection and prevention configuration.
 
-    Controls semantic entropy detection for high-confidence claims.
-    When enabled, generates multiple LLM samples and measures consistency.
-    High entropy (inconsistent outputs) suggests potential hallucination.
+    Controls multiple layers of hallucination prevention:
+    1. Chain-of-Thought reasoning (always on)
+    2. Anti-hallucination examples in prompts (always on)
+    3. Confidence rationale requirements (always on)
+    4. Layer checkpoints in extraction (always on)
+    5. Enhanced retry loops with error-specific prompts (always on)
+    6. GPT-4o cross-model validation (configurable)
+    7. RAG grounding verification (optional, feature-flagged)
+    8. Semantic entropy detection (optional, feature-flagged)
 
-    Cost: ~$0.0005 per claim checked (5 samples × Gemini Flash)
-    Latency: +2-5 seconds per claim
+    See: docs/authoritative/prompts/Hallucination_Prevention_Guide.md
     """
+
+    # ==========================================================================
+    # Always-On Features (no flag needed)
+    # ==========================================================================
+    # - Chain-of-thought prompting: Embedded in base.py
+    # - Enhanced retries (max=2): In semantic_extraction.py
+    # - Confidence penalties: In semantic_validation.py
+    # - Anti-hallucination examples: In base.py
+    # - Confidence rationale: In schema + validation
+    # - Layer checkpoints: In base.py
+
+    # ==========================================================================
+    # GPT-4o Cross-Model Validation (Recommended ON)
+    # ==========================================================================
+    enable_llm_judge: bool = Field(
+        True,
+        description=(
+            "Enable GPT-4o cross-model validation for ALL extractions. "
+            "Different model validates Gemini output to catch hallucinations. "
+            "Cost: ~$0.003-0.005 per extraction."
+        )
+    )
+    llm_judge_model: str = Field(
+        "gpt-4o",
+        description="OpenAI model for cross-model validation (gpt-4o recommended)"
+    )
+
+    # ==========================================================================
+    # RAG Grounding (Optional, Feature-Flagged)
+    # ==========================================================================
+    enable_rag_grounding: bool = Field(
+        False,
+        description=(
+            "Enable RAG-style grounding verification for claims. "
+            "Verifies claims have supporting text in source. "
+            "Cost: Minimal (fuzzy matching, no API calls)."
+        )
+    )
+    rag_confidence_threshold: str = Field(
+        "high",
+        description="Only verify claims at or above this confidence level (high, medium, low)"
+    )
+    max_claims_to_rag_verify: int = Field(
+        10, ge=1, le=50,
+        description="Maximum claims to verify with RAG grounding (cost control)"
+    )
+
+    # ==========================================================================
+    # Semantic Entropy Detection (Optional, Feature-Flagged)
+    # ==========================================================================
     enable_semantic_entropy: bool = Field(
         False,
-        description="Enable semantic entropy detection for high-confidence claims"
+        description=(
+            "Enable semantic entropy detection for high-confidence claims. "
+            "Generates multiple LLM samples and measures consistency. "
+            "High entropy suggests potential hallucination. "
+            "Cost: ~$0.0005 per claim (5 samples × Gemini Flash)."
+        )
     )
     entropy_samples: int = Field(
         5, ge=2, le=10,
@@ -192,12 +252,17 @@ class HallucinationConfig(BaseModel):
     )
     auto_enable_for_investigation: bool = Field(
         True,
-        description="Automatically enable for investigation mode regardless of manual setting"
+        description="Automatically enable semantic entropy for investigation mode"
     )
 
     class Config:
         json_schema_extra = {
             "example": {
+                "enable_llm_judge": True,
+                "llm_judge_model": "gpt-4o",
+                "enable_rag_grounding": False,
+                "rag_confidence_threshold": "high",
+                "max_claims_to_rag_verify": 10,
                 "enable_semantic_entropy": False,
                 "entropy_samples": 5,
                 "entropy_threshold": 0.75,
@@ -292,6 +357,22 @@ class JobConfig(BaseModel):
             if self.mode == ResearchMode.INVESTIGATION:
                 return True
         return False
+
+    def should_enable_llm_judge(self) -> bool:
+        """Determine if GPT-4o cross-model validation should run.
+
+        Returns True if enable_llm_judge is True (default).
+        This is the recommended setting for hallucination prevention.
+        """
+        return self.hallucination.enable_llm_judge
+
+    def should_enable_rag_grounding(self) -> bool:
+        """Determine if RAG grounding verification should run.
+
+        Returns True if enable_rag_grounding is True (default False).
+        This is an optional additional layer of verification.
+        """
+        return self.hallucination.enable_rag_grounding
 
     class Config:
         json_schema_extra = {

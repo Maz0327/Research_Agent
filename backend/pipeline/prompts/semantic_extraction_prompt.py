@@ -504,6 +504,104 @@ Return JSON with "extraction_warnings" field:
 ```"""
 
 
+# =============================================================================
+# Error-Specific Retry Prompts (Hallucination Prevention)
+# =============================================================================
+
+SCHEMA_RETRY_PROMPT = """Your previous output had schema validation errors.
+
+ISSUES FOUND:
+{issues}
+
+Fix these specific issues and return valid JSON matching the required schema.
+
+CRITICAL REQUIREMENTS:
+- All required fields must be present
+- IDs must follow format: KP_1, CLM_1, QT_1, THEME_1, TEN_1
+- confidence must be one of: "low", "medium", "high"
+- confidence_rationale is REQUIRED for every key_point and claim
+- reasoning_trace array is REQUIRED (explain your extraction process)
+
+Return corrected JSON only."""
+
+
+HALLUCINATION_RETRY_PROMPT = """Your previous output contained likely hallucinated content.
+
+ISSUES DETECTED:
+{issues}
+
+CRITICAL CORRECTIONS NEEDED:
+
+1. QUOTES: Every quote must appear VERBATIM in the source text.
+   - Do NOT paraphrase or approximate quotes
+   - If you cannot find exact text, do NOT include the quote
+
+2. CLAIMS: Only include claims with DIRECT textual evidence.
+   - Every claim must have supporting_quotes that exist in source
+   - If uncertain, use lower confidence or omit entirely
+
+3. CONFIDENCE: Match confidence to evidence strength.
+   - HIGH: Verbatim quote with clear attribution
+   - MEDIUM: Paraphrased or approximate reference
+   - LOW: Inferred from context without direct quote
+
+4. INVENTION: Do NOT invent any of the following:
+   - Specific numbers, dates, or amounts not in source
+   - Names or entities not mentioned
+   - Quotes or statements not present
+
+PRINCIPLE: Fewer accurate items > Many uncertain items.
+
+Re-extract with these corrections. Include reasoning_trace showing verification."""
+
+
+GROUNDING_RETRY_PROMPT = """Your previous output had grounding validation failures.
+
+ISSUES DETECTED:
+{issues}
+
+GROUNDING REQUIREMENTS:
+
+1. KEY POINTS must have source_ids referencing the analyzed source.
+
+2. CLAIMS must have supporting_quotes that are VERIFIABLE in source.
+   - Check each quote exists verbatim
+   - If quote cannot be verified, remove the claim or lower confidence
+
+3. THEMES must reference at least 2 key_points.
+   - If a theme has fewer than 2 related key_points, expand or remove it
+
+4. All IDs must be valid and cross-reference correctly.
+
+Return corrected output with proper grounding."""
+
+
+def get_retry_prompt(
+    error_type: str,
+    issues: list[str],
+) -> str:
+    """Select appropriate retry prompt based on error type.
+
+    Args:
+        error_type: One of "schema", "hallucination", "grounding", "thin"
+        issues: List of specific issues found
+
+    Returns:
+        Formatted retry prompt
+    """
+    issues_text = "\n".join(f"- {issue}" for issue in issues)
+
+    if error_type == "schema":
+        return SCHEMA_RETRY_PROMPT.format(issues=issues_text)
+    elif error_type == "hallucination":
+        return HALLUCINATION_RETRY_PROMPT.format(issues=issues_text)
+    elif error_type == "grounding":
+        return GROUNDING_RETRY_PROMPT.format(issues=issues_text)
+    else:
+        # Default to thin output retry
+        return SEMANTIC_EXTRACTION_RETRY_PROMPT
+
+
 def get_confidence_ceiling_for_mode(analysis_mode: str) -> str:
     """Return confidence ceiling based on analysis mode.
 

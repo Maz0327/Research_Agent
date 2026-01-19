@@ -326,6 +326,53 @@ Generate the clarified prompt:"""
 
 
 @with_rate_limit("openai")
+def validate_extraction(
+    source_text: str,
+    extraction_result: dict,
+    source_id: str = "UNKNOWN",
+    model: str = "gpt-4o",
+) -> dict:
+    """Validate extraction using GPT-4o cross-model judge.
+
+    Cross-model validation eliminates self-bias where the same model
+    validates its own output. GPT-4o has different training data than
+    Gemini, providing true independence.
+
+    Args:
+        source_text: Original source content
+        extraction_result: Extraction result dict to validate
+        source_id: Source identifier for logging
+        model: OpenAI model to use (default gpt-4o)
+
+    Returns:
+        Dict with validation results:
+        - items_reviewed: List of item validations
+        - quotes_reviewed: List of quote validations
+        - overall_quality: high/medium/low
+        - hallucination_flags: List of likely hallucinated item IDs
+        - confidence_overrides: List of suggested confidence changes
+        - cost: Approximate API cost
+
+    Raises:
+        MissingRequiredSettingError: If OPENAI_API_KEY not configured
+    """
+    from backend.pipeline.llm_judge import (
+        validate_extraction_with_judge,
+        JudgeResult,
+    )
+
+    # Delegate to the llm_judge module
+    result = validate_extraction_with_judge(
+        source_text=source_text,
+        extraction_result=extraction_result,
+        source_id=source_id,
+        model=model,
+    )
+
+    return result.to_dict()
+
+
+@with_rate_limit("openai")
 def plan_job(slack_text: str) -> dict:
     """
     Use OpenAI to plan a research job from Slack text input.

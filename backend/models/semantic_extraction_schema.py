@@ -35,6 +35,7 @@ class ClaimSchema(BaseModel):
     source_id: str
     supporting_quotes: list[str]
     confidence: Literal["low", "medium", "high"]
+    confidence_rationale: str  # Required: explanation for confidence level
 
 
 class KeyPointSchema(BaseModel):
@@ -44,6 +45,7 @@ class KeyPointSchema(BaseModel):
     source_ids: list[str]
     supporting_claims: list[str]
     confidence: Literal["low", "medium", "high"]
+    confidence_rationale: str  # Required: explanation for confidence level
 
 
 class ThemeSchema(BaseModel):
@@ -91,3 +93,4 @@ class SemanticExtractionSchema(BaseModel):
     tensions: list[TensionSchema]
     approximate_observations: list[ApproximateObservationSchema]
     analysis_limitations: list[str]
+    reasoning_trace: list[str]  # Chain-of-thought reasoning steps for hallucination prevention

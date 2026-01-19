@@ -33,6 +33,7 @@ from backend.models.semantic_extraction_schema import SemanticExtractionSchema
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.prompts.semantic_extraction_prompt import (
     build_semantic_extraction_prompt,
+    get_retry_prompt,
     SEMANTIC_EXTRACTION_RETRY_PROMPT,
     SEMANTIC_EXTRACTION_ROLE,
 )
@@ -43,6 +44,9 @@ from backend.pipeline.semantic_validation import (
     ValidationReport,
 )
 from backend.state import update_job
+
+# NOTE: llm_judge and rag_grounding are imported lazily inside functions
+# to avoid circular import issues with quote_verification
 
 if TYPE_CHECKING:
     from backend.pipeline.stages.source_identity import SourceIdentityPackage
@@ -398,7 +402,7 @@ def extract_semantic_structure(
 
     total_cost = 0.0
     retry_count = 0
-    max_retries = 1
+    max_retries = 2  # Increased from 1 for better error recovery
 
     while retry_count <= max_retries:
         try:
@@ -431,8 +435,32 @@ def extract_semantic_structure(
 
             # Check if retry needed
             if should_retry(validation_report) and retry_count < max_retries:
-                logger.warning(f"Retrying extraction for {source_id} due to validation issues")
-                prompt = SEMANTIC_EXTRACTION_RETRY_PROMPT + "\n\nOriginal content:\n" + source_content
+                # Classify error type for targeted retry prompt
+                error_type = "thin"  # Default
+                issues = []
+
+                for result in validation_report.results:
+                    msg = result.message.lower()
+                    if "schema" in msg or "missing" in msg or "required" in msg:
+                        error_type = "schema"
+                        issues.append(result.message)
+                    elif "hallucin" in msg or "not found" in msg or "unverified" in msg:
+                        error_type = "hallucination"
+                        issues.append(result.message)
+                    elif "grounding" in msg or "reference" in msg or "source" in msg:
+                        error_type = "grounding"
+                        issues.append(result.message)
+                    elif "thin" in msg or "few" in msg:
+                        issues.append(result.message)
+
+                # Get appropriate retry prompt
+                retry_prompt = get_retry_prompt(error_type, issues or validation_report.warnings[:5])
+
+                logger.warning(
+                    f"Retrying extraction for {source_id} "
+                    f"(error_type={error_type}, retry={retry_count + 1}/{max_retries})"
+                )
+                prompt = retry_prompt + "\n\n## ORIGINAL SOURCE CONTENT:\n\n" + source_content
                 retry_count += 1
                 continue
 
@@ -461,6 +489,57 @@ def extract_semantic_structure(
         analysis_mode=analysis_mode,
         parse_error=True,
     ), ValidationReport(), total_cost
+
+
+def _should_run_llm_judge(ctx: PipelineContext) -> bool:
+    """
+    Check if LLM Judge (GPT-4o cross-model validation) should run.
+
+    Returns True if:
+    - job_config exists AND
+    - hallucination.enable_llm_judge is True (default)
+
+    Per HallucinationConfig, this is ON by default for all extractions.
+    """
+    if not hasattr(ctx, "job_config") or ctx.job_config is None:
+        # Default to True if no config (per HallucinationConfig defaults)
+        return True
+
+    # Check config method first (preferred)
+    if hasattr(ctx.job_config, "should_enable_llm_judge"):
+        return ctx.job_config.should_enable_llm_judge()
+
+    # Fallback to direct attribute access
+    hall_config = getattr(ctx.job_config, "hallucination", None)
+    if hall_config:
+        return getattr(hall_config, "enable_llm_judge", True)
+
+    return True  # Default ON
+
+
+def _should_run_rag_grounding(ctx: PipelineContext) -> bool:
+    """
+    Check if RAG Grounding verification should run.
+
+    Returns True if:
+    - job_config exists AND
+    - hallucination.enable_rag_grounding is True (default False)
+
+    Per HallucinationConfig, this is OFF by default (optional layer).
+    """
+    if not hasattr(ctx, "job_config") or ctx.job_config is None:
+        return False  # Default to False if no config
+
+    # Check config method first (preferred)
+    if hasattr(ctx.job_config, "should_enable_rag_grounding"):
+        return ctx.job_config.should_enable_rag_grounding()
+
+    # Fallback to direct attribute access
+    hall_config = getattr(ctx.job_config, "hallucination", None)
+    if hall_config:
+        return getattr(hall_config, "enable_rag_grounding", False)
+
+    return False  # Default OFF
 
 
 def stage_semantic_extraction(ctx: PipelineContext) -> None:
@@ -617,6 +696,87 @@ def stage_semantic_extraction(ctx: PipelineContext) -> None:
                 )
                 for warning in quote_warnings:
                     ctx.add_warning(warning)
+
+            # Step 6: LLM Judge cross-model validation (if enabled)
+            # Uses GPT-4o to validate Gemini's extraction for hallucination detection
+            if _should_run_llm_judge(ctx):
+                logger.info(f"[{source_id}] Running LLM Judge (GPT-4o) validation")
+                try:
+                    # Lazy import to avoid circular import
+                    from backend.pipeline.llm_judge import (
+                        validate_extraction_with_judge,
+                        apply_judge_verdicts,
+                    )
+
+                    judge_result = validate_extraction_with_judge(
+                        source_text=content,
+                        extraction_result=result.to_dict(),
+                        source_id=source_id,
+                    )
+
+                    # Apply judge verdicts (downgrades confidence, flags hallucinations)
+                    result, judge_warnings = apply_judge_verdicts(result, judge_result)
+
+                    for warning in judge_warnings:
+                        ctx.add_warning(f"[{source_id}] LLM Judge: {warning}")
+
+                    # Track cost
+                    if hasattr(ctx, "add_cost") and judge_result.cost:
+                        ctx.add_cost("openai_llm_judge", judge_result.cost)
+
+                    logger.info(
+                        f"[{source_id}] LLM Judge: {judge_result.items_reviewed} items, "
+                        f"{len(judge_result.hallucination_flags)} hallucinations flagged, "
+                        f"quality={judge_result.overall_quality.value}"
+                    )
+                except Exception as e:
+                    logger.warning(f"[{source_id}] LLM Judge failed (non-fatal): {e}")
+                    ctx.add_warning(f"[{source_id}] LLM Judge skipped: {str(e)}")
+
+            # Step 7: RAG Grounding verification (if enabled)
+            # Verifies claims have supporting evidence in source text
+            if _should_run_rag_grounding(ctx) and content:
+                logger.info(f"[{source_id}] Running RAG grounding verification")
+                try:
+                    # Lazy import to avoid circular import
+                    from backend.pipeline.rag_grounding import (
+                        verify_claims_grounding,
+                        apply_grounding_adjustments,
+                    )
+
+                    # Get config for thresholds
+                    rag_threshold = "high"
+                    max_claims = 10
+                    if hasattr(ctx, "job_config") and ctx.job_config:
+                        hall_config = getattr(ctx.job_config, "hallucination", None)
+                        if hall_config:
+                            rag_threshold = getattr(hall_config, "rag_confidence_threshold", "high")
+                            max_claims = getattr(hall_config, "max_claims_to_rag_verify", 10)
+
+                    # Verify claims against source text
+                    grounding_results, grounding_warnings = verify_claims_grounding(
+                        claims=result.claims,
+                        source_text=content,
+                        source_id=source_id,
+                        confidence_threshold=rag_threshold,
+                        max_claims=max_claims,
+                    )
+
+                    # Apply grounding adjustments (downgrades confidence for ungrounded claims)
+                    result.claims, adjustment_warnings = apply_grounding_adjustments(
+                        claims=result.claims,
+                        grounding_results=grounding_results,
+                    )
+
+                    for warning in grounding_warnings + adjustment_warnings:
+                        ctx.add_warning(f"[{source_id}] RAG Grounding: {warning}")
+
+                    logger.info(
+                        f"[{source_id}] RAG Grounding: verified {len(grounding_results)} claims"
+                    )
+                except Exception as e:
+                    logger.warning(f"[{source_id}] RAG Grounding failed (non-fatal): {e}")
+                    ctx.add_warning(f"[{source_id}] RAG Grounding skipped: {str(e)}")
 
             # Store result (now stores actual SemanticExtractionResult, not just params)
             ctx.semantic_extractions.append(result)
