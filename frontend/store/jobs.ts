@@ -254,16 +254,6 @@ export interface MixedScreenshotInput {
 }
 
 /**
- * Hallucination prevention config for job requests
- */
-export interface HallucinationConfig {
-  enable_rag_grounding?: boolean;
-  enable_llm_judge?: boolean;
-  rag_confidence_threshold?: 'high' | 'medium' | 'low';
-  max_claims_to_rag_verify?: number;
-}
-
-/**
  * Mixed-input job request (unified input panel)
  */
 export interface MixedInputRequest {
@@ -272,7 +262,6 @@ export interface MixedInputRequest {
   article_urls?: string[];
   text_inputs?: MixedTextInput[];
   screenshots?: MixedScreenshotInput[];
-  hallucination?: HallucinationConfig;
 }
 
 /**

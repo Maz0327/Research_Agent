@@ -250,7 +250,6 @@ function DashboardContent() {
     articleUrls: string[];
     textInputs: { title: string; content: string; platform_hint?: string }[];
     screenshots: { filename: string; base64: string; platformHint: string }[];
-    enableRagGrounding: boolean;
   }) => {
     setIsMixedSubmitting(true);
     try {
@@ -264,9 +263,6 @@ function DashboardContent() {
           base64: s.base64,
           platform_hint: s.platformHint,
         })) : undefined,
-        hallucination: data.enableRagGrounding ? {
-          enable_rag_grounding: true,
-        } : undefined,
       };
       await createMixedInputJob(request);
     } catch (error) {

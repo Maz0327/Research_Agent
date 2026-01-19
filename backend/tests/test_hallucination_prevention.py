@@ -520,8 +520,8 @@ class TestHallucinationConfig:
         assert config.enable_llm_judge is True
         assert config.llm_judge_model == "gpt-4o"
 
-        # RAG grounding off by default
-        assert config.enable_rag_grounding is False
+        # RAG grounding on by default
+        assert config.enable_rag_grounding is True
 
         # Semantic entropy off by default
         assert config.enable_semantic_entropy is False
@@ -549,10 +549,10 @@ class TestHallucinationConfig:
     def test_job_config_should_enable_rag_grounding(self):
         """JobConfig correctly determines RAG grounding enablement."""
         config = JobConfig(topic="Test")
-        assert config.should_enable_rag_grounding() is False
+        assert config.should_enable_rag_grounding() is True  # Default ON
 
-        config.hallucination.enable_rag_grounding = True
-        assert config.should_enable_rag_grounding() is True
+        config.hallucination.enable_rag_grounding = False
+        assert config.should_enable_rag_grounding() is False
 
     def test_job_config_should_enable_semantic_entropy(self):
         """JobConfig correctly determines semantic entropy enablement."""

@@ -214,7 +214,7 @@ class HallucinationConfig(BaseModel):
     # RAG Grounding (Optional, Feature-Flagged)
     # ==========================================================================
     enable_rag_grounding: bool = Field(
-        False,
+        True,
         description=(
             "Enable RAG-style grounding verification for claims. "
             "Verifies claims have supporting text in source. "

@@ -223,7 +223,14 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 status={job.status}
                 driveFolderUrl={job.artifacts?.drive_folder_url}
                 pipeline={job.pipeline}
-                hasDocuments={!!(job.artifacts?.source_ledger || job.artifacts?.jump_start || job.artifacts?.semantic_brief)}
+                hasDocuments={!!(
+                  job.artifacts?.source_ledger ||
+                  job.artifacts?.jump_start ||
+                  job.artifacts?.semantic_brief ||
+                  job.artifacts?.doc_0_path ||
+                  job.artifacts?.doc_1_path ||
+                  job.artifacts?.doc_2_path
+                )}
                 onRefresh={onRefresh}
               />
             </div>
