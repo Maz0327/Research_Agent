@@ -390,78 +390,25 @@ class TestQuotesOnlyEndpoint:
 
 
 # =============================================================================
-# TestGoogleDocsExportEndpoint
+# TestGoogleDocsExportEndpoint (DEPRECATED - 2026-01-19)
 # =============================================================================
 
 
 class TestGoogleDocsExportEndpoint:
-    """Tests for POST /jobs/{job_id}/export/google-docs endpoint."""
+    """Tests for POST /jobs/{job_id}/export/google-docs endpoint.
 
-    @patch("backend.app.routes.export_routes.get_job")
-    def test_google_docs_not_found(self, mock_get_job, export_client):
-        """Should return 404 for non-existent job."""
-        mock_get_job.return_value = None
+    Updated 2026-01-19: Google Drive integration removed. Endpoint returns 410 Gone.
+    """
 
+    def test_google_docs_returns_410(self, export_client):
+        """Should return 410 Gone (Google Drive integration removed)."""
         response = export_client.post(
             "/jobs/550e8400-e29b-41d4-a716-446655440000/export/google-docs"
         )
-        assert response.status_code == 404
-
-    @patch("backend.app.routes.export_routes.get_job")
-    def test_google_docs_no_artifacts(self, mock_get_job, export_client, sample_completed_job):
-        """Should return 400 if no artifacts."""
-        sample_completed_job.artifacts = None
-        mock_get_job.return_value = sample_completed_job
-
-        response = export_client.post(
-            f"/jobs/{sample_completed_job.job_id}/export/google-docs"
-        )
-        assert response.status_code == 400
-
-    @patch("backend.integrations.google_drive_docs.create_transcript_doc")
-    @patch("backend.pipeline.video_export_formatter.format_video_analysis_for_export")
-    @patch("backend.app.routes.export_routes.get_job")
-    def test_google_docs_success(
-        self, mock_get_job, mock_format, mock_create_doc, export_client, sample_completed_job
-    ):
-        """Should create Google Doc successfully."""
-        mock_get_job.return_value = sample_completed_job
-        mock_format.return_value = "# Test Content"
-        mock_create_doc.return_value = {
-            "folder_url": "https://drive.google.com/folder/123",
-            "doc_url": "https://docs.google.com/document/d/456",
-        }
-
-        response = export_client.post(
-            f"/jobs/{sample_completed_job.job_id}/export/google-docs"
-        )
-
-        assert response.status_code == 200
+        assert response.status_code == 410
         data = response.json()
-        assert data["success"] is True
-        assert "doc_url" in data
-
-    @patch("backend.integrations.google_drive_docs.create_transcript_doc")
-    @patch("backend.pipeline.video_export_formatter.format_video_analysis_for_export")
-    @patch("backend.app.routes.export_routes.get_job")
-    def test_google_docs_not_configured(
-        self, mock_get_job, mock_format, mock_create_doc, export_client, sample_completed_job
-    ):
-        """Should handle missing Google config gracefully."""
-        from backend.config import MissingRequiredSettingError
-
-        mock_get_job.return_value = sample_completed_job
-        mock_format.return_value = "# Test Content"
-        mock_create_doc.side_effect = MissingRequiredSettingError("Google OAuth not configured")
-
-        response = export_client.post(
-            f"/jobs/{sample_completed_job.job_id}/export/google-docs"
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
-        assert "not configured" in data["error"].lower()
+        assert "no longer supported" in data["detail"]["message"].lower()
+        assert data["detail"]["deprecated_since"] == "2026-01-19"
 
 
 # =============================================================================

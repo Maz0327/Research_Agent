@@ -105,101 +105,45 @@ def _validate_subreddits(subreddits: list) -> list[str]:
     return validated
 
 
-@router.post("", response_model=CreateJobResponse)
+# =============================================================================
+# DEPRECATED: Legacy Topic-Based Job Creation (2026-01-19)
+# =============================================================================
+# This endpoint has been deprecated in favor of source-first endpoints:
+# - POST /jobs/video-analysis
+# - POST /jobs/text-input
+# - POST /jobs/screenshot-input
+# - POST /jobs/mixed-input
+# =============================================================================
+
+@router.post("", response_model=CreateJobResponse, deprecated=True)
 @limiter.limit(RATE_LIMITS["jobs_create"])
 async def create_job_endpoint(
     request: Request,
     job_request: CreateJobRequest,
     user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
-    """Create a new research job."""
-    # Validate and clean prompt
-    prompt = job_request.prompt.strip()
-    if not prompt:
-        raise HTTPException(status_code=422, detail="Prompt cannot be empty")
+    """DEPRECATED: Legacy topic-based job creation.
 
-    # Validate prompt length
-    if len(prompt) > MAX_PROMPT_LENGTH:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters"
-        )
-
-    # Build config_json
-    config_json = {
-        "topic": prompt,
-        "prompt": prompt,
-        "pipeline": job_request.pipeline,
-    }
-
-    # Add niche if specified (for source selection guidance)
-    if job_request.niche:
-        config_json["niche"] = job_request.niche
-
-    # Apply pipeline-specific settings
-    pipeline = job_request.pipeline
-    if pipeline in PIPELINE_BUDGETS:
-        config_json["budgets"] = PIPELINE_BUDGETS[pipeline]
-        if pipeline in ("breaking_news", "investigation", "profile", "controversy"):
-            config_json["mode"] = pipeline
-
-    # Merge additional options (validated against allowlist)
-    if job_request.options:
-        invalid_keys = set(job_request.options.keys()) - ALLOWED_JOB_OPTIONS
-        if invalid_keys:
-            logger.warning(
-                "Invalid job options rejected",
-                extra={
-                    "invalid_keys": list(invalid_keys),
-                    "user_id": user.user_id if user else None,
-                    "event": "invalid_job_options",
-                }
-            )
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid options: {', '.join(sorted(invalid_keys))}. "
-                       f"Allowed options: {', '.join(sorted(ALLOWED_JOB_OPTIONS))}"
-            )
-
-        # Validate custom_subreddits if provided
-        if "custom_subreddits" in job_request.options:
-            try:
-                validated_subreddits = _validate_subreddits(job_request.options["custom_subreddits"])
-                job_request.options["custom_subreddits"] = validated_subreddits
-            except ValueError as e:
-                raise HTTPException(status_code=422, detail=str(e))
-
-        config_json.update(job_request.options)
-
-    # Store user info for Drive sharing
-    if user:
-        config_json["user_email"] = user.email
-        config_json["user_id"] = user.user_id
-
-    # Create job
-    user_id = user.user_id if user else None
-    job = create_job(config_json=config_json, user_id=user_id)
-
-    # Audit log
-    logger.info(
-        "Job created",
-        extra={
-            "job_id": job.job_id,
-            "user_id": user_id or "anonymous",
-            "user_email": user.email if user else None,
-            "pipeline": job_request.pipeline,
-            "ip": request.client.host if request.client else None,
-            "user_agent": request.headers.get("user-agent"),
-            "event": "job_created",
+    This endpoint is deprecated as of 2026-01-19.
+    Please use one of the following source-first endpoints instead:
+    - POST /jobs/video-analysis - For YouTube video analysis
+    - POST /jobs/text-input - For text/document analysis
+    - POST /jobs/screenshot-input - For image analysis
+    - POST /jobs/mixed-input - For multiple source types
+    """
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "Legacy topic-based job creation is deprecated",
+            "deprecated_since": "2026-01-19",
+            "alternatives": [
+                {"endpoint": "POST /jobs/video-analysis", "use_for": "YouTube video analysis"},
+                {"endpoint": "POST /jobs/text-input", "use_for": "Text/document analysis"},
+                {"endpoint": "POST /jobs/screenshot-input", "use_for": "Image analysis"},
+                {"endpoint": "POST /jobs/mixed-input", "use_for": "Multiple source types"},
+            ],
         }
     )
-
-    # Enqueue Celery task
-    logger.info(f"Enqueuing research job {job.job_id} for prompt: {prompt[:50]}...")
-    # Use job_id as Celery task_id to enable reliable cancellation
-    run_research_job.apply_async((job.job_id, prompt), task_id=job.job_id)
-
-    return CreateJobResponse(job_id=job.job_id)
 
 
 # =============================================================================
@@ -1332,91 +1276,37 @@ async def generate_producer_packet(
     }
 
 
-@router.post("/preview", response_model=PreviewJobResponse)
-@limiter.limit(RATE_LIMITS["jobs_create"])  # Same rate limit as job creation
+# =============================================================================
+# DEPRECATED: Legacy Job Preview (2026-01-19)
+# =============================================================================
+
+@router.post("/preview", response_model=PreviewJobResponse, deprecated=True)
+@limiter.limit(RATE_LIMITS["jobs_create"])
 async def preview_job_endpoint(
     request: Request,
     preview_request: PreviewJobRequest,
     user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
+    """DEPRECATED: Legacy job preview endpoint.
+
+    This endpoint is deprecated as of 2026-01-19.
+    The new source-first workflow doesn't require a preview step.
+    Users provide sources directly via /video-analysis, /text-input, etc.
     """
-    Preview how a research job will be interpreted before creating it.
-
-    Returns the interpreted plan including topic understanding, mode,
-    subreddits, and source types. If topic is ambiguous, returns
-    possible interpretations for user selection.
-    """
-    from backend.integrations.openai_client import plan_job
-
-    prompt = preview_request.prompt.strip()
-    if not prompt:
-        raise HTTPException(status_code=422, detail="Prompt cannot be empty")
-
-    # Validate prompt length
-    if len(prompt) > MAX_PROMPT_LENGTH:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Prompt exceeds maximum length of {MAX_PROMPT_LENGTH} characters"
-        )
-
-    try:
-        # Get the interpreted plan from OpenAI
-        result = plan_job(prompt)
-
-        # Check for disambiguation
-        if result.get("is_ambiguous"):
-            return PreviewJobResponse(
-                is_ambiguous=True,
-                interpretations=result.get("interpretations", [])
-            )
-
-        # Extract config details for preview
-        config = result.get("config")
-        if not config:
-            raise HTTPException(status_code=500, detail="Failed to generate job plan")
-
-        # Determine effective niche (user override or LLM detection)
-        effective_niche = preview_request.niche or getattr(config, "niche", None)
-
-        # Determine effective mode (from pipeline selection)
-        effective_mode = preview_request.pipeline
-
-        # Get subreddits from config
-        subreddits = []
-        if hasattr(config, "reddit") and config.reddit:
-            subreddits = getattr(config.reddit, "subreddits", []) or []
-
-        # Determine source types based on mode
-        source_types = ["web", "news"]
-        if effective_mode in ("investigation", "profile", "controversy"):
-            source_types.extend(["youtube", "reddit"])
-        elif effective_mode == "breaking_news":
-            source_types.extend(["news", "reddit"])
-        else:
-            source_types.extend(["youtube", "reddit"])
-
-        return PreviewJobResponse(
-            is_ambiguous=False,
-            interpreted_topic=getattr(config, "topic", prompt),
-            mode=effective_mode,
-            niche=effective_niche,
-            subreddits=subreddits,
-            source_types=list(set(source_types))
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Preview failed: {e}")
-        # Return a basic preview on error
-        return PreviewJobResponse(
-            is_ambiguous=False,
-            interpreted_topic=prompt,
-            mode=preview_request.pipeline,
-            niche=preview_request.niche,
-            subreddits=[],
-            source_types=["web", "news", "youtube", "reddit"]
-        )
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "Legacy job preview is deprecated",
+            "deprecated_since": "2026-01-19",
+            "reason": "Source-first workflow doesn't require preview",
+            "alternatives": [
+                {"endpoint": "POST /jobs/video-analysis", "use_for": "YouTube video analysis"},
+                {"endpoint": "POST /jobs/text-input", "use_for": "Text/document analysis"},
+                {"endpoint": "POST /jobs/screenshot-input", "use_for": "Image analysis"},
+                {"endpoint": "POST /jobs/mixed-input", "use_for": "Multiple source types"},
+            ],
+        }
+    )
 
 
 @router.get("")
@@ -1708,8 +1598,8 @@ async def archive_job(
     return {"message": "Job archived successfully", "job_id": job_id}
 
 
-@router.post("/{job_id}/select-interpretation")
-@limiter.limit(RATE_LIMITS["jobs_create"])  # Reuse jobs_create rate limit
+@router.post("/{job_id}/select-interpretation", deprecated=True)
+@limiter.limit(RATE_LIMITS["jobs_create"])
 async def select_interpretation(
     request: Request,
     job_id: str,
@@ -1717,91 +1607,20 @@ async def select_interpretation(
     user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """
-    Select interpretation(s) for a disambiguating job and resume processing.
+    DEPRECATED: Disambiguation is no longer supported (2026-01-19).
 
-    When a job is paused for disambiguation (status='disambiguating'),
-    this endpoint allows the user to select which interpretation(s) to research.
+    This endpoint was used for topic-based discovery disambiguation.
+    The new pipeline only supports user-supplied sources and does not
+    require disambiguation.
     """
-    # Validate job_id format
-    try:
-        uuid.UUID(job_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid job ID format")
-
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    # Authorization check
-    if job.user_id is not None:
-        if user is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Authentication required to modify this job",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        if job.user_id != user.user_id:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-    # Job must be in disambiguating status
-    if job.status != "disambiguating":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job is not awaiting disambiguation. Current status: '{job.status}'"
-        )
-
-    # Job must have interpretations
-    if not job.interpretations:
-        raise HTTPException(
-            status_code=400,
-            detail="Job has no interpretations to select from"
-        )
-
-    # Determine which indices to use
-    if selection.indices == "all":
-        indices = list(range(len(job.interpretations)))
-    else:
-        # Validate indices are within bounds
-        for idx in selection.indices:
-            if idx >= len(job.interpretations):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid interpretation index: {idx}. Job has {len(job.interpretations)} interpretations."
-                )
-        indices = selection.indices
-
-    # Update job with selected interpretations and re-queue
-    prompt = job.config_json.get("prompt") or job.config_json.get("topic", "")
-    update_job(
-        job_id,
-        selected_interpretations=indices,
-        status="queued",
-        stage="resuming",
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "Disambiguation is no longer supported",
+            "deprecated_since": "2026-01-19",
+            "reason": "Topic-based discovery has been removed. Use source-first endpoints (/video-analysis, /text-input, /screenshot-input, /mixed-input).",
+        },
     )
-
-    # Re-enqueue Celery task
-    logger.info(f"Re-enqueuing job {job_id} with {len(indices)} selected interpretations")
-    # Use deterministic task_id for reliable revocation
-    run_research_job.apply_async((job_id, prompt), task_id=job_id)
-
-    # Audit log
-    selected_labels = [job.interpretations[i].get("label", f"#{i}") for i in indices]
-    logger.info(
-        "Job resumed after disambiguation",
-        extra={
-            "job_id": job_id,
-            "user_id": user.user_id if user else "anonymous",
-            "selected_indices": indices,
-            "selected_labels": selected_labels,
-            "event": "job_disambiguation_resolved",
-        }
-    )
-
-    return {
-        "message": "Job resumed with selected interpretations",
-        "job_id": job_id,
-        "selected_interpretations": selected_labels,
-    }
 
 
 @router.get("/usage/stats")
@@ -1872,3 +1691,497 @@ async def get_usage_stats(
         "dashboards": dashboards,
         "note": "Cost estimates are approximations. Check provider dashboards for exact usage.",
     }
+
+
+# =============================================================================
+# LAZY-LOAD API ENDPOINTS (Option B Storage Strategy - 2026-01-19)
+# =============================================================================
+
+@router.get("/{job_id}/manifest")
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_job_manifest(
+    request: Request,
+    job_id: str,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """Get job status and artifact manifest (small payload).
+
+    Returns only status + artifact_manifest for manifest-first UI.
+    Does not include full document content.
+    """
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Extract artifact_manifest from artifacts
+    artifact_manifest = None
+    if job.artifacts:
+        artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+        artifact_manifest = artifacts_dict.get("artifact_manifest")
+
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "stage": job.stage,
+        "progress_percent": job.progress_percent,
+        "title": job.title,
+        "artifact_manifest": artifact_manifest,
+    }
+
+
+@router.get("/{job_id}/doc/{doc_id}")
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_job_document(
+    request: Request,
+    job_id: str,
+    doc_id: str,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """Get a specific core document by ID (20, 21, or 22).
+
+    Returns markdown content for the specified document.
+    """
+    # Validate doc_id
+    if doc_id not in ("20", "21", "22"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid doc_id. Must be 20 (Source Ledger), 21 (Jump Start), or 22 (Semantic Brief)"
+        )
+
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    if not job.artifacts:
+        raise HTTPException(status_code=404, detail="No artifacts available")
+
+    artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+
+    # Map doc_id to artifact fields
+    doc_mapping = {
+        "20": {"inline_field": "source_ledger", "path_field": "doc_0_path", "title": "Source Ledger"},
+        "21": {"inline_field": "jump_start", "path_field": "doc_1_path", "title": "Jump Start"},
+        "22": {"inline_field": "semantic_brief", "path_field": "doc_2_path", "title": "Semantic Brief"},
+    }
+
+    mapping = doc_mapping[doc_id]
+    markdown_content = None
+
+    # Try inline first
+    inline_data = artifacts_dict.get(mapping["inline_field"])
+    if inline_data and isinstance(inline_data, dict):
+        markdown_content = inline_data.get("markdown")
+
+    # If inline is a stub or missing, try storage
+    if not markdown_content or "stored in Supabase Storage" in (markdown_content or ""):
+        storage_path = artifacts_dict.get(mapping["path_field"])
+        if storage_path:
+            try:
+                from backend.integrations.supabase_storage import get_storage_client
+                storage_client = get_storage_client()
+                if storage_client:
+                    doc_data = storage_client.download_document(storage_path)
+                    markdown_content = doc_data.get("markdown")
+            except Exception as e:
+                logger.warning(f"Failed to fetch doc {doc_id} from storage: {e}")
+
+    if not markdown_content:
+        raise HTTPException(status_code=404, detail=f"Document {doc_id} ({mapping['title']}) not found")
+
+    return {
+        "job_id": job_id,
+        "doc_id": doc_id,
+        "title": mapping["title"],
+        "markdown": markdown_content,
+    }
+
+
+@router.get("/{job_id}/attachments")
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_job_attachments(
+    request: Request,
+    job_id: str,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """Get list of available attachments with signed URLs.
+
+    Generates fresh signed URLs if expired.
+    Does NOT return attachment content, only metadata and URLs.
+    """
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    if not job.artifacts:
+        return {"job_id": job_id, "attachments": []}
+
+    artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+    manifest = artifacts_dict.get("artifact_manifest", {})
+    attachments_info = manifest.get("attachments", {})
+
+    # Get storage client for refreshing URLs
+    from backend.integrations.supabase_storage import get_storage_client
+    storage_client = get_storage_client()
+
+    result_attachments = []
+
+    # Process exports
+    exports = attachments_info.get("exports", [])
+    for export in exports:
+        if not export.get("present"):
+            continue
+
+        attachment = {
+            "name": export.get("name"),
+            "storage_path": export.get("storage_path"),
+            "type": "export",
+        }
+
+        # Refresh signed URL if storage client available
+        if storage_client and export.get("storage_path"):
+            try:
+                attachment["signed_url"] = storage_client.get_signed_url(
+                    export["storage_path"],
+                    expires_in=3600,
+                    bucket="documents"
+                )
+            except Exception:
+                attachment["signed_url"] = export.get("signed_url")
+        else:
+            attachment["signed_url"] = export.get("signed_url")
+
+        result_attachments.append(attachment)
+
+    # Process producer packet
+    producer_info = attachments_info.get("producer_packet", {})
+    if producer_info.get("present"):
+        result_attachments.append({
+            "name": "producer_packet.json",
+            "type": "producer_packet",
+            "present": True,
+            "note": "Producer packet is available inline in job artifacts",
+        })
+
+    # Process PDF (check if exists in storage)
+    pdf_info = attachments_info.get("pdf", {})
+    if pdf_info.get("present") and pdf_info.get("storage_path"):
+        pdf_attachment = {
+            "name": "download.pdf",
+            "storage_path": pdf_info.get("storage_path"),
+            "type": "pdf",
+        }
+        if storage_client:
+            try:
+                pdf_attachment["signed_url"] = storage_client.get_signed_url(
+                    pdf_info["storage_path"],
+                    expires_in=3600,
+                    bucket="documents"
+                )
+            except Exception:
+                pdf_attachment["signed_url"] = None
+        result_attachments.append(pdf_attachment)
+
+    return {
+        "job_id": job_id,
+        "attachments": result_attachments,
+    }
+
+
+@router.get("/{job_id}/attachments/{filename}")
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_attachment_redirect(
+    request: Request,
+    job_id: str,
+    filename: str,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """Redirect to signed URL for a specific attachment.
+
+    Returns 302 redirect to the Supabase Storage signed URL.
+    """
+    from fastapi.responses import RedirectResponse
+
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get storage client
+    from backend.integrations.supabase_storage import get_storage_client
+    storage_client = get_storage_client()
+
+    if not storage_client:
+        raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+    # Build storage path and get signed URL
+    storage_path = f"research/{job_id}/attachments/{filename}"
+
+    try:
+        signed_url = storage_client.get_signed_url(
+            storage_path,
+            expires_in=3600,
+            bucket="documents"
+        )
+        if not signed_url:
+            raise HTTPException(status_code=404, detail=f"Attachment {filename} not found")
+
+        return RedirectResponse(url=signed_url, status_code=302)
+
+    except Exception as e:
+        logger.warning(f"Failed to get signed URL for {filename}: {e}")
+        raise HTTPException(status_code=404, detail=f"Attachment {filename} not found")
+
+
+@router.get("/{job_id}/download.pdf")
+@limiter.limit("10/minute")  # PDF generation is expensive
+async def download_job_pdf(
+    request: Request,
+    job_id: str,
+    regenerate: bool = False,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """Generate and download PDF of core documents (20-22).
+
+    Returns redirect to signed URL for cached PDF.
+    If regenerate=True or PDF doesn't exist, generates new PDF.
+
+    The PDF contains:
+    - Doc 20: Source Ledger
+    - Doc 21: Jump Start
+    - Doc 22: Semantic Brief
+    - Attachments Manifest page
+
+    Note: Returns JSON error if PDF generation fails (job does not fail).
+    """
+    from fastapi.responses import RedirectResponse
+
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get storage client
+    from backend.integrations.supabase_storage import get_storage_client
+    storage_client = get_storage_client()
+
+    if not storage_client:
+        raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+    pdf_filename = "download.pdf"
+    pdf_storage_path = f"research/{job_id}/attachments/{pdf_filename}"
+
+    # Check if PDF already exists (unless regenerate requested)
+    if not regenerate:
+        try:
+            signed_url = storage_client.get_signed_url(
+                pdf_storage_path,
+                expires_in=3600,
+                bucket="documents"
+            )
+            if signed_url:
+                return RedirectResponse(url=signed_url, status_code=302)
+        except Exception:
+            pass  # PDF doesn't exist, will generate
+
+    # Generate PDF
+    try:
+        pdf_bytes = _generate_job_pdf(job)
+
+        # Upload to storage
+        upload_result = storage_client.upload_attachment(
+            job_id=job_id,
+            filename=pdf_filename,
+            content=pdf_bytes,
+            expires_in=3600,
+        )
+
+        # Update manifest to mark PDF as present
+        if job.artifacts:
+            artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+            manifest = artifacts_dict.get("artifact_manifest", {})
+            if "attachments" in manifest:
+                manifest["attachments"]["pdf"] = {
+                    "present": True,
+                    "storage_path": upload_result["storage_path"],
+                    "signed_url": upload_result["signed_url"],
+                }
+                # Update job with new manifest
+                from backend.models.job_record import Artifacts
+                artifacts_dict["artifact_manifest"] = manifest
+                update_job(job_id, artifacts=Artifacts(**artifacts_dict))
+
+        return RedirectResponse(url=upload_result["signed_url"], status_code=302)
+
+    except Exception as e:
+        logger.error(f"PDF generation failed for job {job_id}: {e}")
+        # Return JSON error instead of failing
+        return {
+            "error": "PDF generation failed",
+            "message": str(e),
+            "job_id": job_id,
+        }
+
+
+def _generate_job_pdf(job) -> bytes:
+    """Generate PDF bytes containing core documents.
+
+    Args:
+        job: JobRecord with artifacts
+
+    Returns:
+        PDF file as bytes
+
+    Raises:
+        Exception: If PDF generation fails
+    """
+    # Try to use markdown-pdf or reportlab
+    # For now, use a simple text-based approach with reportlab
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+        from reportlab.lib.units import inch
+        from io import BytesIO
+    except ImportError:
+        raise Exception("reportlab not installed - PDF generation unavailable")
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=12,
+    )
+    body_style = ParagraphStyle(
+        'CustomBody',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+    )
+
+    story = []
+
+    # Title page
+    topic = job.config_json.get("topic", "Research") if job.config_json else "Research"
+    story.append(Paragraph(f"Research Report: {topic}", title_style))
+    story.append(Spacer(1, 0.2*inch))
+    story.append(Paragraph(f"Job ID: {job.job_id}", body_style))
+    story.append(Paragraph(f"Generated: {job.created_at.isoformat()}", body_style))
+    story.append(PageBreak())
+
+    # Get document markdown from artifacts
+    artifacts_dict = job.artifacts.model_dump(exclude_none=True) if job.artifacts else {}
+
+    docs_to_include = [
+        ("20", "source_ledger", "Source Ledger"),
+        ("21", "jump_start", "Jump Start"),
+        ("22", "semantic_brief", "Semantic Brief"),
+    ]
+
+    for doc_id, inline_field, title in docs_to_include:
+        story.append(Paragraph(f"Document {doc_id}: {title}", title_style))
+        story.append(Spacer(1, 0.1*inch))
+
+        markdown_content = None
+        inline_data = artifacts_dict.get(inline_field)
+        if inline_data and isinstance(inline_data, dict):
+            markdown_content = inline_data.get("markdown")
+
+        if markdown_content and "stored in Supabase Storage" not in markdown_content:
+            # Simple markdown to text conversion (basic)
+            text = markdown_content.replace("#", "").replace("*", "").replace("`", "")
+            # Split into paragraphs and add them
+            for para in text.split("\n\n"):
+                para = para.strip()
+                if para:
+                    # Escape XML special characters
+                    para = para.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                    try:
+                        story.append(Paragraph(para[:2000], body_style))  # Limit paragraph length
+                        story.append(Spacer(1, 0.1*inch))
+                    except Exception:
+                        story.append(Paragraph("[Content formatting error]", body_style))
+        else:
+            story.append(Paragraph(f"[{title} not available]", body_style))
+
+        story.append(PageBreak())
+
+    # Attachments manifest page
+    story.append(Paragraph("Attachments Manifest", title_style))
+    manifest = artifacts_dict.get("artifact_manifest", {})
+    attachments = manifest.get("attachments", {})
+    exports = attachments.get("exports", [])
+
+    if exports:
+        for export in exports:
+            if export.get("present"):
+                story.append(Paragraph(f"• {export.get('name')}", body_style))
+    else:
+        story.append(Paragraph("No exports available", body_style))
+
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.read()

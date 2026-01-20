@@ -188,21 +188,21 @@ def process_transcripts_sync(
     preferred_languages: list[str] = None,
 ) -> dict:
     """
-    Process transcripts synchronously and create Google Doc.
+    Process transcripts synchronously.
+
+    Updated 2026-01-19: Google Drive integration removed. Returns transcripts only.
 
     For small batches (≤5 videos).
 
     Args:
         video_urls: List of YouTube video URLs
         use_whisper: Whether to use Whisper fallback
-        doc_title: Custom title for Google Doc
+        doc_title: Custom title (kept for backward compatibility, unused)
         preferred_languages: Preferred transcript languages
 
     Returns:
-        Dict with success, doc_url, folder_url, transcripts, warnings
+        Dict with success, transcripts, warnings (doc_url/folder_url always empty)
     """
-    from backend.integrations.google_drive_docs import create_transcript_doc
-
     # Extract transcripts
     transcripts, warnings = extract_transcripts_batch(
         video_urls,
@@ -210,35 +210,18 @@ def process_transcripts_sync(
         preferred_languages=preferred_languages,
     )
 
-    # Generate doc title
-    if not doc_title:
-        doc_title = f"YouTube Transcripts - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    successful_count = sum(1 for t in transcripts if t.status == "available")
+    failed_count = sum(1 for t in transcripts if t.status != "available")
 
-    # Format content and create doc
-    content = format_transcripts_for_doc(transcripts)
-
-    try:
-        drive_result = create_transcript_doc(doc_title, content)
-    except Exception as e:
-        logger.error(f"Failed to create Google Doc: {e}")
-        return {
-            "success": False,
-            "doc_url": "",
-            "folder_url": "",
-            "transcripts": transcripts,
-            "warnings": warnings + [f"Failed to create Google Doc: {str(e)}"],
-            "total_videos": len(video_urls),
-            "successful_count": sum(1 for t in transcripts if t.status == "available"),
-            "failed_count": sum(1 for t in transcripts if t.status != "available"),
-        }
-
+    # Note: Google Drive integration removed (2026-01-19)
+    # Transcripts are returned directly; doc creation removed
     return {
-        "success": True,
-        "doc_url": drive_result["doc_url"],
-        "folder_url": drive_result["folder_url"],
+        "success": successful_count > 0,
+        "doc_url": "",  # Drive removed - always empty
+        "folder_url": "",  # Drive removed - always empty
         "transcripts": transcripts,
         "warnings": warnings,
         "total_videos": len(video_urls),
-        "successful_count": sum(1 for t in transcripts if t.status == "available"),
-        "failed_count": sum(1 for t in transcripts if t.status != "available"),
+        "successful_count": successful_count,
+        "failed_count": failed_count,
     }

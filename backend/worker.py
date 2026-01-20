@@ -11,11 +11,7 @@ from backend.services.error_logger import log_exception
 from backend.pipeline.stage_runner import (
     run_stage_with_recovery,
     StageGroup,
-    fallback_web_capture_skip,
-    fallback_reddit_skip,
-    fallback_transcripts_skip,
-    fallback_youtube_skip,
-    fallback_drive_upload_skip,
+    # NOTE: Legacy fallbacks removed (2026-01-19 - new pipeline only)
 )
 
 settings = get_settings()
@@ -50,97 +46,43 @@ celery_app.conf.update(
 )
 
 
-def _post_slack_message(slack_payload: Optional[dict], message: str) -> None:
-    """Helper to post Slack message if payload is provided."""
-    if slack_payload and slack_payload.get("response_url"):
-        try:
-            from backend.integrations.slack import post_slack_message
-            post_slack_message(slack_payload["response_url"], message)
-        except Exception as e:
-            # Log but don't fail the job if Slack notification fails
-            logger.warning(f"[Slack] Failed to post message to {slack_payload.get('response_url')}: {e}")
+# NOTE: Slack integration removed (2026-01-19 - New pipeline only)
 
 
 @celery_app.task(name="backend.worker.run_research_job")
 def run_research_job(
     job_id: str,
     topic: str,
-    slack_payload: Optional[dict] = None,
-    enable_parallel: bool = True,
+    slack_payload: Optional[dict] = None,  # DEPRECATED: kept for backward compatibility
+    enable_parallel: bool = True,  # DEPRECATED: no longer used
 ) -> dict:
     """
-    Research job task that runs through all stages of the research pipeline.
+    Research job task - USER-SUPPLIED SOURCES ONLY (New Pipeline).
 
-    Pipeline (with parallelization):
-    0. Initialization + Cost Tracker
-    1. Planning (OpenAI)
-    2. Research mapping (Perplexity)
-    3. Source shortlist (Perplexity)
-    3.5. Quality Gate (Deterministic filtering)
+    Updated 2026-01-19: Legacy discovery pipeline removed.
+    This task now ONLY processes user-supplied sources (mixed-input mode).
+    Topic-based discovery is no longer supported.
 
-    [PARALLEL GROUP 1 - Collection]:
-    - Track A: YouTube enumeration → Transcripts
-    - Track B: Web capture
-    - Track C: Reddit collection
-
-    7. Claim extraction
-
-    [PARALLEL GROUP 2 - Extraction]:
-    - Timeline extraction
-    - Entity extraction
-    - Claim validation
-
-    8.5. Angle discovery
-    8.6. Documentary intelligence
-    9. Drive upload
-    10. Completion
+    Pipeline stages:
+    1. Source Identity (resolve analysis modes from user inputs)
+    2. Semantic Extraction (Gemini - per source, isolated)
+    3. Semantic Validation (confidence ceilings, quote verification)
+    4. Gap Analysis (identify missing coverage)
+    5. Semantic Synthesis (cross-source themes, tensions)
+    6. Document Assembly (Doc 20/21/22)
+    7. Completion (artifact manifest, Supabase storage)
 
     Args:
         job_id: Unique identifier for the research job
-        topic: Research topic string (from Slack or API)
-        slack_payload: Optional Slack payload for posting updates
-        enable_parallel: Enable parallel stage execution (default: True)
+        topic: Research topic/title (for labeling only)
+        slack_payload: DEPRECATED - ignored
+        enable_parallel: DEPRECATED - ignored
 
     Returns:
-        Dictionary with research results including Drive folder URL
+        Dictionary with job results
     """
     from backend.pipeline.context import PipelineContext
     from backend.pipeline.cost_tracker import CostTracker
-    from backend.pipeline.stages import (
-        stage_0_initialize,
-        stage_1_planning,
-        stage_2_research_mapping,
-        stage_3_source_shortlist,
-        stage_3_5_quality_gate,
-        stage_4_youtube_enumeration,
-        stage_5_transcripts,
-        stage_6_web_capture,
-        stage_6_5_reddit,
-        # LEGACY DISABLED (D5) - These stages replaced by semantic pipeline
-        # stage_7_extraction,
-        # stage_7_5_timeline,
-        # stage_7_6_entities,
-        # stage_8_validation,
-        # stage_8_5_angle_discovery,
-        # stage_8_6_documentary_intelligence,
-        stage_9_drive_upload,
-        stage_10_completion,
-        post_slack_message,
-        # Semantic Pipeline Stages (Phase 2A)
-        stage_source_identity,
-        stage_semantic_extraction,
-        stage_gap_analysis,
-        stage_semantic_synthesis,
-        stage_document_assembly,
-        # Validation Stage (Phase 4)
-        stage_semantic_validation,
-    )
-    from backend.pipeline.stages.planning import DisambiguationRequired
-    from backend.pipeline.parallel_executor import (
-        run_collection_stages_parallel,
-        # LEGACY DISABLED (D5) - Legacy extraction stages no longer used
-        # run_extraction_stages_parallel,
-    )
 
     logger.info(f"Starting research job {job_id} for topic: {topic}")
 
@@ -148,118 +90,32 @@ def run_research_job(
     ctx = PipelineContext(
         job_id=job_id,
         topic=topic,
-        slack_payload=slack_payload,
-        cost_tracker=CostTracker(mode="full"),  # Mode updated after planning
+        cost_tracker=CostTracker(mode="full"),
     )
 
     try:
-        # Check if this is a resumed job after disambiguation
         job = get_job(job_id)
-        if job and job.selected_interpretations is not None and job.interpretations:
-            # Resumed job: process selected interpretations sequentially
-            logger.info(f"[{job_id}] Resuming after disambiguation with {len(job.selected_interpretations)} interpretations")
-            return _run_disambiguated_job(ctx, job, enable_parallel)
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
 
-        # Check if this is a mixed-input job (Phase 5)
-        if job and job.config_json.get("input_mode") == "mixed":
-            logger.info(f"[{job_id}] Detected mixed-input job, running semantic-only pipeline")
-            return _run_mixed_input_job(ctx, job)
-
-        # Stage 0-3: Sequential initialization and discovery (critical - no fallback)
-        stage_0_initialize(ctx)
-        stage_1_planning(ctx)
-
-        # Update cost tracker mode while preserving existing costs from stage 0-1
-        if ctx.job_config and ctx.cost_tracker:
-            ctx.cost_tracker.update_mode(ctx.job_config.mode.value)
-
-        # Research mapping and source discovery (critical for pipeline)
-        run_stage_with_recovery(stage_2_research_mapping, ctx, "research_mapping", critical=True)
-        run_stage_with_recovery(stage_3_source_shortlist, ctx, "source_shortlist", critical=True)
-        run_stage_with_recovery(stage_3_5_quality_gate, ctx, "quality_gate")
-
-        # Collection stages - use fallbacks for graceful degradation
-        collection_group = StageGroup("collection")
-        if enable_parallel:
-            logger.info(f"[{job_id}] Running collection stages in parallel")
-            run_collection_stages_parallel(ctx)
-        else:
-            collection_group.run(
-                stage_4_youtube_enumeration, ctx, "youtube_enumeration",
-                fallback_fn=fallback_youtube_skip
+        # ONLY mixed-input jobs are supported (user-supplied sources)
+        if job.config_json.get("input_mode") != "mixed":
+            # Legacy topic-based jobs are no longer supported
+            logger.error(f"[{job_id}] Legacy topic-based job rejected - only mixed-input supported")
+            update_job(
+                job_id,
+                status="failed",
+                stage="error",
+                error="Legacy topic-based discovery is no longer supported. Use /video-analysis, /text-input, /screenshot-input, or /mixed-input endpoints.",
             )
-            collection_group.run(
-                stage_5_transcripts, ctx, "transcripts",
-                fallback_fn=fallback_transcripts_skip
-            )
-            collection_group.run(
-                stage_6_web_capture, ctx, "web_capture",
-                fallback_fn=fallback_web_capture_skip
-            )
-            collection_group.run(
-                stage_6_5_reddit, ctx, "reddit",
-                fallback_fn=fallback_reddit_skip
-            )
+            return {
+                "job_id": job_id,
+                "status": "failed",
+                "error": "Legacy topic-based discovery not supported",
+            }
 
-        # === SEMANTIC PIPELINE STAGES (Phase 2A) ===
-        # These stages build Doc 0/1/2 from collected sources
-        logger.info(f"[{job_id}] Running semantic pipeline stages")
-
-        # Stage A: Source Identity (resolve analysis modes)
-        run_stage_with_recovery(stage_source_identity, ctx, "source_identity")
-
-        # Stage B: Semantic Extraction (Gemini)
-        run_stage_with_recovery(stage_semantic_extraction, ctx, "semantic_extraction")
-
-        # Stage B.5: Semantic Validation (Phase 4)
-        run_stage_with_recovery(stage_semantic_validation, ctx, "semantic_validation")
-
-        # Stage C: Gap Analysis (Gemini)
-        run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
-
-        # Stage D: Semantic Synthesis (Gemini)
-        run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
-
-        # Stage E: Document Assembly (Doc 0/1/2)
-        run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
-
-        # =====================================================================
-        # LEGACY STAGES DISABLED (D5 - Decision: 2026-01-17)
-        # Legacy pipeline preserved but completely disabled.
-        # Semantic pipeline (stages A-E above) now produces Doc 0/1/2.
-        # =====================================================================
-        # run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
-        # extraction_group = StageGroup("extraction")
-        # if enable_parallel:
-        #     run_extraction_stages_parallel(ctx)
-        # else:
-        #     extraction_group.run(stage_7_5_timeline, ctx, "timeline_extraction")
-        #     extraction_group.run(stage_7_6_entities, ctx, "entity_extraction")
-        #     extraction_group.run(stage_8_validation, ctx, "validation")
-        # run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
-        # run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
-        # =====================================================================
-
-        # Stage 9: Drive upload (uploads Doc 0/1/2 only)
-        run_stage_with_recovery(
-            stage_9_drive_upload, ctx, "drive_upload",
-            fallback_fn=fallback_drive_upload_skip
-        )
-
-        # Log cost summary
-        cost_summary = ctx.get_cost_summary()
-        logger.info(f"[{job_id}] Cost summary: ${cost_summary.get('total_cost', 0):.4f}")
-
-        return stage_10_completion(ctx)
-
-    except DisambiguationRequired as e:
-        # Job paused for user disambiguation - this is not an error
-        logger.info(f"[{job_id}] Paused for disambiguation: {len(e.interpretations)} interpretations")
-        return {
-            "job_id": job_id,
-            "status": "disambiguating",
-            "interpretations": e.interpretations,
-        }
+        logger.info(f"[{job_id}] Running semantic-only pipeline (user-supplied sources)")
+        return _run_mixed_input_job(ctx, job)
 
     except Exception as e:
         logger.exception(f"Fatal error in research job {job_id}: {e}")
@@ -291,9 +147,6 @@ def run_research_job(
             warnings_append=ctx.warnings + [f"Fatal error: {str(e)}"],
         )
 
-        # Post error message to Slack
-        post_slack_message(ctx, f"❌ Research job `{job_id}` failed: {str(e)}")
-
         return {
             "job_id": job_id,
             "status": "failed",
@@ -316,13 +169,11 @@ def _run_mixed_input_job(ctx, job) -> dict:
         Dictionary with research results
     """
     from backend.pipeline.stages import (
-        stage_source_identity,
         stage_semantic_extraction,
         stage_semantic_validation,
         stage_gap_analysis,
         stage_semantic_synthesis,
         stage_document_assembly,
-        stage_9_drive_upload,
         stage_10_completion,
     )
     from backend.pipeline.stages.source_identity import (
@@ -497,15 +348,10 @@ def _run_mixed_input_job(ctx, job) -> dict:
         update_job(job_id, stage="document_assembly", progress_percent=80)
         run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
 
-        # Drive upload (optional - graceful degradation)
-        update_job(job_id, stage="drive_upload", progress_percent=90)
-        try:
-            run_stage_with_recovery(stage_9_drive_upload, ctx, "drive_upload")
-        except Exception as e:
-            ctx.add_warning(f"Drive upload skipped: {e}")
-            logger.warning(f"[{job_id}] Drive upload failed, continuing: {e}")
+        # NOTE: Drive upload removed (2026-01-19 - outputs go to Supabase Storage)
 
-        # Completion
+        # Completion (stores docs in artifacts, exports in Supabase Storage)
+        update_job(job_id, stage="completion", progress_percent=95)
         return stage_10_completion(ctx)
 
     except Exception as e:
@@ -523,195 +369,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
         }
 
 
-def _run_disambiguated_job(ctx, job, enable_parallel: bool) -> dict:
-    """
-    Process a job resumed after disambiguation.
-
-    Runs the pipeline for each selected interpretation sequentially,
-    aggregating results into a single output.
-
-    Args:
-        ctx: PipelineContext with job_id and basic setup
-        job: JobRecord with selected_interpretations and interpretations
-        enable_parallel: Enable parallel stage execution
-
-    Returns:
-        Dictionary with aggregated research results
-    """
-    from backend.pipeline.stages import (
-        stage_2_research_mapping,
-        stage_3_source_shortlist,
-        stage_3_5_quality_gate,
-        stage_4_youtube_enumeration,
-        stage_5_transcripts,
-        stage_6_web_capture,
-        stage_6_5_reddit,
-        # LEGACY DISABLED (D5) - These stages replaced by semantic pipeline
-        # stage_7_extraction,
-        # stage_7_5_timeline,
-        # stage_7_6_entities,
-        # stage_8_validation,
-        # stage_8_5_angle_discovery,
-        # stage_8_6_documentary_intelligence,
-        stage_9_drive_upload,
-        stage_10_completion,
-        post_slack_message,
-        # Semantic Pipeline Stages (Phase 2A)
-        stage_source_identity,
-        stage_semantic_extraction,
-        stage_gap_analysis,
-        stage_semantic_synthesis,
-        stage_document_assembly,
-        # Validation Stage (Phase 4)
-        stage_semantic_validation,
-    )
-    from backend.pipeline.parallel_executor import (
-        run_collection_stages_parallel,
-        # LEGACY DISABLED (D5) - Legacy extraction stages no longer used
-        # run_extraction_stages_parallel,
-    )
-    from backend.integrations.openai_client import _safe_default_config
-
-    selected_indices = job.selected_interpretations or []
-    interpretations = job.interpretations or []
-
-    logger.info(f"[{ctx.job_id}] Processing {len(selected_indices)} interpretations")
-
-    # Update status to running
-    update_job(ctx.job_id, status="running", stage="processing_interpretations")
-
-    all_results = []
-
-    # Get original user prompt to preserve question context
-    original_prompt = ""
-    if job.config_json:
-        original_prompt = job.config_json.get("prompt", "") or job.config_json.get("topic", "")
-
-    for i, idx in enumerate(selected_indices):
-        if idx >= len(interpretations):
-            ctx.add_warning(f"Invalid interpretation index: {idx}")
-            continue
-
-        interp = interpretations[idx]
-        interpretation_topic = interp.get("topic", "")
-        label = interp.get("label", f"Interpretation {idx + 1}")
-
-        # Use LLM to generate natural clarified prompt
-        # E.g., "What fan theories exist about 'the barney show'?" + {topic: "Barney the Dinosaur", ...}
-        # -> "What fan theories exist about Barney the Dinosaur (the children's TV show, 1992-2010)?"
-        from backend.integrations.openai_client import generate_clarified_prompt
-        if original_prompt and interpretation_topic:
-            refined_topic = generate_clarified_prompt(original_prompt, interp)
-        else:
-            # Fallback to interpretation topic or original
-            refined_topic = interpretation_topic or original_prompt or ctx.topic
-
-        logger.info(f"[{ctx.job_id}] Processing interpretation {i + 1}/{len(selected_indices)}: {label}")
-        post_slack_message(ctx, f"📚 Researching: {label}")
-
-        # Update context with refined topic and interpretation info
-        ctx.topic = refined_topic
-        ctx.interpretation_index = i + 1  # 1-based index for folder naming
-        ctx.interpretation_label = label
-
-        # Re-run planning for refined topic to get proper subreddits and config
-        # This ensures topic-specific subreddits are used, not defaults
-        from backend.integrations.openai_client import plan_job
-        try:
-            result = plan_job(refined_topic)
-            if result.get("is_ambiguous"):
-                # Refined topic shouldn't be ambiguous, use default config
-                logger.warning(f"[{ctx.job_id}] Refined topic still ambiguous, using default config")
-                ctx.job_config = _safe_default_config(refined_topic)
-            else:
-                ctx.job_config = result.get("config", _safe_default_config(refined_topic))
-            logger.info(f"[{ctx.job_id}] Re-planned for refined topic: {refined_topic}")
-            if hasattr(ctx.job_config, 'reddit') and ctx.job_config.reddit.subreddits:
-                logger.info(f"[{ctx.job_id}] Using subreddits: {ctx.job_config.reddit.subreddits}")
-        except Exception as plan_error:
-            logger.warning(f"[{ctx.job_id}] Re-planning failed, using default: {plan_error}")
-            ctx.job_config = _safe_default_config(refined_topic)
-
-        try:
-            # Run pipeline stages for this interpretation
-            # Skip stage_0 (already initialized) and stage_1 (already planned)
-            run_stage_with_recovery(stage_2_research_mapping, ctx, "research_mapping", critical=True)
-            run_stage_with_recovery(stage_3_source_shortlist, ctx, "source_shortlist", critical=True)
-            run_stage_with_recovery(stage_3_5_quality_gate, ctx, "quality_gate")
-
-            # Collection stages - with fallbacks
-            if enable_parallel:
-                run_collection_stages_parallel(ctx)
-            else:
-                run_stage_with_recovery(
-                    stage_4_youtube_enumeration, ctx, "youtube_enumeration",
-                    fallback_fn=fallback_youtube_skip
-                )
-                run_stage_with_recovery(
-                    stage_5_transcripts, ctx, "transcripts",
-                    fallback_fn=fallback_transcripts_skip
-                )
-                run_stage_with_recovery(
-                    stage_6_web_capture, ctx, "web_capture",
-                    fallback_fn=fallback_web_capture_skip
-                )
-                run_stage_with_recovery(
-                    stage_6_5_reddit, ctx, "reddit",
-                    fallback_fn=fallback_reddit_skip
-                )
-
-            # === SEMANTIC PIPELINE STAGES (Phase 2A) ===
-            run_stage_with_recovery(stage_source_identity, ctx, "source_identity")
-            run_stage_with_recovery(stage_semantic_extraction, ctx, "semantic_extraction")
-            # Validation Stage (Phase 4)
-            run_stage_with_recovery(stage_semantic_validation, ctx, "semantic_validation")
-            run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")
-            run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
-            run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
-
-            # =================================================================
-            # LEGACY STAGES DISABLED (D5 - Decision: 2026-01-17)
-            # Legacy pipeline preserved but completely disabled.
-            # Semantic pipeline (stages above) now produces Doc 0/1/2.
-            # =================================================================
-            # run_stage_with_recovery(stage_7_extraction, ctx, "claim_extraction")
-            # if enable_parallel:
-            #     run_extraction_stages_parallel(ctx)
-            # else:
-            #     run_stage_with_recovery(stage_7_5_timeline, ctx, "timeline_extraction")
-            #     run_stage_with_recovery(stage_7_6_entities, ctx, "entity_extraction")
-            #     run_stage_with_recovery(stage_8_validation, ctx, "validation")
-            # run_stage_with_recovery(stage_8_5_angle_discovery, ctx, "angle_discovery")
-            # run_stage_with_recovery(stage_8_6_documentary_intelligence, ctx, "documentary_intelligence")
-            # =================================================================
-
-            all_results.append({
-                "label": label,
-                "topic": refined_topic,
-                "status": "completed",
-            })
-
-        except Exception as e:
-            logger.error(f"[{ctx.job_id}] Failed to process interpretation '{label}': {e}")
-            ctx.add_warning(f"Interpretation '{label}' failed: {str(e)}")
-            all_results.append({
-                "label": label,
-                "topic": refined_topic,
-                "status": "failed",
-                "error": str(e),
-            })
-
-    # Upload combined results
-    run_stage_with_recovery(
-        stage_9_drive_upload, ctx, "drive_upload",
-        fallback_fn=fallback_drive_upload_skip
-    )
-
-    # Log cost summary
-    cost_summary = ctx.get_cost_summary()
-    logger.info(f"[{ctx.job_id}] Cost summary: ${cost_summary.get('total_cost', 0):.4f}")
-
-    return stage_10_completion(ctx)
+# NOTE: _run_disambiguated_job removed (2026-01-19)
+# Disambiguation relied on legacy topic-based discovery which is no longer supported.
+# The select-interpretation endpoint now returns 410 Gone.
 
 
 # =============================================================================
@@ -723,6 +383,8 @@ def run_transcript_job(job_id: str) -> dict:
     """
     Celery task for async transcript extraction.
 
+    Updated 2026-01-19: Stores transcripts in Supabase Storage instead of Drive.
+
     Processes large batches of YouTube videos (>5) in the background.
     Updates job progress as each video is processed.
 
@@ -730,15 +392,16 @@ def run_transcript_job(job_id: str) -> dict:
         job_id: Unique identifier for the transcript job
 
     Returns:
-        Dict with job_id, status, and doc_url
+        Dict with job_id, status, and storage path
     """
     from datetime import datetime
     from backend.services.transcript_service import (
         extract_single_transcript,
         format_transcripts_for_doc,
     )
-    from backend.integrations.google_drive_docs import create_transcript_doc
+    from backend.integrations.supabase_storage import get_storage_client
     from backend.models.job_record import Artifacts
+    import json
 
     logger.info(f"[{job_id}] Starting transcript extraction job")
 
@@ -763,7 +426,7 @@ def run_transcript_job(job_id: str) -> dict:
 
     # Process each video
     for i, url in enumerate(video_urls):
-        # Update progress (5% start, 85% for extraction, 10% for doc generation)
+        # Update progress (5% start, 85% for extraction, 10% for storage)
         progress = 5 + int(((i + 1) / total) * 80)
 
         try:
@@ -799,9 +462,9 @@ def run_transcript_job(job_id: str) -> dict:
             config_json={**job.config_json, "transcripts_completed": i + 1},
         )
 
-    # Stage: Generate Google Doc
-    logger.info(f"[{job_id}] Generating Google Doc")
-    update_job(job_id, stage="generating_document", progress_percent=90)
+    # Stage: Store transcripts in Supabase Storage
+    logger.info(f"[{job_id}] Storing transcripts")
+    update_job(job_id, stage="storing_transcripts", progress_percent=90)
 
     try:
         if not doc_title:
@@ -809,26 +472,40 @@ def run_transcript_job(job_id: str) -> dict:
 
         content = format_transcripts_for_doc(transcripts)
 
-        # Get user info from job for Drive sharing
-        user_email = None
-        user_id_for_drive = None
-        if job and job.config_json:
-            user_email = job.config_json.get("user_email")
-            user_id_for_drive = job.config_json.get("user_id")
+        # Store in Supabase Storage
+        storage_client = get_storage_client()
+        storage_path = None
+        signed_url = None
 
-        drive_result = create_transcript_doc(
-            doc_title,
-            content,
-            user_email=user_email,
-            user_id=user_id_for_drive,
-        )
+        if storage_client:
+            try:
+                upload_result = storage_client.upload_attachment(
+                    job_id=job_id,
+                    filename="transcripts.md",
+                    content=content,
+                    expires_in=3600,
+                )
+                storage_path = upload_result["storage_path"]
+                signed_url = upload_result["signed_url"]
+                logger.info(f"[{job_id}] Transcripts stored at {storage_path}")
+            except Exception as storage_error:
+                warnings.append(f"Storage upload failed: {storage_error}")
+                logger.warning(f"[{job_id}] Storage upload failed: {storage_error}")
 
-        # Update job with success
+        # Build artifacts with transcript data
         artifacts = Artifacts(
-            drive_folder_url=drive_result["folder_url"],
-            doc_urls=[drive_result["doc_url"]],
+            artifact_manifest={
+                "transcripts": {
+                    "present": True,
+                    "title": doc_title,
+                    "storage_path": storage_path,
+                    "video_count": total,
+                    "available_count": sum(1 for t in transcripts if t.status == "available"),
+                },
+            },
         )
 
+        # Also store transcript content inline for immediate access
         update_job(
             job_id,
             status="completed",
@@ -836,20 +513,21 @@ def run_transcript_job(job_id: str) -> dict:
             stage="completed",
             artifacts=artifacts,
             warnings=warnings,
+            partial_outputs={"transcripts_md": content},
         )
 
-        logger.info(f"[{job_id}] Transcript job completed: {drive_result['doc_url']}")
+        logger.info(f"[{job_id}] Transcript job completed")
 
         return {
             "job_id": job_id,
             "status": "completed",
-            "doc_url": drive_result["doc_url"],
-            "folder_url": drive_result["folder_url"],
+            "storage_path": storage_path,
+            "signed_url": signed_url,
         }
 
     except Exception as e:
-        logger.exception(f"[{job_id}] Failed to create Google Doc: {e}")
-        warnings.append(f"Failed to create Google Doc: {str(e)}")
+        logger.exception(f"[{job_id}] Failed to store transcripts: {e}")
+        warnings.append(f"Failed to store transcripts: {str(e)}")
 
         update_job(
             job_id,
@@ -1822,17 +1500,7 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
             warnings_append=warnings if warnings else None,
         )
 
-        # Upload to Drive (if enabled)
-        try:
-            from backend.integrations.google_drive import upload_to_drive
-            upload_to_drive(
-                job_id=job_id,
-                filename="doc3_producer_packet.md",
-                content=packet.to_markdown(),
-            )
-            logger.info(f"[{job_id}] Uploaded Doc 3 to Drive")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Drive upload failed: {e}")
+        # NOTE: Drive upload removed (2026-01-19 - Doc 3 stored in artifacts)
 
         logger.info(
             f"[{job_id}] Producer packet complete: "

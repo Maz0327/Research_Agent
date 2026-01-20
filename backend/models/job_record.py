@@ -6,9 +6,19 @@ from pydantic import BaseModel, Field
 
 
 class Artifacts(BaseModel):
-    """Artifacts associated with a job (Drive folder, docs, etc.)."""
-    drive_folder_url: Optional[str] = Field(None, description="Google Drive folder URL")
-    doc_urls: Optional[list[str]] = Field(None, description="List of Google Doc URLs")
+    """Artifacts associated with a job.
+
+    Updated: 2026-01-19 - Drive fields deprecated, Supabase Storage is primary.
+    """
+    # =========================================================================
+    # DEPRECATED (2026-01-19 - Drive integration removed)
+    # =========================================================================
+    drive_folder_url: Optional[str] = Field(
+        None, description="DEPRECATED: Google Drive folder URL (Drive removed)"
+    )
+    doc_urls: Optional[list[str]] = Field(
+        None, description="DEPRECATED: List of Google Doc URLs (Drive removed)"
+    )
 
     # =========================================================================
     # SEMANTIC PIPELINE (Active) - Doc 0/1/2/3
@@ -25,6 +35,12 @@ class Artifacts(BaseModel):
     doc_1_path: Optional[str] = Field(None, description="Storage path for Jump-Start (new jobs)")
     doc_2_path: Optional[str] = Field(None, description="Storage path for Semantic Brief (new jobs)")
     doc_3_path: Optional[str] = Field(None, description="Storage path for Producer Packet (new jobs)")
+
+    # Artifact Manifest (Option B storage strategy - 2026-01-19)
+    # Provides manifest-first UI with lazy loading for docs and attachments
+    artifact_manifest: Optional[dict[str, Any]] = Field(
+        None, description="Manifest of available artifacts with storage paths"
+    )
 
     # Booster (Phase 7)
     booster_output: Optional[dict[str, Any]] = Field(None, description="Booster output for Doc 1 expansion")
@@ -139,12 +155,12 @@ class JobRecord(BaseModel):
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
     manual_guidance: Optional[dict[str, Any]] = Field(None, description="Manual guidance/overrides")
 
-    # Disambiguation (Dec 2025)
+    # Disambiguation - DEPRECATED (2026-01-19 - Legacy pipeline removed)
     interpretations: Optional[list[dict[str, Any]]] = Field(
-        None, description="Possible topic interpretations when ambiguous"
+        None, description="DEPRECATED: Possible topic interpretations (legacy pipeline)"
     )
     selected_interpretations: Optional[list[int]] = Field(
-        None, description="Indices of user-selected interpretations"
+        None, description="DEPRECATED: Indices of user-selected interpretations (legacy)"
     )
 
     # Extracted data
@@ -165,9 +181,13 @@ class JobRecord(BaseModel):
     total_claims: Optional[int] = Field(None, description="Total claims extracted")
     api_costs: Optional[dict[str, Any]] = Field(None, description="API costs per service")
 
-    # Output URLs
-    notebooklm_packet_url: Optional[str] = Field(None, description="NotebookLM packet Google Doc URL")
-    documentary_blueprint_url: Optional[str] = Field(None, description="Documentary blueprint Google Doc URL")
+    # Output URLs - DEPRECATED (2026-01-19 - Drive integration removed)
+    notebooklm_packet_url: Optional[str] = Field(
+        None, description="DEPRECATED: NotebookLM packet Google Doc URL (Drive removed)"
+    )
+    documentary_blueprint_url: Optional[str] = Field(
+        None, description="DEPRECATED: Documentary blueprint Google Doc URL (Drive removed)"
+    )
 
     # Artifacts and outputs
     artifacts: Optional[Artifacts] = Field(None, description="Job artifacts")

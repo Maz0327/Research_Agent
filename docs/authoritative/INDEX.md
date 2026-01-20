@@ -36,7 +36,24 @@ All documents inherit vocabulary from `Operational_Definitions.md`.
 
 ---
 
-## System Non-Goals (Authoritative)
+## What This System IS (Authoritative)
+
+The Research Agent is:
+
+- **Semantic-only pipeline** — analyzes video/text sources for semantic content
+- **Gemini-powered video analysis** — uses Gemini 2.5 Pro for extraction/synthesis
+- **Three core documents** + one optional (Doc 0/1/2 + Doc 3)
+- **Evolving jobs** — sources can be added to existing jobs
+- **Booster stage** — optional deep research expansion (post-job)
+- **Producer Packet** — optional creative interpretation (gated, 4+ sources)
+- An externalized cognition and memory system
+- Designed to reduce activation energy (ADHD-first)
+- Built to preserve receipts, provenance, and uncertainty
+- Meant to prepare a human to think, not replace thinking
+
+---
+
+## What This System is NOT (Authoritative)
 
 This system is NOT:
 
@@ -46,13 +63,19 @@ This system is NOT:
 - designed to resolve contradictions or decide who is correct
 - intended to output publish-ready scripts or final narratives
 
-This system IS:
+**Explicitly Removed / Deprecated:**
 
-- an externalized cognition and memory system
-- a semantic sense-making assistant for humans
-- designed to reduce activation energy (ADHD-first)
-- built to preserve receipts, provenance, and uncertainty
-- meant to prepare a human to think, not replace thinking
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Legacy 15-stage pipeline | **REMOVED** | Not reachable; only semantic pipeline active |
+| Google Drive integration | **REMOVED** | `google_drive_docs.py` deleted; Drive export returns 410 |
+| Slack integration | **REMOVED** | `slack_routes.py` deleted; no Slack endpoints |
+| `POST /jobs` (legacy) | **410 GONE** | Use `/jobs/text-input`, `/jobs/screenshot-input`, `/jobs/mixed-input` |
+| `POST /jobs/preview` | **410 GONE** | Deprecated |
+| `POST /jobs/{id}/select-interpretation` | **410 GONE** | Legacy disambiguation removed |
+| Legacy docs 00–11 | **NOT GENERATED** | No 00_MASTER_INDEX, no numbered legacy docs |
+| NotebookLM packet | **REMOVED** | Legacy output format |
+| Documentary blueprint | **REMOVED** | Legacy output format |
 
 ---
 
@@ -119,9 +142,11 @@ Every source is assigned ONE analysis mode based on source type and content avai
 | `transcript_grounded` | YouTube with Supadata/Whisper transcript | HIGH | Yes (verbatim) |
 | `caption_grounded` | YouTube with captions only | MEDIUM | Yes (approximate) |
 | `video_only` | YouTube, no text available | LOW | **No** (observations only) |
-| `text_provided` | User-pasted content | MEDIUM | **No** |
-| `ocr_extracted` | Screenshot with OCR | MEDIUM | **No** |
+| `text_provided` | User-pasted content | MEDIUM | Yes (unverified)* |
+| `ocr_extracted` | Screenshot with OCR | MEDIUM | Yes (unverified)* |
 | `article_fetched` | Article URL with full text | HIGH | Yes |
+
+> *\*Owner Decision (2026-01-15): TEXT_PROVIDED and OCR_EXTRACTED allow quotes but marked as unverified. System cannot verify authenticity of user-provided content, but extracting quotes provides better UX than omitting them entirely. See ADR-013.*
 
 **Rules:**
 - Mode is determined BEFORE extraction, not during
@@ -232,6 +257,102 @@ JSON structure specification with Pydantic model reference.
 
 ---
 
+## Quote vs Observation Policy (Non-Negotiable)
+
+**Definitions:**
+- **Quote** = 1:1 verbatim excerpt traceable to text input (transcript, captions, fetched article text, pasted text, OCR text)
+- **Observation** = non-verbatim / approximate / unverified statements (includes video-only and messy OCR "quote-like" lines)
+
+**Mode Policy Table:**
+
+| Mode | Quotes Allowed | Quote Flags | Confidence Ceiling | Observations |
+|------|----------------|-------------|-------------------|--------------|
+| `transcript_grounded` | ✅ Yes | verbatim | HIGH | Not used |
+| `caption_grounded` | ✅ Yes | `approximate=true` | MEDIUM | Not used |
+| `article_fetched` | ✅ Yes | verbatim | HIGH | Not used |
+| `text_provided` | ✅ Yes | `accuracy_unverified` | MEDIUM | Not used |
+| `ocr_extracted` | ✅ Yes* | `accuracy_unverified` | MEDIUM | *If OCR messy, treat as observations |
+| `video_only` | ❌ **NO** | N/A | LOW | **ONLY observations** |
+
+**Critical Rule for `video_only`:**
+- NO Quotes allowed — **HARD FAIL** if any quotes present
+- Use `approximate_observations` array instead
+- All observations marked `approximate: true`, `type: observation`
+
+---
+
+## Storage Strategy (Option B — Authoritative)
+
+**Core docs stored in Job artifacts JSON fields (lazy-loaded):**
+
+| Artifact Key | Document | Storage |
+|--------------|----------|---------|
+| `artifacts["source_ledger"]` | Doc 0 — Source Ledger | Job record JSON |
+| `artifacts["jump_start"]` | Doc 1 — Jump-Start | Job record JSON |
+| `artifacts["semantic_brief"]` | Doc 2 — Semantic Brief | Job record JSON |
+| `artifacts["producer_packet"]` | Doc 3 — Producer Packet | Job record JSON |
+
+**Exports/attachments:** Stored as files in Supabase Storage (manifest references them)
+
+**PDF generation:** On-demand via `GET /jobs/{id}/download.pdf` (first request generates)
+
+**Frontend:** Lazy-loads docs; PDF generated on demand
+
+---
+
+## Document Alias Mapping (Implementation Detail)
+
+Runtime manifests use numeric aliases. This is purely an implementation detail.
+
+| Conceptual Name | Runtime Alias | Artifact Key |
+|-----------------|---------------|--------------|
+| Doc 0 (Source Ledger) | `"20"` | `source_ledger` |
+| Doc 1 (Jump-Start) | `"21"` | `jump_start` |
+| Doc 2 (Semantic Brief) | `"22"` | `semantic_brief` |
+| Doc 3 (Producer Packet) | `"3"` | `producer_packet` |
+
+**Note:** The aliasing is for internal use only. External documentation and user-facing interfaces use Doc 0/1/2/3 naming.
+
+---
+
+## Failure Semantics (Authoritative)
+
+**Graceful degradation is mandatory:**
+
+| Failure Type | Behavior |
+|--------------|----------|
+| Bad source | Mark that source failed, continue if others remain |
+| Transcript acquisition fails | Degrade to next method in chain, never fail job |
+| Gemini invalid JSON | Retry max=2, then degrade to warning dict, never hard crash |
+| All sources fail | Job fails only then |
+| Infra/system-level failure | Job fails |
+
+**Rules:**
+- Individual source failure must NEVER fail the entire job if other sources remain
+- Transcript failure must NEVER fail a job — degrade to `video_only` mode
+- Validation failures with warnings continue; hard failures retry then abort
+- All degradations must be visible in output warnings array
+
+---
+
+## Enforcement Surfaces (Code Locations)
+
+These are the files where the above rules are enforced:
+
+| Rule | Enforcement File |
+|------|------------------|
+| Source isolation | `backend/pipeline/stages/semantic_extraction.py` |
+| Mode selection | `backend/pipeline/mode_selector.py` |
+| Confidence ceilings | `backend/pipeline/semantic_validation.py` |
+| Quote/observation policy | `backend/pipeline/prompts/modes/*.py` |
+| Transcript chain | `backend/pipeline/transcript_acquisition.py` |
+| Document assembly | `backend/pipeline/stages/document_assembly.py` |
+| Validation checks | `backend/pipeline/stages/semantic_validation_stage.py` |
+| Quote verification | `backend/pipeline/stages/quote_verification.py` |
+| Producer gating | `backend/pipeline/producer/gating.py` |
+
+---
+
 ## Authoritative Documents (Must Exist in Repo)
 
 Location: `docs/authoritative/`
@@ -269,12 +390,18 @@ Location: `docs/authoritative/`
 
 Files describing older or competing system behavior are **LEGACY** and must not be implemented from.
 
-They must either:
-- contain a LEGACY banner pointing here, or
-- be moved under `docs/legacy/` with a stub pointer
+**Archive Locations:**
+- `docs/_archive_do_not_read/` — Superseded docs with LEGACY banner
+- `Archive Docs/` — Historical documents, not for implementation
+
+**Rules:**
+- Never implement from files in archive folders
+- Never treat any document as authoritative unless listed in this INDEX
+- If a document claims "authoritative" or "single source of truth" but is not in `docs/authoritative/`, it is **invalid**
+- All authority flows from this INDEX.md file only
 
 **Authoritative reference:**
-`docs/authoritative/INDEX.md`
+`docs/authoritative/INDEX.md` (this file)
 
 ---
 
@@ -285,6 +412,8 @@ They must either:
 3. Then update code
 
 This order is mandatory.
+
+**No document outside `docs/authoritative/` may claim to be "authoritative", "canonical", or "single source of truth".**
 
 ---
 

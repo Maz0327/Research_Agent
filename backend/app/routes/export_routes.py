@@ -308,7 +308,7 @@ def _slugify(text: str) -> str:
 # Video Analysis Export Endpoints
 # ============================================================================
 
-@router.post("/google-docs", response_model=GoogleDocsExportResponse)
+@router.post("/google-docs", response_model=GoogleDocsExportResponse, deprecated=True)
 @limiter.limit("10/minute")
 async def export_to_google_docs(
     request: Request,
@@ -316,82 +316,19 @@ async def export_to_google_docs(
     user: AuthUser = Depends(get_active_user),
 ):
     """
-    Export video analysis results to Google Docs.
-    
-    Creates a new Google Doc with formatted clips, quotes, blueprints,
-    gap analysis, and research starter. Shares the doc with the user.
-    
-    Returns:
-        GoogleDocsExportResponse with folder_url and doc_url
+    DEPRECATED: Google Drive export is no longer supported (2026-01-19).
+
+    Use /jobs/{job_id}/attachments to get download links for exports,
+    or /jobs/{job_id}/download.pdf for PDF generation.
     """
-    from backend.integrations.google_drive_docs import create_transcript_doc
-    from backend.config import MissingRequiredSettingError
-    
-    logger.info(f"Google Docs export request: job={job_id}, user={user.user_id}")
-    
-    # Fetch job
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    # Verify ownership
-    if job.user_id != user.user_id:
-        raise HTTPException(status_code=403, detail="Not authorized to access this job")
-    
-    # Check job status
-    if job.status not in ["completed", "completed_with_warnings"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job not ready for export (status: {job.status})"
-        )
-    
-    # Get artifacts
-    if not job.artifacts:
-        raise HTTPException(status_code=400, detail="No artifacts to export")
-    
-    artifacts_dict = job.artifacts.model_dump(exclude_none=True) if hasattr(job.artifacts, "model_dump") else {}
-    
-    # Get title and topic
-    config = job.config_json or {}
-    title = config.get("title", job.title or "Video Analysis")
-    research_topic = config.get("research_topic", config.get("topic", ""))
-    
-    # Format the content
-    content = format_video_analysis_for_export(
-        artifacts=artifacts_dict,
-        title=title,
-        research_topic=research_topic,
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "message": "Google Drive export is no longer supported",
+            "deprecated_since": "2026-01-19",
+            "alternative": "Use /jobs/{job_id}/attachments for export downloads or /jobs/{job_id}/download.pdf for PDF",
+        },
     )
-    
-    # Create Google Doc
-    try:
-        result = create_transcript_doc(
-            title=f"Research: {title}",
-            content=content,
-            user_email=user.email,
-            user_id=user.user_id,
-        )
-        
-        logger.info(f"Created Google Doc: {result.get('doc_url')}")
-        
-        return GoogleDocsExportResponse(
-            success=True,
-            folder_url=result.get("folder_url"),
-            doc_url=result.get("doc_url"),
-        )
-        
-    except MissingRequiredSettingError as e:
-        logger.warning(f"Google OAuth not configured: {e}")
-        return GoogleDocsExportResponse(
-            success=False,
-            error="Google Drive not configured. Please contact support.",
-        )
-    except Exception as e:
-        logger.exception(f"Failed to create Google Doc: {e}")
-        return GoogleDocsExportResponse(
-            success=False,
-            error=f"Failed to create document: {str(e)}",
-        )
 
 
 @router.get("/markdown")

@@ -60,7 +60,8 @@ class Settings(BaseSettings):
         description="Expected JWT audience claim (default: 'authenticated' for Supabase)"
     )
     
-    # Slack integration
+    # Slack integration - DEPRECATED (2026-01-19)
+    # These fields are kept for backward compatibility but are no longer used
     slack_signing_secret: Optional[str] = Field(default=None, alias="SLACK_SIGNING_SECRET")
     slack_bot_token: Optional[str] = Field(default=None, alias="SLACK_BOT_TOKEN")
     
@@ -300,27 +301,6 @@ def require_perplexity() -> Settings:
     if not settings.perplexity_api_key:
         raise MissingRequiredSettingError(
             "PERPLEXITY_API_KEY is required for web search. "
-            "Please set it in your .env file."
-        )
-    return settings
-
-
-def require_slack() -> Settings:
-    """
-    Get settings and validate Slack configuration is present.
-    
-    Raises:
-        MissingRequiredSettingError: If Slack settings are missing
-    """
-    settings = get_settings()
-    if not settings.slack_signing_secret:
-        raise MissingRequiredSettingError(
-            "SLACK_SIGNING_SECRET is required for Slack integration. "
-            "Please set it in your .env file."
-        )
-    if not settings.slack_bot_token:
-        raise MissingRequiredSettingError(
-            "SLACK_BOT_TOKEN is required for Slack integration. "
             "Please set it in your .env file."
         )
     return settings

@@ -2,6 +2,8 @@
 
 Prevents import errors from crashing the entire app when optional
 dependencies or configurations are missing.
+
+Updated 2026-01-19: Removed legacy integrations (google_drive, slack, reddit, perplexity).
 """
 from typing import Any, Optional, Callable
 from loguru import logger
@@ -19,57 +21,6 @@ class IntegrationUnavailable:
 
     def __getattr__(self, item: str) -> "IntegrationUnavailable":
         return self
-
-
-def get_google_drive_client() -> Optional[Any]:
-    """Lazy-load Google Drive client."""
-    try:
-        from backend.integrations.google_drive_docs import (
-            create_research_packet,
-            create_transcript_doc,
-        )
-        return {
-            "create_research_packet": create_research_packet,
-            "create_transcript_doc": create_transcript_doc,
-        }
-    except ImportError as e:
-        logger.warning(f"Google Drive integration not available: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Google Drive client initialization failed: {e}")
-        return None
-
-
-def get_reddit_client() -> Optional[Any]:
-    """Lazy-load Reddit (PRAW) client."""
-    try:
-        from backend.integrations.reddit_client import search_reddit
-        return {"search_reddit": search_reddit}
-    except ImportError as e:
-        logger.warning(f"Reddit integration not available (missing PRAW?): {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Reddit client initialization failed: {e}")
-        return None
-
-
-def get_perplexity_client() -> Optional[Any]:
-    """Lazy-load Perplexity client."""
-    try:
-        from backend.integrations.perplexity_client import (
-            research_map,
-            source_shortlist,
-        )
-        return {
-            "research_map": research_map,
-            "source_shortlist": source_shortlist,
-        }
-    except ImportError as e:
-        logger.warning(f"Perplexity integration not available: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Perplexity client initialization failed: {e}")
-        return None
 
 
 def get_openai_client() -> Optional[Any]:
@@ -132,19 +83,6 @@ def get_web_capture_client() -> Optional[Any]:
         return None
 
 
-def get_slack_client() -> Optional[Any]:
-    """Lazy-load Slack client."""
-    try:
-        from backend.integrations.slack import post_slack_message
-        return {"post_slack_message": post_slack_message}
-    except ImportError as e:
-        logger.warning(f"Slack integration not available: {e}")
-        return None
-    except Exception as e:
-        logger.warning(f"Slack client initialization failed: {e}")
-        return None
-
-
 def safe_import(import_fn: Callable, name: str) -> Optional[Any]:
     """
     Safely attempt an import, returning None on failure.
@@ -168,16 +106,16 @@ def safe_import(import_fn: Callable, name: str) -> Optional[Any]:
 
 # Convenience function for stages to check availability
 def is_integration_available(integration_name: str) -> bool:
-    """Check if an integration is available without loading it."""
+    """Check if an integration is available without loading it.
+
+    Note: Legacy integrations have been removed (2026-01-19):
+    - google_drive, slack, reddit, perplexity, exa, serper, tavily
+    """
     loaders = {
-        "google_drive": get_google_drive_client,
-        "reddit": get_reddit_client,
-        "perplexity": get_perplexity_client,
         "openai": get_openai_client,
         "youtube": get_youtube_client,
         "transcripts": get_transcript_client,
         "web_capture": get_web_capture_client,
-        "slack": get_slack_client,
     }
     loader = loaders.get(integration_name)
     if not loader:

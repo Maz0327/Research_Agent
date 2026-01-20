@@ -1,124 +1,90 @@
-"""Drive upload and output generation stage."""
+"""Export generation stage.
+
+Updated: 2026-01-19 - Drive upload completely removed.
+Exports are generated and stored in ctx.outputs for Supabase upload
+during stage_10_completion.
+
+NOTE: stage_9_drive_upload is NO LONGER used. The function is
+kept as a no-op for backward compatibility but does nothing.
+"""
 from loguru import logger
 
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.formats import ExportManager
-from backend.state import get_job, update_job
-from .helpers import post_slack_message
+from backend.state import update_job
 
 
 def stage_9_drive_upload(ctx: PipelineContext) -> None:
-    """Upload research packet to Google Drive."""
-    from backend.integrations.google_drive_docs import create_research_packet
-    from backend.pipeline.document_helpers import (
-        generate_master_index,
-        generate_transcripts_md,
-        generate_web_extracts_md,
-    )
+    """DEPRECATED: Drive upload removed (2026-01-19).
 
-    logger.info(f"[{ctx.job_id}] Stage 9: Writing Drive docs")
-    update_job(ctx.job_id, stage="drive_upload", progress_percent=85)
-    post_slack_message(ctx, "Writing docs...")
+    This function now only generates exports to ctx.outputs.
+    No Drive upload occurs. Documents are stored in artifacts
+    and exports go to Supabase Storage during stage_10_completion.
+    """
+    logger.info(f"[{ctx.job_id}] Generating exports (Drive upload disabled)")
+    update_job(ctx.job_id, stage="generating_exports", progress_percent=85)
+
+    # Generate exports 12-17 and store in ctx.outputs for Supabase upload
+    try:
+        generate_exports_to_context(ctx)
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Export generation failed: {e}")
+        ctx.add_warning(f"Export generation failed: {str(e)}")
+
+
+def generate_exports_to_context(ctx: PipelineContext) -> None:
+    """Generate exports 12-17 and store in ctx.outputs.
+
+    These will be uploaded to Supabase Storage in stage_10_completion.
+    Stored as ctx.outputs["export_12_research_data"], etc.
+    """
+    export_manager = ExportManager()
+    research_data = export_manager.gather_research_data(ctx)
+
+    # Generate each export and store in ctx.outputs
+    exports_generated = []
 
     try:
-        # Guard: generate_master_index requires job_config
-        # For mixed-input jobs without full config, use a placeholder
-        master_index = ""
-        if ctx.job_config:
-            master_index = generate_master_index(ctx.job_config, ctx.outputs)
-        else:
-            master_index = f"# Master Index\n\n**Topic:** {ctx.topic or 'Research'}\n"
-
-        doc_contents = {
-            "00_MASTER_INDEX": master_index,
-            "01_RESEARCH_MAP": ctx.outputs.get("research_map_md", ""),
-            "02_SOURCE_SHORTLIST": ctx.outputs.get("source_shortlist_md", ""),
-            "03_YOUTUBE_INDEX": ctx.outputs.get("youtube_index_md", ""),
-            "04_TRANSCRIPTS": generate_transcripts_md(ctx.transcripts),
-            "05_WEB_EXTRACTS": generate_web_extracts_md(ctx.web_sources),
-            "06_QUOTE_BANK": ctx.outputs.get("quote_bank_md", ""),
-            "07_CLAIMS_LEDGER": ctx.outputs.get("claims_ledger_md", ""),
-            "08_EVIDENCE_TABLE": ctx.outputs.get("evidence_table_md", ""),
-            "09_MISSING_ANGLES": ctx.outputs.get("missing_angles_md", ""),
-        }
-
-        # Add dual output documents if available
-        if ctx.outputs.get("notebooklm_packet_md"):
-            doc_contents["10_NOTEBOOKLM_PACKET"] = ctx.outputs["notebooklm_packet_md"]
-        if ctx.outputs.get("documentary_blueprint_md"):
-            doc_contents["11_DOCUMENTARY_BLUEPRINT"] = ctx.outputs["documentary_blueprint_md"]
-
-        # Add Semantic Pipeline Documents (Phase 2A: Doc 0/1/2)
-        if ctx.outputs.get("source_ledger_md"):
-            doc_contents["20_SOURCE_LEDGER"] = ctx.outputs["source_ledger_md"]
-        if ctx.outputs.get("jump_start_md"):
-            doc_contents["21_JUMP_START"] = ctx.outputs["jump_start_md"]
-        if ctx.outputs.get("semantic_brief_md"):
-            doc_contents["22_SEMANTIC_BRIEF"] = ctx.outputs["semantic_brief_md"]
-
-        # Generate new format exports
-        try:
-            export_manager = ExportManager()
-            research_data = export_manager.gather_research_data(ctx)
-
-            # Add structured exports
-            doc_contents["12_RESEARCH_DATA.json"] = export_manager.to_json(research_data)
-            doc_contents["13_CITATIONS.bib"] = export_manager.to_bibtex(research_data)
-            doc_contents["14_CHAPTERS.json"] = export_manager.to_chapters(research_data)
-            doc_contents["15_CLIPS.json"] = export_manager.to_clips(research_data)
-            doc_contents["16_SOCIAL_KIT.json"] = export_manager.to_social(research_data)
-            doc_contents["17_RESEARCH_BRIEF.md"] = export_manager.to_brief(research_data)
-
-            logger.info(f"[{ctx.job_id}] Generated 6 new export formats")
-        except Exception as e:
-            logger.warning(f"[{ctx.job_id}] Export generation failed: {e}")
-            ctx.add_warning(f"Export generation failed: {str(e)}")
-
-        # Generate folder name with optional interpretation prefix
-        # Handle cases where job_config may be None (e.g., mixed-input jobs)
-        drive_folder_name = None
-        topic = None
-        if ctx.job_config:
-            if ctx.job_config.output:
-                drive_folder_name = ctx.job_config.output.drive_folder_name
-            topic = ctx.job_config.topic
-        base_name = drive_folder_name or ctx.short_title or topic or "research_output"
-        # Clean the name for folder use (replace spaces, limit length)
-        clean_name = base_name.replace(" ", "_")[:50]
-
-        if ctx.interpretation_index is not None:
-            # Multiple interpretations: prefix with number
-            folder_name = f"{ctx.interpretation_index}_{clean_name}"
-        else:
-            folder_name = clean_name
-
-        job = get_job(ctx.job_id)
-        user_email = None
-        user_id = None
-        if job and job.config_json:
-            user_email = job.config_json.get("user_email")
-            user_id = job.config_json.get("user_id")
-
-        drive_result = create_research_packet(
-            folder_name,
-            doc_contents,
-            user_email=user_email,
-            user_id=user_id,
-        )
-        ctx.folder_url = drive_result["folder_url"]
-        ctx.doc_urls = drive_result["doc_urls"]
-
-        doc_url_list = list(ctx.doc_urls.values()) if ctx.doc_urls else []
-        update_job(
-            ctx.job_id,
-            partial_artifacts={
-                "drive_folder_url": ctx.folder_url,
-                "doc_urls": doc_url_list,
-            },
-        )
-
-        logger.info(f"[{ctx.job_id}] Created Drive folder: {ctx.folder_url}")
-
+        ctx.outputs["export_12_research_data"] = export_manager.to_json(research_data)
+        exports_generated.append("12_RESEARCH_DATA.json")
     except Exception as e:
-        logger.warning(f"[{ctx.job_id}] Drive upload failed: {e}")
-        ctx.add_warning(f"Drive upload failed: {str(e)}")
+        logger.warning(f"[{ctx.job_id}] Failed to generate 12_RESEARCH_DATA: {e}")
+        ctx.add_warning(f"Export 12_RESEARCH_DATA failed: {str(e)}")
+
+    try:
+        ctx.outputs["export_13_citations"] = export_manager.to_bibtex(research_data)
+        exports_generated.append("13_CITATIONS.bib")
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Failed to generate 13_CITATIONS: {e}")
+        ctx.add_warning(f"Export 13_CITATIONS failed: {str(e)}")
+
+    try:
+        ctx.outputs["export_14_chapters"] = export_manager.to_chapters(research_data)
+        exports_generated.append("14_CHAPTERS.json")
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Failed to generate 14_CHAPTERS: {e}")
+        ctx.add_warning(f"Export 14_CHAPTERS failed: {str(e)}")
+
+    try:
+        ctx.outputs["export_15_clips"] = export_manager.to_clips(research_data)
+        exports_generated.append("15_CLIPS.json")
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Failed to generate 15_CLIPS: {e}")
+        ctx.add_warning(f"Export 15_CLIPS failed: {str(e)}")
+
+    try:
+        ctx.outputs["export_16_social_kit"] = export_manager.to_social(research_data)
+        exports_generated.append("16_SOCIAL_KIT.json")
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Failed to generate 16_SOCIAL_KIT: {e}")
+        ctx.add_warning(f"Export 16_SOCIAL_KIT failed: {str(e)}")
+
+    try:
+        ctx.outputs["export_17_research_brief"] = export_manager.to_brief(research_data)
+        exports_generated.append("17_RESEARCH_BRIEF.md")
+    except Exception as e:
+        logger.warning(f"[{ctx.job_id}] Failed to generate 17_RESEARCH_BRIEF: {e}")
+        ctx.add_warning(f"Export 17_RESEARCH_BRIEF failed: {str(e)}")
+
+    if exports_generated:
+        logger.info(f"[{ctx.job_id}] Generated {len(exports_generated)} exports: {exports_generated}")

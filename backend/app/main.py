@@ -7,7 +7,6 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from backend.app.rate_limiter import limiter
-from backend.app.routes import router as slack_router
 from backend.app.routes import (
     settings_router,
     jobs_router,
@@ -263,7 +262,7 @@ async def get_current_user_info(user: AuthUser = Depends(get_current_user)):
 # fragile route indices.
 
 # Include routers
-app.include_router(slack_router)
+# Note: slack_router removed (2026-01-19 - Slack integration deprecated)
 app.include_router(settings_router)
 app.include_router(jobs_router)
 app.include_router(transcripts_router)

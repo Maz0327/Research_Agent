@@ -1,15 +1,19 @@
-# Database Schema Specification
+# Database Schema Reference
 
-**Document Type:** Authoritative Specification
-**Location:** `docs/authoritative/spec/Database_Schema.md`
+**Document Type:** Reference (Non-Authoritative)
+**Location:** `docs/Database_Schema.md`
 **Status:** Final
 **Last Updated:** January 13, 2026
+
+> **Note:** This is a reference document for database schema structure.
+> For authoritative specifications, see [`docs/authoritative/INDEX.md`](authoritative/INDEX.md) — the Repo Constitution.
+> If any content here conflicts with INDEX.md, **INDEX.md wins**.
 
 ---
 
 ## Overview
 
-This document defines the canonical database schema for the Research Agent system. It is the single source of truth for all database structure decisions.
+This document defines the database schema for the Research Agent system. It describes the intended table structures and relationships.
 
 ### Design Principles
 

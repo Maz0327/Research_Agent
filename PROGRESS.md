@@ -1,7 +1,7 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-19 01:55
-**Current Phase:** 10 — Documentation ✅ COMPLETE
+**Last Updated:** 2026-01-20 10:30
+**Current Phase:** POST-PHASE — Constitution Finalization ✅ COMPLETE
 **Current Task:** Maintenance & Hotfixes
 **Branch:** feature/vision-alignment-v1
 
@@ -22,7 +22,72 @@ Phase 7:   ✅ COMPLETE — Booster Pipeline
 Phase 8:   ✅ COMPLETE — Producer Packet
 Phase 9:   ✅ COMPLETE — Comprehensive Test Suite (948 tests)
 Phase 10:  ✅ COMPLETE — Documentation & Cleanup
+POST:      ✅ COMPLETE — Constitution Finalization & Legacy Cleanup
 ```
+
+---
+
+## Post-Phase: Constitution Finalization (2026-01-19 to 2026-01-20)
+
+**Status:** ✅ COMPLETE
+**Goal:** Finalize repo constitution, remove legacy code, establish single source of authority
+
+### Session 2026-01-19: Legacy Code Removal
+
+- [x] Identified legacy pipeline code not reachable by semantic-only pipeline
+- [x] Removed legacy stages: discovery.py, planning.py, youtube.py, web_capture.py
+- [x] Removed parallel_executor.py
+- [x] Removed Slack integration: slack_routes.py, slack.py
+- [x] Removed Google Drive integration: google_drive_docs.py
+- [x] Removed unused integrations: exa_client.py, perplexity_client.py, reddit_client.py, serper_client.py, tavily_client.py
+- [x] Added 410 Gone returns for deprecated endpoints
+- [x] Updated routes/__init__.py (removed slack_routes)
+- [x] Full sanity check passed (see plans/reports/sanity-check-260119-2045-full-system-audit.md)
+
+### Session 2026-01-20: Constitution Finalization
+
+- [x] Updated `docs/authoritative/INDEX.md` with all locked decisions:
+  - What IS / IS NOT the system
+  - Storage Strategy Option B
+  - Quote vs Observation policy per mode
+  - Transcript chain (Supadata→Whisper→Captions→video_only)
+  - Failure semantics
+  - Document alias mapping (Doc 0/1/2/3 ↔ 20/21/22/3)
+  - Enforcement surfaces (code file paths)
+- [x] Fixed authority claims in competing docs:
+  - Context_Handoff.md — demoted to reference, points to INDEX.md
+  - Database_Schema.md — demoted to reference, points to INDEX.md
+- [x] Created CLAUDE.md as thin pointer only (58 lines)
+- [x] Created archive folder: `docs/_archive_do_not_read/`
+- [x] Moved `Active Docs/*` to archive
+- [x] Created `.claude/rules/authority.md` with ignore rules
+- [x] Post-constitution sanity check passed (see plans/reports/sanity-check-260120-1023-post-constitution-audit.md)
+
+### Files Modified/Created (2026-01-20)
+
+**Edited:**
+- `docs/authoritative/INDEX.md` — Added 7 new sections
+- `docs/authoritative/context/Context_Handoff.md` — Demoted authority
+- `docs/Database_Schema.md` — Demoted authority
+- `CLAUDE.md` — Thin pointer only
+
+**Created:**
+- `docs/_archive_do_not_read/README.md` — LEGACY banner
+- `docs/_archive_do_not_read/*` — Archived docs from Active Docs/
+- `.claude/rules/authority.md` — Authority rules
+- `plans/reports/constitution-authority-audit-260120-0904.md`
+- `plans/reports/verification-260120-1013-constitution-finalization.md`
+- `plans/reports/sanity-check-260120-1023-post-constitution-audit.md`
+
+### Verification
+
+All acceptance tests pass:
+- ✅ Only INDEX.md claims constitution authority
+- ✅ No other doc claims "single source of truth" without deferring
+- ✅ Quote policy consistent across all 6 modes
+- ✅ Transcript chain matches locked decision
+- ✅ Archives properly excluded from agent reading
+- ✅ 410 Gone for all deprecated endpoints
 
 ---
 

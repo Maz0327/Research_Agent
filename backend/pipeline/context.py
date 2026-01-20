@@ -13,12 +13,15 @@ class PipelineContext:
     """
     Shared context passed through all pipeline stages.
 
+    Updated 2026-01-19: Legacy fields removed (Slack, discovery stages).
+    Only semantic pipeline fields are active.
+
     Holds all intermediate results and accumulates outputs/warnings.
     """
     # Input
     job_id: str
     topic: str
-    slack_payload: Optional[dict] = None
+    # NOTE: slack_payload removed (2026-01-19 - Slack integration removed)
 
     # Configuration (set in Stage 1)
     job_config: Optional[JobConfig] = None

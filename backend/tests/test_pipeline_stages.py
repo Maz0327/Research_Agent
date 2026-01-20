@@ -1,5 +1,7 @@
 """
 Unit tests for pipeline stages.
+
+Updated: 2026-01-19 - Removed Slack mocks (integration deprecated).
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
@@ -21,8 +23,7 @@ class TestInitializationStage:
     """Tests for stage_0_initialize."""
 
     @patch("backend.pipeline.stages.initialization.update_job")
-    @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_initialize_sets_job_running(self, mock_slack, mock_update, mock_context):
+    def test_initialize_sets_job_running(self, mock_update, mock_context):
         """Initialize stage should set job status to running."""
         from backend.pipeline.stages.initialization import stage_0_initialize
 
@@ -34,26 +35,13 @@ class TestInitializationStage:
         assert call_kwargs["stage"] == "initializing"
         assert call_kwargs["progress_percent"] == 0
 
-    @patch("backend.pipeline.stages.initialization.update_job")
-    @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_initialize_sends_slack_notification(self, mock_slack, mock_update, mock_context):
-        """Initialize stage should send Slack notification."""
-        from backend.pipeline.stages.initialization import stage_0_initialize
-
-        stage_0_initialize(mock_context)
-
-        mock_slack.assert_called_once()
-        call_args = mock_slack.call_args[0]
-        assert mock_context.job_id in call_args[1]
-
 
 class TestCompletionStage:
     """Tests for stage_10_completion."""
 
     @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
-    @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_completion_sets_job_completed(self, mock_slack, mock_update, mock_storage, mock_context):
+    def test_completion_sets_job_completed(self, mock_update, mock_storage, mock_context):
         """Completion stage should set job status to completed."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
@@ -72,8 +60,7 @@ class TestCompletionStage:
 
     @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
-    @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_completion_returns_result_dict(self, mock_slack, mock_update, mock_storage, mock_context):
+    def test_completion_returns_result_dict(self, mock_update, mock_storage, mock_context):
         """Completion stage should return result dictionary."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
@@ -92,9 +79,8 @@ class TestCompletionStage:
 
     @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
-    @patch("backend.pipeline.stages.initialization.post_slack_message")
-    def test_completion_handles_missing_drive_folder(self, mock_slack, mock_update, mock_storage, mock_context):
-        """Completion stage should handle missing Drive folder."""
+    def test_completion_handles_missing_drive_folder(self, mock_update, mock_storage, mock_context):
+        """Completion stage should handle missing Drive folder (legacy support)."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
         mock_context.folder_url = None
@@ -160,22 +146,6 @@ class TestPipelineContext:
         assert summary == {}
 
 
-class TestDiscoveryStages:
-    """Tests for discovery/quality gate stages."""
-
-    @patch("backend.pipeline.stages.discovery.update_job")
-    def test_quality_gate_updates_job(self, mock_update, mock_context):
-        """Quality gate should update job progress."""
-        from backend.pipeline.stages.discovery import stage_3_5_quality_gate
-
-        # Add empty sources
-        mock_context.web_sources = []
-
-        stage_3_5_quality_gate(mock_context)
-
-        # Quality gate should update job
-        mock_update.assert_called()
-
-
-# Legacy TestExtractionStages removed (D5 - 2026-01-17)
-# Stages 7-8.6 replaced by semantic pipeline
+# Note: TestDiscoveryStages removed (2026-01-19 - Legacy pipeline deprecated)
+# Discovery stages (1-6.5) have been removed from the semantic pipeline.
+# Tests for semantic pipeline stages are in test_semantic_*.py files.

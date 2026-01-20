@@ -6,10 +6,11 @@ Replaces local temp file storage for cloud-compatible deployment.
 
 Based on: Plan 260116-2336 Storage Bucket Setup
 Updated: 260117 - Added documents bucket for Doc 0/1/2/3 storage
+Updated: 260119 - Added attachments storage for exports 12-17 and PDF
 """
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 import uuid
 
 from loguru import logger
@@ -17,6 +18,22 @@ from loguru import logger
 # Bucket names
 SCREENSHOTS_BUCKET = "screenshots"
 DOCUMENTS_BUCKET = "documents"
+
+# Content type mapping for attachments
+ATTACHMENT_CONTENT_TYPES = {
+    ".json": "application/json",
+    ".bib": "application/x-bibtex",
+    ".md": "text/markdown",
+    ".pdf": "application/pdf",
+    ".txt": "text/plain",
+}
+
+
+class AttachmentUploadResult(TypedDict):
+    """Result of attachment upload."""
+    storage_path: str
+    signed_url: str
+    bucket: str
 
 
 class SupabaseStorageClient:
@@ -196,6 +213,123 @@ class SupabaseStorageClient:
         """
         content = self.download(path, bucket=self._documents_bucket)
         return json.loads(content.decode("utf-8"))
+
+    # =========================================================================
+    # Attachment Storage Methods (Exports 12-17, PDF)
+    # =========================================================================
+
+    def upload_attachment(
+        self,
+        job_id: str,
+        filename: str,
+        content: str | bytes,
+        expires_in: int = 3600,
+    ) -> AttachmentUploadResult:
+        """Upload attachment to 'documents' bucket under research/{job_id}/attachments/.
+
+        Args:
+            job_id: Job UUID
+            filename: Filename (e.g., "12_RESEARCH_DATA.json", "download.pdf")
+            content: File content as string or bytes
+            expires_in: Signed URL expiry in seconds (default 1 hour)
+
+        Returns:
+            AttachmentUploadResult with storage_path, signed_url, bucket
+
+        Raises:
+            Exception: If upload fails
+        """
+        # Build deterministic storage path
+        storage_path = f"research/{job_id}/attachments/{filename}"
+
+        # Determine content type from extension
+        ext = Path(filename).suffix.lower()
+        content_type = ATTACHMENT_CONTENT_TYPES.get(ext, "application/octet-stream")
+
+        # Convert string to bytes if needed
+        if isinstance(content, str):
+            file_bytes = content.encode("utf-8")
+        else:
+            file_bytes = content
+
+        try:
+            # Upload to documents bucket
+            self._client.storage.from_(self._documents_bucket).upload(
+                path=storage_path,
+                file=file_bytes,
+                file_options={"content-type": content_type}
+            )
+            logger.info(f"Uploaded attachment: {storage_path}")
+
+            # Generate signed URL
+            signed_url = self.get_signed_url(
+                storage_path,
+                expires_in=expires_in,
+                bucket=self._documents_bucket
+            )
+
+            return AttachmentUploadResult(
+                storage_path=storage_path,
+                signed_url=signed_url,
+                bucket=self._documents_bucket,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to upload attachment {storage_path}: {e}")
+            raise
+
+    def get_attachment_url(
+        self,
+        job_id: str,
+        filename: str,
+        expires_in: int = 3600,
+    ) -> str:
+        """Get signed URL for attachment.
+
+        Args:
+            job_id: Job UUID
+            filename: Filename (e.g., "12_RESEARCH_DATA.json")
+            expires_in: URL expiry in seconds (default 1 hour)
+
+        Returns:
+            Signed URL string
+        """
+        storage_path = f"research/{job_id}/attachments/{filename}"
+        return self.get_signed_url(storage_path, expires_in, bucket=self._documents_bucket)
+
+    def attachment_exists(self, job_id: str, filename: str) -> bool:
+        """Check if attachment exists in storage.
+
+        Args:
+            job_id: Job UUID
+            filename: Filename to check
+
+        Returns:
+            True if exists, False otherwise
+        """
+        storage_path = f"research/{job_id}/attachments/{filename}"
+        try:
+            # Try to get metadata (list with prefix)
+            result = self._client.storage.from_(self._documents_bucket).list(
+                path=f"research/{job_id}/attachments",
+                options={"search": filename}
+            )
+            return any(f.get("name") == filename for f in result)
+        except Exception:
+            return False
+
+    def download_attachment(self, job_id: str, filename: str) -> bytes:
+        """Download attachment content.
+
+        Args:
+            job_id: Job UUID
+            filename: Filename to download
+
+        Returns:
+            File content as bytes
+        """
+        storage_path = f"research/{job_id}/attachments/{filename}"
+        return self.download(storage_path, bucket=self._documents_bucket)
 
 
 # Singleton instance

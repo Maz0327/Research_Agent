@@ -2,7 +2,11 @@
 
 > **Purpose of this document**
 >
->This document is the *single authoritative source of truth* for the Research Agent project. It exists to preserve full context, intent, and decisions across chat resets and model sessions. Any assistant reading this document must treat it as binding context and must not reinterpret, simplify, or rescope unless explicitly instructed.
+> This is a **handoff/reference document** for preserving context across chat resets and model sessions.
+>
+> **For authoritative specifications, see [`docs/authoritative/INDEX.md`](../INDEX.md)** — the Repo Constitution.
+>
+> This document provides historical context and design rationale. If any content here conflicts with INDEX.md, **INDEX.md wins**.
 
 ---
 
