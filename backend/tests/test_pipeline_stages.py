@@ -45,11 +45,16 @@ class TestCompletionStage:
         """Completion stage should set job status to completed."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
-        mock_context.folder_url = "https://drive.google.com/folder/123"
-        mock_context.doc_urls = {"test": "url"}
-        mock_context.claims = [{"id": "1"}]
-        mock_context.web_sources = [{"url": "http://example.com"}]
-        mock_context.youtube_videos = []
+        # Set up source_identity_packages with source_type for youtube counting
+        mock_pkg = Mock()
+        mock_pkg.source_type = "article"
+        mock_context.source_identity_packages = [mock_pkg]
+        # Set up semantic_extractions with claims
+        mock_extraction = Mock()
+        mock_extraction.claims = [Mock(claim_id="CLM_1")]
+        mock_context.semantic_extractions = [mock_extraction]
+        # Set up empty outputs (no storage configured)
+        mock_context.outputs = {}
 
         result = stage_10_completion(mock_context)
 
@@ -58,41 +63,106 @@ class TestCompletionStage:
         assert call_kwargs["status"] == "completed"
         assert call_kwargs["progress_percent"] == 100
 
-    @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
-    def test_completion_returns_result_dict(self, mock_update, mock_storage, mock_context):
-        """Completion stage should return result dictionary."""
+    def test_completion_returns_result_dict(self, mock_update, mock_context):
+        """Completion stage should return result dictionary with doc_paths and counts."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
-        mock_context.folder_url = "https://drive.google.com/folder/123"
-        mock_context.claims = [{"id": "1"}, {"id": "2"}]
-        mock_context.web_sources = [{"url": "http://example.com"}]
-        mock_context.youtube_videos = [{"id": "vid1"}]
+        # Mock storage client that returns actual paths
+        mock_storage_client = Mock()
+        mock_storage_client.upload_document.side_effect = lambda job_id, doc_type, _: f"{job_id}/{doc_type}.json"
 
-        result = stage_10_completion(mock_context)
+        # Set up source_identity_packages with youtube source_type
+        mock_yt_pkg = Mock()
+        mock_yt_pkg.source_type = "youtube"
+        mock_yt_pkg.kind = None
+        mock_context.source_identity_packages = [mock_yt_pkg]
 
+        # Set up semantic_extractions with claims
+        mock_extraction = Mock()
+        mock_extraction.claims = [Mock(claim_id="CLM_1"), Mock(claim_id="CLM_2")]
+        mock_context.semantic_extractions = [mock_extraction]
+
+        # Set up document outputs (required for storage upload)
+        mock_context.outputs = {
+            "source_ledger": {"topic": "test"},
+            "source_ledger_md": "# Source Ledger",
+            "jump_start": {"scope_in": ["test"]},
+            "jump_start_md": "# Jump Start",
+            "semantic_brief": {"semantic_core": "test"},
+            "semantic_brief_md": "# Semantic Brief",
+        }
+
+        with patch("backend.pipeline.stages.initialization.get_storage_client", return_value=mock_storage_client):
+            result = stage_10_completion(mock_context)
+
+        # Core assertions
         assert result["job_id"] == mock_context.job_id
         assert result["status"] == "completed"
+
+        # doc_paths should have 3 entries when storage is configured
+        assert "doc_paths" in result
+        assert "doc_urls" in result
+        assert result["doc_paths"] == result["doc_urls"]
+        assert len(result["doc_paths"]) == 3
+
+        # folder_url must be documents/{job_id} when doc_paths exists
+        assert result["folder_url"] == f"documents/{mock_context.job_id}"
+
+        # Count fields must be integers
         assert result["claims_count"] == 2
         assert result["sources_count"] == 1
         assert result["youtube_videos_count"] == 1
+        assert result["warnings_count"] == 0
+
+        # Schema-aligned aliases
+        assert result["total_claims"] == result["claims_count"]
+        assert result["total_sources"] == result["sources_count"]
+        assert result["source_count"] == result["sources_count"]
+        assert result["warning_count"] == result["warnings_count"]
 
     @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
-    def test_completion_handles_missing_drive_folder(self, mock_update, mock_storage, mock_context):
-        """Completion stage should handle missing Drive folder (legacy support)."""
+    def test_completion_handles_no_storage_paths(self, mock_update, mock_storage, mock_context):
+        """Completion stage should handle missing storage paths gracefully."""
         from backend.pipeline.stages.initialization import stage_10_completion
 
-        mock_context.folder_url = None
-        mock_context.claims = []
-        mock_context.web_sources = []
-        mock_context.youtube_videos = []
+        # Empty context - no storage_paths, no extractions
+        mock_context.outputs = {}
+        mock_context.semantic_extractions = []
+        mock_context.source_identity_packages = []
 
         result = stage_10_completion(mock_context)
 
+        # folder_url is None when no doc_paths
         assert result["folder_url"] is None
-        # Should still complete without error
+        assert result["doc_paths"] == {}
+        assert result["doc_urls"] == {}
         assert result["status"] == "completed"
+
+        # Counts should be zero
+        assert result["claims_count"] == 0
+        assert result["sources_count"] == 0
+        assert result["youtube_videos_count"] == 0
+
+    @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
+    @patch("backend.pipeline.stages.initialization.update_job")
+    def test_completion_youtube_count_uses_kind_fallback(self, mock_update, mock_storage, mock_context):
+        """youtube_videos_count should check both source_type and kind attributes."""
+        from backend.pipeline.stages.initialization import stage_10_completion
+
+        # Set up source with kind="youtube" instead of source_type
+        mock_pkg = Mock()
+        mock_pkg.source_type = None
+        mock_pkg.kind = "youtube"
+        mock_context.source_identity_packages = [mock_pkg]
+        mock_context.outputs = {}
+        mock_context.semantic_extractions = []
+
+        result = stage_10_completion(mock_context)
+
+        assert result["youtube_videos_count"] == 1
+        assert result["sources_count"] == 1
 
 
 class TestPipelineContext:

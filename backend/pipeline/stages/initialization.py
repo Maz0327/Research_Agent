@@ -330,17 +330,52 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
         warnings_append=ctx.warnings,
     )
 
+    # --- Build doc_paths from artifacts_dict (already computed above) ---
+    doc_paths = {}
+    for k in ("doc_0", "doc_1", "doc_2", "doc_3"):
+        path_key = f"{k}_path"
+        if path_key in artifacts_dict:
+            doc_paths[k] = artifacts_dict[path_key]
+
+    # --- Counts (robust + schema-aligned) ---
+    semantic_extractions = getattr(ctx, "semantic_extractions", None) or []
+    source_identity_packages = getattr(ctx, "source_identity_packages", None) or []
+    warnings = getattr(ctx, "warnings", None) or []
+
+    claims_count = sum(len(getattr(e, "claims", []) or []) for e in semantic_extractions)
+    sources_count = len(source_identity_packages)
+    warnings_count = len(warnings)
+
+    youtube_videos_count = sum(
+        1 for p in source_identity_packages
+        if (getattr(p, "source_type", None) == "youtube") or (getattr(p, "kind", None) == "youtube")
+    )
+
+    # --- Return payload ---
     result = {
-        "job_id": ctx.job_id,
+        "job_id": str(ctx.job_id),
         "status": "completed",
-        "folder_url": ctx.folder_url,
-        "doc_urls": ctx.doc_urls,
-        "claims_count": len(ctx.claims),
-        "sources_count": len(ctx.web_sources),
-        "youtube_videos_count": len(ctx.youtube_videos),
-        "warnings_count": len(ctx.warnings),
-        "cost_summary": cost_summary,
-        "quality_gate_stats": ctx.quality_gate_stats,
+
+        # Path prefix (NOT a URL)
+        "folder_url": f"documents/{ctx.job_id}" if doc_paths else None,
+
+        # Paths (NOT URLs)
+        "doc_paths": doc_paths,
+
+        # Backward compatibility: keep old key but make it paths too
+        "doc_urls": doc_paths,
+
+        # Backward-compat counters
+        "claims_count": claims_count,
+        "sources_count": sources_count,
+        "youtube_videos_count": youtube_videos_count,
+        "warnings_count": warnings_count,
+
+        # Schema-aligned aliases
+        "total_claims": claims_count,
+        "total_sources": sources_count,
+        "source_count": sources_count,
+        "warning_count": warnings_count,
     }
 
     logger.info(f"Research job {ctx.job_id} completed successfully (cost: ${cost_summary.get('total_cost', 0):.4f})")
