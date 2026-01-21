@@ -14,9 +14,6 @@ pydantic-settings>=2.1.0
 # HTTP client (>=0.28.1 required for google-genai compatibility)
 httpx>=0.28.1,<1.0.0
 
-# Web scraping & browser automation
-playwright==1.40.0
-
 # Text extraction
 trafilatura==1.6.3
 python-dateutil==2.8.2

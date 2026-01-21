@@ -29,7 +29,6 @@ API_COSTS = {
     # Web capture (mostly free)
     "jina_reader": 0.0,  # Free
     "trafilatura": 0.0,  # Local
-    "playwright": 0.0,  # Local
 
     # Other APIs
     "tavily_search": 0.001,  # ~$0.001 per search
