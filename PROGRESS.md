@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-20 23:20
-**Current Phase:** POST-PHASE — Constitution Finalization ✅ COMPLETE
-**Current Task:** UI Improvements & Maintenance
+**Last Updated:** 2026-01-21 09:15
+**Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
+**Current Task:** Backend/Frontend Stability
 **Branch:** feature/vision-alignment-v1
 
 ---
@@ -20,10 +20,84 @@ Phase 5:   ✅ COMPLETE — Multi-Source Support
 Phase 6:   ✅ COMPLETE — Evolving Jobs
 Phase 7:   ✅ COMPLETE — Booster Pipeline
 Phase 8:   ✅ COMPLETE — Producer Packet
-Phase 9:   ✅ COMPLETE — Comprehensive Test Suite (948 tests)
+Phase 9:   ✅ COMPLETE — Comprehensive Test Suite (960 tests)
 Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 POST:      ✅ COMPLETE — Constitution Finalization & Legacy Cleanup
+MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 ```
+
+---
+
+## Maintenance: Bug Fixes & UI Polish (2026-01-20 to 2026-01-21)
+
+**Status:** 🔄 ONGOING
+**Goal:** Fix pipeline bugs, improve frontend UI, remove unused dependencies
+
+### Session 2026-01-20 (Evening): Document Accordion UI
+
+- [x] Created `frontend/lib/pdf-export.ts` — reusable PDF export utility
+- [x] Created `frontend/components/job-card/DocumentAccordion.tsx` — collapsible document sections
+- [x] Updated `frontend/components/job-card/JobResults.tsx` — accordion layout with action bar
+- [x] Simplified `frontend/components/job-card/JobActions.tsx` — removed duplicate buttons
+- [x] Fixed missing `onRefresh` prop in `frontend/components/JobCard.tsx`
+- [x] Frontend build passes, lint passes
+- [x] Committed: `eee8b86 feat(frontend): Replace document grid with accordion UI`
+
+### Session 2026-01-21: Backend Bug Fix & Cleanup
+
+**Bug Fixed:** `stage_10_completion` return payload was broken
+
+- [x] Identified root cause: `storage_paths` variable was overwritten with non-existent `ctx.outputs["storage_paths"]`
+- [x] Fixed `backend/pipeline/stages/initialization.py`:
+  - Now reads `doc_paths` from `artifacts_dict` (already computed)
+  - Correctly returns `folder_url`, `doc_paths`, `doc_urls` from storage
+  - Uses `semantic_extractions` for claims count
+  - Uses `source_identity_packages` for sources count
+- [x] Updated `backend/tests/test_pipeline_stages.py`:
+  - Tests now properly mock storage client
+  - Removed dead `ctx.outputs.storage_paths` test setup
+- [x] All sanity checks pass:
+  - No old patterns (`ctx.folder_url`, `ctx.doc_urls`, `ctx.claims`, `ctx.web_sources`)
+  - 10/10 pipeline stage tests pass
+  - 960/961 full test suite passes (1 expected 410 Gone failure)
+- [x] Committed: `8dce62c fix: Fix storage_paths bug in stage_10_completion`
+
+**Dependency Cleanup:**
+
+- [x] Removed Playwright from `Dockerfile` (browser deps + install step)
+- [x] Removed `playwright` from `requirements.txt`
+- [x] Removed `playwright` from `backend/pipeline/cost_tracker.py`
+- [x] Committed: `4e8c8fb chore: Remove Playwright dependency and add debug reports`
+
+### Files Modified/Created (2026-01-21)
+
+**Backend:**
+- `backend/pipeline/stages/initialization.py` — Fixed storage_paths bug
+- `backend/tests/test_pipeline_stages.py` — Updated test fixtures
+- `backend/pipeline/cost_tracker.py` — Removed playwright entry
+
+**Frontend (2026-01-20 evening):**
+- `frontend/lib/pdf-export.ts` — NEW: PDF export utility
+- `frontend/components/job-card/DocumentAccordion.tsx` — NEW: Accordion component
+- `frontend/components/job-card/JobResults.tsx` — Refactored to accordion layout
+- `frontend/components/job-card/JobActions.tsx` — Simplified
+- `frontend/components/JobCard.tsx` — Added onRefresh prop
+
+**Config:**
+- `Dockerfile` — Removed playwright browser deps
+- `requirements.txt` — Removed playwright
+
+**Reports:**
+- `plans/reports/debugger-260121-0859-job-output-and-frontend-wiring.md`
+- `plans/reports/code-reviewer-260120-2227-celery-payload-playwright-removal.md`
+
+### Verification
+
+- ✅ All old patterns removed from `stage_10_completion`
+- ✅ 10/10 pipeline stage tests pass
+- ✅ 960/961 full test suite passes
+- ✅ Frontend builds without errors
+- ✅ Pre-push hooks pass (imports, contracts, TypeScript)
 
 ---
 
