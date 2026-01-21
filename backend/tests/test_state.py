@@ -161,6 +161,100 @@ class TestValidationInJobStore:
         assert "empty" in str(exc_info.value).lower()
 
 
+class TestBoosterFieldsRegression:
+    """Regression tests for booster tracking fields in update_job.
+
+    These tests prevent the production error:
+    'update_job() got an unexpected keyword argument booster_status'
+    """
+
+    def test_update_job_signature_has_booster_fields(self):
+        """update_job interface should accept all booster tracking fields."""
+        import inspect
+        from backend.state.interface import JobStore
+
+        sig = inspect.signature(JobStore.update_job)
+        params = sig.parameters
+
+        # Required booster fields that must exist in the signature
+        required_booster_params = [
+            "booster_status",
+            "booster_started_at",
+            "booster_completed_at",
+            "booster_error",
+            "booster_progress_percent",
+        ]
+
+        for param_name in required_booster_params:
+            assert param_name in params, (
+                f"Missing booster field '{param_name}' in JobStore.update_job signature. "
+                "This will cause 'unexpected keyword argument' errors in production."
+            )
+
+    def test_module_level_update_job_has_booster_fields(self):
+        """Module-level update_job wrapper should accept booster fields."""
+        import inspect
+        from backend.state import update_job
+
+        sig = inspect.signature(update_job)
+        params = sig.parameters
+
+        required_booster_params = [
+            "booster_status",
+            "booster_started_at",
+            "booster_completed_at",
+            "booster_error",
+            "booster_progress_percent",
+        ]
+
+        for param_name in required_booster_params:
+            assert param_name in params, (
+                f"Missing booster field '{param_name}' in backend.state.update_job wrapper. "
+                "This is the root cause of the production 'unexpected keyword argument' error."
+            )
+
+    def test_in_memory_store_accepts_booster_status(self, sample_config):
+        """InMemoryJobStore.update_job should accept booster_status without TypeError."""
+        from backend.state.impl.in_memory import InMemoryJobStore
+        from datetime import datetime, timezone
+
+        store = InMemoryJobStore()
+        job = store.create_job(config_json=sample_config)
+
+        # This call should NOT raise TypeError
+        updated_job = store.update_job(
+            job.job_id,
+            booster_status="running",
+            booster_started_at=datetime.now(timezone.utc),
+            booster_progress_percent=25,
+        )
+
+        assert updated_job is not None
+        assert updated_job.booster_status == "running"
+        assert updated_job.booster_progress_percent == 25
+
+    def test_supabase_store_signature_has_booster_fields(self):
+        """SupabaseJobStore.update_job should accept booster fields."""
+        import inspect
+        from backend.state.impl.supabase_store import SupabaseJobStore
+
+        sig = inspect.signature(SupabaseJobStore.update_job)
+        params = sig.parameters
+
+        required_booster_params = [
+            "booster_status",
+            "booster_started_at",
+            "booster_completed_at",
+            "booster_error",
+            "booster_progress_percent",
+        ]
+
+        for param_name in required_booster_params:
+            assert param_name in params, (
+                f"Missing booster field '{param_name}' in SupabaseJobStore.update_job. "
+            )
+
+
 class TestJobRecordModel:
     """Tests for JobRecord model."""
 

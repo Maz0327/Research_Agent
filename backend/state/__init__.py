@@ -1,4 +1,6 @@
 """Job persistence interface and implementations."""
+from datetime import datetime
+
 from backend.models.job_record import Artifacts, JobRecord
 from backend.state.factory import get_job_store
 from backend.state.interface import JobStore
@@ -77,6 +79,12 @@ def update_job(
     warnings: list[str] | None = None,
     interpretations: list[dict] | None = None,
     selected_interpretations: list[int] | None = None,
+    # Booster tracking fields (separate from main job status)
+    booster_status: str | None = None,
+    booster_started_at: datetime | None = None,
+    booster_completed_at: datetime | None = None,
+    booster_error: str | None = None,
+    booster_progress_percent: int | None = None,
 ) -> JobRecord | None:
     """
     Update a job with partial updates.
@@ -96,6 +104,11 @@ def update_job(
         warnings: Full warnings replacement (optional)
         interpretations: Disambiguation interpretations list (optional)
         selected_interpretations: User-selected interpretation indices (optional)
+        booster_status: Booster execution status (queued/running/completed/failed)
+        booster_started_at: When booster started
+        booster_completed_at: When booster completed/failed
+        booster_error: Booster error message if failed
+        booster_progress_percent: Booster progress (0-100)
 
     Returns:
         Updated JobRecord if found, None otherwise
@@ -116,6 +129,11 @@ def update_job(
         warnings=warnings,
         interpretations=interpretations,
         selected_interpretations=selected_interpretations,
+        booster_status=booster_status,
+        booster_started_at=booster_started_at,
+        booster_completed_at=booster_completed_at,
+        booster_error=booster_error,
+        booster_progress_percent=booster_progress_percent,
     )
 
 

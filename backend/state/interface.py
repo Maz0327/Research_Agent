@@ -1,5 +1,6 @@
 """Job storage interface."""
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Optional
 
 from backend.models.job_record import Artifacts, JobRecord
@@ -74,6 +75,12 @@ class JobStore(ABC):
         warnings: Optional[list[str]] = None,
         interpretations: Optional[list[dict]] = None,
         selected_interpretations: Optional[list[int]] = None,
+        # Booster tracking fields (separate from main job status)
+        booster_status: Optional[str] = None,
+        booster_started_at: Optional[datetime] = None,
+        booster_completed_at: Optional[datetime] = None,
+        booster_error: Optional[str] = None,
+        booster_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record with partial updates.
@@ -93,6 +100,11 @@ class JobStore(ABC):
             warnings: Full warnings replacement (optional)
             interpretations: Disambiguation interpretations list (optional)
             selected_interpretations: User-selected interpretation indices (optional)
+            booster_status: Booster execution status (queued/running/completed/failed)
+            booster_started_at: When booster started
+            booster_completed_at: When booster completed/failed
+            booster_error: Booster error message if failed
+            booster_progress_percent: Booster progress (0-100)
 
         Returns:
             Updated JobRecord if found and updated, None otherwise

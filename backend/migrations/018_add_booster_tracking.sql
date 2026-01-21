@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_booster_status ON jobs(booster_status) WHERE
 
 -- Update RPC function to include booster fields
 -- Drop and recreate to include new columns
-DROP FUNCTION IF EXISTS atomic_update_job(uuid, text, text, integer, text, text, jsonb, jsonb, text[], boolean, text, timestamptz, timestamptz, text, integer);
+DROP FUNCTION IF EXISTS atomic_update_job(uuid, text, text, integer, text, text, jsonb, jsonb, jsonb, boolean);
 
 CREATE OR REPLACE FUNCTION atomic_update_job(
     p_job_id uuid,

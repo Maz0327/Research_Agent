@@ -1465,14 +1465,32 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
     else:
         job_dict = dict(job) if isinstance(job, dict) else {}
 
-    # Add sources from job record
-    if hasattr(job, "sources"):
-        job_dict["sources"] = job.sources
+    # Ensure artifacts are in job_dict for gating check
     if hasattr(job, "artifacts"):
         if hasattr(job.artifacts, "model_dump"):
-            job_dict["artifacts"] = job.artifacts.model_dump(exclude_none=True)
+            artifacts_dict = job.artifacts.model_dump(exclude_none=True)
         elif isinstance(job.artifacts, dict):
-            job_dict["artifacts"] = job.artifacts
+            artifacts_dict = job.artifacts
+        else:
+            artifacts_dict = {}
+
+        # Check if we need to fetch source_ledger from storage
+        source_ledger = artifacts_dict.get("source_ledger")
+        doc_0_path = artifacts_dict.get("doc_0_path")
+
+        if not source_ledger and doc_0_path:
+            # Fetch source_ledger from storage
+            try:
+                from backend.integrations.supabase_storage import get_storage_client
+                storage = get_storage_client()
+                if storage:
+                    doc_0_data = storage.download_document(doc_0_path)
+                    artifacts_dict["source_ledger"] = doc_0_data
+                    logger.info(f"[{job_id}] Fetched source_ledger from storage for gating")
+            except Exception as e:
+                logger.warning(f"[{job_id}] Failed to fetch source_ledger: {e}")
+
+        job_dict["artifacts"] = artifacts_dict
 
     # Verify gating requirements
     can_generate, reason = can_generate_producer_packet(job_dict)

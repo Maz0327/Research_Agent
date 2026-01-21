@@ -67,6 +67,12 @@ class InMemoryJobStore(JobStore):
         warnings: Optional[list[str]] = None,
         interpretations: Optional[list[dict]] = None,
         selected_interpretations: Optional[list[int]] = None,
+        # Booster tracking fields (separate from main job status)
+        booster_status: Optional[str] = None,
+        booster_started_at: Optional[datetime] = None,
+        booster_completed_at: Optional[datetime] = None,
+        booster_error: Optional[str] = None,
+        booster_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """Update a job record with partial updates."""
         with self._lock:
@@ -123,6 +129,18 @@ class InMemoryJobStore(JobStore):
                 for key, value in partial_artifacts.items():
                     if hasattr(job.artifacts, key) and value is not None:
                         setattr(job.artifacts, key, value)
+
+            # Booster tracking fields
+            if booster_status is not None:
+                job.booster_status = booster_status
+            if booster_started_at is not None:
+                job.booster_started_at = booster_started_at
+            if booster_completed_at is not None:
+                job.booster_completed_at = booster_completed_at
+            if booster_error is not None:
+                job.booster_error = booster_error
+            if booster_progress_percent is not None:
+                job.booster_progress_percent = booster_progress_percent
 
             logger.debug(f"Updated job {job_id} in memory")
             return job
