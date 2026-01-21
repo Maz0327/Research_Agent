@@ -185,8 +185,9 @@ class TestJobRecordModel:
         from backend.models.job_record import Artifacts
 
         artifacts = Artifacts(
-            drive_folder_url="https://drive.google.com/folders/abc",
-            doc_urls=["https://docs.google.com/document/d/xyz"],
+            doc_0_path="documents/abc/doc_0.json",
+            doc_1_path="documents/abc/doc_1.json",
+            doc_2_path="documents/abc/doc_2.json",
         )
 
         job = JobRecord(
@@ -197,9 +198,8 @@ class TestJobRecordModel:
             config_json={"topic": "Test"},
             created_at=datetime.now(timezone.utc),
             warnings=[],
-            outputs={},
             artifacts=artifacts,
         )
 
         assert job.artifacts is not None
-        assert job.artifacts.drive_folder_url == "https://drive.google.com/folders/abc"
+        assert job.artifacts.doc_0_path == "documents/abc/doc_0.json"

@@ -8,75 +8,35 @@ from pydantic import BaseModel, Field
 class Artifacts(BaseModel):
     """Artifacts associated with a job.
 
-    Updated: 2026-01-19 - Drive fields deprecated, Supabase Storage is primary.
+    Updated: 2026-01-21 - Removed all legacy/deprecated fields.
     """
     # =========================================================================
-    # DEPRECATED (2026-01-19 - Drive integration removed)
+    # SEMANTIC PIPELINE - Doc 0/1/2/3
     # =========================================================================
-    drive_folder_url: Optional[str] = Field(
-        None, description="DEPRECATED: Google Drive folder URL (Drive removed)"
-    )
-    doc_urls: Optional[list[str]] = Field(
-        None, description="DEPRECATED: List of Google Doc URLs (Drive removed)"
-    )
-
-    # =========================================================================
-    # SEMANTIC PIPELINE (Active) - Doc 0/1/2/3
-    # =========================================================================
-    # Inline document data (backward compatible with existing jobs)
+    # Inline document data (for backward compatibility with existing jobs)
     source_ledger: Optional[dict[str, Any]] = Field(None, description="Doc 0 - Source Ledger (inline)")
     jump_start: Optional[dict[str, Any]] = Field(None, description="Doc 1 - Jump-Start Directions (inline)")
     semantic_brief: Optional[dict[str, Any]] = Field(None, description="Doc 2 - Semantic Research Brief (inline)")
     semantic_extractions: Optional[list[dict[str, Any]]] = Field(None, description="Per-source extractions")
 
-    # Storage paths for new jobs (added 260117 - lazy loading support)
-    # When present, frontend fetches docs via API instead of inline data
-    doc_0_path: Optional[str] = Field(None, description="Storage path for Source Ledger (new jobs)")
-    doc_1_path: Optional[str] = Field(None, description="Storage path for Jump-Start (new jobs)")
-    doc_2_path: Optional[str] = Field(None, description="Storage path for Semantic Brief (new jobs)")
-    doc_3_path: Optional[str] = Field(None, description="Storage path for Producer Packet (new jobs)")
+    # Storage paths (lazy loading - frontend fetches via API)
+    doc_0_path: Optional[str] = Field(None, description="Storage path for Source Ledger")
+    doc_1_path: Optional[str] = Field(None, description="Storage path for Jump-Start")
+    doc_2_path: Optional[str] = Field(None, description="Storage path for Semantic Brief")
+    doc_3_path: Optional[str] = Field(None, description="Storage path for Producer Packet")
 
-    # Artifact Manifest (Option B storage strategy - 2026-01-19)
-    # Provides manifest-first UI with lazy loading for docs and attachments
+    # Artifact Manifest (Option B storage strategy)
     artifact_manifest: Optional[dict[str, Any]] = Field(
         None, description="Manifest of available artifacts with storage paths"
     )
 
-    # Booster (Phase 7)
+    # Booster (Doc 1 expansion)
     booster_output: Optional[dict[str, Any]] = Field(None, description="Booster output for Doc 1 expansion")
     booster_expansion_md: Optional[str] = Field(None, description="Booster markdown for Doc 1")
 
-    # Producer Packet (Phase 8 - Doc 3)
-    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline, legacy)")
+    # Producer Packet (Doc 3)
+    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline)")
     producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
-
-    # =========================================================================
-    # LEGACY (Deprecated per D5 - 2026-01-17)
-    # Fields preserved for backward compatibility but NOT populated by
-    # new jobs. Legacy pipeline stages (7-8.6) are completely disabled.
-    # =========================================================================
-    # Video analysis artifacts (Legacy Gemini pivot - run_gemini_video_job only)
-    clips: Optional[list[dict[str, Any]]] = Field(
-        None, description="DEPRECATED: Legacy extracted video clips (D5)"
-    )
-    quotes: Optional[list[dict[str, Any]]] = Field(
-        None, description="DEPRECATED: Legacy extracted quotes (D5)"
-    )
-    quality_gate_passed: Optional[bool] = Field(
-        None, description="DEPRECATED: Legacy ProducerPacket quality gate (D5)"
-    )
-
-    # Legacy Phase 3: Full Research Assistant Pipeline (Jan 2026)
-    # These were from the old 4-pass Gemini pipeline, now replaced by semantic pipeline
-    content_blueprints: Optional[list[dict[str, Any]]] = Field(
-        None, description="DEPRECATED: Legacy ContentBlueprint per video (D5)"
-    )
-    gap_analysis: Optional[dict[str, Any]] = Field(
-        None, description="DEPRECATED: Legacy GapAnalysis (D5)"
-    )
-    research_starter: Optional[dict[str, Any]] = Field(
-        None, description="DEPRECATED: Legacy ResearchStarter (D5)"
-    )
 
 
 class Outputs(BaseModel):
@@ -153,41 +113,11 @@ class JobRecord(BaseModel):
 
     # Configuration
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
-    manual_guidance: Optional[dict[str, Any]] = Field(None, description="Manual guidance/overrides")
-
-    # Disambiguation - DEPRECATED (2026-01-19 - Legacy pipeline removed)
-    interpretations: Optional[list[dict[str, Any]]] = Field(
-        None, description="DEPRECATED: Possible topic interpretations (legacy pipeline)"
-    )
-    selected_interpretations: Optional[list[int]] = Field(
-        None, description="DEPRECATED: Indices of user-selected interpretations (legacy)"
-    )
-
-    # Extracted data
-    timeline_events: Optional[list[dict[str, Any]]] = Field(None, description="Extracted timeline events")
-    entities: Optional[dict[str, Any]] = Field(None, description="Extracted entities (people, orgs, etc.)")
-    reddit_posts: Optional[list[dict[str, Any]]] = Field(None, description="Collected Reddit posts")
-
-    # Angle discovery
-    discovered_angles: Optional[list[dict[str, Any]]] = Field(None, description="Discovered angles/perspectives")
-    coverage_analysis: Optional[dict[str, Any]] = Field(None, description="Topic coverage analysis")
-    recommended_angle: Optional[dict[str, Any]] = Field(None, description="AI-recommended angle")
-
-    # Quality gate
-    quality_gate_stats: Optional[dict[str, Any]] = Field(None, description="Quality gate filtering stats")
 
     # Metrics
     total_sources: Optional[int] = Field(None, description="Total sources collected")
     total_claims: Optional[int] = Field(None, description="Total claims extracted")
     api_costs: Optional[dict[str, Any]] = Field(None, description="API costs per service")
-
-    # Output URLs - DEPRECATED (2026-01-19 - Drive integration removed)
-    notebooklm_packet_url: Optional[str] = Field(
-        None, description="DEPRECATED: NotebookLM packet Google Doc URL (Drive removed)"
-    )
-    documentary_blueprint_url: Optional[str] = Field(
-        None, description="DEPRECATED: Documentary blueprint Google Doc URL (Drive removed)"
-    )
 
     # Artifacts and outputs
     artifacts: Optional[Artifacts] = Field(None, description="Job artifacts")
@@ -197,23 +127,21 @@ class JobRecord(BaseModel):
         json_schema_extra = {
             "example": {
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
-                "pipeline": "investigation",
-                "created_at": "2024-01-15T10:30:00Z",
-                "status": "running",
-                "stage": "gathering_sources",
-                "progress_percent": 45,
+                "pipeline": "semantic",
+                "created_at": "2026-01-21T10:30:00Z",
+                "status": "completed",
+                "stage": "completed",
+                "progress_percent": 100,
                 "config_json": {
-                    "mode": "claims_evidence",
                     "topic": "Test topic",
+                    "sources": [],
                 },
-                "warnings": ["Some sources failed to fetch"],
+                "warnings": [],
                 "artifacts": {
-                    "drive_folder_url": "https://drive.google.com/folders/abc123",
-                    "doc_urls": [],
+                    "doc_0_path": "documents/550e8400/doc_0.json",
+                    "doc_1_path": "documents/550e8400/doc_1.json",
+                    "doc_2_path": "documents/550e8400/doc_2.json",
                 },
-                "outputs": {
-                    "research_map_md": "# Research Map\n...",
-                    "source_shortlist_md": None,
-                },
+                "outputs": {},
             }
         }

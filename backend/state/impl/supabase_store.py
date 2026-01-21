@@ -71,8 +71,14 @@ def _parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def _normalize_jsonb_field(data: Any) -> dict:
-    """Normalize JSONB field to dict, handling corrupted list/string data."""
+def _normalize_jsonb_field(data: Any, field_name: str | None = None, job_id: str | None = None) -> dict:
+    """Normalize JSONB field to dict, handling corrupted list/string data.
+
+    Args:
+        data: Raw JSONB data from database
+        field_name: Name of the field being normalized (for logging)
+        job_id: Job ID for logging context
+    """
     if data is None:
         return {}
     if isinstance(data, dict):
@@ -91,7 +97,14 @@ def _normalize_jsonb_field(data: Any) -> dict:
                         merged.update(parsed)
                 except (json.JSONDecodeError, TypeError):
                     pass
-        logger.warning(f"Normalized corrupted JSONB list to dict: {len(data)} items")
+        # Enhanced logging with field name and job_id
+        context_parts = []
+        if field_name:
+            context_parts.append(f"field={field_name}")
+        context_parts.append(f"items={len(data)}")
+        if job_id:
+            context_parts.append(f"job_id={job_id}")
+        logger.warning(f"Normalized corrupted JSONB list to dict: {' '.join(context_parts)}")
         return merged
     if isinstance(data, str):
         try:
@@ -106,43 +119,22 @@ def _normalize_jsonb_field(data: Any) -> dict:
 
 def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
     """Convert database row to JobRecord."""
+    job_id = row.get("id")
+
     # Parse artifacts (with corruption handling)
-    artifacts_data = _normalize_jsonb_field(row.get("artifacts"))
-    artifacts = Artifacts(
-        # Legacy fields (topic research)
-        drive_folder_url=artifacts_data.get("drive_folder_url"),
-        doc_urls=artifacts_data.get("doc_urls"),
-        # Video analysis fields (Jan 2026 Gemini pivot)
-        clips=artifacts_data.get("clips"),
-        quotes=artifacts_data.get("quotes"),
-        producer_packet=artifacts_data.get("producer_packet"),
-        quality_gate_passed=artifacts_data.get("quality_gate_passed"),
-        # Phase 3: Full Research Assistant Pipeline
-        content_blueprints=artifacts_data.get("content_blueprints"),
-        gap_analysis=artifacts_data.get("gap_analysis"),
-        research_starter=artifacts_data.get("research_starter"),
-    )
+    # Pass all fields from DB to Artifacts - Pydantic ignores unknown fields
+    artifacts_data = _normalize_jsonb_field(row.get("artifacts"), field_name="artifacts", job_id=job_id)
+    artifacts = Artifacts(**artifacts_data)
 
     # Parse outputs (with corruption handling)
-    outputs_data = _normalize_jsonb_field(row.get("outputs"))
-    outputs = Outputs(
-        research_map_md=outputs_data.get("research_map_md"),
-        source_shortlist_md=outputs_data.get("source_shortlist_md"),
-        youtube_index_md=outputs_data.get("youtube_index_md"),
-        quote_bank_md=outputs_data.get("quote_bank_md"),
-        claims_ledger_md=outputs_data.get("claims_ledger_md"),
-        evidence_table_md=outputs_data.get("evidence_table_md"),
-        missing_angles_md=outputs_data.get("missing_angles_md"),
-        timeline_md=outputs_data.get("timeline_md"),
-        entities_md=outputs_data.get("entities_md"),
-        reddit_discussions_md=outputs_data.get("reddit_discussions_md"),
-    )
+    outputs_data = _normalize_jsonb_field(row.get("outputs"), field_name="outputs", job_id=job_id)
+    outputs = Outputs(**outputs_data)
 
     return JobRecord(
         job_id=row["id"],
         user_id=row.get("user_id"),
         title=row.get("title"),
-        pipeline=row.get("pipeline", "investigation"),
+        pipeline=row.get("pipeline", "semantic"),
         created_at=_parse_datetime(row.get("created_at")) or datetime.now(timezone.utc),
         status=row.get("status", "queued"),
         stage=row.get("stage"),
@@ -151,10 +143,11 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
         error=row.get("error"),
         config_json=row.get("config_json") or {},
         warnings=row.get("warnings") or [],
+        total_sources=row.get("total_sources"),
+        total_claims=row.get("total_claims"),
+        api_costs=row.get("api_costs"),
         artifacts=artifacts,
         outputs=outputs,
-        interpretations=row.get("interpretations"),
-        selected_interpretations=row.get("selected_interpretations"),
     )
 
 
@@ -290,8 +283,6 @@ class SupabaseJobStore(JobStore):
         config_json: Optional[dict] = None,
         artifacts: Optional[Artifacts] = None,
         warnings: Optional[list[str]] = None,
-        interpretations: Optional[list[dict]] = None,
-        selected_interpretations: Optional[list[int]] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record in Supabase using atomic operations.
@@ -361,8 +352,6 @@ class SupabaseJobStore(JobStore):
                 config_json=config_json,
                 artifacts=artifacts,
                 warnings=warnings,
-                interpretations=interpretations,
-                selected_interpretations=selected_interpretations,
             )
 
     def _update_job_atomic(
@@ -496,8 +485,6 @@ class SupabaseJobStore(JobStore):
         config_json: Optional[dict] = None,
         artifacts: Optional[Artifacts] = None,
         warnings: Optional[list[str]] = None,
-        interpretations: Optional[list[dict]] = None,
-        selected_interpretations: Optional[list[int]] = None,
     ) -> Optional[JobRecord]:
         """Update job with simple field replacements (no merge needed)."""
         payload: dict[str, Any] = {}
@@ -519,10 +506,6 @@ class SupabaseJobStore(JobStore):
             payload["warnings"] = warnings
         if config_json is not None:
             payload["config_json"] = config_json
-        if interpretations is not None:
-            payload["interpretations"] = interpretations
-        if selected_interpretations is not None:
-            payload["selected_interpretations"] = selected_interpretations
 
         if not payload:
             return self.get_job(job_id)

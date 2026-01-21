@@ -187,40 +187,20 @@ async def export_all_formats(
 
 def _extract_research_data(job: "JobRecord") -> dict:
     """Extract research data from JobRecord for export."""
-    from backend.models.job_record import JobRecord
-
-    # Get config and outputs from JobRecord
+    # Get config from JobRecord
     config = job.config_json or {}
-    outputs = job.outputs
 
-    # Build sources list from various JobRecord fields
-    sources = []
-    if job.reddit_posts:
-        for r in job.reddit_posts:
-            if isinstance(r, dict):
-                sources.append({
-                    "url": r.get("url", ""),
-                    "title": r.get("title", ""),
-                    "type": "social",
-                    "author": r.get("author"),
-                    "published_at": r.get("created_at"),
-                    "quality_score": r.get("quality_score", 0.5),
-                })
+    # Extract sources from config if present
+    sources = config.get("sources", [])
 
     return {
         "job_id": job.job_id,
         "topic": config.get("topic", ""),
-        "mode": job.pipeline or config.get("mode", "full"),
-        "category": job.niche or config.get("category", "auto"),
+        "mode": job.pipeline or config.get("mode", "semantic"),
         "created_at": job.created_at,
-        "claims": config.get("claims", []),
-        "entities": job.entities or {},
-        "timeline_events": job.timeline_events or [],
+        "total_sources": job.total_sources or len(sources),
+        "total_claims": job.total_claims or 0,
         "sources": sources,
-        "validation_results": config.get("validation_results", []),
-        "documentary_analysis": config.get("documentary_analysis", {}),
-        "discovered_angles": job.discovered_angles or [],
-        "transcripts": config.get("transcripts", []),
     }
 
 
