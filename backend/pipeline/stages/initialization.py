@@ -7,7 +7,6 @@ from loguru import logger
 
 from backend.pipeline.context import PipelineContext
 from backend.state import get_job, update_job
-from backend.models.job_record import Artifacts
 from backend.integrations.supabase_storage import get_storage_client
 
 
@@ -317,8 +316,8 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
     # Add artifact_manifest to artifacts
     artifacts_dict["artifact_manifest"] = artifact_manifest
 
-    # Create Artifacts model (only include non-None values)
-    artifacts = Artifacts(**{k: v for k, v in artifacts_dict.items() if v is not None})
+    # Build partial_artifacts dict (filter out None values for atomic merge)
+    partial_artifacts_payload = {k: v for k, v in artifacts_dict.items() if v is not None}
 
     update_job(
         ctx.job_id,
@@ -326,7 +325,7 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
         stage="completed",
         progress_percent=100,
         partial_outputs=final_outputs,
-        artifacts=artifacts,
+        partial_artifacts=partial_artifacts_payload,
         warnings_append=ctx.warnings,
     )
 

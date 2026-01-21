@@ -329,6 +329,15 @@ class SupabaseJobStore(JobStore):
         # Check if we need atomic merge operations
         needs_atomic = bool(partial_outputs or partial_artifacts or warnings_append)
 
+        # Guard: Prevent silent data loss when artifacts= is used with atomic path
+        # The atomic path only supports partial_artifacts (merge), not artifacts (full replace)
+        if needs_atomic and artifacts is not None:
+            raise ValueError(
+                f"Invalid update_job call for job {job_id}: "
+                "artifacts= cannot be used with atomic updates (partial_outputs/partial_artifacts/warnings_append). "
+                "Use partial_artifacts= instead for atomic merge semantics."
+            )
+
         if needs_atomic:
             return self._update_job_atomic(
                 job_id=job_id,

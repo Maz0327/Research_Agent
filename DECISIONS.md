@@ -499,6 +499,37 @@ Archive structure:
 
 ---
 
+## ADR-016: Artifacts Must Use Partial Merge in Atomic Updates
+
+**Date:** 2026-01-21
+**Status:** ACCEPTED
+**Deciders:** Project Owner + Claude Code
+
+### Context
+Job completion (`stage_10_completion`) was calling `update_job()` with both `partial_outputs=` and `artifacts=`. When `partial_outputs` is set, the state layer routes to `_update_job_atomic()` which supports JSONB merges. However, `_update_job_atomic()` only accepts `partial_artifacts=` (merge semantics), not `artifacts=` (full replace). The `artifacts=` parameter was silently dropped, leaving the artifacts JSONB column empty `{}` for all production jobs.
+
+### Decision
+**When atomic update path is triggered, use `partial_artifacts=` for artifact data, never `artifacts=`.**
+
+Implementation:
+1. `stage_10_completion` now passes `partial_artifacts=artifacts_dict` instead of `artifacts=Artifacts(...)`
+2. Guard added in `SupabaseJobStore.update_job()`: if `needs_atomic=True` AND `artifacts!=None`, raise `ValueError`
+3. Tests added to prevent regression
+
+### Rationale
+1. Atomic path (`_update_job_atomic`) only accepts merge semantics via `partial_*` params
+2. Silent data loss is worse than loud failure — guard makes misuse obvious
+3. `partial_artifacts` merge is semantically correct for completion stage (additive)
+4. No behavior change for callers using `artifacts=` without atomic triggers
+
+### Consequences
+- `stage_10_completion` now correctly persists artifacts to database
+- Developers will get clear error if they misuse `artifacts=` with atomic path
+- Frontend can now discover documents via `artifacts` JSONB column
+- No migration needed — future jobs will have correct data
+
+---
+
 ## Decision Index
 
 | ADR | Title | Status |
@@ -518,6 +549,7 @@ Archive structure:
 | 013 | Quote Policy for User-Provided Content | Accepted |
 | 014 | Legacy Pipeline Removal | Accepted |
 | 015 | Constitution Finalization & Single Authority | Accepted |
+| 016 | Artifacts Must Use Partial Merge in Atomic Updates | Accepted |
 
 ---
 

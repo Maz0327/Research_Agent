@@ -63,6 +63,12 @@ class TestCompletionStage:
         assert call_kwargs["status"] == "completed"
         assert call_kwargs["progress_percent"] == 100
 
+        # CRITICAL: Verify partial_artifacts is used, NOT artifacts
+        # This prevents regression of the empty artifacts JSONB bug
+        assert "partial_artifacts" in call_kwargs, "Must use partial_artifacts for atomic path"
+        assert "artifacts" not in call_kwargs, "Must NOT use artifacts with atomic updates"
+        assert isinstance(call_kwargs["partial_artifacts"], dict)
+
     @patch("backend.pipeline.stages.initialization.update_job")
     def test_completion_returns_result_dict(self, mock_update, mock_context):
         """Completion stage should return result dictionary with doc_paths and counts."""
@@ -120,6 +126,15 @@ class TestCompletionStage:
         assert result["total_sources"] == result["sources_count"]
         assert result["source_count"] == result["sources_count"]
         assert result["warning_count"] == result["warnings_count"]
+
+        # CRITICAL: Verify partial_artifacts contains doc paths (prevents empty artifacts bug)
+        call_kwargs = mock_update.call_args[1]
+        assert "partial_artifacts" in call_kwargs, "Must use partial_artifacts for atomic path"
+        assert "artifacts" not in call_kwargs, "Must NOT use artifacts with atomic updates"
+        partial_artifacts = call_kwargs["partial_artifacts"]
+        assert "doc_0_path" in partial_artifacts, "partial_artifacts must contain doc_0_path"
+        assert "doc_1_path" in partial_artifacts, "partial_artifacts must contain doc_1_path"
+        assert "doc_2_path" in partial_artifacts, "partial_artifacts must contain doc_2_path"
 
     @patch("backend.pipeline.stages.initialization.get_storage_client", return_value=None)
     @patch("backend.pipeline.stages.initialization.update_job")
@@ -219,3 +234,48 @@ class TestPipelineContext:
 # Note: TestDiscoveryStages removed (2026-01-19 - Legacy pipeline deprecated)
 # Discovery stages (1-6.5) have been removed from the semantic pipeline.
 # Tests for semantic pipeline stages are in test_semantic_*.py files.
+
+
+class TestUpdateJobGuard:
+    """Tests for the update_job guard against artifacts + atomic path misuse."""
+
+    def test_guard_raises_when_artifacts_used_with_atomic_path(self):
+        """Guard should raise ValueError when artifacts= is combined with atomic updates."""
+        from backend.state.impl.supabase_store import SupabaseJobStore
+        from backend.models.job_record import Artifacts
+
+        store = SupabaseJobStore()
+
+        # Create a minimal Artifacts object
+        artifacts = Artifacts()
+
+        # Calling update_job with BOTH partial_outputs AND artifacts should raise
+        with pytest.raises(ValueError) as exc_info:
+            store.update_job(
+                job_id="00000000-0000-0000-0000-000000000001",
+                status="completed",
+                partial_outputs={"some": "data"},  # triggers atomic path
+                artifacts=artifacts,  # should be rejected
+            )
+
+        # Verify error message is descriptive
+        assert "artifacts= cannot be used with atomic updates" in str(exc_info.value)
+        assert "partial_artifacts=" in str(exc_info.value)
+
+    def test_guard_raises_when_artifacts_used_with_warnings_append(self):
+        """Guard should raise when artifacts= is combined with warnings_append."""
+        from backend.state.impl.supabase_store import SupabaseJobStore
+        from backend.models.job_record import Artifacts
+
+        store = SupabaseJobStore()
+        artifacts = Artifacts()
+
+        with pytest.raises(ValueError) as exc_info:
+            store.update_job(
+                job_id="00000000-0000-0000-0000-000000000002",
+                status="completed",
+                warnings_append=["some warning"],  # triggers atomic path
+                artifacts=artifacts,  # should be rejected
+            )
+
+        assert "artifacts= cannot be used with atomic updates" in str(exc_info.value)

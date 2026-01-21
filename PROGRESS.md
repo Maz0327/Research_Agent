@@ -1,6 +1,6 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-21 09:15
+**Last Updated:** 2026-01-21 10:47
 **Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
 **Current Task:** Backend/Frontend Stability
 **Branch:** feature/vision-alignment-v1
@@ -98,6 +98,36 @@ MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 - ✅ 960/961 full test suite passes
 - ✅ Frontend builds without errors
 - ✅ Pre-push hooks pass (imports, contracts, TypeScript)
+
+### Session 2026-01-21 (Late Morning): Empty Artifacts JSONB Bug Fix
+
+**Bug Fixed:** `artifacts` JSONB column remained empty `{}` despite successful storage uploads
+
+**Root Cause Analysis:**
+- `stage_10_completion` called `update_job()` with both `partial_outputs=` AND `artifacts=`
+- When `partial_outputs` is set, `needs_atomic=True` triggers atomic update path
+- `_update_job_atomic()` does NOT accept `artifacts` parameter — only `partial_artifacts`
+- The `artifacts=` argument was **silently dropped**, leaving JSONB empty
+- CSV export confirmed: `artifacts: {}` while `outputs` had data
+
+**Fix Applied:**
+- [x] Changed `stage_10_completion` to use `partial_artifacts=` instead of `artifacts=`
+- [x] Removed unused `Artifacts` import from initialization.py
+- [x] Added guard in `supabase_store.py` to prevent this class of bug:
+  - If `needs_atomic=True` AND `artifacts!=None`, raise `ValueError`
+  - Converts silent data loss into loud failure during dev/testing
+- [x] Updated tests in `test_pipeline_stages.py`:
+  - Verify `partial_artifacts` is used, NOT `artifacts`
+  - Verify `doc_0_path`, `doc_1_path`, `doc_2_path` in partial_artifacts
+  - Added `TestUpdateJobGuard` class (2 tests for guard behavior)
+- [x] All tests pass: 12/12 pipeline tests, 962/963 full suite
+
+**Files Modified:**
+- `backend/pipeline/stages/initialization.py` — Use `partial_artifacts=` instead of `artifacts=`
+- `backend/state/impl/supabase_store.py` — Added guard against artifacts+atomic misuse
+- `backend/tests/test_pipeline_stages.py` — Regression tests + guard tests
+
+**Decision:** See ADR-016 in DECISIONS.md
 
 ---
 
