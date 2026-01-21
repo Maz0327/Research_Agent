@@ -57,15 +57,37 @@ interface JobResultsProps {
   pipeline?: string;
   artifacts?: JobArtifacts;
   onRefresh?: () => void;
+  /** Booster execution status (separate from main job status) */
+  boosterStatus?: 'queued' | 'running' | 'completed' | 'failed' | null;
+  /** Booster error message if failed */
+  boosterError?: string;
+  /** Booster progress percentage (0-100) */
+  boosterProgressPercent?: number;
 }
 
-export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, artifacts, onRefresh }: JobResultsProps) {
+export function JobResults({
+  jobId,
+  status,
+  driveFolderUrl,
+  error,
+  pipeline,
+  artifacts,
+  onRefresh,
+  boosterStatus,
+  boosterError,
+  boosterProgressPercent,
+}: JobResultsProps) {
   const [isTriggeringBooster, setIsTriggeringBooster] = useState(false);
   const [isTriggeringProducer, setIsTriggeringProducer] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const triggerBooster = useJobsStore((state) => state.triggerBooster);
   const triggerProducerPacket = useJobsStore((state) => state.triggerProducerPacket);
+
+  // Booster state helpers
+  const isBoosterRunning = boosterStatus === 'running' || boosterStatus === 'queued';
+  const isBoosterCompleted = boosterStatus === 'completed';
+  const isBoosterFailed = boosterStatus === 'failed';
 
   // Handle Booster trigger
   const handleBooster = useCallback(async () => {
@@ -187,6 +209,7 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
               subtitle="What was analyzed"
               colorScheme="gray"
               inlineMarkdown={getInlineMarkdown(0)}
+              hasStoragePath={!!artifacts?.doc_0_path}
             />
           )}
 
@@ -199,6 +222,7 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
               subtitle="Where to go next"
               colorScheme="blue"
               inlineMarkdown={getInlineMarkdown(1)}
+              hasStoragePath={!!artifacts?.doc_1_path}
             />
           )}
 
@@ -211,6 +235,7 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
               subtitle="What sources reveal"
               colorScheme="purple"
               inlineMarkdown={getInlineMarkdown(2)}
+              hasStoragePath={!!artifacts?.doc_2_path}
             />
           )}
 
@@ -222,6 +247,7 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
               title="Producer Packet"
               subtitle="Creative layer output"
               colorScheme="amber"
+              hasStoragePath={!!artifacts?.doc_3_path}
             />
           )}
         </div>
@@ -257,16 +283,30 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
           {/* Deep Research (Booster) */}
           <button
             onClick={(e) => { e.stopPropagation(); handleBooster(); }}
-            disabled={!canTriggerActions || isTriggeringBooster}
+            disabled={!canTriggerActions || isTriggeringBooster || isBoosterRunning}
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-3 py-1.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isTriggeringBooster ? (
+            {(isTriggeringBooster || isBoosterRunning) ? (
               <>
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Starting...
+                {boosterStatus === 'running' ? `Running${boosterProgressPercent ? ` (${boosterProgressPercent}%)` : ''}...` : 'Starting...'}
+              </>
+            ) : isBoosterCompleted ? (
+              <>
+                <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Booster Complete
+              </>
+            ) : isBoosterFailed ? (
+              <>
+                <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-red-400">Booster Failed</span>
               </>
             ) : (
               <>
@@ -278,6 +318,15 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
             )}
           </button>
         </div>
+
+        {/* Booster Error */}
+        {isBoosterFailed && boosterError && (
+          <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
+            <p className="text-sm text-red-300">
+              <strong>Booster Error:</strong> {boosterError}
+            </p>
+          </div>
+        )}
 
         {/* Action Error */}
         {actionError && (

@@ -216,6 +216,9 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 pipeline={job.pipeline}
                 artifacts={job.artifacts}
                 onRefresh={onRefresh}
+                boosterStatus={job.booster_status}
+                boosterError={job.booster_error}
+                boosterProgressPercent={job.booster_progress_percent}
               />
 
               {/* Actions */}

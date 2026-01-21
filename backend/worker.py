@@ -1260,11 +1260,18 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
         logger.error(f"[{job_id}] Job not found")
         return {"job_id": job_id, "status": "failed", "error": "Job not found"}
 
-    # Verify job status
+    # Verify job status (main pipeline must be completed)
     job_status = job.status if hasattr(job, "status") else job.get("status")
     if job_status not in ("completed", "completed_with_warnings"):
         error_msg = f"Job must be completed to run booster. Current: {job_status}"
         logger.error(f"[{job_id}] {error_msg}")
+        return {"job_id": job_id, "status": "failed", "error": error_msg}
+
+    # Check if booster is already running (prevent duplicate runs)
+    booster_status = job.booster_status if hasattr(job, "booster_status") else None
+    if booster_status == "running":
+        error_msg = "Booster is already running for this job"
+        logger.warning(f"[{job_id}] {error_msg}")
         return {"job_id": job_id, "status": "failed", "error": error_msg}
 
     # Get artifacts
@@ -1288,8 +1295,15 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
         return {"job_id": job_id, "status": "failed", "error": error_msg}
 
     try:
-        # Update status
-        update_job(job_id, status="running_booster", stage="booster")
+        # Update booster status (DO NOT modify job.status - it must stay "completed")
+        from datetime import datetime, timezone
+        update_job(
+            job_id,
+            booster_status="running",
+            booster_started_at=datetime.now(timezone.utc),
+            booster_progress_percent=0,
+            booster_error=None,  # Clear any previous error
+        )
 
         # Generate context bundle (auto-generated, user provides nothing)
         logger.info(f"[{job_id}] Generating context bundle")
@@ -1340,14 +1354,17 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
         config = job.config_json.copy() if job.config_json else {}
         config["booster_summary"] = booster_summary
 
-        # Update job - return to completed status
+        # Update job - mark booster completed (DO NOT modify job.status)
         update_job(
             job_id,
-            status="completed",  # Return to completed status
-            stage="complete",
-            artifacts=updated_artifacts,
+            # DO NOT set status - job.status must remain "completed"
+            partial_artifacts=updated_artifacts,  # Use partial_artifacts for atomic merge
             config_json=config,
             warnings_append=warnings if warnings else None,
+            # Booster tracking
+            booster_status="completed",
+            booster_completed_at=datetime.now(timezone.utc),
+            booster_progress_percent=100,
         )
 
         logger.info(
@@ -1366,8 +1383,13 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
 
     except SoftTimeLimitExceeded:
         logger.error(f"[{job_id}] Booster timed out after 9 minutes")
-        # Restore to completed status (booster failure doesn't affect core docs)
-        update_job(job_id, status="completed", stage="complete")
+        # Mark booster failed (DO NOT modify job.status - core docs remain accessible)
+        update_job(
+            job_id,
+            booster_status="failed",
+            booster_completed_at=datetime.now(timezone.utc),
+            booster_error="Booster timed out after 9 minutes",
+        )
         return {
             "job_id": job_id,
             "status": "failed",
@@ -1376,8 +1398,13 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
 
     except Exception as e:
         logger.exception(f"[{job_id}] Booster failed: {e}")
-        # Restore to completed status (booster failure doesn't affect core docs)
-        update_job(job_id, status="completed", stage="complete")
+        # Mark booster failed (DO NOT modify job.status - core docs remain accessible)
+        update_job(
+            job_id,
+            booster_status="failed",
+            booster_completed_at=datetime.now(timezone.utc),
+            booster_error=str(e)[:500],  # Truncate long errors
+        )
         return {
             "job_id": job_id,
             "status": "failed",

@@ -1086,18 +1086,25 @@ async def run_job_booster(
     if job.user_id != user.user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Job must be completed
+    # Job must be completed (main pipeline)
     job_status = job.status if hasattr(job, "status") else job.get("status")
-    if job_status == "running_booster":
-        raise HTTPException(
-            status_code=409,
-            detail="Booster is already running for this job"
-        )
-
     if job_status not in ("completed", "completed_with_warnings"):
         raise HTTPException(
             status_code=400,
             detail=f"Job must be completed to run booster. Current status: '{job_status}'"
+        )
+
+    # Check booster status (separate from job.status)
+    booster_status = job.booster_status if hasattr(job, "booster_status") else None
+    if booster_status == "running":
+        raise HTTPException(
+            status_code=409,
+            detail="Booster is already running for this job"
+        )
+    if booster_status == "queued":
+        raise HTTPException(
+            status_code=409,
+            detail="Booster is already queued for this job"
         )
 
     # Verify required docs exist
@@ -1123,8 +1130,15 @@ async def run_job_booster(
     if booster_output:
         logger.warning(f"[{job_id}] Booster re-run requested (previous output exists)")
 
-    # Update status
-    update_job(job_id, status="running_booster", stage="booster")
+    # Update booster status (DO NOT modify job.status - it must stay "completed")
+    from datetime import datetime, timezone
+    update_job(
+        job_id,
+        booster_status="queued",
+        booster_started_at=datetime.now(timezone.utc),
+        booster_progress_percent=0,
+        booster_error=None,  # Clear any previous error
+    )
 
     # Queue booster task
     from backend.worker import run_booster_task
@@ -1147,7 +1161,8 @@ async def run_job_booster(
 
     return {
         "job_id": job_id,
-        "status": "running_booster",
+        "status": "queued",  # Return booster status, not job status
+        "booster_status": "queued",
         "message": "Deep Research Booster started. Results will append to Doc 1 (Jump-Start Directions).",
     }
 

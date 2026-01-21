@@ -18,8 +18,10 @@ export interface DocumentAccordionProps {
   title: string;
   subtitle: string;
   colorScheme: ColorScheme;
-  /** Pre-loaded inline data (legacy jobs) */
+  /** Pre-loaded inline data (legacy jobs only - not used when hasStoragePath=true) */
   inlineMarkdown?: string;
+  /** Whether a storage path exists for this document (forces API fetch over inline) */
+  hasStoragePath?: boolean;
 }
 
 // API response for lazy loading
@@ -81,6 +83,18 @@ const docNumbers: Record<DocKey, number> = {
   doc_3: 3,
 };
 
+/**
+ * Detect if markdown content is a placeholder stub (not real content).
+ * Backend writes these when storage upload succeeds to reduce payload.
+ */
+function isPlaceholderContent(content: string | null | undefined): boolean {
+  if (!content) return true;
+  return (
+    content.includes('Document Available via Cloud Storage') ||
+    content.includes('inline JSON omitted')
+  );
+}
+
 export function DocumentAccordion({
   jobId,
   docKey,
@@ -88,11 +102,21 @@ export function DocumentAccordion({
   subtitle,
   colorScheme,
   inlineMarkdown,
+  hasStoragePath = false,
 }: DocumentAccordionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [markdown, setMarkdown] = useState<string | null>(inlineMarkdown ?? null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Determine if we have real content or just a placeholder
+  const inlineIsPlaceholder = isPlaceholderContent(inlineMarkdown);
+
+  // Only use inline markdown if: (1) no storage path AND (2) not a placeholder
+  const initialMarkdown = (!hasStoragePath && !inlineIsPlaceholder) ? (inlineMarkdown ?? null) : null;
+  const [markdown, setMarkdown] = useState<string | null>(initialMarkdown);
+
+  // Track whether we need to fetch from storage
+  const needsStorageFetch = hasStoragePath || inlineIsPlaceholder;
 
   const config = colorConfig[colorScheme];
   const docNum = docNumbers[docKey];
@@ -142,10 +166,12 @@ export function DocumentAccordion({
 
     setIsExpanded(true);
 
-    // If markdown already loaded (inline or cached), don't fetch again
-    if (markdown) return;
+    // If markdown already loaded from storage or real inline, don't fetch again
+    // Exception: if we need storage fetch and haven't fetched yet, always fetch
+    if (markdown && !needsStorageFetch) return;
+    if (markdown && needsStorageFetch && !isPlaceholderContent(markdown)) return;
 
-    // Lazy load content
+    // Lazy load content from storage API
     setIsLoading(true);
     setError(null);
     try {
@@ -158,13 +184,19 @@ export function DocumentAccordion({
     }
   };
 
+  // Check if current markdown is exportable (real content, not placeholder)
+  const hasExportableContent = markdown && !isPlaceholderContent(markdown);
+
   // Handle PDF download
   const handleDownloadPdf = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!markdown) return;
+    if (!hasExportableContent) {
+      alert('Please expand the document to load it before downloading.');
+      return;
+    }
     const filename = `doc-${docNum}-${title.toLowerCase().replace(/\s+/g, '-')}`;
     try {
-      await exportToPdf(markdown, filename);
+      await exportToPdf(markdown!, filename);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to generate PDF');
     }
@@ -188,8 +220,8 @@ export function DocumentAccordion({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* PDF Download - only when content loaded */}
-          {markdown && (
+          {/* PDF Download - only when real content loaded (not placeholder) */}
+          {hasExportableContent && (
             <button
               onClick={handleDownloadPdf}
               className={`p-1.5 rounded ${config.button} transition-colors`}

@@ -148,6 +148,12 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
         api_costs=row.get("api_costs"),
         artifacts=artifacts,
         outputs=outputs,
+        # Booster tracking fields
+        booster_status=row.get("booster_status"),
+        booster_started_at=_parse_datetime(row.get("booster_started_at")),
+        booster_completed_at=_parse_datetime(row.get("booster_completed_at")),
+        booster_error=row.get("booster_error"),
+        booster_progress_percent=row.get("booster_progress_percent"),
     )
 
 
@@ -285,6 +291,12 @@ class SupabaseJobStore(JobStore):
         warnings: Optional[list[str]] = None,
         interpretations: Optional[list[dict]] = None,
         selected_interpretations: Optional[list[int]] = None,
+        # Booster tracking fields (separate from main job status)
+        booster_status: Optional[str] = None,
+        booster_started_at: Optional[datetime] = None,
+        booster_completed_at: Optional[datetime] = None,
+        booster_error: Optional[str] = None,
+        booster_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record in Supabase using atomic operations.
@@ -307,6 +319,11 @@ class SupabaseJobStore(JobStore):
             warnings: Full replacement of warnings
             interpretations: Disambiguation interpretations list (optional)
             selected_interpretations: User-selected interpretation indices (optional)
+            booster_status: Booster execution status (queued/running/completed/failed)
+            booster_started_at: When booster started
+            booster_completed_at: When booster completed/failed
+            booster_error: Booster error message if failed
+            booster_progress_percent: Booster progress (0-100)
 
         Returns:
             Updated JobRecord or None if job not found
@@ -333,7 +350,13 @@ class SupabaseJobStore(JobStore):
                 "Use partial_artifacts= instead for atomic merge semantics."
             )
 
-        if needs_atomic:
+        # Check if booster fields are being updated (route to appropriate handler)
+        has_booster_fields = any([
+            booster_status, booster_started_at, booster_completed_at,
+            booster_error, booster_progress_percent is not None
+        ])
+
+        if needs_atomic or has_booster_fields:
             return self._update_job_atomic(
                 job_id=job_id,
                 status=status,
@@ -344,6 +367,11 @@ class SupabaseJobStore(JobStore):
                 partial_outputs=partial_outputs,
                 partial_artifacts=partial_artifacts,
                 warnings_append=warnings_append,
+                booster_status=booster_status,
+                booster_started_at=booster_started_at,
+                booster_completed_at=booster_completed_at,
+                booster_error=booster_error,
+                booster_progress_percent=booster_progress_percent,
             )
         else:
             return self._update_job_simple(
@@ -372,6 +400,11 @@ class SupabaseJobStore(JobStore):
         partial_outputs: Optional[dict] = None,
         partial_artifacts: Optional[dict] = None,
         warnings_append: Optional[list[str]] = None,
+        booster_status: Optional[str] = None,
+        booster_started_at: Optional[datetime] = None,
+        booster_completed_at: Optional[datetime] = None,
+        booster_error: Optional[str] = None,
+        booster_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """Update job using atomic RPC function for JSONB merges."""
         try:
@@ -391,6 +424,12 @@ class SupabaseJobStore(JobStore):
                 "p_partial_artifacts": partial_artifacts,
                 "p_warnings_append": warnings_append,
                 "p_update_stage_timestamp": stage is not None,
+                # Booster fields
+                "p_booster_status": booster_status,
+                "p_booster_started_at": booster_started_at.isoformat() if booster_started_at else None,
+                "p_booster_completed_at": booster_completed_at.isoformat() if booster_completed_at else None,
+                "p_booster_error": booster_error,
+                "p_booster_progress_percent": booster_progress_percent,
             }
 
             logger.debug(f"Calling atomic_update_job RPC for job {job_id}")
@@ -419,6 +458,11 @@ class SupabaseJobStore(JobStore):
                 partial_outputs=partial_outputs,
                 partial_artifacts=partial_artifacts,
                 warnings_append=warnings_append,
+                booster_status=booster_status,
+                booster_started_at=booster_started_at,
+                booster_completed_at=booster_completed_at,
+                booster_error=booster_error,
+                booster_progress_percent=booster_progress_percent,
             )
 
     def _update_job_fallback(
@@ -433,6 +477,11 @@ class SupabaseJobStore(JobStore):
         partial_outputs: Optional[dict] = None,
         partial_artifacts: Optional[dict] = None,
         warnings_append: Optional[list[str]] = None,
+        booster_status: Optional[str] = None,
+        booster_started_at: Optional[datetime] = None,
+        booster_completed_at: Optional[datetime] = None,
+        booster_error: Optional[str] = None,
+        booster_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Fallback update method using READ-MERGE-WRITE pattern.
@@ -454,6 +503,18 @@ class SupabaseJobStore(JobStore):
         if stage is not None:
             payload["stage"] = stage
             payload["stage_started_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Booster fields
+        if booster_status is not None:
+            payload["booster_status"] = booster_status
+        if booster_started_at is not None:
+            payload["booster_started_at"] = booster_started_at.isoformat()
+        if booster_completed_at is not None:
+            payload["booster_completed_at"] = booster_completed_at.isoformat()
+        if booster_error is not None:
+            payload["booster_error"] = booster_error
+        if booster_progress_percent is not None:
+            payload["booster_progress_percent"] = booster_progress_percent
 
         # For merge operations, fetch current state (race condition here)
         if partial_outputs or partial_artifacts or warnings_append:

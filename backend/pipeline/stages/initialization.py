@@ -279,31 +279,11 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
     artifact_manifest = _build_artifact_manifest(ctx, storage_paths, export_results)
 
     if storage_paths:
-        # New jobs: Prefer storage paths, but include small inline stubs so UI can render
+        # New jobs: Use storage paths only, no inline placeholders.
+        # Frontend fetches real content from /jobs/{id}/documents/{doc_type} endpoint.
+        # IMPORTANT: Do NOT add placeholder markdown to inline fields - it causes
+        # the UI to display stubs instead of fetching real content from storage.
         artifacts_dict = dict(storage_paths)
-
-        # Build diagnostic stub markdown
-        warning_lines = [f"- {w}" for w in ctx.warnings[:10]] if ctx.warnings else []
-        stub_md_parts = [
-            "# Document Available via Cloud Storage",
-            "",
-            "This document is stored in Supabase Storage and will be fetched on demand.",
-            "",
-            f"- Job ID: {ctx.job_id}",
-            f"- Topic: {ctx.topic}",
-            "- Storage: path present (inline JSON omitted to reduce payload)",
-        ]
-        if warning_lines:
-            stub_md_parts.extend(["", "## Warnings (top)", *warning_lines])
-        inline_stub_md = "\n".join(stub_md_parts)
-
-        # For each stored document, add a minimal inline stub to ensure frontend can display
-        if ctx.outputs.get("source_ledger") or storage_paths.get("doc_0_path"):
-            artifacts_dict["source_ledger"] = {"data": {}, "markdown": inline_stub_md}
-        if ctx.outputs.get("jump_start") or storage_paths.get("doc_1_path"):
-            artifacts_dict["jump_start"] = {"data": {}, "markdown": inline_stub_md}
-        if ctx.outputs.get("semantic_brief") or storage_paths.get("doc_2_path"):
-            artifacts_dict["semantic_brief"] = {"data": {}, "markdown": inline_stub_md}
 
         # Still include booster/producer outputs in artifacts (small payload)
         if ctx.outputs.get("booster_output"):

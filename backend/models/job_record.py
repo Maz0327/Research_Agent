@@ -104,12 +104,20 @@ class JobRecord(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Job creation timestamp")
     stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
 
-    # Status and progress
+    # Status and progress (main pipeline)
     status: str = Field(default="queued", description="Job status (queued, running, disambiguating, completed, failed, cancelled)")
     stage: Optional[str] = Field(None, description="Current pipeline stage")
     progress_percent: int = Field(default=0, ge=0, le=100, description="Progress percentage")
     error: Optional[str] = Field(None, description="Error message if job failed")
     warnings: list[str] = Field(default_factory=list, description="List of warnings encountered")
+
+    # Booster tracking (separate from main pipeline status)
+    # IMPORTANT: Booster must NEVER modify jobs.status - these fields track booster independently
+    booster_status: Optional[str] = Field(None, description="Booster status: queued, running, completed, failed")
+    booster_started_at: Optional[datetime] = Field(None, description="When booster started")
+    booster_completed_at: Optional[datetime] = Field(None, description="When booster completed/failed")
+    booster_error: Optional[str] = Field(None, description="Booster error message if failed")
+    booster_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Booster progress (0-100)")
 
     # Configuration
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")

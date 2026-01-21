@@ -159,7 +159,7 @@ export interface Job {
   title?: string;
   /** Pipeline type (quick, full, breaking_news, investigation, profile, controversy, video_analysis) */
   pipeline: string;
-  /** Current job status */
+  /** Current job status (main pipeline) */
   status: 'queued' | 'running' | 'completed' | 'completed_with_warnings' | 'failed' | 'failed_insufficient' | 'cancelled' | 'disambiguating';
   /** Current pipeline stage name */
   stage?: string;
@@ -181,6 +181,16 @@ export interface Job {
   created_at: string;
   /** Possible interpretations when status is 'disambiguating' */
   interpretations?: Interpretation[];
+  /** Booster execution status (separate from main job status) */
+  booster_status?: 'queued' | 'running' | 'completed' | 'failed' | null;
+  /** When booster started (ISO timestamp) */
+  booster_started_at?: string;
+  /** When booster completed/failed (ISO timestamp) */
+  booster_completed_at?: string;
+  /** Booster error message if failed */
+  booster_error?: string;
+  /** Booster progress percentage (0-100) */
+  booster_progress_percent?: number;
 }
 
 /** Error from a bulk operation */
@@ -845,6 +855,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
                 warnings: data.warnings,
                 warning_count: data.warning_count,
                 interpretations: data.interpretations,
+                // Booster tracking fields
+                booster_status: data.booster_status,
+                booster_started_at: data.booster_started_at,
+                booster_completed_at: data.booster_completed_at,
+                booster_error: data.booster_error,
+                booster_progress_percent: data.booster_progress_percent,
               }
             : job
         ),

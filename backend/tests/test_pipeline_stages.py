@@ -179,6 +179,63 @@ class TestCompletionStage:
         assert result["youtube_videos_count"] == 1
         assert result["sources_count"] == 1
 
+    @patch("backend.pipeline.stages.initialization.update_job")
+    def test_completion_no_placeholder_markdown_when_storage_exists(self, mock_update, mock_context):
+        """
+        CRITICAL: When storage paths exist, do NOT write placeholder markdown to inline fields.
+
+        Placeholder markdown (e.g., "Document Available via Cloud Storage") causes the
+        frontend to display stubs instead of fetching real content from storage.
+        """
+        from backend.pipeline.stages.initialization import stage_10_completion
+
+        # Mock storage client that returns actual paths
+        mock_storage_client = Mock()
+        mock_storage_client.upload_document.side_effect = lambda job_id, doc_type, _: f"{job_id}/{doc_type}.json"
+
+        # Set up document outputs (required for storage upload)
+        mock_context.outputs = {
+            "source_ledger": {"topic": "test"},
+            "source_ledger_md": "# Real Source Ledger Content",
+            "jump_start": {"scope_in": ["test"]},
+            "jump_start_md": "# Real Jump Start Content",
+            "semantic_brief": {"semantic_core": "test"},
+            "semantic_brief_md": "# Real Semantic Brief Content",
+        }
+        mock_context.semantic_extractions = []
+        mock_context.source_identity_packages = []
+
+        with patch("backend.pipeline.stages.initialization.get_storage_client", return_value=mock_storage_client):
+            stage_10_completion(mock_context)
+
+        # Get the partial_artifacts that was passed to update_job
+        call_kwargs = mock_update.call_args[1]
+        partial_artifacts = call_kwargs["partial_artifacts"]
+
+        # CRITICAL: Storage paths MUST be present
+        assert "doc_0_path" in partial_artifacts
+        assert "doc_1_path" in partial_artifacts
+        assert "doc_2_path" in partial_artifacts
+
+        # CRITICAL: Inline fields MUST NOT contain placeholder markdown
+        # These fields should NOT be in partial_artifacts when storage paths exist
+        if "source_ledger" in partial_artifacts:
+            inline_md = partial_artifacts["source_ledger"].get("markdown", "")
+            assert "Document Available via Cloud Storage" not in inline_md, \
+                "source_ledger must NOT contain placeholder markdown"
+            assert "inline JSON omitted" not in inline_md, \
+                "source_ledger must NOT contain stub text"
+
+        if "jump_start" in partial_artifacts:
+            inline_md = partial_artifacts["jump_start"].get("markdown", "")
+            assert "Document Available via Cloud Storage" not in inline_md, \
+                "jump_start must NOT contain placeholder markdown"
+
+        if "semantic_brief" in partial_artifacts:
+            inline_md = partial_artifacts["semantic_brief"].get("markdown", "")
+            assert "Document Available via Cloud Storage" not in inline_md, \
+                "semantic_brief must NOT contain placeholder markdown"
+
 
 class TestPipelineContext:
     """Tests for PipelineContext dataclass."""
