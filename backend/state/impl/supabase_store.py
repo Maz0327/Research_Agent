@@ -283,6 +283,8 @@ class SupabaseJobStore(JobStore):
         config_json: Optional[dict] = None,
         artifacts: Optional[Artifacts] = None,
         warnings: Optional[list[str]] = None,
+        interpretations: Optional[list[dict]] = None,
+        selected_interpretations: Optional[list[int]] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record in Supabase using atomic operations.
@@ -303,6 +305,8 @@ class SupabaseJobStore(JobStore):
             config_json: Full replacement of config_json
             artifacts: Full replacement of artifacts
             warnings: Full replacement of warnings
+            interpretations: Disambiguation interpretations list (optional)
+            selected_interpretations: User-selected interpretation indices (optional)
 
         Returns:
             Updated JobRecord or None if job not found
@@ -352,6 +356,8 @@ class SupabaseJobStore(JobStore):
                 config_json=config_json,
                 artifacts=artifacts,
                 warnings=warnings,
+                interpretations=interpretations,
+                selected_interpretations=selected_interpretations,
             )
 
     def _update_job_atomic(
@@ -485,6 +491,8 @@ class SupabaseJobStore(JobStore):
         config_json: Optional[dict] = None,
         artifacts: Optional[Artifacts] = None,
         warnings: Optional[list[str]] = None,
+        interpretations: Optional[list[dict]] = None,
+        selected_interpretations: Optional[list[int]] = None,
     ) -> Optional[JobRecord]:
         """Update job with simple field replacements (no merge needed)."""
         payload: dict[str, Any] = {}
@@ -506,6 +514,10 @@ class SupabaseJobStore(JobStore):
             payload["warnings"] = warnings
         if config_json is not None:
             payload["config_json"] = config_json
+        if interpretations is not None:
+            payload["interpretations"] = interpretations
+        if selected_interpretations is not None:
+            payload["selected_interpretations"] = selected_interpretations
 
         if not payload:
             return self.get_job(job_id)
