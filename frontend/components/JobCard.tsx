@@ -215,6 +215,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 error={job.error}
                 pipeline={job.pipeline}
                 artifacts={job.artifacts}
+                onRefresh={onRefresh}
               />
 
               {/* Actions */}

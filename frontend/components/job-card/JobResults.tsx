@@ -1,21 +1,20 @@
 /**
  * Job results display component for completed/failed/cancelled jobs.
- * Displays semantic pipeline outputs (Doc 0/1/2) for all job types.
+ * Displays semantic pipeline outputs (Doc 0/1/2/3) as collapsible accordions.
  *
  * Document Outputs:
  * - Doc 0: Source Ledger (what was analyzed)
  * - Doc 1: Jump-Start Directions (where to go next)
  * - Doc 2: Semantic Brief (what sources reveal)
+ * - Doc 3: Producer Packet (optional, creative layer)
  *
  * Supports both inline data (legacy) and storage paths (new jobs with lazy loading).
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { JobStatus } from './job-card-config';
 import { ExportButton } from './ExportButton';
-import { DocumentCard } from './DocumentCard';
-import { DocumentViewerModal } from './DocumentViewerModal';
-import { authFetch, parseJsonResponse } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/supabase';
+import { DocumentAccordion } from './DocumentAccordion';
+import { useJobsStore } from '../../store/jobs';
 
 // Document output structure from backend
 interface DocumentOutput {
@@ -57,188 +56,46 @@ interface JobResultsProps {
   error?: string;
   pipeline?: string;
   artifacts?: JobArtifacts;
+  onRefresh?: () => void;
 }
 
-/**
- * Extract stats from document data for display on DocumentCard.
- */
-function getDocStats(data: Record<string, unknown>, docNumber: 0 | 1 | 2): { label: string; value: number | string }[] {
-  const stats: { label: string; value: number | string }[] = [];
+export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, artifacts, onRefresh }: JobResultsProps) {
+  const [isTriggeringBooster, setIsTriggeringBooster] = useState(false);
+  const [isTriggeringProducer, setIsTriggeringProducer] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  if (docNumber === 0) {
-    // Source Ledger stats
-    const sources = Array.isArray(data.sources) ? data.sources.length : 0;
-    const rawDuration = data.total_duration ?? data.totalDuration;
-    const duration = typeof rawDuration === 'number' ? `${Math.round(rawDuration / 60)}m` : '-';
-    stats.push({ label: 'Sources', value: sources });
-    stats.push({ label: 'Duration', value: duration });
-  } else if (docNumber === 1) {
-    // Jump-Start stats
-    const directions = Array.isArray(data.directions) ? data.directions.length : 0;
-    const queriesData = data.search_queries ?? data.searchQueries;
-    const queries = Array.isArray(queriesData) ? queriesData.length : 0;
-    stats.push({ label: 'Directions', value: directions });
-    stats.push({ label: 'Queries', value: queries });
-  } else if (docNumber === 2) {
-    // Semantic Brief stats
-    const keyPointsData = data.key_points ?? data.keyPoints;
-    const keyPoints = Array.isArray(keyPointsData) ? keyPointsData.length : 0;
-    const themes = Array.isArray(data.themes) ? data.themes.length : 0;
-    const claims = Array.isArray(data.claims) ? data.claims.length : 0;
-    stats.push({ label: 'Key Points', value: keyPoints });
-    stats.push({ label: 'Themes', value: themes });
-    if (claims > 0) stats.push({ label: 'Claims', value: claims });
-  }
+  const triggerBooster = useJobsStore((state) => state.triggerBooster);
+  const triggerProducerPacket = useJobsStore((state) => state.triggerProducerPacket);
 
-  return stats;
-}
-
-// Document viewer state
-interface ViewerState {
-  isOpen: boolean;
-  docNumber: 0 | 1 | 2;
-  title: string;
-  markdown?: string;
-  data: Record<string, unknown>;
-}
-
-// API response for lazy loading
-interface DocumentApiResponse {
-  url?: string;
-  expires_in?: number;
-  data?: Record<string, unknown>;
-  markdown?: string;
-}
-
-export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, artifacts }: JobResultsProps) {
-  const [viewer, setViewer] = useState<ViewerState>({
-    isOpen: false,
-    docNumber: 0,
-    title: '',
-    data: {},
-  });
-
-  // Cache for lazy-loaded documents
-  const [loadedDocs, setLoadedDocs] = useState<Record<string, DocumentOutput>>({});
-  const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Check if job uses storage (new jobs) vs inline data (legacy)
-  const usesStorage = !!(artifacts?.doc_0_path || artifacts?.doc_1_path || artifacts?.doc_2_path);
-
-  // Fetch document from API (for storage-based jobs)
-  const fetchDocument = useCallback(async (docType: string): Promise<DocumentOutput | null> => {
-    // Clear previous error when fetching new document
-    setLoadError(null);
-
+  // Handle Booster trigger
+  const handleBooster = useCallback(async () => {
+    if (isTriggeringBooster) return;
+    setIsTriggeringBooster(true);
+    setActionError(null);
     try {
-      const token = await getAccessToken();
-      const response = await authFetch(`/jobs/${jobId}/documents/${docType}`, token);
-      const result = await parseJsonResponse<DocumentApiResponse>(response);
-
-      // If we got a signed URL, fetch the actual content with timeout
-      if (result.url) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        try {
-          const contentResponse = await fetch(result.url, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          if (!contentResponse.ok) {
-            throw new Error(`Failed to fetch document from storage: ${contentResponse.status}`);
-          }
-          const content = await contentResponse.json();
-          return {
-            data: content.data || content,
-            markdown: content.markdown,
-          };
-        } catch (err) {
-          clearTimeout(timeoutId);
-          if (err instanceof Error && err.name === 'AbortError') {
-            throw new Error('Document fetch timed out. Please try again.');
-          }
-          throw err;
-        }
-      }
-
-      // Direct inline data response (fallback)
-      if (result.data) {
-        return {
-          data: result.data,
-          markdown: result.markdown,
-        };
-      }
-
-      return null;
+      await triggerBooster(jobId);
+      onRefresh?.();
     } catch (err) {
-      console.error(`Failed to fetch ${docType}:`, err);
-      throw err;
-    }
-  }, [jobId]);
-
-  // Open document viewer - lazy loads if needed
-  const openDocument = useCallback(async (
-    docNumber: 0 | 1 | 2,
-    title: string,
-    inlineDoc?: DocumentOutput
-  ) => {
-    const docType = `doc_${docNumber}`;
-
-    // If inline data provided (legacy), use it directly
-    if (inlineDoc) {
-      setViewer({
-        isOpen: true,
-        docNumber,
-        title,
-        markdown: inlineDoc.markdown,
-        data: inlineDoc.data,
-      });
-      return;
-    }
-
-    // Check cache first
-    const cached = loadedDocs[docType];
-    if (cached) {
-      setViewer({
-        isOpen: true,
-        docNumber,
-        title,
-        markdown: cached.markdown,
-        data: cached.data,
-      });
-      return;
-    }
-
-    // Lazy load from API
-    setLoadingDoc(docType);
-    setLoadError(null);
-
-    try {
-      const doc = await fetchDocument(docType);
-      if (doc) {
-        // Cache the loaded document
-        setLoadedDocs(prev => ({ ...prev, [docType]: doc }));
-        setViewer({
-          isOpen: true,
-          docNumber,
-          title,
-          markdown: doc.markdown,
-          data: doc.data,
-        });
-      } else {
-        setLoadError(`Document ${docType} not found`);
-      }
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Failed to load document');
+      setActionError(err instanceof Error ? err.message : 'Failed to trigger deep research');
     } finally {
-      setLoadingDoc(null);
+      setIsTriggeringBooster(false);
     }
-  }, [fetchDocument, loadedDocs]);
+  }, [jobId, isTriggeringBooster, triggerBooster, onRefresh]);
 
-  // Close document viewer
-  const closeViewer = () => {
-    setViewer(prev => ({ ...prev, isOpen: false }));
-    setLoadError(null);
-  };
+  // Handle Producer Packet trigger
+  const handleProducerPacket = useCallback(async () => {
+    if (isTriggeringProducer) return;
+    setIsTriggeringProducer(true);
+    setActionError(null);
+    try {
+      await triggerProducerPacket(jobId);
+      onRefresh?.();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to generate producer packet');
+    } finally {
+      setIsTriggeringProducer(false);
+    }
+  }, [jobId, isTriggeringProducer, triggerProducerPacket, onRefresh]);
 
   // Error state
   if (status === 'failed' && error) {
@@ -267,40 +124,32 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
   const hasStorageDocuments = artifacts?.doc_0_path || artifacts?.doc_1_path || artifacts?.doc_2_path;
   const hasDocuments = hasInlineDocuments || hasStorageDocuments;
 
-  if (isCompleted && hasDocuments) {
-    // Helper to get document data - from cache, inline, or placeholder
-    const getDocData = (docNumber: 0 | 1 | 2) => {
-      const docType = `doc_${docNumber}`;
-      const cached = loadedDocs[docType];
-      if (cached) return cached;
+  // Check if Doc 3 exists
+  const hasDoc3 = !!(artifacts?.doc_3_path || artifacts?.producer_packet);
 
-      // Inline data mapping
+  // Check if actions can be triggered (only when job is fully completed)
+  const canTriggerActions = status === 'completed' || status === 'completed_with_warnings';
+
+  if (isCompleted && hasDocuments) {
+    // Get inline markdown if available (legacy jobs)
+    const getInlineMarkdown = (docNum: 0 | 1 | 2): string | undefined => {
       const inlineMap: Record<number, DocumentOutput | undefined> = {
         0: artifacts?.source_ledger,
         1: artifacts?.jump_start,
         2: artifacts?.semantic_brief,
       };
-      return inlineMap[docNumber];
+      return inlineMap[docNum]?.markdown;
     };
 
-    // Check if document is available (inline or cached)
-    const hasDoc = (docNumber: 0 | 1 | 2) => {
-      const inlineMap: Record<number, boolean> = {
+    // Check if document is available (inline or storage path)
+    const hasDoc = (docNum: 0 | 1 | 2 | 3): boolean => {
+      const availabilityMap: Record<number, boolean> = {
         0: !!(artifacts?.source_ledger || artifacts?.doc_0_path),
         1: !!(artifacts?.jump_start || artifacts?.doc_1_path),
         2: !!(artifacts?.semantic_brief || artifacts?.doc_2_path),
+        3: hasDoc3,
       };
-      return inlineMap[docNumber];
-    };
-
-    // Get inline document if available
-    const getInlineDoc = (docNumber: 0 | 1 | 2): DocumentOutput | undefined => {
-      const inlineMap: Record<number, DocumentOutput | undefined> = {
-        0: artifacts?.source_ledger,
-        1: artifacts?.jump_start,
-        2: artifacts?.semantic_brief,
-      };
-      return inlineMap[docNumber];
+      return availabilityMap[docNum];
     };
 
     return (
@@ -325,68 +174,117 @@ export function JobResults({ jobId, status, driveFolderUrl, error, pipeline, art
           </div>
         </div>
 
-        {/* Loading Error */}
-        {loadError && (
-          <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
-            <p className="text-sm text-red-300">{loadError}</p>
-          </div>
-        )}
-
-        {/* Document Cards - Doc 0/1/2 */}
-        <div className="space-y-3">
+        {/* Document Accordions */}
+        <div className="space-y-2">
           <h3 className="text-sm font-medium text-gray-400">Research Documents</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {hasDoc(0) && (
-              <DocumentCard
-                docNumber={0}
-                title="Source Ledger"
-                subtitle="What was analyzed"
-                stats={getDocData(0) ? getDocStats(getDocData(0)!.data, 0) : []}
-                data={getDocData(0)?.data || {}}
-                markdown={getDocData(0)?.markdown}
-                onView={() => openDocument(0, 'Source Ledger', getInlineDoc(0))}
-                isLoading={loadingDoc === 'doc_0'}
-                usesLazyLoading={!getInlineDoc(0) && !!artifacts?.doc_0_path}
-              />
-            )}
-            {hasDoc(1) && (
-              <DocumentCard
-                docNumber={1}
-                title="Jump-Start"
-                subtitle="Where to go next"
-                stats={getDocData(1) ? getDocStats(getDocData(1)!.data, 1) : []}
-                data={getDocData(1)?.data || {}}
-                markdown={getDocData(1)?.markdown}
-                onView={() => openDocument(1, 'Jump-Start Directions', getInlineDoc(1))}
-                isLoading={loadingDoc === 'doc_1'}
-                usesLazyLoading={!getInlineDoc(1) && !!artifacts?.doc_1_path}
-              />
-            )}
-            {hasDoc(2) && (
-              <DocumentCard
-                docNumber={2}
-                title="Semantic Brief"
-                subtitle="What sources reveal"
-                stats={getDocData(2) ? getDocStats(getDocData(2)!.data, 2) : []}
-                data={getDocData(2)?.data || {}}
-                markdown={getDocData(2)?.markdown}
-                onView={() => openDocument(2, 'Semantic Brief', getInlineDoc(2))}
-                isLoading={loadingDoc === 'doc_2'}
-                usesLazyLoading={!getInlineDoc(2) && !!artifacts?.doc_2_path}
-              />
-            )}
-          </div>
+
+          {/* Doc 0 - Source Ledger */}
+          {hasDoc(0) && (
+            <DocumentAccordion
+              jobId={jobId}
+              docKey="doc_0"
+              title="Source Ledger"
+              subtitle="What was analyzed"
+              colorScheme="gray"
+              inlineMarkdown={getInlineMarkdown(0)}
+            />
+          )}
+
+          {/* Doc 1 - Jump-Start */}
+          {hasDoc(1) && (
+            <DocumentAccordion
+              jobId={jobId}
+              docKey="doc_1"
+              title="Jump-Start"
+              subtitle="Where to go next"
+              colorScheme="blue"
+              inlineMarkdown={getInlineMarkdown(1)}
+            />
+          )}
+
+          {/* Doc 2 - Semantic Brief */}
+          {hasDoc(2) && (
+            <DocumentAccordion
+              jobId={jobId}
+              docKey="doc_2"
+              title="Semantic Brief"
+              subtitle="What sources reveal"
+              colorScheme="purple"
+              inlineMarkdown={getInlineMarkdown(2)}
+            />
+          )}
+
+          {/* Doc 3 - Producer Packet (conditional) */}
+          {hasDoc3 && (
+            <DocumentAccordion
+              jobId={jobId}
+              docKey="doc_3"
+              title="Producer Packet"
+              subtitle="Creative layer output"
+              colorScheme="amber"
+            />
+          )}
         </div>
 
-        {/* Document Viewer Modal */}
-        <DocumentViewerModal
-          isOpen={viewer.isOpen}
-          onClose={closeViewer}
-          docNumber={viewer.docNumber}
-          title={viewer.title}
-          markdown={viewer.markdown}
-          data={viewer.data}
-        />
+        {/* Action Bar */}
+        <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-700">
+          {/* Generate Producer Packet - only if Doc 3 doesn't exist */}
+          {!hasDoc3 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleProducerPacket(); }}
+              disabled={!canTriggerActions || isTriggeringProducer}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600/20 border border-amber-600/30 px-3 py-1.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isTriggeringProducer ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  Generate Producer Packet
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Deep Research (Booster) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleBooster(); }}
+            disabled={!canTriggerActions || isTriggeringBooster}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-3 py-1.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isTriggeringBooster ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Starting...
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Deep Research
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Action Error */}
+        {actionError && (
+          <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
+            <p className="text-sm text-red-300">{actionError}</p>
+          </div>
+        )}
       </div>
     );
   }

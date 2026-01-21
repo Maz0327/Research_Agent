@@ -1,5 +1,6 @@
 /**
- * Job action buttons component (cancel, delete, archive, view results, booster, producer packet).
+ * Job action buttons component (cancel, delete, archive, view results).
+ * Booster and Producer Packet buttons moved to JobResults action bar.
  */
 import { useState, useCallback, useEffect } from 'react';
 import { JobStatus } from './job-card-config';
@@ -18,23 +19,17 @@ export function JobActions({
   jobId,
   status,
   driveFolderUrl,
-  pipeline,
-  hasDocuments,
   onRefresh,
 }: JobActionsProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
-  const [isTriggeringBooster, setIsTriggeringBooster] = useState(false);
-  const [isTriggeringProducer, setIsTriggeringProducer] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const cancelJob = useJobsStore((state) => state.cancelJob);
   const deleteJob = useJobsStore((state) => state.deleteJob);
   const archiveJob = useJobsStore((state) => state.archiveJob);
-  const triggerBooster = useJobsStore((state) => state.triggerBooster);
-  const triggerProducerPacket = useJobsStore((state) => state.triggerProducerPacket);
 
   // Auto-dismiss action errors after 5 seconds
   useEffect(() => {
@@ -85,39 +80,9 @@ export function JobActions({
     }
   }, [jobId, isArchiving, archiveJob]);
 
-  const handleBooster = useCallback(async () => {
-    if (isTriggeringBooster) return;
-    setIsTriggeringBooster(true);
-    setActionError(null);
-    try {
-      await triggerBooster(jobId);
-      onRefresh?.();
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Failed to trigger deep research');
-    } finally {
-      setIsTriggeringBooster(false);
-    }
-  }, [jobId, isTriggeringBooster, triggerBooster, onRefresh]);
-
-  const handleProducerPacket = useCallback(async () => {
-    if (isTriggeringProducer) return;
-    setIsTriggeringProducer(true);
-    setActionError(null);
-    try {
-      await triggerProducerPacket(jobId);
-      onRefresh?.();
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Failed to generate producer packet');
-    } finally {
-      setIsTriggeringProducer(false);
-    }
-  }, [jobId, isTriggeringProducer, triggerProducerPacket, onRefresh]);
-
   const canCancel = status === 'running' || status === 'queued';
   const canDeleteOrArchive = !canCancel; // Can delete/archive when not running
   const hasResults = (status === 'completed' || status === 'completed_with_warnings') && driveFolderUrl;
-  // Can trigger booster/producer packet for completed jobs with semantic documents
-  const canEnhance = (status === 'completed' || status === 'completed_with_warnings') && hasDocuments;
 
   return (
     <div className="space-y-3 pt-2">
@@ -221,58 +186,6 @@ export function JobActions({
             </svg>
             View Results
           </a>
-        )}
-
-        {/* Deep Research button - for completed jobs with semantic docs */}
-        {canEnhance && (
-          <button
-            onClick={(e) => { e.stopPropagation(); handleBooster(); }}
-            disabled={isTriggeringBooster}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-3 py-1.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isTriggeringBooster ? (
-              <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Starting...
-              </>
-            ) : (
-              <>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Deep Research
-              </>
-            )}
-          </button>
-        )}
-
-        {/* Producer Packet button - for completed jobs with semantic docs */}
-        {canEnhance && (
-          <button
-            onClick={(e) => { e.stopPropagation(); handleProducerPacket(); }}
-            disabled={isTriggeringProducer}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600/20 border border-amber-600/30 px-3 py-1.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isTriggeringProducer ? (
-              <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-                Producer Packet
-              </>
-            )}
-          </button>
         )}
       </div>
 
