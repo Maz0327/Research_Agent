@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-20 10:30
+**Last Updated:** 2026-01-20 23:20
 **Current Phase:** POST-PHASE — Constitution Finalization ✅ COMPLETE
-**Current Task:** Maintenance & Hotfixes
+**Current Task:** UI Improvements & Maintenance
 **Branch:** feature/vision-alignment-v1
 
 ---
@@ -699,7 +699,42 @@ All acceptance tests pass:
 
 ## Current Session
 
-**Date:** 2026-01-19
+**Date:** 2026-01-20
+**Tasks Planned:**
+- Document Accordion UI Implementation
+
+**Tasks Completed:**
+- ✅ Created PDF export utility (`frontend/lib/pdf-export.ts`)
+- ✅ Created DocumentAccordion component with lazy loading
+- ✅ Refactored JobResults to use accordion stack layout
+- ✅ Moved Booster/Producer Packet buttons from JobActions to JobResults
+- ✅ Added conditional Doc 3 accordion rendering
+- ✅ Added button disabled state for incomplete jobs
+
+### Files Created (Frontend)
+- `frontend/lib/pdf-export.ts` — Reusable PDF export utility
+- `frontend/components/job-card/DocumentAccordion.tsx` — Collapsible document accordion
+
+### Files Modified (Frontend)
+- `frontend/components/job-card/JobResults.tsx` — Accordion stack, action bar, Doc 3 conditional
+- `frontend/components/job-card/JobActions.tsx` — Removed Booster/Producer buttons (moved to JobResults)
+- `frontend/components/JobCard.tsx` — Pass onRefresh to JobResults
+
+### Key Features
+- Documents load only when accordion expanded (lazy loading)
+- Per-document PDF download button
+- Framer Motion animations for smooth expand/collapse
+- Doc 3 appears only when it exists
+- Action buttons disabled until job status is completed
+- Color scheme preserved: gray (Doc 0), blue (Doc 1), purple (Doc 2), amber (Doc 3)
+
+### Commits
+- `eee8b86` — feat(frontend): Replace document grid with accordion UI
+
+---
+
+## Session: 2026-01-19
+
 **Tasks Planned:**
 - Frontend-backend alignment fixes
 - Railway build fixes
