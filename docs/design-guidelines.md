@@ -1,8 +1,10 @@
-# Research Agent Design Guidelines
+# Design Guidelines (Convenience Summary)
+
+> **Authoritative spec lives at `docs/authoritative/INDEX.md`.**
+> This document is a **non-authoritative convenience summary** for UI/UX patterns only.
 
 **Version**: 1.0.0
 **Last Updated**: 2025-12-26
-**Maintainer**: UI/UX Designer
 
 ---
 

@@ -1,271 +1,152 @@
-# System Architecture
+# Architecture (Convenience Summary)
 
-**Last Updated:** January 15, 2026
-**Status:** Production + Semantic Pipeline Complete (Phase 2)
+> **Authoritative spec lives at `docs/authoritative/INDEX.md`.**
+> This document is a **non-authoritative convenience summary**. If anything conflicts with the authoritative spec, **the authoritative spec wins**.
 
-## Overview
+---
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Frontend  │────▶│   FastAPI   │────▶│   Celery    │
-│   (Vercel)  │◀────│   (Railway) │◀────│   Worker    │
-└─────────────┘     └─────────────┘     └─────────────┘
-                           │                    │
-                           ▼                    ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │  Supabase   │     │    Redis    │
-                    │   (Jobs)    │     │   (Queue)   │
-                    └─────────────┘     └─────────────┘
-```
+## 1) High-level system overview
 
-## Components
+This repo contains a semantic-only research system with:
+- **FastAPI API service** (request handling, job state, read endpoints)
+- **Celery worker** (long-running pipeline execution)
+- **Supabase Postgres** (job records, config, artifacts)
+- **Supabase Storage** (uploads and generated exports)
 
-### FastAPI API (`backend/app/main.py`)
-- REST endpoints for job CRUD
-- Authentication via Supabase JWT
-- Rate limiting via slowapi
+There is exactly one reachable pipeline: **semantic pipeline**.
 
-#### API Endpoints
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/jobs` | List user's jobs |
-| POST | `/jobs` | Create new research job |
-| GET | `/jobs/{id}` | Get job details |
-| POST | `/jobs/preview` | Preview job plan before execution |
-| POST | `/jobs/{id}/cancel` | Cancel running job |
-| DELETE | `/jobs/{id}` | Delete job (soft delete) |
-| POST | `/jobs/{id}/archive` | Archive completed job |
-| POST | `/jobs/{id}/select-interpretation` | Select disambiguation option |
-| GET | `/jobs/{id}/export` | Export job in specified format |
-| GET | `/jobs/{id}/export/all` | Export all formats at once |
-| POST | `/jobs/text-input` | Create job from user-provided text (Phase 2B) |
-| POST | `/jobs/screenshot-input` | Create job from screenshot image (Phase 2B) |
+## 2) Data model (jobs)
 
-### Celery Worker (`backend/worker.py`)
-- Async task processing
-- 11-stage research pipeline + 5-stage semantic pipeline
-- Graceful error handling
+A `job` is the unit of work.
 
-### Semantic Pipeline Stages (Phase 2 Complete)
+### Job inputs
+Jobs are **mixed-input** only (even for one source):
+- YouTube URLs
+- Article URLs
+- Pasted text
+- Uploaded screenshots
 
-| # | Stage | File | Status |
-|---|-------|------|--------|
-| 1 | Source Identity | `stages/source_identity.py` | ✅ Complete |
-| 2 | Semantic Extraction | `stages/semantic_extraction.py` | ✅ Complete |
-| 3 | Gap Analysis | `stages/gap_analysis.py` | ✅ Complete (219 lines) |
-| 4 | Semantic Synthesis | `stages/semantic_synthesis.py` | ✅ Complete (291 lines) |
-| 5 | Document Assembly | `stages/document_assembly.py` | ✅ Complete (459 lines) |
+The canonical shape lives in:
+- `docs/authoritative/spec/Job_Config_Schema.md`
 
-**Output Documents:**
-- Doc 0: Source Ledger (canonical data layer)
-- Doc 1: Jump-Start (research direction)
-- Doc 2: Semantic Brief (80% output)
+### Job outputs
+Docs:
+- Doc 0: Source Ledger
+- Doc 1: Jump Start
+- Doc 2: Semantic Brief
+- Doc 3: Producer Packet (optional)
 
-### Legacy Pipeline Stages
+Canonical output shapes live in:
+- `docs/authoritative/spec/Document_Output_Format.md`
 
-| # | Stage | Current Service | Optimal Service | Cloud Status |
-|---|-------|-----------------|-----------------|--------------|
-| 1 | Initialize | - | - | ✅ |
-| 2 | Planning | OpenAI GPT-4o-mini | **Gemini 2.5 Flash** | ✅ |
-| 3 | Research Mapping | Perplexity | Perplexity (keep) | ✅ |
-| 4 | Source Discovery | Perplexity | **Exa + Perplexity** | ✅ |
-| 5 | YouTube Enumeration | YouTube Data API v3 | YouTube Data API v3 | ✅ (optional) |
-| 6 | Transcript Extraction | Supadata → Whisper | Supadata → Whisper | ✅ |
-| 7 | Web Capture | Jina/Trafilatura | Jina/Trafilatura (keep) | ✅ |
-| 8 | Reddit Collection | PRAW | PRAW (keep) | ✅ |
-| 9 | AI Extraction | OpenAI GPT-4o-mini | GPT-4o-mini (keep) | ✅ |
-| 10 | Validation + Analysis | Perplexity/OpenAI | **Gemini 2.5 Pro** | ✅ |
-| 11 | Drive Upload | Google APIs | Google APIs (keep) | ✅ |
+---
 
-**Note**: youtube-transcript-api REMOVED (fails on cloud IPs). Transcripts use Supadata → Whisper only.
+## 3) Pipeline stages (semantic-only)
 
-## Research-Validated API Stack
+> Stage definitions and failure semantics are authoritative in:
+> - `docs/authoritative/spec/RASS.md`
+> - `docs/authoritative/spec/Validation_and_Retry_Rules.md`
 
-### LLM Selection by Task
+### Canonical stage intent (summary)
+1) **Source identity**: normalize source metadata and determine provenance
+2) **Per-source semantic extraction**: isolated extraction call per source
+3) **Semantic validation**: enforce quote policy, JSON validity, confidence ceilings
+4) **Gap analysis**: identify what the corpus does not cover
+5) **Semantic synthesis**: derive themes and tensions without adding new facts
+6) **Document assembly**: generate Doc 0/1/2
+7) **Completion**: persist artifacts and finalize manifest
 
-| Task | Optimal Model | Rationale |
-|------|---------------|-----------|
-| Planning | Gemini 2.5 Flash | 1M context, $0.30/$2.50, thinking mode |
-| Extraction | GPT-4o-mini | Fast, cheap, structured output |
-| Vision/PDF | Gemini 2.5 Pro | 1M context, multimodal-native |
-| Synthesis | Gemini 2.5 Pro | Quality-critical final output |
+### Source isolation
+Extraction is **per-source** and **isolated**. Cross-source reasoning occurs only in synthesis.
 
-### Search Selection by Mode
+---
 
-| Mode | APIs | Rationale |
-|------|------|-----------|
-| breaking_news | Perplexity | Speed: 358ms |
-| investigation | Exa + Perplexity | Accuracy: 94.9% |
-| profile | Exa | Semantic entity search |
-| fallback | Serper > Tavily | Tavily has 10% 502 error rate |
+## 4) Transcript acquisition (YouTube)
 
-## ML Optimization Opportunities
+Canonical order (locked):
+1) Supadata
+2) Whisper
+3) YouTube captions
+4) None → `video_only`
 
-### Already Optimal (No LLM)
-- **Quality Gate** (`backend/pipeline/quality_gate.py`): Deterministic filtering with BM25
-- **Entity Extraction** (`backend/pipeline/entities.py`): spaCy NER
-- **Claim Candidates** (`backend/pipeline/extraction.py`): Regex heuristics
+Mode mapping:
+- Supadata/Whisper → `transcript_grounded`
+- YouTube captions → `caption_grounded`
+- None → `video_only`
 
-### Completed Optimizations (Dec 2025)
+Mode definitions live in:
+- `docs/authoritative/spec/modes/INDEX.md`
 
-| Component | Before | After | File |
-|-----------|--------|-------|------|
-| BM25 Relevance | +0.2 bonus | 60% blend into relevance | `quality_gate.py` |
-| Recency Scoring | None | Mode-specific (10% weight) | `quality_gate.py` |
-| Priority Keywords | Defined but unused | Active (+0.1 bonus) | `quality_gate.py` |
-| Preferred Domains | Defined but unused | Active (+0.15 bonus) | `quality_gate.py` |
-| Diversity Metric | None | Shannon entropy (monitoring) | `quality_gate.py` |
+---
 
-### Pending Optimizations
+## 5) Quote vs observation enforcement
 
-| Component | Current | Optimal | File |
-|-----------|---------|---------|------|
-| Claim Dedup | O(n²) Jaccard | MinHash LSH O(n) | `extraction.py` |
-| spaCy Model | en_core_web_sm | en_core_web_trf | `entities.py` |
-| Claim Threshold | score >= 3 | score >= 4 | `extraction.py` |
+Canonical rule summary:
+- `video_only` → **NO quotes** (hard fail)
+- `caption_grounded` → quotes allowed but **approximate**
+- `text_provided` and `ocr_extracted` → quotes allowed but **accuracy_unverified=true**
+- `ocr_extracted` with `ocr_quality=low` → demote quote-like strings to observations
 
-## Reliability Features (Dec 2025)
+See:
+- `docs/authoritative/spec/Operational_Definitions.md`
+- `docs/authoritative/spec/OCR_Quality_and_Quote_Demotion.md`
 
-### Lazy Loading (`backend/integrations/lazy_loader.py`)
-- All optional integrations are lazy-loaded
-- Missing dependencies don't crash the app
-- Graceful degradation when services unavailable
+---
 
-### Stage Error Recovery (`backend/pipeline/stage_runner.py`)
-- `run_stage_with_recovery()` wraps all pipeline stages
-- Fallback functions for non-critical stages (YouTube, Reddit, transcripts)
-- `StageGroup` tracks aggregate results for parallel stages
-- Critical stages (planning, research mapping) fail fast
+## 6) Storage strategy (Option B)
 
-### LLM Validation (`backend/utils/llm_validation.py`)
-- `validate_and_repair()` validates LLM output against Pydantic schemas
-- Retry loop with LLM-based repair for invalid outputs
-- Falls back to degraded defaults when repair fails
+### Canonical storage
+- Core doc content is stored in the DB in `job.artifacts` JSON.
+- Supabase Storage is used for:
+  - screenshot uploads
+  - generated exports (PDF/zip) and any large blobs referenced by manifest
 
-### Niche/Category System (`backend/config/niches/`)
-- 5 niche categories: pop_culture, political, true_crime, mysteries, downfalls
-- Each niche defines: source_floors, query_additions, priority_keywords, preferred_domains
-- Quality Gate applies:
-  - Niche source_floors (override mode defaults)
-  - Priority keywords boost (+0.1 max for matching sources)
-  - Preferred domains bonus (+0.15 for niche-relevant domains)
+### Lazy loading
+The frontend loads docs via:
+- `GET /jobs/{job_id}/manifest`
+- `GET /jobs/{job_id}/doc/{doc_id}`
 
-## Key Files
+PDF is generated on-demand:
+- `GET /jobs/{job_id}/download.pdf`
 
-- `backend/pipeline/stages.py` - Pipeline orchestration
-- `backend/pipeline/context.py` - Shared pipeline state
-- `backend/pipeline/stage_runner.py` - Error recovery wrapper
-- `backend/pipeline/quality_gate.py` - Deterministic source filtering
-- `backend/pipeline/extraction.py` - Claim extraction with hybrid approach
-- `backend/pipeline/entities.py` - spaCy-based entity extraction
-- `backend/integrations/lazy_loader.py` - Lazy integration loading
-- `backend/utils/llm_validation.py` - LLM output validation
-- `backend/state/factory.py` - Job store abstraction
-- `backend/models/job_config.py` - Mode configurations
+Details live in:
+- `docs/authoritative/spec/API_Contract.md`
 
-## Data Flow
+---
 
-### Two-Step Job Creation
+## 7) API surface
 
-1. User enters topic and selects mode/category
-2. Frontend calls `/jobs/preview` to get interpreted plan
-3. User reviews: interpreted topic, sources, subreddits
-4. User can modify sources/subreddits before confirming
-5. User confirms → Frontend calls `/jobs` to create job
-6. API creates job in Supabase with user's selections
-7. Celery picks up task from Redis
-8. Pipeline runs 11 stages
-9. Results uploaded to Google Drive
-10. Job marked complete
+This repo intentionally limits API surface. The canonical list is:
+- `docs/authoritative/spec/API_Contract.md`
 
-### Job Lifecycle
+**Deprecated endpoints must return 410 Gone** and must not be used by the frontend.
 
-```
-preview → queued → running → completed
-                          ↘ failed
-                          ↘ cancelled
-                          ↘ disambiguating → (user input) → queued
-```
+---
 
-### Soft Delete Pattern
+## 8) Retention and deletion
 
-Jobs use soft deletion via status field:
-- `DELETE /jobs/{id}` → sets status to "deleted"
-- `POST /jobs/{id}/archive` → sets status to "archived"
-- Both remove job from user's visible list without data loss
+Retention is a hard requirement:
+- 30 days from completion
+- UI warnings at {7, 3, 1} days remaining
+- hard delete removes storage objects then DB row
 
-## Error Handling
+Canonical spec:
+- `docs/authoritative/spec/Retention_and_Deletion.md`
 
-- Stages can fail without stopping pipeline
-- Warnings collected in `JobRecord.warnings`
-- Fallback chains for external APIs
-- Partial results preserved on failure
+---
 
-## Graceful Degradation Chains
+## 9) What is explicitly NOT part of this architecture
 
-| Function | Tier 1 | Tier 2 | Tier 3 |
-|----------|--------|--------|--------|
-| Web Capture | Jina Reader (FREE) | Trafilatura | Playwright |
-| Transcripts | Supadata | Whisper | youtube-api* |
-| Search | Exa/Perplexity | Serper | Tavily |
-| LLM | Gemini Flash | GPT-4o-mini | - |
+- No Slack triggers
+- No Google Drive exports
+- No separate “video analysis job” pipeline
+- No multi-pipeline selection UI
 
-*youtube-transcript-api fails on cloud IPs (Railway, AWS)
+If you see docs or code suggesting these exist, treat it as drift.
 
-## Frontend Architecture
+---
 
-### Layout (`frontend/components/Layout.tsx`)
-- Collapsible sidebar (icons-only mode on desktop)
-- Mobile-first responsive design
-- Hamburger menu for mobile navigation
-- Slide-in sidebar with overlay
+**END**
 
-### State Management (`frontend/store/jobs.ts`)
-- Zustand store for job state
-- `preview` state for two-step job creation
-- `previewJob()` → calls `/jobs/preview`
-- `createJob()` → calls `/jobs` with custom options
-- `deleteJob()` / `archiveJob()` → job management
-
-### Job Cards (`frontend/components/job-card/`)
-- `JobCard.tsx` - Main card with status display
-- `JobActions.tsx` - Cancel/Delete/Archive buttons
-- `DisambiguationPanel.tsx` - User input for ambiguous topics
-- `JobProgress.tsx` - Progress bar and stage display
-
-### Dashboard (`frontend/pages/dashboard.tsx`)
-- Research form with mode/category dropdowns
-- Preview confirmation card with editable sources
-- Subreddit add/remove functionality
-- Job list with real-time refresh
-
-## Export System (Jan 2026)
-
-### Export Formats (`backend/pipeline/formats/`)
-- `json_export.py` - Lossless structured data
-- `citation_export.py` - BibTeX/RIS citations
-- `chapter_export.py` - Podcast/YouTube chapters
-- `clip_export.py` - Short-form video suggestions
-- `social_export.py` - Social media content kit
-- `brief_export.py` - Research Brief (LLM synthesis)
-- `export_manager.py` - Unified interface
-
-### Research Brief
-Uses Gemini 2.5 Pro with GPT-4o-mini fallback:
-- Claims matrix with evidence levels (VERIFIED/PROBABLE/SPECULATIVE/DISPUTED)
-- Key figures with roles and quotes
-- Timeline with source attribution
-- Multiple perspectives (mainstream/alternative/unexplored)
-
-### Rate Limiting (`backend/app/rate_limiter.py`)
-Key function priority:
-1. Authenticated user_id (prevents NAT throttling)
-2. X-Forwarded-For (proxy support)
-3. Client IP (fallback)
-
-### Bug Fixes (Jan 2026)
-- Celery `apply_async(task_id=job_id)` enables reliable cancellation
-- Validation errors return 422 (FastAPI convention)
-- In-memory store initializes models before merging
-- Frontend MAX_PROMPT_LENGTH = 2000 (matches backend)

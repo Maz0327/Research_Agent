@@ -1,4 +1,9 @@
-# Code Standards
+# Code Standards (Convenience Summary)
+
+> **Authoritative spec lives at `docs/authoritative/INDEX.md`.**
+> This document is a **non-authoritative convenience summary** for coding patterns only.
+
+---
 
 ## Python (Backend)
 

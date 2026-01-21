@@ -9,7 +9,6 @@ import { ProtectedRoute, useAuth } from '../components/AuthProvider';
 import {
   AccountSection,
   DisplaySection,
-  DriveSection,
   NotificationsSection,
   PipelineSection,
 } from '../components/settings';
@@ -17,7 +16,6 @@ import {
   useSettingsStore,
   PipelineType,
   SortOrder,
-  DriveFolder,
 } from '../store/settings';
 
 function SettingsSkeleton() {
@@ -274,17 +272,6 @@ function SettingsContent() {
             isCheckingUsername={isCheckingUsername}
             usernameCheck={usernameCheck}
             currentUsername={settings?.username}
-          />
-
-          <DriveSection
-            driveFolders={settings?.drive_folders || []}
-            folderUrl={folderUrl}
-            setFolderUrl={setFolderUrl}
-            folderValidation={folderValidation}
-            isValidatingFolder={isValidatingFolder}
-            onValidateFolder={handleValidateFolder}
-            onRemoveFolder={handleRemoveFolder}
-            onSetDefaultFolder={handleSetDefaultFolder}
           />
 
           <PipelineSection

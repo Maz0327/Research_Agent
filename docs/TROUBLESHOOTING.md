@@ -1,243 +1,145 @@
-# Research Agent Troubleshooting Guide
+# Troubleshooting (Convenience Summary)
 
-Common issues and their solutions.
+> **Authoritative spec lives at `docs/authoritative/INDEX.md`.**
+> This document is a **non-authoritative convenience summary**. If anything conflicts with the authoritative spec, **the authoritative spec wins**.
 
----
-
-## Pipeline Issues
-
-### "No transcript available"
-
-**Symptom:** Job completes with `video_only` mode warning.
-
-**Cause:**
-- Supadata API failed or unavailable
-- Video has no captions
-- Whisper fallback not configured
-
-**Solution:**
-- System automatically falls back to `video_only` mode (LOW confidence)
-- Job still completes with visual analysis
-- Check Supadata API key is valid
-
-**Behavior:**
-- Quotes not available in `video_only` mode
-- Uses `approximate_observations` instead
-- Confidence ceiling enforced at LOW
+This file intentionally focuses on common operational issues without redefining the system.
 
 ---
 
-### "Confidence ceiling exceeded"
+## 1) API won’t start
 
-**Symptom:** Warning in job output about confidence clamping.
+### Symptoms
+- Uvicorn fails to start
+- Import errors
+- Missing environment variables
 
-**Cause:** LLM returned confidence higher than mode allows.
+### Checks
+1) Confirm you have a virtualenv and dependencies installed.
+2) Confirm `.env` exists and contains required values.
 
-**Solution:**
-- Automatic — system auto-corrects to ceiling
-- Warning logged for transparency
-- No action needed
-
-**Mode Ceilings:**
-| Mode | Ceiling |
-|------|---------|
-| transcript_grounded | HIGH |
-| caption_grounded | MEDIUM |
-| video_only | LOW |
-| text_provided | MEDIUM |
-| ocr_extracted | MEDIUM |
-| article_fetched | HIGH |
+Common missing vars:
+- Redis: `REDIS_URL`
+- Supabase: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+- Model providers: e.g., Gemini/OpenAI keys as required by your configured clients
 
 ---
 
-### "Quote verification failed"
+## 2) Worker won’t start
 
-**Symptom:** Quotes marked as `unverified` in output.
+### Symptoms
+- Celery worker exits
+- Cannot connect to Redis
 
-**Cause:** Extracted quote not found in source transcript.
-
-**Solution:**
-- Quote included but marked unverified
-- Check transcript quality
-- Fuzzy matching used (80% threshold)
-
-**Note:** Unverified quotes are not removed, just flagged.
-
----
-
-### "Producer packet gating failed"
-
-**Symptom:** Cannot generate Doc 3 (Producer Packet).
-
-**Cause:** Job doesn't meet gating requirements.
-
-**Requirements:**
-- 4+ sources analyzed
-- At least 1 source with HIGH confidence
-- Job status = completed
-
-**Solution:** Add more sources using evolving jobs feature.
+### Checks
+- Verify Redis is reachable from worker:
+  - local: `redis://localhost:6379/0`
+  - cloud: verify URL and firewall rules
+- Verify the Celery app import path is correct.
 
 ---
 
-## Infrastructure Issues
+## 3) Jobs get stuck in running
 
-### Redis Connection Refused
+### Typical causes
+- Worker died mid-run
+- Redis dropped connection
+- Provider API request failed repeatedly
 
-**Symptom:** `ConnectionRefusedError: [Errno 111] Connection refused`
+### What to do
+- Check worker logs for the job_id.
+- Verify retry/degradation rules are working (job should degrade rather than die if some sources fail).
 
-**Cause:** Redis server not running.
-
-**Solution:**
-```bash
-# Start Redis
-redis-server
-
-# Or on macOS with Homebrew
-brew services start redis
-```
+See authoritative failure semantics:
+- `docs/authoritative/spec/Validation_and_Retry_Rules.md`
 
 ---
 
-### Celery Worker Not Processing
+## 4) “video_only mode forbids quotes” hard fail
 
-**Symptom:** Jobs stuck in `pending` status.
+### Meaning
+A video source ended up in `video_only` mode (no transcript/captions available), but the extraction produced quotes.
 
-**Cause:** Celery worker not running or crashed.
+### Fix
+- Ensure transcript acquisition is working (Supadata/Whisper/captions).
+- Ensure `video_only` extraction prompt disallows quotes and only allows observations.
 
-**Solution:**
-```bash
-# Check if worker is running
-ps aux | grep celery
-
-# Restart worker
-celery -A backend.worker worker --loglevel=INFO
-```
+Mode rules:
+- `docs/authoritative/spec/modes/video_only.md`
 
 ---
 
-### Gemini Rate Limit
+## 5) Screenshot OCR looks wrong / garbled
 
-**Symptom:** `429 Too Many Requests` or slow processing.
+### Meaning
+The OCR quality may be `low`.
 
-**Cause:** Exceeded Gemini API rate limits.
+### Expected behavior
+If OCR is messy (low quality):
+- quote-like text must be treated as observations
+- a warning must be attached
 
-**Solution:**
-- Built-in rate limiting handles this automatically
-- 60 requests/minute limit with exponential backoff
-- Jobs will slow down but not fail
-- Check Gemini quota in Google Cloud Console
-
----
-
-### Import Errors
-
-**Symptom:** `ModuleNotFoundError` or `ImportError`
-
-**Cause:** Dependencies not installed or venv not activated.
-
-**Solution:**
-```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Reinstall dependencies
-pip install -r requirements.txt
-
-# Verify imports
-python -c "from backend.pipeline.stages import *"
-```
+See:
+- `docs/authoritative/spec/OCR_Quality_and_Quote_Demotion.md`
 
 ---
 
-## API Issues
+## 6) Frontend gets 410 Gone errors
 
-### 401 Unauthorized
+### Meaning
+Frontend is calling deprecated endpoints.
 
-**Symptom:** All API calls return 401.
+### Correct action
+Update frontend to use only the allowed endpoints in:
+- `docs/authoritative/spec/API_Contract.md`
 
-**Cause:** Missing or invalid JWT token.
-
-**Solution:**
-- For development: Check Supabase JWT configuration
-- Ensure `Authorization: Bearer <token>` header is set
-- Token may be expired
-
----
-
-### 400 Bad Request
-
-**Symptom:** API returns validation error.
-
-**Common Causes:**
-- Invalid URL format
-- Content exceeds limits (50k chars for text, 10MB for images)
-- Missing required fields
-
-**Check:**
-- API documentation: `http://localhost:8000/docs`
-- Request body matches expected schema
+Deprecated endpoints that must remain 410:
+- `POST /jobs`
+- `POST /jobs/preview`
+- `POST /jobs/{id}/select-interpretation`
+- `POST /jobs/video-analysis`
 
 ---
 
-## Test Failures
+## 7) PDF download fails
 
-### Tests Fail After Code Changes
+### Symptoms
+- `GET /jobs/{id}/download.pdf` returns 500
 
-**Solution:**
-```bash
-# Run full test suite
-pytest backend/tests/ -v --tb=short
-
-# Check specific test
-pytest backend/tests/test_semantic_models.py -v
-
-# Expected: 948 tests passing
-```
-
-### Mock Import Errors
-
-**Symptom:** `AttributeError: module has no attribute`
-
-**Cause:** Mock path doesn't match import location.
-
-**Solution:** Mock at the import location, not module definition.
-```python
-# Wrong
-@patch("backend.integrations.gemini_client.GeminiClient")
-
-# Right (if imported into stages)
-@patch("backend.pipeline.stages.semantic_extraction.GeminiClient")
-```
+### Checks
+- Verify the job has artifacts for Docs 0–2 (and Doc 3 if requested).
+- Verify PDF generation dependencies are installed.
+- Check storage permissions if PDF is stored as an attachment.
 
 ---
 
-## Performance Issues
+## 8) Supabase storage permission errors
 
-### Jobs Taking Too Long
+### Symptoms
+- cannot upload screenshots
+- cannot download attachments
 
-**Expected Times:**
-| Job Type | Sources | Time |
-|----------|---------|------|
-| Quick | 3 | 1-2 min |
-| Standard | 10 | 5-8 min |
-| Deep | 25 | 15-25 min |
+### Checks
+- Ensure buckets exist:
+  - `screenshots` (private)
+  - `documents` (private)
+- Ensure service role key is configured on the backend.
 
-**Bottlenecks:**
-1. Gemini API calls (10-30s per source)
-2. Transcript fetching (5-30s per video)
-3. Rate limiting pauses
-
-**Solution:**
-- Use fewer sources for testing
-- Check API quotas
-- Monitor worker logs for bottlenecks
+Note: the documents bucket may need MIME allowlist support for JSON, PDF, and zip if you store exports there.
 
 ---
 
-## Getting Help
+## 9) Retention cleanup not running
 
-1. Check logs: Worker and API both log to stdout
-2. Check job warnings: `GET /jobs/{job_id}/warnings`
-3. Run diagnostics: `GET /api/v1/status`
-4. File issue: Include job_id and relevant logs
+### Expected behavior
+- Jobs expire 30 days after completion.
+- UI shows countdown and warnings at {7,3,1} days.
+- Cleanup is triggered daily by a cron hitting the maintenance endpoint.
+
+See:
+- `docs/authoritative/spec/Retention_and_Deletion.md`
+
+---
+
+**END**
+
