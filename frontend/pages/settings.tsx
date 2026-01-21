@@ -16,6 +16,7 @@ import {
   useSettingsStore,
   PipelineType,
   SortOrder,
+  DriveFolder,
 } from '../store/settings';
 
 function SettingsSkeleton() {
