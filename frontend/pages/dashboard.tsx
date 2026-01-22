@@ -291,34 +291,36 @@ function DashboardContent() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl">
-        {/* Header */}
+      {/* Responsive container with mobile-friendly padding */}
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+        {/* Header - responsive text */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 sm:mb-8"
         >
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Dashboard
           </h1>
-          <p className="mt-2 text-gray-400">Create and manage your research jobs</p>
+          <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-gray-400">Create and manage your research jobs</p>
         </motion.div>
 
-        {/* Create Job Form */}
+        {/* Create Job Form - responsive padding */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-8 rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-lg"
+          className="mb-6 sm:mb-8 rounded-xl border border-gray-800 bg-gray-900 p-4 sm:p-6 shadow-lg"
         >
-          {/* Mode Toggle */}
-          <div className="mb-6 flex items-center gap-4 flex-wrap">
-            <h2 className="text-lg font-semibold text-gray-100">New Job</h2>
-            <div className="flex rounded-lg bg-gray-800 p-1">
+          {/* Mode Toggle - responsive layout */}
+          <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-100">New Job</h2>
+            {/* Toggle buttons - full width on mobile */}
+            <div className="flex rounded-lg bg-gray-800 p-1 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setJobMode('research')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
                   jobMode === 'research'
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                     : 'text-gray-400 hover:text-gray-300'
@@ -329,7 +331,7 @@ function DashboardContent() {
               <button
                 type="button"
                 onClick={() => setJobMode('quick')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
                   jobMode === 'quick'
                     ? 'bg-purple-600 text-white shadow-lg'
                     : 'text-gray-400 hover:text-gray-300'
@@ -475,13 +477,15 @@ function DashboardContent() {
             </div>
           )}
 
-          <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-gray-100">Your Jobs</h2>
-              {/* Edit Mode Toggle */}
+          {/* Jobs list header - responsive layout */}
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Title + Edit toggle */}
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-100">Your Jobs</h2>
+              {/* Edit Mode Toggle - touch-friendly */}
               <button
                 onClick={toggleEditMode}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                className={`rounded-lg px-3 py-2 sm:py-1.5 text-sm font-medium transition-all duration-200 min-h-[40px] sm:min-h-0 touch-manipulation ${
                   isEditMode
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
                     : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
@@ -491,12 +495,12 @@ function DashboardContent() {
               </button>
             </div>
 
-            {/* Edit Mode Controls */}
+            {/* Edit Mode Controls - stack on mobile */}
             {isEditMode ? (
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={selectedJobIds.size > 0 ? deselectAll : selectAll}
-                  className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-700"
+                  className="rounded-lg bg-gray-800 px-3 py-2 sm:py-1.5 text-sm text-gray-400 hover:bg-gray-700 min-h-[40px] sm:min-h-0 touch-manipulation"
                 >
                   {selectedJobIds.size > 0 ? 'Deselect All' : 'Select All'}
                 </button>
@@ -509,26 +513,26 @@ function DashboardContent() {
                     setIsBulkArchiving(false);
                   }}
                   disabled={selectedJobIds.size === 0 || isBulkArchiving}
-                  className="rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg border border-gray-600 px-3 py-2 sm:py-1.5 text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] sm:min-h-0 touch-manipulation"
                 >
                   {isBulkArchiving ? 'Archiving...' : 'Archive'}
                 </button>
                 <button
                   onClick={() => setShowBulkDeleteConfirm(true)}
                   disabled={selectedJobIds.size === 0}
-                  className="rounded-lg border border-red-700 px-3 py-1.5 text-sm text-red-400 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg border border-red-700 px-3 py-2 sm:py-1.5 text-sm text-red-400 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] sm:min-h-0 touch-manipulation"
                 >
                   Delete
                 </button>
               </div>
             ) : (
-              /* Status Filter - only show when not in edit mode */
-              <div className="flex flex-wrap gap-2">
+              /* Status Filter - horizontal scroll on mobile, wrap on desktop */
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
                 {['all', 'running', 'completed', 'failed', 'cancelled'].map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                    className={`rounded-lg px-3 py-2 sm:py-1.5 text-sm font-medium transition-all duration-200 whitespace-nowrap min-h-[40px] sm:min-h-0 touch-manipulation ${
                       statusFilter === status
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
                         : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
@@ -541,16 +545,17 @@ function DashboardContent() {
             )}
           </div>
 
-          {/* Bulk Delete Confirmation Modal */}
+          {/* Bulk Delete Confirmation Modal - mobile-friendly */}
           {showBulkDeleteConfirm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-              <div className="rounded-lg border border-gray-700 bg-gray-900 p-6 max-w-sm shadow-xl">
-                <h3 className="text-lg font-medium text-gray-100 mb-2">Delete {selectedJobIds.size} jobs?</h3>
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+              <div className="w-full sm:w-auto rounded-t-xl sm:rounded-lg border border-gray-700 bg-gray-900 p-5 sm:p-6 max-w-sm shadow-xl">
+                <h3 className="text-base sm:text-lg font-medium text-gray-100 mb-2">Delete {selectedJobIds.size} jobs?</h3>
                 <p className="text-sm text-gray-400 mb-4">This action cannot be undone.</p>
-                <div className="flex gap-3 justify-end">
+                {/* Mobile: stack buttons, Desktop: inline */}
+                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
                   <button
                     onClick={() => setShowBulkDeleteConfirm(false)}
-                    className="rounded-lg px-4 py-2 text-gray-400 hover:text-gray-300"
+                    className="w-full sm:w-auto rounded-lg px-4 py-3 sm:py-2 text-gray-400 hover:text-gray-300 bg-gray-800 sm:bg-transparent min-h-[44px] touch-manipulation"
                   >
                     Cancel
                   </button>
@@ -562,7 +567,7 @@ function DashboardContent() {
                       setShowBulkDeleteConfirm(false);
                     }}
                     disabled={isBulkDeleting}
-                    className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-500 disabled:opacity-50"
+                    className="w-full sm:w-auto rounded-lg bg-red-600 px-4 py-3 sm:py-2 text-white hover:bg-red-500 disabled:opacity-50 min-h-[44px] touch-manipulation"
                   >
                     {isBulkDeleting ? 'Deleting...' : 'Delete'}
                   </button>

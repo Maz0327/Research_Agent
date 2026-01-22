@@ -61,9 +61,9 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
       layout
       className={`rounded-xl border ${config.borderColor} bg-gray-900 shadow-lg transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/5`}
     >
-      {/* Header - Always visible */}
+      {/* Header - Always visible, touch-optimized */}
       <div
-        className="cursor-pointer p-6"
+        className="cursor-pointer p-4 sm:p-6 touch-manipulation"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -76,11 +76,11 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
           }
         }}
       >
-        <div className="flex items-start justify-between">
-          {/* Checkbox for edit mode */}
+        <div className="flex items-start justify-between gap-3">
+          {/* Checkbox for edit mode - 44px touch target */}
           {isEditMode && (
             <div
-              className="mr-3 flex items-center"
+              className="flex items-center justify-center min-w-[44px] min-h-[44px] -ml-2"
               onClick={(e) => e.stopPropagation()}
             >
               <input
@@ -94,19 +94,21 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
           )}
 
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-100 truncate">
+            {/* Title - responsive text size */}
+            <h3 className="text-base sm:text-lg font-semibold text-gray-100 truncate">
               {displayTitle}
             </h3>
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-gray-400">
+            {/* Meta info - stack on mobile, inline on desktop */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-400">
               <span className="rounded-md bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300">
                 {pipelineLabel}
               </span>
-              <span className="text-gray-600">&middot;</span>
+              <span className="hidden sm:inline text-gray-600">&middot;</span>
               <span>{formatDate(job.created_at)}</span>
               {job.status === 'running' && eta && (
                 <>
-                  <span className="text-gray-600">&middot;</span>
+                  <span className="hidden sm:inline text-gray-600">&middot;</span>
                   <span className="text-blue-400">ETA: {eta}</span>
                 </>
               )}
@@ -132,13 +134,14 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
             )}
           </div>
 
-          <div className="flex items-center gap-3 ml-4">
+          {/* Status + chevron - responsive gap */}
+          <div className="flex items-center gap-2 sm:gap-3 ml-2 sm:ml-4 flex-shrink-0">
             <StatusBadge status={job.status} />
 
             <motion.svg
               animate={{ rotate: isExpanded ? 180 : 0 }}
               transition={{ duration: 0.2 }}
-              className="h-5 w-5 text-gray-500"
+              className="h-5 w-5 text-gray-500 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -178,7 +181,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-800 px-6 py-6 space-y-6">
+            {/* Responsive padding for expanded content */}
+            <div className="border-t border-gray-800 px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6">
               {/* Full prompt - collapsible section */}
               {job.title && job.prompt !== job.title && (
                 <div className="pb-4 border-b border-gray-800/50">
@@ -189,8 +193,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 </div>
               )}
 
-              {/* Time info - compact horizontal layout */}
-              <div className="flex gap-8 text-sm">
+              {/* Time info - stack on mobile, inline on desktop */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-500">Elapsed:</span>
                   <span className="text-gray-300 font-medium">{elapsed}</span>

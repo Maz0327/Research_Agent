@@ -219,27 +219,27 @@ export function DocumentAccordion({
 
   return (
     <div className={`rounded-xl ${config.headerBg} overflow-hidden transition-all`}>
-      {/* Header - Always visible */}
+      {/* Header - Always visible, touch-optimized */}
       <button
         onClick={handleToggle}
-        className="w-full flex items-center justify-between px-5 py-4 transition-colors cursor-pointer"
+        className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 transition-colors cursor-pointer touch-manipulation min-h-[56px] sm:min-h-0"
       >
-        <div className="flex items-center gap-4">
-          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${config.badge}`}>
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <span className={`px-2 sm:px-2.5 py-1 rounded-md text-xs font-semibold flex-shrink-0 ${config.badge}`}>
             {docNum !== null ? `DOC ${docNum}` : 'BOOST'}
           </span>
-          <div className="text-left">
-            <h4 className="font-medium text-gray-100">{title}</h4>
-            <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+          <div className="text-left min-w-0">
+            <h4 className="font-medium text-gray-100 text-sm sm:text-base truncate">{title}</h4>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* PDF Download - only when real content loaded (not placeholder) */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-2">
+          {/* PDF Download - 44px touch target on mobile */}
           {hasExportableContent && (
             <button
               onClick={handleDownloadPdf}
-              className={`p-2 rounded-lg ${config.button} transition-colors`}
+              className={`p-2.5 sm:p-2 rounded-lg ${config.button} transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center touch-manipulation`}
               title="Download PDF"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,28 +271,29 @@ export function DocumentAccordion({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className={`px-5 py-5 ${config.contentBg}`}>
+            {/* Content area - responsive padding and height */}
+            <div className={`px-4 sm:px-5 py-4 sm:py-5 ${config.contentBg}`}>
               {/* Loading state */}
               {isLoading && (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center py-8 sm:py-12">
                   <svg className="h-6 w-6 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span className="ml-3 text-gray-400">Loading document...</span>
+                  <span className="ml-3 text-gray-400 text-sm sm:text-base">Loading document...</span>
                 </div>
               )}
 
               {/* Error state */}
               {error && !isLoading && (
-                <div className="rounded-lg bg-red-900/20 p-4">
+                <div className="rounded-lg bg-red-900/20 p-3 sm:p-4">
                   <p className="text-sm text-red-300 leading-relaxed">{error}</p>
                 </div>
               )}
 
-              {/* Content - Apply presentation layer transformation */}
+              {/* Content - Apply presentation layer transformation, responsive max-height */}
               {markdown && !isLoading && (
-                <div className="prose prose-invert prose-sm max-w-none max-h-[28rem] overflow-y-auto leading-relaxed">
+                <div className="prose prose-invert prose-sm max-w-none max-h-[20rem] sm:max-h-[28rem] overflow-y-auto leading-relaxed overscroll-contain">
                   <MarkdownRenderer content={transformMarkdownForDisplay(markdown)} />
                 </div>
               )}

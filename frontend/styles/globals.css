@@ -60,6 +60,70 @@ select:focus-visible {
   box-shadow: 0 0 0 1px #3b82f6;
 }
 
+/* ============================================
+   Mobile Optimizations
+   ============================================ */
+
+/* Safe area insets for notched devices (iPhone X+) */
+@supports (padding: max(0px)) {
+  .safe-area-inset-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .safe-area-inset-top {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent overscroll bounce on iOS */
+.overscroll-none {
+  overscroll-behavior: none;
+}
+
+/* Touch action for faster taps (removes 300ms delay) */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on interactive elements */
+.select-none {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+.scroll-smooth-ios {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific font size adjustments to prevent zoom on input focus */
+@media screen and (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Improve tap highlight on mobile */
+@media (hover: none) {
+  a,
+  button {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+  }
+}
+
 
 
 

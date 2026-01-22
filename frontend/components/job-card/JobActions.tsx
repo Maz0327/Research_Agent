@@ -106,13 +106,14 @@ export function JobActions({
         </div>
       )}
 
+      {/* Actions - touch-friendly buttons */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Cancel button - only for running/queued */}
         {canCancel && (
           <button
             onClick={(e) => { e.stopPropagation(); handleCancel(); }}
             disabled={isCancelling}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-700 px-3 py-1.5 text-sm font-medium text-red-400 transition hover:bg-red-900/30 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-700 px-3 py-2.5 sm:py-1.5 text-sm font-medium text-red-400 transition hover:bg-red-900/30 disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation"
           >
             {isCancelling ? (
               <>
@@ -138,7 +139,7 @@ export function JobActions({
           <button
             onClick={(e) => { e.stopPropagation(); handleArchive(); }}
             disabled={isArchiving}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-1.5 text-sm font-medium text-gray-400 transition hover:bg-gray-800 hover:text-gray-300 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-2.5 sm:py-1.5 text-sm font-medium text-gray-400 transition hover:bg-gray-800 hover:text-gray-300 disabled:opacity-50 min-h-[44px] sm:min-h-0 touch-manipulation"
           >
             {isArchiving ? (
               <>
@@ -163,7 +164,7 @@ export function JobActions({
         {canDeleteOrArchive && !showDeleteConfirm && (
           <button
             onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-1.5 text-sm font-medium text-gray-400 transition hover:border-red-700 hover:text-red-400 hover:bg-red-900/20"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-2.5 sm:py-1.5 text-sm font-medium text-gray-400 transition hover:border-red-700 hover:text-red-400 hover:bg-red-900/20 min-h-[44px] sm:min-h-0 touch-manipulation"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -178,7 +179,7 @@ export function JobActions({
             href={driveFolderUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600/20 border border-blue-600/30 px-3 py-1.5 text-sm font-medium text-blue-400 transition hover:bg-blue-600/30"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600/20 border border-blue-600/30 px-3 py-2.5 sm:py-1.5 text-sm font-medium text-blue-400 transition hover:bg-blue-600/30 min-h-[44px] sm:min-h-0 touch-manipulation"
             onClick={(e) => e.stopPropagation()}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

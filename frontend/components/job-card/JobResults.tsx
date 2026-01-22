@@ -187,11 +187,11 @@ export function JobResults({
     };
 
     return (
-      <div className="space-y-6">
-        {/* Completion Status - Simplified */}
-        <div className="flex items-center justify-between">
+      <div className="space-y-5 sm:space-y-6">
+        {/* Completion Status - Responsive layout */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30" />
+            <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30 flex-shrink-0" />
             <span className="text-sm font-medium text-green-400">Research Complete</span>
           </div>
           <ExportButton jobId={jobId} />
@@ -267,15 +267,16 @@ export function JobResults({
         </div>
 
         {/* Action Bar - Separate section with clear divider */}
-        <div className="pt-6 mt-2 border-t border-gray-800/50">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">Actions</h3>
-          <div className="flex flex-wrap gap-3">
+        <div className="pt-5 sm:pt-6 mt-2 border-t border-gray-800/50">
+          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Actions</h3>
+          {/* Mobile: full-width stacked buttons, Desktop: inline wrap */}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
             {/* Generate Producer Packet - only if Doc 3 doesn't exist */}
             {!hasDoc3 && (
               <button
                 onClick={(e) => { e.stopPropagation(); handleProducerPacket(); }}
                 disabled={!canTriggerActions || isTriggeringProducer}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-600/20 border border-amber-600/30 px-4 py-2.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600/20 border border-amber-600/30 px-4 py-3 sm:py-2.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
               >
                 {isTriggeringProducer ? (
                   <>
@@ -296,11 +297,11 @@ export function JobResults({
               </button>
             )}
 
-            {/* Deep Research (Booster) */}
+            {/* Deep Research (Booster) - touch-friendly */}
             <button
               onClick={(e) => { e.stopPropagation(); handleBooster(); }}
               disabled={!canTriggerActions || isTriggeringBooster || isBoosterRunning}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-4 py-2.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-4 py-3 sm:py-2.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
             >
             {(isTriggeringBooster || isBoosterRunning) ? (
               <>

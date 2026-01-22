@@ -262,9 +262,9 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
         </button>
       )}
 
-      {/* Submit Section */}
-      <div className="flex items-center justify-between pt-2">
-        <div className="text-sm text-gray-500">
+      {/* Submit Section - stack on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 sm:pt-2">
+        <div className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
           {totalSources > 0 ? (
             <>
               <span className="text-purple-400">{sourceData.videoUrls.length}</span> video
@@ -280,10 +280,11 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
           )}
         </div>
 
+        {/* Full-width on mobile */}
         <button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          className="w-full sm:w-auto order-1 sm:order-2 inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3.5 sm:py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none min-h-[48px] sm:min-h-0 touch-manipulation"
         >
           {isSubmitting ? (
             <>
