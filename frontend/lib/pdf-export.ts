@@ -1,8 +1,12 @@
 /**
  * PDF export utility for markdown content.
  * Extracts PDF generation logic for reuse across components.
+ *
+ * Uses presentation layer formatting to display user-friendly labels
+ * (e.g., "Source 1" instead of "SRC_1") without modifying stored JSON.
  */
 import DOMPurify from 'dompurify';
+import { transformMarkdownForDisplay } from './document-formatters';
 
 /**
  * Convert markdown to PDF and trigger download.
@@ -17,8 +21,11 @@ export async function exportToPdf(markdown: string, filename: string): Promise<v
     // Create a styled HTML element for PDF rendering
     const element = document.createElement('div');
 
+    // Apply presentation layer transformation before converting to HTML
+    const displayMarkdown = transformMarkdownForDisplay(markdown);
+
     // Convert markdown to simple HTML
-    const rawContent = markdown
+    const rawContent = displayMarkdown
       .replace(/^### (.*$)/gm, '<h3 style="margin-top:16px;margin-bottom:8px;font-size:14px;font-weight:600;">$1</h3>')
       .replace(/^## (.*$)/gm, '<h2 style="margin-top:20px;margin-bottom:10px;font-size:16px;font-weight:700;">$1</h2>')
       .replace(/^# (.*$)/gm, '<h1 style="margin-top:24px;margin-bottom:12px;font-size:20px;font-weight:700;">$1</h1>')

@@ -5,9 +5,13 @@
  * - Markdown rendering for formatted documents
  * - JSON viewer for raw data
  * - Copy to clipboard functionality
+ *
+ * Uses presentation layer formatting to display user-friendly labels
+ * (e.g., "Source 1" instead of "SRC_1") without modifying stored JSON.
  */
 import { useEffect, useRef } from 'react';
 import DOMPurify from 'dompurify';
+import { transformMarkdownForDisplay } from '@/lib/document-formatters';
 
 export interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -109,11 +113,11 @@ export function DocumentViewerModal({
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - Apply presentation layer transformation */}
         <div className="flex-1 overflow-auto p-6">
           {isMarkdown ? (
             <div className="prose prose-invert prose-sm max-w-none">
-              <MarkdownRenderer content={markdown} />
+              <MarkdownRenderer content={transformMarkdownForDisplay(markdown)} />
             </div>
           ) : (
             <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap bg-gray-800/50 rounded-lg p-4 overflow-x-auto">

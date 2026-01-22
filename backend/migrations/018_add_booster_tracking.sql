@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION atomic_update_job(
     p_error text DEFAULT NULL,
     p_partial_outputs jsonb DEFAULT NULL,
     p_partial_artifacts jsonb DEFAULT NULL,
-    p_warnings_append text[] DEFAULT NULL,
+    p_warnings_append jsonb DEFAULT NULL,
     p_update_stage_timestamp boolean DEFAULT false,
     -- Booster fields
     p_booster_status text DEFAULT NULL,
@@ -72,7 +72,7 @@ BEGIN
         END,
         warnings = CASE
             WHEN p_warnings_append IS NOT NULL
-            THEN COALESCE(warnings, ARRAY[]::text[]) || p_warnings_append
+            THEN COALESCE(warnings, '[]'::jsonb) || p_warnings_append
             ELSE warnings
         END,
         stage_started_at = CASE

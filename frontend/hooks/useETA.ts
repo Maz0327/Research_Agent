@@ -54,6 +54,17 @@ const TRANSCRIPT_STAGE_ORDER = [
   'generating_document',
 ];
 
+// Stage order for semantic pipeline (mixed-input, text-input, video-analysis V10)
+const SEMANTIC_STAGE_ORDER = [
+  'source_identity',
+  'semantic_extraction',
+  'semantic_validation',
+  'gap_analysis',
+  'semantic_synthesis',
+  'document_assembly',
+  'completion',
+];
+
 // Stage-based duration estimates in seconds (per pipeline type)
 // Stage names must match worker.py stages exactly
 const STAGE_DURATIONS: Record<string, Record<string, number>> = {
@@ -171,6 +182,16 @@ const STAGE_DURATIONS: Record<string, Record<string, number>> = {
     extracting_transcripts: 120,  // ~2 min for transcripts
     generating_document: 30,       // ~30s for doc creation
   },
+  // Semantic pipeline (mixed-input, text-input, video-analysis V10)
+  semantic: {
+    source_identity: 15,          // ~15s for source identification
+    semantic_extraction: 90,      // ~1.5 min per source extraction
+    semantic_validation: 30,      // ~30s for validation
+    gap_analysis: 30,             // ~30s for gap analysis
+    semantic_synthesis: 60,       // ~1 min for synthesis
+    document_assembly: 45,        // ~45s for doc assembly
+    completion: 15,               // ~15s for completion
+  },
 };
 
 // Human-readable stage descriptions (must match worker.py stages)
@@ -269,16 +290,24 @@ export default function useETA({
       return null;
     }
 
-    // Determine which stage order and durations to use based on pipeline
+    // Determine which stage order and durations to use based on pipeline and stage
     let stageOrder: string[];
     let durations: Record<string, number>;
-    
+
+    // Semantic pipeline stages (mixed_input, text_provided, ocr_extracted, video_analysis V10)
+    const isSemanticStage = SEMANTIC_STAGE_ORDER.includes(stage);
+    const isSemanticPipeline = ['mixed_input', 'text_provided', 'ocr_extracted', 'video_analysis'].includes(pipeline);
+
     if (pipeline === 'gemini_video' || stage.startsWith('pass_')) {
       stageOrder = GEMINI_STAGE_ORDER;
       durations = STAGE_DURATIONS.gemini_video;
     } else if (pipeline === 'transcript' || stage === 'extracting_transcripts' || stage === 'generating_document') {
       stageOrder = TRANSCRIPT_STAGE_ORDER;
       durations = STAGE_DURATIONS.transcript;
+    } else if (isSemanticStage || isSemanticPipeline) {
+      // Use semantic pipeline for new source-first jobs
+      stageOrder = SEMANTIC_STAGE_ORDER;
+      durations = STAGE_DURATIONS.semantic;
     } else {
       stageOrder = STAGE_ORDER;
       durations = STAGE_DURATIONS[pipeline] || STAGE_DURATIONS.investigation;
