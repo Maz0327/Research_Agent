@@ -7,13 +7,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { motion } from 'framer-motion';
-import { signInWithGoogle, signInWithMagicLink } from '../lib/supabase';
+import { signInWithGoogle, signInWithMagicLink, signInWithEmailPassword } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { SkipLink } from '../components/SkipLink';
 import { PublicHeader } from '../components/PublicHeader';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [usePassword, setUsePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const router = useRouter();
@@ -37,7 +39,7 @@ export default function LoginPage() {
     // OAuth redirects, so we don't need to handle success here
   };
 
-  const handleMagicLink = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
       setMessage({ type: 'error', text: 'Please enter your email address' });
@@ -46,17 +48,36 @@ export default function LoginPage() {
 
     setLoading(true);
     setMessage(null);
-    const { error } = await signInWithMagicLink(email);
-    setLoading(false);
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
+    if (usePassword) {
+      // Email + Password login
+      if (!password) {
+        setMessage({ type: 'error', text: 'Please enter your password' });
+        setLoading(false);
+        return;
+      }
+      const { error } = await signInWithEmailPassword(email, password);
+      setLoading(false);
+
+      if (error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        router.push('/dashboard');
+      }
     } else {
-      setMessage({
-        type: 'success',
-        text: 'Check your email for a magic link to sign in!',
-      });
-      setEmail('');
+      // Magic link login
+      const { error } = await signInWithMagicLink(email);
+      setLoading(false);
+
+      if (error) {
+        setMessage({ type: 'error', text: error.message });
+      } else {
+        setMessage({
+          type: 'success',
+          text: 'Check your email for a magic link to sign in!',
+        });
+        setEmail('');
+      }
     }
   };
 
@@ -141,8 +162,8 @@ export default function LoginPage() {
             <div className="flex-grow border-t border-gray-700"></div>
           </div>
 
-          {/* Email Magic Link Form */}
-          <form onSubmit={handleMagicLink}>
+          {/* Email Login Form */}
+          <form onSubmit={handleEmailLogin}>
             <div className="mb-4">
               <label
                 htmlFor="email"
@@ -161,6 +182,27 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Password field - shown when usePassword is true */}
+            {usePassword && (
+              <div className="mb-4">
+                <label
+                  htmlFor="password"
+                  className="mb-1.5 block text-sm font-medium text-gray-400"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={loading}
+                />
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -172,11 +214,24 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Sending...
+                  {usePassword ? 'Signing in...' : 'Sending...'}
                 </span>
               ) : (
-                'Send Magic Link'
+                usePassword ? 'Sign In' : 'Send Magic Link'
               )}
+            </button>
+
+            {/* Toggle between password and magic link */}
+            <button
+              type="button"
+              onClick={() => {
+                setUsePassword(!usePassword);
+                setMessage(null);
+                setPassword('');
+              }}
+              className="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-300 transition-colors"
+            >
+              {usePassword ? 'Use magic link instead' : 'Use password instead'}
             </button>
           </form>
 

@@ -41,6 +41,17 @@ export async function signInWithMagicLink(email: string) {
 }
 
 /**
+ * Sign in with email and password.
+ */
+export async function signInWithEmailPassword(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  return { user: data.user, session: data.session, error };
+}
+
+/**
  * Sign in with Google OAuth.
  */
 export async function signInWithGoogle() {
