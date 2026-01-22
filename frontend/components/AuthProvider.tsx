@@ -2,7 +2,7 @@
  * Authentication context provider for the application.
  * Wraps the app to provide auth state to all components.
  */
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/router';
 import { supabase, signOut as supabaseSignOut, getAccessToken } from '../lib/supabase';
@@ -39,14 +39,21 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  // Dev mode bypass - skip auth when NEXT_PUBLIC_DISABLE_AUTH=true
+  const isDevBypass = process.env.NEXT_PUBLIC_DISABLE_AUTH === 'true';
+
+  // All hooks must be called unconditionally (Rules of Hooks)
+  const [user, setUser] = useState<User | null>(
+    isDevBypass ? ({ id: 'dev-user', email: 'dev@local.test' } as User) : null
+  );
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(!isDevBypass);
+  const [isAdmin, setIsAdmin] = useState(isDevBypass);
   const router = useRouter();
 
   // Check admin status when user changes
-  const checkAdminStatus = async (userId: string | undefined) => {
+  const checkAdminStatus = useCallback(async (userId: string | undefined) => {
+    if (isDevBypass) return; // Skip in dev mode
     if (!userId) {
       setIsAdmin(false);
       return;
@@ -69,9 +76,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch {
       setIsAdmin(false);
     }
-  };
+  }, [isDevBypass]);
 
   useEffect(() => {
+    // Skip auth setup in dev bypass mode
+    if (isDevBypass) return;
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -93,9 +103,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isDevBypass, checkAdminStatus]);
 
   const handleSignOut = async () => {
+    if (isDevBypass) return; // No-op in dev mode
     await supabaseSignOut();
     setIsAdmin(false);
     // Clear stores on logout
