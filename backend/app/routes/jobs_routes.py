@@ -1119,6 +1119,32 @@ async def run_job_booster(
     jump_start = artifacts_dict.get("jump_start")
     semantic_brief = artifacts_dict.get("semantic_brief")
 
+    # Check for storage paths if inline data missing
+    doc_1_path = artifacts_dict.get("doc_1_path")
+    doc_2_path = artifacts_dict.get("doc_2_path")
+
+    if not jump_start and doc_1_path:
+        try:
+            from backend.integrations.supabase_storage import get_storage_client
+            storage = get_storage_client()
+            if storage:
+                jump_start = storage.download_document(doc_1_path)
+                artifacts_dict["jump_start"] = jump_start
+                logger.info(f"[{job_id}] Fetched jump_start from storage")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Failed to fetch jump_start: {e}")
+
+    if not semantic_brief and doc_2_path:
+        try:
+            from backend.integrations.supabase_storage import get_storage_client
+            storage = get_storage_client()
+            if storage:
+                semantic_brief = storage.download_document(doc_2_path)
+                artifacts_dict["semantic_brief"] = semantic_brief
+                logger.info(f"[{job_id}] Fetched semantic_brief from storage")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Failed to fetch semantic_brief: {e}")
+
     if not jump_start or not semantic_brief:
         raise HTTPException(
             status_code=400,
@@ -1251,7 +1277,22 @@ async def generate_producer_packet(
         source_ledger = artifacts_dict.get("source_ledger")
         doc_0_path = artifacts_dict.get("doc_0_path")
 
-        if not source_ledger and doc_0_path:
+        # Determine if source_ledger has actual sources (not just structure)
+        def _has_sources(sl: dict | None) -> bool:
+            if not sl or not isinstance(sl, dict):
+                return False
+            # Check direct source_manifest
+            if sl.get("source_manifest"):
+                return True
+            # Check nested data.source_manifest (storage format)
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        needs_storage_fetch = doc_0_path and not _has_sources(source_ledger)
+
+        if needs_storage_fetch:
             # Fetch source_ledger from storage
             try:
                 from backend.integrations.supabase_storage import get_storage_client
@@ -1260,6 +1301,8 @@ async def generate_producer_packet(
                     doc_0_data = storage.download_document(doc_0_path)
                     artifacts_dict["source_ledger"] = doc_0_data
                     logger.info(f"[{job_id}] Fetched source_ledger from storage for gating check")
+                else:
+                    logger.warning(f"[{job_id}] Storage client unavailable - cannot fetch source_ledger")
             except Exception as e:
                 logger.warning(f"[{job_id}] Failed to fetch source_ledger from storage: {e}")
 

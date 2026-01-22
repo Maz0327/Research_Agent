@@ -1,6 +1,6 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-21 10:47
+**Last Updated:** 2026-01-22 13:48
 **Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
 **Current Task:** Backend/Frontend Stability
 **Branch:** feature/vision-alignment-v1
@@ -98,6 +98,35 @@ MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 - ✅ 960/961 full test suite passes
 - ✅ Frontend builds without errors
 - ✅ Pre-push hooks pass (imports, contracts, TypeScript)
+
+### Session 2026-01-22: Booster/Producer Storage Path Fix
+
+**Bug Fixed:** Booster and Producer packet failed with "Doc 1 and Doc 2 must exist" despite documents existing in storage
+
+**Root Cause:**
+- Documents stored in Supabase Storage via `doc_1_path`/`doc_2_path`
+- Validation only checked inline `jump_start`/`semantic_brief` keys (empty when using storage)
+- Producer packet also had `update_job` call mixing `artifacts=` with `warnings_append=` (atomic conflict)
+
+**Fixes Applied:**
+
+1. **Storage path fetch for booster** (`backend/app/routes/jobs_routes.py`, `backend/worker.py`):
+   - Added storage fetch logic for `doc_1_path` (jump_start) and `doc_2_path` (semantic_brief)
+   - Fetches from Supabase Storage if inline data missing but paths exist
+   - Follows same pattern as producer packet's `doc_0_path` fetch
+
+2. **Producer atomic update fix** (`backend/worker.py:1582-1589`):
+   - Changed `artifacts=artifacts_dict` to `partial_artifacts={...}`
+   - Cannot mix `artifacts=` with `warnings_append=` (atomic operation conflict)
+   - Now uses atomic merge for producer_packet and producer_packet_md only
+
+**Files Modified:**
+- `backend/app/routes/jobs_routes.py` — Storage fetch for doc_1/doc_2 before booster validation
+- `backend/worker.py` — Storage fetch for booster task + fix producer atomic update
+
+**Tests:** 127 producer tests pass, 212 booster/producer tests pass
+
+---
 
 ### Session 2026-01-21 (Late Morning): Empty Artifacts JSONB Bug Fix
 
