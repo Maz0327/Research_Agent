@@ -8,8 +8,12 @@ import Layout from '../components/Layout';
 import JobCard from '../components/JobCard';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
 import { useJobsStore, JobPreview, VideoAnalysisResponse, TextInputRequest, TextInputResponse, ScreenshotInputResponse, MixedInputRequest, MixedInputResponse, MixedTextInput } from '../store/jobs';
+import { useUIPreferences } from '../store/ui-preferences';
 import { POLLING_INTERVALS, VALIDATION_LIMITS, PLATFORM_HINTS, SCREENSHOT_PLATFORM_HINTS } from '../lib/constants';
 import { UnifiedInputPanel } from '../components/unified-input';
+import { FloatingActionButton } from '../components/ui/FloatingActionButton';
+import { ViewToggle } from '../components/dashboard/ViewToggle';
+import { JobTable } from '../components/dashboard/JobTable';
 
 // Job creation modes: 'research' (unified multi-source) or 'quick' (simple video)
 type JobMode = 'research' | 'quick';
@@ -90,6 +94,7 @@ function DashboardContent() {
     isEditMode, selectedJobIds, bulkErrors, toggleEditMode, selectJob, deselectJob, selectAll, deselectAll, bulkDelete, bulkArchive, clearBulkErrors,
   } = useJobsStore();
   const { user } = useAuth();
+  const { createPanelCollapsed, toggleCreatePanel, jobListView, setJobListView } = useUIPreferences();
 
   // Get current depth config for placeholder example
   const currentDepth = researchDepths.find(d => d.value === researchDepth) || researchDepths[3];
@@ -305,42 +310,82 @@ function DashboardContent() {
           <p className="mt-1.5 sm:mt-2 text-sm sm:text-base text-gray-400">Create and manage your research jobs</p>
         </motion.div>
 
-        {/* Create Job Form - responsive padding */}
+        {/* Create Job Form - Collapsible Panel */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-6 sm:mb-8 rounded-xl border border-gray-800 bg-gray-900 p-4 sm:p-6 shadow-lg"
+          className="mb-6 sm:mb-8 rounded-xl border border-gray-800 bg-gray-900 shadow-lg overflow-hidden"
         >
-          {/* Mode Toggle - responsive layout */}
-          <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-100">New Job</h2>
-            {/* Toggle buttons - full width on mobile */}
-            <div className="flex rounded-lg bg-gray-800 p-1 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setJobMode('research')}
-                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
-                  jobMode === 'research'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                Research
-              </button>
-              <button
-                type="button"
-                onClick={() => setJobMode('quick')}
-                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
-                  jobMode === 'quick'
-                    ? 'bg-purple-600 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                Quick Video
-              </button>
+          {/* Collapsible Header */}
+          <button
+            onClick={toggleCreatePanel}
+            className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-gray-800/50 transition-colors touch-manipulation"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
+                <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-100">New Research Job</h2>
+                <p className="text-xs sm:text-sm text-gray-500">
+                  {createPanelCollapsed ? 'Click to expand and create a new job' : 'Analyze videos, articles, and text'}
+                </p>
+              </div>
             </div>
-          </div>
+            <motion.svg
+              animate={{ rotate: createPanelCollapsed ? 0 : 180 }}
+              transition={{ duration: 0.2 }}
+              className="h-5 w-5 text-gray-500 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </motion.svg>
+          </button>
+
+          {/* Collapsible Content */}
+          <AnimatePresence initial={false}>
+            {!createPanelCollapsed && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-800">
+                  {/* Mode Toggle - responsive layout */}
+                  <div className="pt-4 sm:pt-5 mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    {/* Toggle buttons - full width on mobile */}
+                    <div className="flex rounded-lg bg-gray-800 p-1 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => setJobMode('research')}
+                        className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
+                          jobMode === 'research'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                            : 'text-gray-400 hover:text-gray-300'
+                        }`}
+                      >
+                        Research
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setJobMode('quick')}
+                        className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
+                          jobMode === 'quick'
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'text-gray-400 hover:text-gray-300'
+                        }`}
+                      >
+                        Quick Video
+                      </button>
+                    </div>
+                  </div>
 
           <AnimatePresence mode="wait">
             {/* RESEARCH MODE (Unified Multi-Source) */}
@@ -454,6 +499,10 @@ function DashboardContent() {
                 </button>
               </motion.form>
             ) : null}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </motion.div>
 
@@ -479,9 +528,11 @@ function DashboardContent() {
 
           {/* Jobs list header - responsive layout */}
           <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            {/* Title + Edit toggle */}
+            {/* Title + Edit toggle + View toggle */}
             <div className="flex items-center justify-between sm:justify-start gap-3">
               <h2 className="text-base sm:text-lg font-semibold text-gray-100">Your Jobs</h2>
+              {/* View Toggle */}
+              <ViewToggle view={jobListView} onChange={setJobListView} />
               {/* Edit Mode Toggle - touch-friendly */}
               <button
                 onClick={toggleEditMode}
@@ -607,8 +658,41 @@ function DashboardContent() {
               <p className="mt-1 text-sm text-gray-500">
                 Create your first research job above to get started.
               </p>
+              <button
+                onClick={() => {
+                  // Expand panel if collapsed and scroll to top
+                  if (createPanelCollapsed) {
+                    toggleCreatePanel();
+                  }
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 touch-manipulation"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Your First Job
+              </button>
+            </motion.div>
+          ) : jobListView === 'table' ? (
+            /* Table View */
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <JobTable
+                jobs={filteredJobs}
+                onRefresh={handleRefresh}
+                isEditMode={isEditMode}
+                selectedJobIds={selectedJobIds}
+                onToggleSelect={(jobId) => {
+                  if (selectedJobIds.has(jobId)) {
+                    deselectJob(jobId);
+                  } else {
+                    selectJob(jobId);
+                  }
+                }}
+              />
             </motion.div>
           ) : (
+            /* Card View */
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -640,6 +724,15 @@ function DashboardContent() {
           )}
         </div>
       </div>
+
+      {/* Mobile FAB - shows when create panel is collapsed */}
+      <FloatingActionButton
+        visible={createPanelCollapsed}
+        onClick={() => {
+          toggleCreatePanel();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
     </Layout>
   );
 }

@@ -1,8 +1,13 @@
 /**
  * Expandable job card component for displaying job status in the dashboard.
  * Uses modular sub-components for better maintainability.
+ *
+ * Progressive Disclosure Levels:
+ * - Level 0 (Collapsed): Title + Status + ETA
+ * - Level 1 (Quick View): + Progress + Inline actions
+ * - Level 2 (Full Details): + Documents + All metadata
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Job } from '../store/jobs';
 import useETA from '../hooks/useETA';
@@ -15,6 +20,10 @@ import {
   JobActions,
   DisambiguationPanel,
 } from './job-card';
+import { QuickActions } from './job-card/QuickActions';
+
+// Expansion levels for progressive disclosure
+type ExpansionLevel = 0 | 1 | 2;
 
 interface JobCardProps {
   job: Job;
@@ -35,8 +44,22 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function JobCard({ job, onRefresh, isEditMode = false, isSelected = false, onToggleSelect }: JobCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expansionLevel, setExpansionLevel] = useState<ExpansionLevel>(0);
   const canSelect = !['running', 'queued'].includes(job.status);
+
+  // Handle card header click - cycle through levels
+  const handleHeaderClick = useCallback(() => {
+    setExpansionLevel((prev) => {
+      if (prev === 0) return 1; // Collapsed -> Quick View
+      if (prev === 1) return 0; // Quick View -> Collapsed (clicking header collapses)
+      return 0; // Full Details -> Collapsed
+    });
+  }, []);
+
+  // Expand directly to full details
+  const expandToDetails = useCallback(() => {
+    setExpansionLevel(2);
+  }, []);
 
   // Fallback to queued config for unknown statuses (e.g., deleted, archived)
   const config = statusConfig[job.status] || statusConfig.queued;
@@ -66,13 +89,13 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
         className="cursor-pointer p-4 sm:p-6 touch-manipulation"
         role="button"
         tabIndex={0}
-        aria-expanded={isExpanded}
-        aria-label={`Job: ${displayTitle}. Status: ${job.status}. Click to ${isExpanded ? 'collapse' : 'expand'} details.`}
-        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={expansionLevel > 0}
+        aria-label={`Job: ${displayTitle}. Status: ${job.status}. Click to ${expansionLevel > 0 ? 'collapse' : 'expand'} details.`}
+        onClick={handleHeaderClick}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            setIsExpanded(!isExpanded);
+            handleHeaderClick();
           }
         }}
       >
@@ -139,7 +162,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
             <StatusBadge status={job.status} />
 
             <motion.svg
-              animate={{ rotate: isExpanded ? 180 : 0 }}
+              animate={{ rotate: expansionLevel > 0 ? 180 : 0 }}
               transition={{ duration: 0.2 }}
               className="h-5 w-5 text-gray-500 flex-shrink-0"
               fill="none"
@@ -156,8 +179,19 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
           </div>
         </div>
 
-        {job.status === 'running' && (
+        {/* Level 1: Show progress bar when expanded */}
+        {(expansionLevel >= 1 || job.status === 'running') && (
           <ProgressBar progress={job.progress_percent} stageDescription={stageDescription} />
+        )}
+
+        {/* Level 1: Quick Actions */}
+        {expansionLevel === 1 && (
+          <QuickActions
+            jobId={job.id}
+            status={job.status}
+            driveFolderUrl={job.artifacts?.drive_folder_url}
+            onExpandDetails={expandToDetails}
+          />
         )}
 
         {/* Disambiguation panel - always visible when needed */}
@@ -171,9 +205,9 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
         )}
       </div>
 
-      {/* Expanded content */}
+      {/* Level 2: Full expanded content */}
       <AnimatePresence>
-        {isExpanded && (
+        {expansionLevel === 2 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}

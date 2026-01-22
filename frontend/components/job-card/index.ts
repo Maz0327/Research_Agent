@@ -10,6 +10,7 @@ export { DisambiguationPanel } from './DisambiguationPanel';
 export { JobActions } from './JobActions';
 export { JobResults } from './JobResults';
 export { ProgressBar } from './ProgressBar';
+export { QuickActions } from './QuickActions';
 export { QuoteList } from './QuoteList';
 export type { Quote } from './QuoteList';
 export { StatusBadge } from './StatusBadge';

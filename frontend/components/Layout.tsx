@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from './AuthProvider';
 import { SkipLink } from './SkipLink';
+import { MobileBottomNav } from './MobileBottomNav';
 
 interface LayoutProps {
   children: ReactNode;
@@ -187,14 +188,17 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </aside>
 
-        {/* Main content */}
+        {/* Main content - extra bottom padding on mobile for bottom nav */}
         <main
           id="main-content"
           role="main"
-          className={`flex-1 pt-14 lg:pt-0 ${mainMargin} p-4 sm:p-6 lg:p-8 text-gray-100 transition-all duration-300`}
+          className={`flex-1 pt-14 lg:pt-0 pb-20 lg:pb-0 ${mainMargin} p-4 sm:p-6 lg:p-8 text-gray-100 transition-all duration-300`}
         >
           {children}
         </main>
+
+        {/* Mobile bottom navigation */}
+        <MobileBottomNav />
       </div>
     </>
   );
