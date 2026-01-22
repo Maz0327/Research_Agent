@@ -218,28 +218,28 @@ export function DocumentAccordion({
   };
 
   return (
-    <div className={`rounded-lg border ${config.headerBorder} overflow-hidden`}>
+    <div className={`rounded-xl ${config.headerBg} overflow-hidden transition-all`}>
       {/* Header - Always visible */}
       <button
         onClick={handleToggle}
-        className={`w-full flex items-center justify-between px-4 py-3 ${config.headerBg} transition-colors`}
+        className="w-full flex items-center justify-between px-5 py-4 transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-3">
-          <span className={`px-2 py-0.5 rounded text-xs font-medium ${config.badge}`}>
+        <div className="flex items-center gap-4">
+          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${config.badge}`}>
             {docNum !== null ? `DOC ${docNum}` : 'BOOST'}
           </span>
           <div className="text-left">
             <h4 className="font-medium text-gray-100">{title}</h4>
-            <p className="text-xs text-gray-500">{subtitle}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {/* PDF Download - only when real content loaded (not placeholder) */}
           {hasExportableContent && (
             <button
               onClick={handleDownloadPdf}
-              className={`p-1.5 rounded ${config.button} transition-colors`}
+              className={`p-2 rounded-lg ${config.button} transition-colors`}
               title="Download PDF"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,35 +271,35 @@ export function DocumentAccordion({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className={`px-4 py-4 ${config.contentBg} border-t ${config.headerBorder}`}>
+            <div className={`px-5 py-5 ${config.contentBg}`}>
               {/* Loading state */}
               {isLoading && (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-12">
                   <svg className="h-6 w-6 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  <span className="ml-2 text-gray-400">Loading document...</span>
+                  <span className="ml-3 text-gray-400">Loading document...</span>
                 </div>
               )}
 
               {/* Error state */}
               {error && !isLoading && (
-                <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
-                  <p className="text-sm text-red-300">{error}</p>
+                <div className="rounded-lg bg-red-900/20 p-4">
+                  <p className="text-sm text-red-300 leading-relaxed">{error}</p>
                 </div>
               )}
 
               {/* Content - Apply presentation layer transformation */}
               {markdown && !isLoading && (
-                <div className="prose prose-invert prose-sm max-w-none max-h-96 overflow-y-auto">
+                <div className="prose prose-invert prose-sm max-w-none max-h-[28rem] overflow-y-auto leading-relaxed">
                   <MarkdownRenderer content={transformMarkdownForDisplay(markdown)} />
                 </div>
               )}
 
               {/* No content */}
               {!markdown && !isLoading && !error && (
-                <p className="text-sm text-gray-500 italic">No content available</p>
+                <p className="text-sm text-gray-500 italic py-4">No content available</p>
               )}
             </div>
           </motion.div>

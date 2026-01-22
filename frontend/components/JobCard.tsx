@@ -63,7 +63,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
     >
       {/* Header - Always visible */}
       <div
-        className="cursor-pointer p-5"
+        className="cursor-pointer p-6"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -112,8 +112,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
               )}
             </div>
 
-            {/* Stage description for running/queued jobs */}
-            {(job.status === 'running' || job.status === 'queued') && (
+            {/* Stage description for queued jobs only (running jobs show in progress bar) */}
+            {job.status === 'queued' && (
               <p className="mt-2 text-sm text-gray-500">{stageDescription}</p>
             )}
 
@@ -154,7 +154,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
         </div>
 
         {job.status === 'running' && (
-          <ProgressBar progress={job.progress_percent} />
+          <ProgressBar progress={job.progress_percent} stageDescription={stageDescription} />
         )}
 
         {/* Disambiguation panel - always visible when needed */}
@@ -178,31 +178,27 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-800 px-5 py-4 space-y-4">
-              {/* Full prompt */}
+            <div className="border-t border-gray-800 px-6 py-6 space-y-6">
+              {/* Full prompt - collapsible section */}
               {job.title && job.prompt !== job.title && (
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                <div className="pb-4 border-b border-gray-800/50">
+                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
                     Original Prompt
                   </h4>
-                  <p className="text-sm text-gray-300 break-words whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>{job.prompt}</p>
+                  <p className="text-sm text-gray-300 leading-relaxed break-words whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>{job.prompt}</p>
                 </div>
               )}
 
-              {/* Time info */}
-              <div className="flex gap-6">
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                    Elapsed
-                  </h4>
-                  <p className="text-sm text-gray-300">{elapsed}</p>
+              {/* Time info - compact horizontal layout */}
+              <div className="flex gap-8 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500">Elapsed:</span>
+                  <span className="text-gray-300 font-medium">{elapsed}</span>
                 </div>
                 {eta && job.status === 'running' && (
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                      Remaining
-                    </h4>
-                    <p className="text-sm text-gray-300">{eta}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">Remaining:</span>
+                    <span className="text-blue-400 font-medium">{eta}</span>
                   </div>
                 )}
               </div>

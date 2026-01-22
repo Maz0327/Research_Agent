@@ -13,10 +13,11 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${config.bgColor} ${config.textColor}`}
+      className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium ${config.bgColor} ${config.textColor}`}
     >
       <span
-        className={`h-1.5 w-1.5 rounded-full ${config.dotColor} ${status === 'running' ? 'animate-pulse' : ''}`}
+        className={`h-2 w-2 rounded-full ${config.dotColor} ${status === 'running' ? 'animate-pulse' : ''}`}
+        style={{ boxShadow: status === 'running' ? '0 0 8px currentColor' : undefined }}
       />
       {config.label}
     </span>

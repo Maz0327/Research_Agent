@@ -126,9 +126,14 @@ export function JobResults({
   // Error state
   if (status === 'failed' && error) {
     return (
-      <div className="rounded-lg border border-red-800 bg-red-900/30 p-4">
-        <h4 className="text-sm font-medium text-red-400 mb-1">Error</h4>
-        <p className="text-sm text-red-300 break-words" style={{ overflowWrap: 'anywhere' }}>{error}</p>
+      <div className="rounded-lg bg-red-900/20 p-5">
+        <div className="flex items-start gap-3">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+          <div>
+            <h4 className="text-sm font-medium text-red-400 mb-2">Error</h4>
+            <p className="text-sm text-red-300/80 leading-relaxed break-words" style={{ overflowWrap: 'anywhere' }}>{error}</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -136,10 +141,13 @@ export function JobResults({
   // Cancelled state
   if (status === 'cancelled') {
     return (
-      <div className="rounded-lg border border-orange-800 bg-orange-900/30 p-4">
-        <p className="text-sm text-orange-300">
-          This job was cancelled. Any partial results may have been saved.
-        </p>
+      <div className="rounded-lg bg-orange-900/20 p-5">
+        <div className="flex items-start gap-3">
+          <div className="w-2.5 h-2.5 rounded-full bg-orange-500 mt-1.5 flex-shrink-0" />
+          <p className="text-sm text-orange-300/80 leading-relaxed">
+            This job was cancelled. Any partial results may have been saved.
+          </p>
+        </div>
       </div>
     );
   }
@@ -179,30 +187,19 @@ export function JobResults({
     };
 
     return (
-      <div className="space-y-4">
-        {/* Completion Status */}
-        <div className="rounded-lg border border-green-800 bg-green-900/30 p-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-800/50">
-                <svg className="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-green-300">Research Complete</p>
-                <p className="text-sm text-green-400/70">
-                  Semantic analysis finished
-                </p>
-              </div>
-            </div>
-            <ExportButton jobId={jobId} />
+      <div className="space-y-6">
+        {/* Completion Status - Simplified */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/30" />
+            <span className="text-sm font-medium text-green-400">Research Complete</span>
           </div>
+          <ExportButton jobId={jobId} />
         </div>
 
         {/* Document Accordions */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-gray-400">Research Documents</h3>
+        <div className="space-y-3">
+          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">Research Documents</h3>
 
           {/* Doc 0 - Source Ledger */}
           {hasDoc(0) && (
@@ -269,61 +266,63 @@ export function JobResults({
           )}
         </div>
 
-        {/* Action Bar */}
-        <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-700">
-          {/* Generate Producer Packet - only if Doc 3 doesn't exist */}
-          {!hasDoc3 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); handleProducerPacket(); }}
-              disabled={!canTriggerActions || isTriggeringProducer}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600/20 border border-amber-600/30 px-3 py-1.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isTriggeringProducer ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  Generate Producer Packet
-                </>
-              )}
-            </button>
-          )}
+        {/* Action Bar - Separate section with clear divider */}
+        <div className="pt-6 mt-2 border-t border-gray-800/50">
+          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">Actions</h3>
+          <div className="flex flex-wrap gap-3">
+            {/* Generate Producer Packet - only if Doc 3 doesn't exist */}
+            {!hasDoc3 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleProducerPacket(); }}
+                disabled={!canTriggerActions || isTriggeringProducer}
+                className="inline-flex items-center gap-2 rounded-lg bg-amber-600/20 border border-amber-600/30 px-4 py-2.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isTriggeringProducer ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Producer Packet
+                  </>
+                )}
+              </button>
+            )}
 
-          {/* Deep Research (Booster) */}
-          <button
-            onClick={(e) => { e.stopPropagation(); handleBooster(); }}
-            disabled={!canTriggerActions || isTriggeringBooster || isBoosterRunning}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-3 py-1.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+            {/* Deep Research (Booster) */}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleBooster(); }}
+              disabled={!canTriggerActions || isTriggeringBooster || isBoosterRunning}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-4 py-2.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
             {(isTriggeringBooster || isBoosterRunning) ? (
               <>
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                {boosterStatus === 'running' ? `Running${boosterProgressPercent ? ` (${boosterProgressPercent}%)` : ''}...` : 'Starting...'}
+                {boosterStatus === 'running' ? `${boosterProgressPercent || 0}%` : 'Starting...'}
               </>
             ) : isBoosterCompleted ? (
               <>
                 <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Booster Complete
+                Complete
               </>
             ) : isBoosterFailed ? (
               <>
                 <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-red-400">Booster Failed</span>
+                <span className="text-red-400">Failed</span>
               </>
             ) : (
               <>
@@ -334,12 +333,13 @@ export function JobResults({
               </>
             )}
           </button>
+          </div>
         </div>
 
         {/* Booster Error */}
         {isBoosterFailed && boosterError && (
-          <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
-            <p className="text-sm text-red-300">
+          <div className="rounded-lg bg-red-900/20 p-4 mt-4">
+            <p className="text-sm text-red-300 leading-relaxed">
               <strong>Booster Error:</strong> {boosterError}
             </p>
           </div>
@@ -347,8 +347,8 @@ export function JobResults({
 
         {/* Action Error */}
         {actionError && (
-          <div className="rounded-lg border border-red-800 bg-red-900/30 p-3">
-            <p className="text-sm text-red-300">{actionError}</p>
+          <div className="rounded-lg bg-red-900/20 p-4 mt-4">
+            <p className="text-sm text-red-300 leading-relaxed">{actionError}</p>
           </div>
         )}
       </div>
