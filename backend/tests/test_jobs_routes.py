@@ -72,81 +72,26 @@ def app_client(mock_auth_user):
 
 
 class TestCreateJobEndpoint:
-    """Tests for POST /jobs endpoint."""
+    """Tests for POST /jobs endpoint (DEPRECATED since 2026-01-19).
 
-    def test_create_job_requires_prompt(self, app_client):
-        """Creating a job without a prompt should fail with 422 (validation error)."""
-        response = app_client.post(
-            "/jobs",
-            json={"prompt": ""}
-        )
-        # 422 is the correct status for Pydantic validation failures
-        assert response.status_code == 422
+    This endpoint now returns 410 Gone. Use the new source-first endpoints:
+    - POST /jobs/video-analysis
+    - POST /jobs/text-input
+    - POST /jobs/screenshot-input
+    - POST /jobs/mixed-input
+    """
 
-    def test_create_job_prompt_too_long(self, app_client):
-        """Prompts exceeding max length should be rejected with 422."""
-        long_prompt = "x" * 2500  # MAX_PROMPT_LENGTH is 2000
-        response = app_client.post(
-            "/jobs",
-            json={"prompt": long_prompt}
-        )
-        # 422 is the correct status for Pydantic validation failures
-        assert response.status_code == 422
-
-    def test_create_job_invalid_options(self, app_client):
-        """Invalid job options should be rejected with 422."""
-        response = app_client.post(
-            "/jobs",
-            json={
-                "prompt": "Test prompt",
-                "options": {"invalid_key": "value"}
-            }
-        )
-        # 422 is the correct status for Pydantic validation failures
-        assert response.status_code == 422
-
-    @patch("backend.app.routes.jobs_routes.create_job")
-    @patch("backend.app.routes.jobs_routes.run_research_job")
-    def test_create_job_success(self, mock_run, mock_create, app_client, sample_job_record):
-        """Valid job creation should succeed."""
-        mock_create.return_value = sample_job_record
-        mock_run.delay = MagicMock()
-
+    def test_deprecated_endpoint_returns_410(self, app_client):
+        """Deprecated POST /jobs endpoint should return 410 Gone."""
         response = app_client.post(
             "/jobs",
             json={"prompt": "Test prompt", "pipeline": "full"}
         )
-
-        assert response.status_code == 200
-        assert "job_id" in response.json()
-
-    def test_create_job_validates_subreddits(self, app_client):
-        """Invalid subreddit names should be rejected with 422."""
-        response = app_client.post(
-            "/jobs",
-            json={
-                "prompt": "Test prompt",
-                "options": {
-                    "custom_subreddits": ["a"]  # Too short
-                }
-            }
-        )
-        # 422 is the correct status for Pydantic validation failures
-        assert response.status_code == 422
-
-    def test_create_job_validates_subreddit_format(self, app_client):
-        """Subreddit names with invalid characters should be rejected with 422."""
-        response = app_client.post(
-            "/jobs",
-            json={
-                "prompt": "Test prompt",
-                "options": {
-                    "custom_subreddits": ["invalid!@#subreddit"]
-                }
-            }
-        )
-        # 422 is the correct status for Pydantic validation failures
-        assert response.status_code == 422
+        assert response.status_code == 410
+        data = response.json()
+        assert "detail" in data
+        assert data["detail"]["message"] == "Legacy topic-based job creation is deprecated"
+        assert "alternatives" in data["detail"]
 
 
 class TestGetJobEndpoint:

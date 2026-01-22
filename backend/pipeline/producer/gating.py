@@ -118,8 +118,11 @@ def can_generate_producer_packet(job: dict[str, Any]) -> tuple[bool, str]:
         return False, "Need at least 1 high-confidence source"
 
     # Check job status
+    # Accept "running_producer" because if the worker is running gating,
+    # the API route already validated status was "completed" before queuing the task.
     status = job.get("status", "")
-    if status not in ("completed", "completed_with_warnings"):
+    valid_statuses = ("completed", "completed_with_warnings", "running_producer")
+    if status not in valid_statuses:
         return False, f"Job must be completed, currently {status}"
 
     return True, "OK"

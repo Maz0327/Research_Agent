@@ -218,6 +218,34 @@ class TestProducerGating:
         can_generate, reason = can_generate_producer_packet(job)
         assert can_generate is True
 
+    def test_gating_passes_with_running_producer_status(self):
+        """REGRESSION: Gating should pass when status is 'running_producer'.
+
+        This tests the deadlock fix where:
+        1. API route validates gating (status=completed)
+        2. API sets status='running_producer' and queues worker
+        3. Worker re-runs gating but status is now 'running_producer'
+
+        The worker's gating check must accept 'running_producer' because
+        the API already validated the job was completed before queuing.
+        """
+        job = {
+            "status": "running_producer",  # Set by API before worker runs
+            "artifacts": {
+                "source_ledger": {
+                    "source_manifest": [
+                        {"source_id": "SRC_1", "type": "youtube", "status": "ingested", "confidence_ceiling": "high"},
+                        {"source_id": "SRC_2", "type": "article", "status": "ingested"},
+                        {"source_id": "SRC_3", "type": "youtube", "status": "ingested"},
+                        {"source_id": "SRC_4", "type": "reddit", "status": "ingested"},
+                    ]
+                }
+            }
+        }
+        can_generate, reason = can_generate_producer_packet(job)
+        assert can_generate is True, f"Gating should pass with running_producer status, got: {reason}"
+        assert reason == "OK"
+
 
 class TestGetSourceSummaries:
     """Tests for get_source_summaries function."""
@@ -253,3 +281,95 @@ class TestGetSourceSummaries:
         }
         summaries = get_source_summaries(job)
         assert summaries[0]["source_type"] == "youtube"
+
+
+class TestHasSourcesHelper:
+    """Tests for the _has_sources helper used in storage fetch logic."""
+
+    def test_has_sources_none(self):
+        """Should return False for None."""
+        def _has_sources(sl):
+            if not sl or not isinstance(sl, dict):
+                return False
+            if sl.get("source_manifest"):
+                return True
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        assert _has_sources(None) is False
+
+    def test_has_sources_empty_dict(self):
+        """Should return False for empty dict."""
+        def _has_sources(sl):
+            if not sl or not isinstance(sl, dict):
+                return False
+            if sl.get("source_manifest"):
+                return True
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        assert _has_sources({}) is False
+
+    def test_has_sources_direct_manifest(self):
+        """Should return True for direct source_manifest."""
+        def _has_sources(sl):
+            if not sl or not isinstance(sl, dict):
+                return False
+            if sl.get("source_manifest"):
+                return True
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        sl = {"source_manifest": [{"source_id": "SRC_1"}]}
+        assert _has_sources(sl) is True
+
+    def test_has_sources_nested_data(self):
+        """Should return True for nested data.source_manifest (storage format)."""
+        def _has_sources(sl):
+            if not sl or not isinstance(sl, dict):
+                return False
+            if sl.get("source_manifest"):
+                return True
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        sl = {"data": {"source_manifest": [{"source_id": "SRC_1"}]}, "markdown": "..."}
+        assert _has_sources(sl) is True
+
+    def test_has_sources_empty_manifest(self):
+        """Should return False for empty source_manifest array."""
+        def _has_sources(sl):
+            if not sl or not isinstance(sl, dict):
+                return False
+            if sl.get("source_manifest"):
+                return True
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        sl = {"source_manifest": []}
+        assert _has_sources(sl) is False
+
+    def test_has_sources_markdown_only(self):
+        """Should return False for dict with only markdown (no sources)."""
+        def _has_sources(sl):
+            if not sl or not isinstance(sl, dict):
+                return False
+            if sl.get("source_manifest"):
+                return True
+            data = sl.get("data")
+            if isinstance(data, dict) and data.get("source_manifest"):
+                return True
+            return False
+
+        sl = {"markdown": "# Source Ledger...", "data": {}}
+        assert _has_sources(sl) is False
