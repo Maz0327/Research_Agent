@@ -1,6 +1,6 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-22 13:48
+**Last Updated:** 2026-01-22 14:25
 **Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
 **Current Task:** Backend/Frontend Stability
 **Branch:** feature/vision-alignment-v1
@@ -99,7 +99,9 @@ MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 - ✅ Frontend builds without errors
 - ✅ Pre-push hooks pass (imports, contracts, TypeScript)
 
-### Session 2026-01-22: Booster/Producer Storage Path Fix
+### Session 2026-01-22: Booster/Producer Fixes + UI Polish
+
+#### Part 1: Booster/Producer Storage Path Fix
 
 **Bug Fixed:** Booster and Producer packet failed with "Doc 1 and Doc 2 must exist" despite documents existing in storage
 
@@ -107,22 +109,102 @@ MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 - Documents stored in Supabase Storage via `doc_1_path`/`doc_2_path`
 - Validation only checked inline `jump_start`/`semantic_brief` keys (empty when using storage)
 - Producer packet also had `update_job` call mixing `artifacts=` with `warnings_append=` (atomic conflict)
+- Storage documents wrapped in `{"data": {...}, "markdown": "..."}` but code expected raw data
 
-**Fixes Applied:**
+**Backend Fixes Applied:**
 
 1. **Storage path fetch for booster** (`backend/app/routes/jobs_routes.py`, `backend/worker.py`):
    - Added storage fetch logic for `doc_1_path` (jump_start) and `doc_2_path` (semantic_brief)
    - Fetches from Supabase Storage if inline data missing but paths exist
-   - Follows same pattern as producer packet's `doc_0_path` fetch
+   - **Added unwrapping logic** to extract `data` key from storage wrapper format
 
 2. **Producer atomic update fix** (`backend/worker.py:1582-1589`):
    - Changed `artifacts=artifacts_dict` to `partial_artifacts={...}`
    - Cannot mix `artifacts=` with `warnings_append=` (atomic operation conflict)
-   - Now uses atomic merge for producer_packet and producer_packet_md only
 
-**Files Modified:**
-- `backend/app/routes/jobs_routes.py` — Storage fetch for doc_1/doc_2 before booster validation
-- `backend/worker.py` — Storage fetch for booster task + fix producer atomic update
+3. **Producer b_roll defensive parsing** (`backend/pipeline/stages/producer_stage.py`):
+   - Fixed `AttributeError: 'str' object has no attribute 'get'`
+   - Gemini sometimes returns strings like `"Unable to suggest b-roll..."` instead of dicts
+   - Added `isinstance()` check to handle both string and dict types
+
+**Backend Files Modified:**
+- `backend/app/routes/jobs_routes.py` — Storage fetch + unwrapping for doc_1/doc_2
+- `backend/worker.py` — Storage fetch + unwrapping for booster task, producer atomic fix
+- `backend/pipeline/stages/producer_stage.py` — Defensive b_roll parsing
+
+#### Part 2: Frontend Booster Accordion
+
+**Issue:** Booster output had no UI to display it - only producer packet (Doc 3) had an accordion
+
+**Fix Applied:**
+- Extended `DocumentAccordion.tsx` to support `booster` docKey with `indigo` color scheme
+- Updated `JobResults.tsx` to add booster accordion when `booster_expansion_md` exists
+- Badge shows "BOOST" instead of "DOC X" for booster documents
+
+**Frontend Files Modified:**
+- `frontend/components/job-card/DocumentAccordion.tsx` — Added booster support + indigo color
+- `frontend/components/job-card/JobResults.tsx` — Added booster accordion rendering
+
+#### Part 3: ADHD-Friendly UI Improvements
+
+**Goal:** Reduce visual cramping and improve scanability for users with ADHD
+
+**6 Phases Implemented:**
+
+1. **Spacing & Breathing Room:**
+   - Increased job list gaps (`space-y-2` → `space-y-4`)
+   - Increased card padding (`p-3` → `p-5`, `p-4` → `p-6`)
+   - Increased section gaps (`space-y-3` → `space-y-6`)
+
+2. **Progressive Disclosure:**
+   - Completed jobs collapsed by default (existing)
+   - Documents section hidden until expanded
+
+3. **Visual Chunking:**
+   - Added section headers with uppercase labels
+   - Added `border-t` dividers between major sections
+   - Increased margin between document accordions and action bar
+
+4. **Status Icons:**
+   - Added colored status dots (green=complete, blue=running, red=failed)
+   - Larger dot size (`h-2 w-2`) with glow effect for running
+
+5. **Progress Simplification:**
+   - Unified progress bar with stage description
+   - Single human-readable line status
+
+6. **Visual Noise Reduction:**
+   - Removed borders on DocumentAccordion (using bg color only)
+   - Added `leading-relaxed` to all text content
+   - Increased max-height for document content (28rem)
+
+**UI Files Modified:**
+- `frontend/components/JobCard.tsx` — Increased spacing, progress bar improvements
+- `frontend/components/job-card/JobResults.tsx` — Visual chunking, section headers
+- `frontend/components/job-card/ProgressBar.tsx` — Simplified with stage description
+- `frontend/components/job-card/StatusBadge.tsx` — Larger dots with glow
+
+**Plan Created:** `plans/260122-1413-adhd-friendly-ui-improvements/plan.md`
+
+#### Part 4: ESLint Fix for Vercel Deployment
+
+**Error:** `React Hook "useState" is called conditionally` in AuthProvider.tsx
+
+**Root Cause:** Early return for dev bypass mode at line 45-60, hooks called after
+
+**Fix Applied:**
+- Moved all hooks to top of component (unconditional)
+- Used conditional logic WITHIN hooks instead of early return
+- `useCallback` and `useEffect` now check `isDevBypass` inside their bodies
+
+**File Modified:**
+- `frontend/components/AuthProvider.tsx` — Hooks restructured for Rules of Hooks compliance
+
+#### Commits (2026-01-22)
+- `db5b6c5` — fix: Backend storage unwrapping + b_roll defensive parsing
+- `3a02d5c` — feat(frontend): Add booster accordion with indigo color scheme
+- `a19fab7` — feat(frontend): ADHD-friendly UI improvements (6 phases)
+- `73d690b` — fix: AuthProvider ESLint - hooks called conditionally
 
 **Tests:** 127 producer tests pass, 212 booster/producer tests pass
 
