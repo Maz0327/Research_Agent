@@ -1297,7 +1297,13 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
             from backend.integrations.supabase_storage import get_storage_client
             storage = get_storage_client()
             if storage:
-                jump_start = storage.download_document(doc_1_path)
+                jump_start_raw = storage.download_document(doc_1_path)
+                # Storage wraps docs in {"data": {...}, "markdown": "..."} - unwrap if needed
+                if isinstance(jump_start_raw, dict) and "data" in jump_start_raw:
+                    jump_start = jump_start_raw["data"]
+                    logger.info(f"[{job_id}] Unwrapped jump_start from storage wrapper")
+                else:
+                    jump_start = jump_start_raw
                 artifacts_dict["jump_start"] = jump_start
                 logger.info(f"[{job_id}] Fetched jump_start from storage")
         except Exception as e:
@@ -1308,7 +1314,13 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
             from backend.integrations.supabase_storage import get_storage_client
             storage = get_storage_client()
             if storage:
-                semantic_brief = storage.download_document(doc_2_path)
+                semantic_brief_raw = storage.download_document(doc_2_path)
+                # Storage wraps docs in {"data": {...}, "markdown": "..."} - unwrap if needed
+                if isinstance(semantic_brief_raw, dict) and "data" in semantic_brief_raw:
+                    semantic_brief = semantic_brief_raw["data"]
+                    logger.info(f"[{job_id}] Unwrapped semantic_brief from storage wrapper")
+                else:
+                    semantic_brief = semantic_brief_raw
                 artifacts_dict["semantic_brief"] = semantic_brief
                 logger.info(f"[{job_id}] Fetched semantic_brief from storage")
         except Exception as e:

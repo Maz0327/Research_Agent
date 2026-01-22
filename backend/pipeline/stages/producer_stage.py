@@ -296,14 +296,23 @@ def run_producer_pipeline(
         expert_perspectives_needed=interview_dict.get("expert_perspectives_needed", []),
     )
 
-    # Parse b-roll suggestions
+    # Parse b-roll suggestions (defensive: Gemini may return strings instead of dicts)
     b_roll_suggestions = []
     for b in risk_data.get("b_roll_suggestions", []):
-        b_roll_suggestions.append(BRollSuggestion(
-            description=b.get("description", ""),
-            purpose=b.get("purpose", ""),
-            source_options=b.get("source_options", []),
-        ))
+        if isinstance(b, str):
+            # Gemini returned a string instead of a dict - wrap it
+            b_roll_suggestions.append(BRollSuggestion(
+                description=b,
+                purpose="(auto-generated from string response)",
+                source_options=[],
+            ))
+        elif isinstance(b, dict):
+            b_roll_suggestions.append(BRollSuggestion(
+                description=b.get("description", ""),
+                purpose=b.get("purpose", ""),
+                source_options=b.get("source_options", []),
+            ))
+        # Skip any other types silently
 
     # Assemble Producer Packet
     packet = ProducerPacket(
