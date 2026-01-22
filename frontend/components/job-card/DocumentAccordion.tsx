@@ -1,6 +1,9 @@
 /**
  * DocumentAccordion - Collapsible document section with lazy loading.
  * Replaces DocumentCard grid with expandable accordion UI.
+ *
+ * Uses presentation layer formatting to display user-friendly labels
+ * (e.g., "Source 1" instead of "SRC_1") without modifying stored JSON.
  */
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,9 +11,10 @@ import DOMPurify from 'dompurify';
 import { authFetch, parseJsonResponse } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/supabase';
 import { exportToPdf } from '@/lib/pdf-export';
+import { transformMarkdownForDisplay } from '@/lib/document-formatters';
 
-export type DocKey = 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3';
-export type ColorScheme = 'gray' | 'blue' | 'purple' | 'amber';
+export type DocKey = 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3' | 'booster';
+export type ColorScheme = 'gray' | 'blue' | 'purple' | 'amber' | 'indigo';
 
 export interface DocumentAccordionProps {
   jobId: string;
@@ -73,14 +77,23 @@ const colorConfig: Record<ColorScheme, {
     contentBg: 'bg-amber-950/20',
     button: 'bg-amber-600/30 hover:bg-amber-600/40 text-amber-300',
   },
+  indigo: {
+    headerBg: 'bg-indigo-900/20 hover:bg-indigo-900/30',
+    headerBorder: 'border-indigo-800/50',
+    badge: 'bg-indigo-900/50 text-indigo-300',
+    chevron: 'text-indigo-400',
+    contentBg: 'bg-indigo-950/20',
+    button: 'bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300',
+  },
 };
 
-// Doc number mapping
-const docNumbers: Record<DocKey, number> = {
+// Doc number mapping (null for non-numbered docs like booster)
+const docNumbers: Record<DocKey, number | null> = {
   doc_0: 0,
   doc_1: 1,
   doc_2: 2,
   doc_3: 3,
+  booster: null,
 };
 
 /**
@@ -194,7 +207,9 @@ export function DocumentAccordion({
       alert('Please expand the document to load it before downloading.');
       return;
     }
-    const filename = `doc-${docNum}-${title.toLowerCase().replace(/\s+/g, '-')}`;
+    const filename = docNum !== null
+      ? `doc-${docNum}-${title.toLowerCase().replace(/\s+/g, '-')}`
+      : `${docKey}-${title.toLowerCase().replace(/\s+/g, '-')}`;
     try {
       await exportToPdf(markdown!, filename);
     } catch (err) {
@@ -211,7 +226,7 @@ export function DocumentAccordion({
       >
         <div className="flex items-center gap-3">
           <span className={`px-2 py-0.5 rounded text-xs font-medium ${config.badge}`}>
-            DOC {docNum}
+            {docNum !== null ? `DOC ${docNum}` : 'BOOST'}
           </span>
           <div className="text-left">
             <h4 className="font-medium text-gray-100">{title}</h4>
@@ -275,10 +290,10 @@ export function DocumentAccordion({
                 </div>
               )}
 
-              {/* Content */}
+              {/* Content - Apply presentation layer transformation */}
               {markdown && !isLoading && (
                 <div className="prose prose-invert prose-sm max-w-none max-h-96 overflow-y-auto">
-                  <MarkdownRenderer content={markdown} />
+                  <MarkdownRenderer content={transformMarkdownForDisplay(markdown)} />
                 </div>
               )}
 

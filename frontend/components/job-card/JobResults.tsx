@@ -34,6 +34,10 @@ interface JobArtifacts {
   doc_2_path?: string;
   doc_3_path?: string;
 
+  // Booster output (Deep Research expansion)
+  booster_output?: Record<string, unknown>;
+  booster_expansion_md?: string;
+
   // Quality gate (from semantic pipeline)
   quality_gate_passed?: boolean;
   producer_packet?: {
@@ -236,6 +240,19 @@ export function JobResults({
               colorScheme="purple"
               inlineMarkdown={getInlineMarkdown(2)}
               hasStoragePath={!!artifacts?.doc_2_path}
+            />
+          )}
+
+          {/* Booster - Deep Research Expansion (conditional) */}
+          {isBoosterCompleted && artifacts?.booster_expansion_md && (
+            <DocumentAccordion
+              jobId={jobId}
+              docKey="booster"
+              title="Deep Research"
+              subtitle="Expanded directions & perspectives"
+              colorScheme="indigo"
+              inlineMarkdown={artifacts.booster_expansion_md}
+              hasStoragePath={false}
             />
           )}
 
