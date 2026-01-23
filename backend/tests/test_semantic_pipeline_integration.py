@@ -816,3 +816,340 @@ class TestConfidenceCeilingsIntegration:
         )
 
         assert extraction.key_points[0].confidence == ConfidenceLevel.MEDIUM
+
+
+# =============================================================================
+# TestParallelExtractionDocEquivalence
+# =============================================================================
+
+
+class TestParallelExtractionDocEquivalence:
+    """
+    Integration tests verifying parallel extraction produces equivalent
+    doc outputs to sequential processing.
+
+    Critical for ensuring parallelization doesn't affect doc_0/doc_1/doc_2 quality.
+    """
+
+    @pytest.fixture
+    def mock_source_packages(self):
+        """Create mock source identity packages for testing."""
+        from backend.pipeline.stages.source_identity import SourceIdentityPackage
+
+        packages = []
+        for i in range(4):
+            packages.append(SourceIdentityPackage(
+                source_id=f"SRC_{i+1}",
+                source_type="article",
+                url=f"https://example.com/article{i+1}",
+                title=f"Test Article {i+1}",
+                analysis_mode=AnalysisMode.ARTICLE_FETCHED,
+                content=f"This is test content for article {i+1}. It contains unique information.",
+                content_word_count=50,
+                is_accessible=True,
+            ))
+        return packages
+
+    @pytest.fixture
+    def mock_gemini_responses(self):
+        """Create deterministic mock responses for each source."""
+        def make_response(source_id: str, index: int):
+            return {
+                "data": {
+                    "key_points": [
+                        {
+                            "key_point_id": f"KP_{index}_1",
+                            "statement": f"Key point from {source_id}",
+                            "source_ids": [source_id],
+                            "confidence": "high",
+                        },
+                    ],
+                    "claims": [
+                        {
+                            "claim_id": f"CLM_{index}_1",
+                            "statement": f"Claim from {source_id}",
+                            "source_id": source_id,
+                            "confidence": "high",
+                        },
+                    ],
+                    "themes": [
+                        {
+                            "theme_id": f"THEME_{index}_1",
+                            "label": f"Theme from {source_id}",
+                            "description": f"Description for {source_id}",
+                            "related_key_points": [f"KP_{index}_1"],
+                        },
+                    ],
+                    "quotes": [],
+                    "tensions": [],
+                },
+                "cost": 0.01,
+            }
+        return make_response
+
+    def test_parallel_and_sequential_produce_same_extraction_count(
+        self, mock_source_packages, mock_gemini_responses
+    ):
+        """Parallel and sequential modes should produce same number of extractions."""
+        from backend.pipeline.stages.semantic_extraction import (
+            stage_semantic_extraction,
+        )
+        from backend.pipeline.context import PipelineContext
+        import uuid
+
+        # Track responses by source_id for deterministic mocking
+        response_map = {
+            pkg.source_id: mock_gemini_responses(pkg.source_id, i)
+            for i, pkg in enumerate(mock_source_packages)
+        }
+
+        def mock_generate_json(*args, **kwargs):
+            # Extract source_id from prompt to return correct response
+            prompt = args[0] if args else kwargs.get("prompt", "")
+            for src_id in response_map:
+                if src_id in prompt:
+                    return response_map[src_id]
+            # Fallback
+            return response_map["SRC_1"]
+
+        # Run with max_workers=3 (parallel)
+        ctx_parallel = PipelineContext(job_id=str(uuid.uuid4()), topic="Test")
+        ctx_parallel.source_identity_packages = mock_source_packages.copy()
+
+        with patch("backend.pipeline.stages.semantic_extraction.update_job"):
+            with patch("backend.config.get_settings") as mock_settings:
+                mock_settings.return_value.semantic_extraction_max_workers = 3
+                mock_settings.return_value.llm_judge_conditional = True  # Skip judge for speed
+                mock_settings.return_value.llm_judge_warning_threshold = 999
+
+                with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+                    mock_client = MockGemini.return_value
+                    mock_client.generate_json.side_effect = mock_generate_json
+
+                    stage_semantic_extraction(ctx_parallel)
+
+        # Run with max_workers=1 (sequential)
+        ctx_sequential = PipelineContext(job_id=str(uuid.uuid4()), topic="Test")
+        ctx_sequential.source_identity_packages = mock_source_packages.copy()
+
+        with patch("backend.pipeline.stages.semantic_extraction.update_job"):
+            with patch("backend.config.get_settings") as mock_settings:
+                mock_settings.return_value.semantic_extraction_max_workers = 1
+                mock_settings.return_value.llm_judge_conditional = True
+                mock_settings.return_value.llm_judge_warning_threshold = 999
+
+                with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+                    mock_client = MockGemini.return_value
+                    mock_client.generate_json.side_effect = mock_generate_json
+
+                    stage_semantic_extraction(ctx_sequential)
+
+        # Both should have same number of extractions
+        assert len(ctx_parallel.semantic_extractions) == len(ctx_sequential.semantic_extractions)
+        assert len(ctx_parallel.semantic_extractions) == 4
+
+    def test_parallel_preserves_source_order_in_extractions(
+        self, mock_source_packages, mock_gemini_responses
+    ):
+        """Parallel extraction must preserve source order (SRC_1, SRC_2, SRC_3, SRC_4)."""
+        from backend.pipeline.stages.semantic_extraction import (
+            stage_semantic_extraction,
+        )
+        from backend.pipeline.context import PipelineContext
+        import time
+        import random
+        import uuid
+
+        response_map = {
+            pkg.source_id: mock_gemini_responses(pkg.source_id, i)
+            for i, pkg in enumerate(mock_source_packages)
+        }
+
+        def mock_generate_json_with_delay(*args, **kwargs):
+            """Add random delay to simulate real API latency."""
+            time.sleep(random.uniform(0.01, 0.05))
+            prompt = args[0] if args else kwargs.get("prompt", "")
+            for src_id in response_map:
+                if src_id in prompt:
+                    return response_map[src_id]
+            return response_map["SRC_1"]
+
+        # Run 3 times to catch non-deterministic ordering
+        for run in range(3):
+            ctx = PipelineContext(job_id=str(uuid.uuid4()), topic="Test")
+            ctx.source_identity_packages = mock_source_packages.copy()
+
+            with patch("backend.pipeline.stages.semantic_extraction.update_job"):
+                with patch("backend.config.get_settings") as mock_settings:
+                    mock_settings.return_value.semantic_extraction_max_workers = 3
+                    mock_settings.return_value.llm_judge_conditional = True
+                    mock_settings.return_value.llm_judge_warning_threshold = 999
+
+                    with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+                        mock_client = MockGemini.return_value
+                        mock_client.generate_json.side_effect = mock_generate_json_with_delay
+
+                        stage_semantic_extraction(ctx)
+
+            # Verify deterministic order
+            source_ids = [e.source_id for e in ctx.semantic_extractions]
+            expected_order = ["SRC_1", "SRC_2", "SRC_3", "SRC_4"]
+
+            assert source_ids == expected_order, (
+                f"Run {run+1}: Expected {expected_order}, got {source_ids}"
+            )
+
+    def test_parallel_and_sequential_key_points_match(
+        self, mock_source_packages, mock_gemini_responses
+    ):
+        """Key points should be identical between parallel and sequential runs."""
+        from backend.pipeline.stages.semantic_extraction import (
+            stage_semantic_extraction,
+        )
+        from backend.pipeline.context import PipelineContext
+        import uuid
+
+        response_map = {
+            pkg.source_id: mock_gemini_responses(pkg.source_id, i)
+            for i, pkg in enumerate(mock_source_packages)
+        }
+
+        def mock_generate_json(*args, **kwargs):
+            prompt = args[0] if args else kwargs.get("prompt", "")
+            for src_id in response_map:
+                if src_id in prompt:
+                    return response_map[src_id]
+            return response_map["SRC_1"]
+
+        def run_extraction(max_workers: int) -> PipelineContext:
+            ctx = PipelineContext(job_id=str(uuid.uuid4()), topic="Test")
+            ctx.source_identity_packages = mock_source_packages.copy()
+
+            with patch("backend.pipeline.stages.semantic_extraction.update_job"):
+                with patch("backend.config.get_settings") as mock_settings:
+                    mock_settings.return_value.semantic_extraction_max_workers = max_workers
+                    mock_settings.return_value.llm_judge_conditional = True
+                    mock_settings.return_value.llm_judge_warning_threshold = 999
+
+                    with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+                        mock_client = MockGemini.return_value
+                        mock_client.generate_json.side_effect = mock_generate_json
+
+                        stage_semantic_extraction(ctx)
+
+            return ctx
+
+        ctx_parallel = run_extraction(max_workers=3)
+        ctx_sequential = run_extraction(max_workers=1)
+
+        # Extract key point IDs from both runs
+        parallel_kp_ids = []
+        for extraction in ctx_parallel.semantic_extractions:
+            parallel_kp_ids.extend([kp.key_point_id for kp in extraction.key_points])
+
+        sequential_kp_ids = []
+        for extraction in ctx_sequential.semantic_extractions:
+            sequential_kp_ids.extend([kp.key_point_id for kp in extraction.key_points])
+
+        # Same key points in same order
+        assert parallel_kp_ids == sequential_kp_ids
+
+    def test_doc_outputs_functionally_equivalent(
+        self, mock_source_packages, mock_gemini_responses
+    ):
+        """
+        Doc 0/1/2 outputs should be functionally equivalent between parallel and sequential.
+
+        Functionally equivalent means:
+        - Same source_ids in same order (Doc 0)
+        - Same key_point_ids, theme_ids, claim_ids (Doc 1/2)
+        - Same content (statements, labels, descriptions)
+
+        Ignored fields (may differ):
+        - timestamps, job_id, costs
+        """
+        from backend.pipeline.stages.semantic_extraction import (
+            stage_semantic_extraction,
+        )
+        from backend.pipeline.context import PipelineContext
+        import uuid
+
+        response_map = {
+            pkg.source_id: mock_gemini_responses(pkg.source_id, i)
+            for i, pkg in enumerate(mock_source_packages)
+        }
+
+        def mock_generate_json(*args, **kwargs):
+            prompt = args[0] if args else kwargs.get("prompt", "")
+            for src_id in response_map:
+                if src_id in prompt:
+                    return response_map[src_id]
+            return response_map["SRC_1"]
+
+        def run_and_collect(max_workers: int) -> dict:
+            ctx = PipelineContext(job_id=str(uuid.uuid4()), topic="Test")
+            ctx.source_identity_packages = mock_source_packages.copy()
+
+            with patch("backend.pipeline.stages.semantic_extraction.update_job"):
+                with patch("backend.config.get_settings") as mock_settings:
+                    mock_settings.return_value.semantic_extraction_max_workers = max_workers
+                    mock_settings.return_value.llm_judge_conditional = True
+                    mock_settings.return_value.llm_judge_warning_threshold = 999
+
+                    with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+                        mock_client = MockGemini.return_value
+                        mock_client.generate_json.side_effect = mock_generate_json
+
+                        stage_semantic_extraction(ctx)
+
+            # Collect doc-relevant data
+            return {
+                "source_ids": [e.source_id for e in ctx.semantic_extractions],
+                "key_point_ids": [
+                    kp.key_point_id
+                    for e in ctx.semantic_extractions
+                    for kp in e.key_points
+                ],
+                "key_point_statements": [
+                    kp.statement
+                    for e in ctx.semantic_extractions
+                    for kp in e.key_points
+                ],
+                "theme_ids": [
+                    t.theme_id
+                    for e in ctx.semantic_extractions
+                    for t in e.themes
+                ],
+                "theme_labels": [
+                    t.label
+                    for e in ctx.semantic_extractions
+                    for t in e.themes
+                ],
+                "claim_ids": [
+                    c.claim_id
+                    for e in ctx.semantic_extractions
+                    for c in e.claims
+                ],
+            }
+
+        parallel_data = run_and_collect(max_workers=3)
+        sequential_data = run_and_collect(max_workers=1)
+
+        # All doc-relevant fields must match exactly
+        assert parallel_data["source_ids"] == sequential_data["source_ids"], \
+            "Source IDs mismatch (Doc 0 affected)"
+
+        assert parallel_data["key_point_ids"] == sequential_data["key_point_ids"], \
+            "Key point IDs mismatch (Doc 1/2 affected)"
+
+        assert parallel_data["key_point_statements"] == sequential_data["key_point_statements"], \
+            "Key point statements mismatch (Doc 1/2 affected)"
+
+        assert parallel_data["theme_ids"] == sequential_data["theme_ids"], \
+            "Theme IDs mismatch (Doc 2 affected)"
+
+        assert parallel_data["theme_labels"] == sequential_data["theme_labels"], \
+            "Theme labels mismatch (Doc 2 affected)"
+
+        assert parallel_data["claim_ids"] == sequential_data["claim_ids"], \
+            "Claim IDs mismatch (Doc 1/2 affected)"
