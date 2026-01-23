@@ -88,6 +88,12 @@ def update_job(
     booster_completed_at: datetime | None = None,
     booster_error: str | None = None,
     booster_progress_percent: int | None = None,
+    # Producer tracking fields (separate from main job status)
+    producer_status: str | None = None,
+    producer_started_at: datetime | None = None,
+    producer_completed_at: datetime | None = None,
+    producer_error: str | None = None,
+    producer_progress_percent: int | None = None,
 ) -> JobRecord | None:
     """
     Update a job with partial updates.
@@ -112,6 +118,11 @@ def update_job(
         booster_completed_at: When booster completed/failed
         booster_error: Booster error message if failed
         booster_progress_percent: Booster progress (0-100)
+        producer_status: Producer execution status (queued/running/completed/failed)
+        producer_started_at: When producer started
+        producer_completed_at: When producer completed/failed
+        producer_error: Producer error message if failed
+        producer_progress_percent: Producer progress (0-100)
 
     Returns:
         Updated JobRecord if found, None otherwise
@@ -137,6 +148,11 @@ def update_job(
         booster_completed_at=booster_completed_at,
         booster_error=booster_error,
         booster_progress_percent=booster_progress_percent,
+        producer_status=producer_status,
+        producer_started_at=producer_started_at,
+        producer_completed_at=producer_completed_at,
+        producer_error=producer_error,
+        producer_progress_percent=producer_progress_percent,
     )
 
 

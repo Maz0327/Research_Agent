@@ -1527,6 +1527,11 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
             data = sl.get("data")
             if isinstance(data, dict) and data.get("source_manifest"):
                 return True
+            # Also check sources array (SourceLedger.to_dict() format)
+            if sl.get("sources"):
+                return True
+            if isinstance(data, dict) and data.get("sources"):
+                return True
             return False
 
         needs_storage_fetch = doc_0_path and not _has_sources(source_ledger)
@@ -1555,8 +1560,13 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
         return {"job_id": job_id, "status": "failed", "error": error_msg}
 
     try:
-        # Update status
-        update_job(job_id, status="running_producer", stage="producer")
+        # Update producer status (DO NOT modify job.status - it must stay "completed")
+        from datetime import datetime, timezone
+        update_job(
+            job_id,
+            producer_status="running",
+            producer_progress_percent=10,
+        )
 
         # Run producer pipeline
         logger.info(f"[{job_id}] Running producer pipeline")
@@ -1590,18 +1600,21 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
         config = job.config_json.copy() if job.config_json else {}
         config["producer_summary"] = producer_summary
 
-        # Update job - return to completed status
+        # Update job - mark producer as completed (DO NOT modify job.status)
         # Use partial_artifacts for atomic merge (required when using warnings_append)
         update_job(
             job_id,
-            status="completed",  # Return to completed status
-            stage="complete",
+            # DO NOT change job.status - it must stay "completed"
             partial_artifacts={
                 "producer_packet": artifacts_dict.get("producer_packet"),
                 "producer_packet_md": artifacts_dict.get("producer_packet_md"),
             },
             config_json=config,
             warnings_append=warnings if warnings else None,
+            # Producer tracking
+            producer_status="completed",
+            producer_completed_at=datetime.now(timezone.utc),
+            producer_progress_percent=100,
         )
 
         # NOTE: Drive upload removed (2026-01-19 - Doc 3 stored in artifacts)
@@ -1623,8 +1636,13 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
 
     except SoftTimeLimitExceeded:
         logger.error(f"[{job_id}] Producer packet timed out after 5 minutes")
-        # Restore to completed status (producer failure doesn't affect core docs)
-        update_job(job_id, status="completed", stage="complete")
+        # Mark producer as failed (DO NOT modify job.status)
+        update_job(
+            job_id,
+            producer_status="failed",
+            producer_completed_at=datetime.now(timezone.utc),
+            producer_error="Producer packet timed out after 5 minutes",
+        )
         return {
             "job_id": job_id,
             "status": "failed",
@@ -1633,8 +1651,13 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
 
     except Exception as e:
         logger.exception(f"[{job_id}] Producer packet failed: {e}")
-        # Restore to completed status (producer failure doesn't affect core docs)
-        update_job(job_id, status="completed", stage="complete")
+        # Mark producer as failed (DO NOT modify job.status)
+        update_job(
+            job_id,
+            producer_status="failed",
+            producer_completed_at=datetime.now(timezone.utc),
+            producer_error=str(e),
+        )
         return {
             "job_id": job_id,
             "status": "failed",

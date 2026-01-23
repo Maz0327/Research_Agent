@@ -297,6 +297,12 @@ class SupabaseJobStore(JobStore):
         booster_completed_at: Optional[datetime] = None,
         booster_error: Optional[str] = None,
         booster_progress_percent: Optional[int] = None,
+        # Producer tracking fields (separate from main job status)
+        producer_status: Optional[str] = None,
+        producer_started_at: Optional[datetime] = None,
+        producer_completed_at: Optional[datetime] = None,
+        producer_error: Optional[str] = None,
+        producer_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record in Supabase using atomic operations.
@@ -324,6 +330,11 @@ class SupabaseJobStore(JobStore):
             booster_completed_at: When booster completed/failed
             booster_error: Booster error message if failed
             booster_progress_percent: Booster progress (0-100)
+            producer_status: Producer execution status (queued/running/completed/failed)
+            producer_started_at: When producer started
+            producer_completed_at: When producer completed/failed
+            producer_error: Producer error message if failed
+            producer_progress_percent: Producer progress (0-100)
 
         Returns:
             Updated JobRecord or None if job not found
@@ -350,13 +361,17 @@ class SupabaseJobStore(JobStore):
                 "Use partial_artifacts= instead for atomic merge semantics."
             )
 
-        # Check if booster fields are being updated (route to appropriate handler)
+        # Check if booster/producer fields are being updated (route to appropriate handler)
         has_booster_fields = any([
             booster_status, booster_started_at, booster_completed_at,
             booster_error, booster_progress_percent is not None
         ])
+        has_producer_fields = any([
+            producer_status, producer_started_at, producer_completed_at,
+            producer_error, producer_progress_percent is not None
+        ])
 
-        if needs_atomic or has_booster_fields:
+        if needs_atomic or has_booster_fields or has_producer_fields:
             return self._update_job_atomic(
                 job_id=job_id,
                 status=status,
@@ -372,6 +387,11 @@ class SupabaseJobStore(JobStore):
                 booster_completed_at=booster_completed_at,
                 booster_error=booster_error,
                 booster_progress_percent=booster_progress_percent,
+                producer_status=producer_status,
+                producer_started_at=producer_started_at,
+                producer_completed_at=producer_completed_at,
+                producer_error=producer_error,
+                producer_progress_percent=producer_progress_percent,
             )
         else:
             return self._update_job_simple(
@@ -405,6 +425,11 @@ class SupabaseJobStore(JobStore):
         booster_completed_at: Optional[datetime] = None,
         booster_error: Optional[str] = None,
         booster_progress_percent: Optional[int] = None,
+        producer_status: Optional[str] = None,
+        producer_started_at: Optional[datetime] = None,
+        producer_completed_at: Optional[datetime] = None,
+        producer_error: Optional[str] = None,
+        producer_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """Update job using atomic RPC function for JSONB merges."""
         try:
@@ -430,6 +455,12 @@ class SupabaseJobStore(JobStore):
                 "p_booster_completed_at": booster_completed_at.isoformat() if booster_completed_at else None,
                 "p_booster_error": booster_error,
                 "p_booster_progress_percent": booster_progress_percent,
+                # Producer fields
+                "p_producer_status": producer_status,
+                "p_producer_started_at": producer_started_at.isoformat() if producer_started_at else None,
+                "p_producer_completed_at": producer_completed_at.isoformat() if producer_completed_at else None,
+                "p_producer_error": producer_error,
+                "p_producer_progress_percent": producer_progress_percent,
             }
 
             logger.debug(f"Calling atomic_update_job RPC for job {job_id}")
@@ -463,6 +494,11 @@ class SupabaseJobStore(JobStore):
                 booster_completed_at=booster_completed_at,
                 booster_error=booster_error,
                 booster_progress_percent=booster_progress_percent,
+                producer_status=producer_status,
+                producer_started_at=producer_started_at,
+                producer_completed_at=producer_completed_at,
+                producer_error=producer_error,
+                producer_progress_percent=producer_progress_percent,
             )
 
     def _update_job_fallback(
@@ -482,6 +518,11 @@ class SupabaseJobStore(JobStore):
         booster_completed_at: Optional[datetime] = None,
         booster_error: Optional[str] = None,
         booster_progress_percent: Optional[int] = None,
+        producer_status: Optional[str] = None,
+        producer_started_at: Optional[datetime] = None,
+        producer_completed_at: Optional[datetime] = None,
+        producer_error: Optional[str] = None,
+        producer_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Fallback update method using READ-MERGE-WRITE pattern.
@@ -515,6 +556,18 @@ class SupabaseJobStore(JobStore):
             payload["booster_error"] = booster_error
         if booster_progress_percent is not None:
             payload["booster_progress_percent"] = booster_progress_percent
+
+        # Producer fields
+        if producer_status is not None:
+            payload["producer_status"] = producer_status
+        if producer_started_at is not None:
+            payload["producer_started_at"] = producer_started_at.isoformat()
+        if producer_completed_at is not None:
+            payload["producer_completed_at"] = producer_completed_at.isoformat()
+        if producer_error is not None:
+            payload["producer_error"] = producer_error
+        if producer_progress_percent is not None:
+            payload["producer_progress_percent"] = producer_progress_percent
 
         # For merge operations, fetch current state (race condition here)
         if partial_outputs or partial_artifacts or warnings_append:

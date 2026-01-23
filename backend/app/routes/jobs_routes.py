@@ -1254,7 +1254,10 @@ async def generate_producer_packet(
 
     # Job must be completed
     job_status = job.status if hasattr(job, "status") else job.get("status")
-    if job_status == "running_producer":
+    producer_status = job.producer_status if hasattr(job, "producer_status") else None
+
+    # Check if producer is already running (use producer_status, not job.status)
+    if producer_status == "running":
         raise HTTPException(
             status_code=409,
             detail="Producer packet is already being generated for this job"
@@ -1300,9 +1303,21 @@ async def generate_producer_packet(
             data = sl.get("data")
             if isinstance(data, dict) and data.get("source_manifest"):
                 return True
+            # Also check sources array (SourceLedger.to_dict() format)
+            if sl.get("sources"):
+                return True
+            if isinstance(data, dict) and data.get("sources"):
+                return True
             return False
 
         needs_storage_fetch = doc_0_path and not _has_sources(source_ledger)
+        logger.debug(
+            f"[{job_id}] Producer gating check: "
+            f"doc_0_path={bool(doc_0_path)}, "
+            f"source_ledger={bool(source_ledger)}, "
+            f"has_sources={_has_sources(source_ledger)}, "
+            f"needs_fetch={needs_storage_fetch}"
+        )
 
         if needs_storage_fetch:
             # Fetch source_ledger from storage
@@ -1319,6 +1334,8 @@ async def generate_producer_packet(
                 logger.warning(f"[{job_id}] Failed to fetch source_ledger from storage: {e}")
 
         job_dict["artifacts"] = artifacts_dict
+    else:
+        logger.warning(f"[{job_id}] No artifacts found on job record for producer gating")
 
     # Check gating requirements
     can_generate, reason = can_generate_producer_packet(job_dict)
@@ -1342,8 +1359,15 @@ async def generate_producer_packet(
     if producer_packet:
         logger.warning(f"[{job_id}] Producer packet re-run requested (previous output exists)")
 
-    # Update status
-    update_job(job_id, status="running_producer", stage="producer")
+    # Update producer status (DO NOT modify job.status - it must stay "completed")
+    from datetime import datetime, timezone
+    update_job(
+        job_id,
+        producer_status="queued",
+        producer_started_at=datetime.now(timezone.utc),
+        producer_progress_percent=0,
+        producer_error=None,  # Clear any previous error
+    )
 
     # Queue producer task
     from backend.worker import run_producer_task
@@ -1366,7 +1390,8 @@ async def generate_producer_packet(
 
     return {
         "job_id": job_id,
-        "status": "running_producer",
+        "status": "queued",  # Return producer status, not job status
+        "producer_status": "queued",
         "message": "Producer Packet (Doc 3) generation started. This is creative interpretation, not factual research.",
     }
 

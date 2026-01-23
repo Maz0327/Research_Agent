@@ -119,6 +119,14 @@ class JobRecord(BaseModel):
     booster_error: Optional[str] = Field(None, description="Booster error message if failed")
     booster_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Booster progress (0-100)")
 
+    # Producer tracking (separate from main pipeline status)
+    # IMPORTANT: Producer must NEVER modify jobs.status - these fields track producer independently
+    producer_status: Optional[str] = Field(None, description="Producer status: queued, running, completed, failed")
+    producer_started_at: Optional[datetime] = Field(None, description="When producer started")
+    producer_completed_at: Optional[datetime] = Field(None, description="When producer completed/failed")
+    producer_error: Optional[str] = Field(None, description="Producer error message if failed")
+    producer_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Producer progress (0-100)")
+
     # Configuration
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
 

@@ -83,6 +83,43 @@ class TestSourceExtraction:
         sources = _extract_sources_from_job(job)
         assert len(sources) == 2
 
+    def test_extract_from_sources_array(self):
+        """Should extract from 'sources' key (SourceLedger.to_dict() format)."""
+        job = {
+            "artifacts": {
+                "source_ledger": {
+                    "sources": [
+                        {"source_id": "SRC_1", "source_type": "youtube", "title": "Test 1"},
+                        {"source_id": "SRC_2", "source_type": "article", "title": "Test 2"},
+                        {"source_id": "SRC_3", "source_type": "youtube", "title": "Test 3"},
+                        {"source_id": "SRC_4", "source_type": "reddit", "title": "Test 4"},
+                    ]
+                }
+            }
+        }
+        sources = _extract_sources_from_job(job)
+        assert len(sources) == 4
+
+    def test_extract_from_nested_sources_array(self):
+        """Should extract from nested data.sources (storage format with full sources)."""
+        job = {
+            "artifacts": {
+                "source_ledger": {
+                    "data": {
+                        "sources": [
+                            {"source_id": "SRC_1", "source_type": "youtube", "title": "Test 1"},
+                            {"source_id": "SRC_2", "source_type": "article", "title": "Test 2"},
+                            {"source_id": "SRC_3", "source_type": "youtube", "title": "Test 3"},
+                            {"source_id": "SRC_4", "source_type": "reddit", "title": "Test 4"},
+                        ]
+                    },
+                    "markdown": "# Source Ledger..."
+                }
+            }
+        }
+        sources = _extract_sources_from_job(job)
+        assert len(sources) == 4
+
     def test_extract_empty_when_no_artifacts(self):
         """Should return empty list when no artifacts."""
         job = {"status": "completed"}
@@ -218,19 +255,19 @@ class TestProducerGating:
         can_generate, reason = can_generate_producer_packet(job)
         assert can_generate is True
 
-    def test_gating_passes_with_running_producer_status(self):
-        """REGRESSION: Gating should pass when status is 'running_producer'.
+    def test_gating_fails_with_running_producer_status(self):
+        """Gating should FAIL when status is 'running_producer'.
 
-        This tests the deadlock fix where:
-        1. API route validates gating (status=completed)
-        2. API sets status='running_producer' and queues worker
-        3. Worker re-runs gating but status is now 'running_producer'
+        FIX (2026-01-22): We no longer accept 'running_producer' status.
+        The proper fix for the deadlock is to use separate producer_status field
+        instead of modifying job.status. The job.status must remain 'completed'
+        and producer_status tracks producer execution independently.
 
-        The worker's gating check must accept 'running_producer' because
-        the API already validated the job was completed before queuing.
+        Gating should only check that the base job is completed, not care about
+        producer_status at all.
         """
         job = {
-            "status": "running_producer",  # Set by API before worker runs
+            "status": "running_producer",  # This is now WRONG - should be "completed"
             "artifacts": {
                 "source_ledger": {
                     "source_manifest": [
@@ -243,7 +280,33 @@ class TestProducerGating:
             }
         }
         can_generate, reason = can_generate_producer_packet(job)
-        assert can_generate is True, f"Gating should pass with running_producer status, got: {reason}"
+        # Should FAIL because job.status must be "completed", not "running_producer"
+        assert can_generate is False
+        assert "completed" in reason.lower()
+
+    def test_gating_ignores_producer_status_field(self):
+        """Gating should ignore producer_status and only check job.status.
+
+        The producer_status field tracks producer execution separately.
+        A job with status="completed" and producer_status="running" should
+        still pass gating (the base job is completed).
+        """
+        job = {
+            "status": "completed",  # Base job is completed
+            "producer_status": "running",  # Producer is running (ignored by gating)
+            "artifacts": {
+                "source_ledger": {
+                    "source_manifest": [
+                        {"source_id": "SRC_1", "type": "youtube", "status": "ingested", "confidence_ceiling": "high"},
+                        {"source_id": "SRC_2", "type": "article", "status": "ingested"},
+                        {"source_id": "SRC_3", "type": "youtube", "status": "ingested"},
+                        {"source_id": "SRC_4", "type": "reddit", "status": "ingested"},
+                    ]
+                }
+            }
+        }
+        can_generate, reason = can_generate_producer_packet(job)
+        assert can_generate is True, f"Gating should pass when job.status=completed, got: {reason}"
         assert reason == "OK"
 
 

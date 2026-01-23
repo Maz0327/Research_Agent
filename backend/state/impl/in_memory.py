@@ -73,6 +73,12 @@ class InMemoryJobStore(JobStore):
         booster_completed_at: Optional[datetime] = None,
         booster_error: Optional[str] = None,
         booster_progress_percent: Optional[int] = None,
+        # Producer tracking fields (separate from main job status)
+        producer_status: Optional[str] = None,
+        producer_started_at: Optional[datetime] = None,
+        producer_completed_at: Optional[datetime] = None,
+        producer_error: Optional[str] = None,
+        producer_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """Update a job record with partial updates."""
         with self._lock:
@@ -141,6 +147,18 @@ class InMemoryJobStore(JobStore):
                 job.booster_error = booster_error
             if booster_progress_percent is not None:
                 job.booster_progress_percent = booster_progress_percent
+
+            # Producer tracking fields
+            if producer_status is not None:
+                job.producer_status = producer_status
+            if producer_started_at is not None:
+                job.producer_started_at = producer_started_at
+            if producer_completed_at is not None:
+                job.producer_completed_at = producer_completed_at
+            if producer_error is not None:
+                job.producer_error = producer_error
+            if producer_progress_percent is not None:
+                job.producer_progress_percent = producer_progress_percent
 
             logger.debug(f"Updated job {job_id} in memory")
             return job

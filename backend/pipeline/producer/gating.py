@@ -21,8 +21,10 @@ def _extract_sources_from_job(job: dict[str, Any]) -> list[dict]:
     Sources can be found in multiple locations (checked in priority order):
     1. job["sources"] - if explicitly provided (legacy/direct)
     2. job["artifacts"]["source_ledger"]["source_manifest"] - inline Doc 0 data
-    3. job["artifacts"]["source_ledger"]["data"]["source_manifest"] - nested inline
-    4. Must fetch from storage if only doc_0_path available (caller responsibility)
+    3. job["artifacts"]["source_ledger"]["data"]["source_manifest"] - nested (storage format)
+    4. job["artifacts"]["source_ledger"]["sources"] - full source array (Doc 0 format)
+    5. job["artifacts"]["source_ledger"]["data"]["sources"] - nested full source array
+    6. Must fetch from storage if only doc_0_path available (caller responsibility)
 
     Args:
         job: Job record dict
@@ -54,17 +56,24 @@ def _extract_sources_from_job(job: dict[str, Any]) -> list[dict]:
     # Handle nested dict structure from storage
     if isinstance(source_ledger, dict):
         # Check for data wrapper (from storage format)
+        inner_data = source_ledger
         if "data" in source_ledger and isinstance(source_ledger["data"], dict):
-            source_ledger = source_ledger["data"]
+            inner_data = source_ledger["data"]
 
-        # source_manifest is the array of sources in Doc 0
-        sources = source_ledger.get("source_manifest", [])
+        # Priority 2a: source_manifest (lightweight list)
+        sources = inner_data.get("source_manifest", [])
         if sources:
             logger.debug(f"Found {len(sources)} sources in source_ledger.source_manifest")
             return sources
 
-        # Also check 'entries' key (older format)
-        entries = source_ledger.get("entries", [])
+        # Priority 2b: sources (full source array from SourceLedger.to_dict())
+        sources = inner_data.get("sources", [])
+        if sources:
+            logger.debug(f"Found {len(sources)} sources in source_ledger.sources")
+            return sources
+
+        # Priority 2c: entries (older format)
+        entries = inner_data.get("entries", [])
         if entries:
             logger.debug(f"Found {len(entries)} sources in source_ledger.entries")
             return entries
@@ -117,11 +126,11 @@ def can_generate_producer_packet(job: dict[str, Any]) -> tuple[bool, str]:
     if high_confidence < 1:
         return False, "Need at least 1 high-confidence source"
 
-    # Check job status
-    # Accept "running_producer" because if the worker is running gating,
-    # the API route already validated status was "completed" before queuing the task.
+    # Check job status (base research job must be completed)
+    # NOTE: We check job.status, NOT producer_status. Producer_status tracks
+    # producer execution separately and should never affect this gating check.
     status = job.get("status", "")
-    valid_statuses = ("completed", "completed_with_warnings", "running_producer")
+    valid_statuses = ("completed", "completed_with_warnings")
     if status not in valid_statuses:
         return False, f"Job must be completed, currently {status}"
 

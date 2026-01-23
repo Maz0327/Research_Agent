@@ -81,6 +81,12 @@ class JobStore(ABC):
         booster_completed_at: Optional[datetime] = None,
         booster_error: Optional[str] = None,
         booster_progress_percent: Optional[int] = None,
+        # Producer tracking fields (separate from main job status)
+        producer_status: Optional[str] = None,
+        producer_started_at: Optional[datetime] = None,
+        producer_completed_at: Optional[datetime] = None,
+        producer_error: Optional[str] = None,
+        producer_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record with partial updates.
@@ -105,6 +111,11 @@ class JobStore(ABC):
             booster_completed_at: When booster completed/failed
             booster_error: Booster error message if failed
             booster_progress_percent: Booster progress (0-100)
+            producer_status: Producer execution status (queued/running/completed/failed)
+            producer_started_at: When producer started
+            producer_completed_at: When producer completed/failed
+            producer_error: Producer error message if failed
+            producer_progress_percent: Producer progress (0-100)
 
         Returns:
             Updated JobRecord if found and updated, None otherwise
