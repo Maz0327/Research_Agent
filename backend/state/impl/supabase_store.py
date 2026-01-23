@@ -686,10 +686,13 @@ class SupabaseJobStore(JobStore):
 
         # Add status filter
         if status is not None:
-            valid_statuses = {"queued", "running", "completed", "failed", "cancelled"}
+            valid_statuses = {"queued", "running", "completed", "failed", "cancelled", "completed_with_warnings", "failed_insufficient", "disambiguating"}
             if status not in valid_statuses:
                 raise ValueError(f"Invalid status: {status}. Must be one of {valid_statuses}")
             params["status"] = f"eq.{status}"
+        else:
+            # By default, exclude deleted and archived jobs from listing
+            params["status"] = "not.in.(deleted,archived)"
 
         # Add pipeline filter
         if pipeline is not None:

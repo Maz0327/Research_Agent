@@ -155,6 +155,9 @@ class InMemoryJobStore(JobStore):
         with self._lock:
             jobs = list(self._jobs.values())
 
+        # Exclude deleted and archived jobs by default
+        jobs = [job for job in jobs if job.status not in ("deleted", "archived")]
+
         # Filter by user_id if provided (outside lock - operating on copy)
         if user_id is not None:
             jobs = [job for job in jobs if job.user_id == user_id]
