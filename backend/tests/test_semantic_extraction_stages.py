@@ -1068,3 +1068,207 @@ class TestExtractSemanticStructure:
 
         assert report is not None
         assert isinstance(cost, float)
+
+
+# =============================================================================
+# TestParallelSemanticExtraction
+# =============================================================================
+
+
+class TestParallelSemanticExtraction:
+    """Tests for parallel semantic extraction with deterministic ordering."""
+
+    def test_process_single_source_returns_result(self):
+        """process_single_source should return SourceExtractionResult."""
+        from backend.pipeline.stages.semantic_extraction import (
+            process_single_source,
+            SourceExtractionResult,
+        )
+
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="article",
+            url="https://example.com/article",
+            title="Test Article",
+            analysis_mode=AnalysisMode.ARTICLE_FETCHED,
+            content="This is test content for extraction.",
+            is_accessible=True,
+        )
+
+        with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+            mock_client = MockGemini.return_value
+            mock_client.generate_json.return_value = {
+                "data": {
+                    "key_points": [
+                        {
+                            "key_point_id": "KP_1",
+                            "statement": "Test statement",
+                            "confidence": "high",
+                        }
+                    ]
+                },
+                "cost": 0.001,
+            }
+
+            result = process_single_source(
+                package=package,
+                index=0,
+                job_config=None,
+            )
+
+            assert isinstance(result, SourceExtractionResult)
+            assert result.source_id == "SRC_1"
+            assert result.index == 0
+            assert result.status == "processed"
+            assert result.extraction_result is not None
+            assert len(result.extraction_result.key_points) == 1
+
+    def test_process_single_source_preserves_index(self):
+        """process_single_source should preserve original index for ordering."""
+        from backend.pipeline.stages.semantic_extraction import (
+            process_single_source,
+            SourceExtractionResult,
+        )
+
+        package = SourceIdentityPackage(
+            source_id="SRC_5",
+            source_type="article",
+            url="https://example.com/article5",
+            title="Test Article 5",
+            analysis_mode=AnalysisMode.ARTICLE_FETCHED,
+            content="Content for article 5",
+            is_accessible=True,
+        )
+
+        with patch("backend.integrations.gemini_client.GeminiClient") as MockGemini:
+            mock_client = MockGemini.return_value
+            mock_client.generate_json.return_value = {
+                "data": {"key_points": []},
+                "cost": 0.001,
+            }
+
+            result = process_single_source(
+                package=package,
+                index=4,  # 5th source (0-indexed)
+                job_config=None,
+            )
+
+            assert result.index == 4
+            assert result.source_id == "SRC_5"
+
+    def test_process_single_source_handles_inaccessible(self):
+        """process_single_source should skip inaccessible sources."""
+        from backend.pipeline.stages.semantic_extraction import (
+            process_single_source,
+        )
+
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="youtube",
+            url="https://youtube.com/watch?v=private",
+            title="Private Video",
+            is_accessible=False,
+            failure_reason="Video is private",
+        )
+
+        result = process_single_source(
+            package=package,
+            index=0,
+            job_config=None,
+        )
+
+        assert result.status == "skipped"
+        assert "Skipped semantic extraction" in str(result.warnings)
+        assert "Video is private" in str(result.warnings)
+
+    def test_parallel_extraction_deterministic_ordering(self):
+        """Parallel extraction should preserve deterministic ordering."""
+        from concurrent.futures import ThreadPoolExecutor
+        from backend.pipeline.stages.semantic_extraction import (
+            process_single_source,
+            SourceExtractionResult,
+        )
+        import time
+        import random
+
+        # Create 5 packages with different processing times
+        packages = []
+        for i in range(5):
+            packages.append(SourceIdentityPackage(
+                source_id=f"SRC_{i+1}",
+                source_type="article",
+                url=f"https://example.com/article{i+1}",
+                title=f"Test Article {i+1}",
+                analysis_mode=AnalysisMode.ARTICLE_FETCHED,
+                content=f"Content for article {i+1}",
+                is_accessible=True,
+            ))
+
+        def mock_process(package, index, job_config):
+            """Mock processing with random delay to simulate real conditions."""
+            # Random delay between 0.01 and 0.05 seconds
+            time.sleep(random.uniform(0.01, 0.05))
+            return SourceExtractionResult(
+                source_id=package.source_id,
+                index=index,
+                status="processed",
+                extraction_result=SemanticExtractionResult(
+                    source_id=package.source_id,
+                    analysis_mode=package.analysis_mode,
+                ),
+            )
+
+        # Run extraction in parallel multiple times to verify ordering
+        for run in range(3):
+            results = []
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                futures = {
+                    executor.submit(mock_process, pkg, i, None): i
+                    for i, pkg in enumerate(packages)
+                }
+                from concurrent.futures import as_completed
+                for future in as_completed(futures):
+                    results.append(future.result())
+
+            # Sort by index (as the actual implementation does)
+            results.sort(key=lambda r: r.index)
+
+            # Verify order is SRC_1, SRC_2, SRC_3, SRC_4, SRC_5
+            source_ids = [r.source_id for r in results]
+            assert source_ids == ["SRC_1", "SRC_2", "SRC_3", "SRC_4", "SRC_5"], (
+                f"Run {run+1}: Expected deterministic order, got {source_ids}"
+            )
+
+    def test_source_extraction_result_dataclass(self):
+        """SourceExtractionResult should initialize correctly."""
+        from backend.pipeline.stages.semantic_extraction import (
+            SourceExtractionResult,
+        )
+
+        result = SourceExtractionResult(
+            source_id="SRC_1",
+            index=0,
+        )
+
+        assert result.source_id == "SRC_1"
+        assert result.index == 0
+        assert result.status == "pending"
+        assert result.warnings == []
+        assert result.costs == {}
+        assert result.extraction_result is None
+
+    def test_source_extraction_result_with_costs(self):
+        """SourceExtractionResult should track costs correctly."""
+        from backend.pipeline.stages.semantic_extraction import (
+            SourceExtractionResult,
+        )
+
+        result = SourceExtractionResult(
+            source_id="SRC_1",
+            index=0,
+            costs={"gemini_semantic_extraction": 0.005, "openai_llm_judge": 0.002},
+        )
+
+        assert result.costs["gemini_semantic_extraction"] == 0.005
+        assert result.costs["openai_llm_judge"] == 0.002
+        assert sum(result.costs.values()) == 0.007

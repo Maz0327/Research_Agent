@@ -140,6 +140,22 @@ class Settings(BaseSettings):
         description="Enable niche overlay system for specialized research modes"
     )
 
+    # Performance: Parallel semantic extraction
+    semantic_extraction_max_workers: int = Field(
+        default=3, alias="SEMANTIC_EXTRACTION_MAX_WORKERS",
+        description="Max concurrent sources during semantic extraction (2-5 recommended)"
+    )
+
+    # Performance: Conditional LLM Judge
+    llm_judge_conditional: bool = Field(
+        default=False, alias="LLM_JUDGE_CONDITIONAL",
+        description="Only run LLM Judge when confidence < HIGH or warnings > threshold"
+    )
+    llm_judge_warning_threshold: int = Field(
+        default=2, alias="LLM_JUDGE_WARNING_THRESHOLD",
+        description="Warning count threshold to trigger LLM Judge when conditional mode is on"
+    )
+
     # Reddit PRAW configuration
     reddit_client_id: Optional[str] = Field(
         default=None, alias="REDDIT_CLIENT_ID",
