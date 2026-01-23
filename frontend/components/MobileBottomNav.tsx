@@ -21,7 +21,7 @@ const navItems = [
   },
   {
     href: '/queue',
-    label: 'Queue',
+    label: 'Jobs',
     icon: (
       <path
         strokeLinecap="round"

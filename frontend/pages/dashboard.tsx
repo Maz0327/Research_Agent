@@ -5,15 +5,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../components/Layout';
-import JobCard from '../components/JobCard';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
 import { useJobsStore, JobPreview, VideoAnalysisResponse, TextInputRequest, TextInputResponse, ScreenshotInputResponse, MixedInputRequest, MixedInputResponse, MixedTextInput } from '../store/jobs';
 import { useUIPreferences } from '../store/ui-preferences';
 import { POLLING_INTERVALS, VALIDATION_LIMITS, PLATFORM_HINTS, SCREENSHOT_PLATFORM_HINTS } from '../lib/constants';
 import { UnifiedInputPanel } from '../components/unified-input';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
-import { ViewToggle } from '../components/dashboard/ViewToggle';
-import { JobTable } from '../components/dashboard/JobTable';
+import { DashboardJobCard } from '../components/dashboard/DashboardJobCard';
 
 // Job creation modes: 'research' (unified multi-source) or 'quick' (simple video)
 type JobMode = 'research' | 'quick';
@@ -78,23 +76,16 @@ function DashboardContent() {
   const [researchDepth, setResearchDepth] = useState('investigation');
   const [category, setCategory] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showPreview, setShowPreview] = useState(false);
-  // Bulk delete confirmation
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isBulkArchiving, setIsBulkArchiving] = useState(false);
   // Editable preview state
   const [editableSources, setEditableSources] = useState<string[]>([]);
   const [editableSubreddits, setEditableSubreddits] = useState<string[]>([]);
   const [newSubreddit, setNewSubreddit] = useState('');
   const {
     jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createVideoAnalysisJob, createMixedInputJob, refreshJob, clearPreview,
-    // Bulk selection
-    isEditMode, selectedJobIds, bulkErrors, toggleEditMode, selectJob, deselectJob, selectAll, deselectAll, bulkDelete, bulkArchive, clearBulkErrors,
   } = useJobsStore();
   const { user } = useAuth();
-  const { createPanelCollapsed, toggleCreatePanel, jobListView, setJobListView } = useUIPreferences();
+  const { createPanelCollapsed, toggleCreatePanel } = useUIPreferences();
 
   // Get current depth config for placeholder example
   const currentDepth = researchDepths.find(d => d.value === researchDepth) || researchDepths[3];
@@ -214,10 +205,6 @@ function DashboardContent() {
     clearPreview();
   };
 
-  const handleRefresh = () => {
-    fetchJobs();
-  };
-
   // Parse video URLs from textarea (one per line or comma-separated)
   const parseVideoUrls = (text: string): string[] => {
     return text
@@ -288,20 +275,17 @@ function DashboardContent() {
     }
   };
 
-  // Memoize filtered jobs to prevent unnecessary recalculations
-  // Group related statuses for filtering (completed includes completed_with_warnings, failed includes failed_insufficient)
-  const filteredJobs = useMemo(() => {
-    if (statusFilter === 'all') return jobs;
-    return jobs.filter((job) => {
-      if (statusFilter === 'completed') {
-        return job.status === 'completed' || job.status === 'completed_with_warnings';
-      }
-      if (statusFilter === 'failed') {
-        return job.status === 'failed' || job.status === 'failed_insufficient';
-      }
-      return job.status === statusFilter;
-    });
-  }, [jobs, statusFilter]);
+  // Get 5 most recent jobs for dashboard preview
+  const recentJobs = useMemo(() => {
+    return [...jobs]
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, 5);
+  }, [jobs]);
+
+  // Count active jobs
+  const activeJobsCount = useMemo(() => {
+    return jobs.filter((job) => job.status === 'running' || job.status === 'queued').length;
+  }, [jobs]);
 
   return (
     <Layout>
@@ -516,17 +500,17 @@ function DashboardContent() {
         </motion.div>
 
         {/* Active Jobs Quick Link - ADHD-friendly navigation */}
-        {jobs.filter(j => j.status === 'running' || j.status === 'queued').length > 0 && (
+        {activeJobsCount > 0 && (
           <motion.a
-            href="/queue"
+            href="/queue?tab=active"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mb-4 flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 transition-colors group"
+            className="mb-6 flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 transition-colors group"
           >
             <div className="flex items-center gap-3">
               <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
               <span className="text-sm font-medium text-blue-300">
-                {jobs.filter(j => j.status === 'running').length} running, {jobs.filter(j => j.status === 'queued').length} queued
+                {activeJobsCount} active job{activeJobsCount > 1 ? 's' : ''} in queue
               </span>
             </div>
             <div className="flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300">
@@ -538,142 +522,47 @@ function DashboardContent() {
           </motion.a>
         )}
 
-        {/* Jobs List */}
-        <div>
-          {/* Bulk errors display */}
-          {bulkErrors.length > 0 && (
-            <div className="mb-4 rounded-lg border border-red-800 bg-red-900/30 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-red-400">Some jobs failed:</p>
-                <button
-                  onClick={clearBulkErrors}
-                  className="text-red-400 hover:text-red-300 text-sm"
-                >
-                  Dismiss
-                </button>
-              </div>
-              {bulkErrors.map(({ jobId, error }) => (
-                <p key={jobId} className="text-xs text-red-300">{jobId.slice(0, 8)}...: {error}</p>
-              ))}
-            </div>
-          )}
-
-          {/* Jobs list header - responsive layout */}
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            {/* Title + Edit toggle + View toggle */}
-            <div className="flex items-center justify-between sm:justify-start gap-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-100">Your Jobs</h2>
-              {/* View Toggle */}
-              <ViewToggle view={jobListView} onChange={setJobListView} />
-              {/* Edit Mode Toggle - touch-friendly */}
-              <button
-                onClick={toggleEditMode}
-                className={`rounded-lg px-3 py-2 sm:py-1.5 text-sm font-medium transition-all duration-200 min-h-[40px] sm:min-h-0 touch-manipulation ${
-                  isEditMode
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
-                }`}
+        {/* Recent Jobs Section - Compact View */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-100">Recent Jobs</h2>
+            {jobs.length > 0 && (
+              <a
+                href="/queue"
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
               >
-                {isEditMode ? 'Done' : 'Select'}
-              </button>
-            </div>
-
-            {/* Edit Mode Controls - stack on mobile */}
-            {isEditMode ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={selectedJobIds.size > 0 ? deselectAll : selectAll}
-                  className="rounded-lg bg-gray-800 px-3 py-2 sm:py-1.5 text-sm text-gray-400 hover:bg-gray-700 min-h-[40px] sm:min-h-0 touch-manipulation"
-                >
-                  {selectedJobIds.size > 0 ? 'Deselect All' : 'Select All'}
-                </button>
-                <span className="text-sm text-gray-500">{selectedJobIds.size} selected</span>
-                <button
-                  onClick={async () => {
-                    if (selectedJobIds.size === 0) return;
-                    setIsBulkArchiving(true);
-                    await bulkArchive();
-                    setIsBulkArchiving(false);
-                  }}
-                  disabled={selectedJobIds.size === 0 || isBulkArchiving}
-                  className="rounded-lg border border-gray-600 px-3 py-2 sm:py-1.5 text-sm text-gray-400 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] sm:min-h-0 touch-manipulation"
-                >
-                  {isBulkArchiving ? 'Archiving...' : 'Archive'}
-                </button>
-                <button
-                  onClick={() => setShowBulkDeleteConfirm(true)}
-                  disabled={selectedJobIds.size === 0}
-                  className="rounded-lg border border-red-700 px-3 py-2 sm:py-1.5 text-sm text-red-400 hover:bg-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] sm:min-h-0 touch-manipulation"
-                >
-                  Delete
-                </button>
-              </div>
-            ) : (
-              /* Status Filter - horizontal scroll on mobile, wrap on desktop */
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
-                {['all', 'running', 'completed', 'failed', 'cancelled'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`rounded-lg px-3 py-2 sm:py-1.5 text-sm font-medium transition-all duration-200 whitespace-nowrap min-h-[40px] sm:min-h-0 touch-manipulation ${
-                      statusFilter === status
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300'
-                    }`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </button>
-                ))}
-              </div>
+                View all
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             )}
           </div>
 
-          {/* Bulk Delete Confirmation Modal - mobile-friendly */}
-          {showBulkDeleteConfirm && (
-            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-              <div className="w-full sm:w-auto rounded-t-xl sm:rounded-lg border border-gray-700 bg-gray-900 p-5 sm:p-6 max-w-sm shadow-xl">
-                <h3 className="text-base sm:text-lg font-medium text-gray-100 mb-2">Delete {selectedJobIds.size} jobs?</h3>
-                <p className="text-sm text-gray-400 mb-4">This action cannot be undone.</p>
-                {/* Mobile: stack buttons, Desktop: inline */}
-                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
-                  <button
-                    onClick={() => setShowBulkDeleteConfirm(false)}
-                    className="w-full sm:w-auto rounded-lg px-4 py-3 sm:py-2 text-gray-400 hover:text-gray-300 bg-gray-800 sm:bg-transparent min-h-[44px] touch-manipulation"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setIsBulkDeleting(true);
-                      await bulkDelete();
-                      setIsBulkDeleting(false);
-                      setShowBulkDeleteConfirm(false);
-                    }}
-                    disabled={isBulkDeleting}
-                    className="w-full sm:w-auto rounded-lg bg-red-600 px-4 py-3 sm:py-2 text-white hover:bg-red-500 disabled:opacity-50 min-h-[44px] touch-manipulation"
-                  >
-                    {isBulkDeleting ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {isLoading ? (
-            <div className="space-y-4">
-              <JobSkeleton />
-              <JobSkeleton />
-              <JobSkeleton />
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse p-3 bg-gray-900 rounded-lg border border-gray-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gray-800 rounded-lg" />
+                    <div className="flex-1">
+                      <div className="h-4 w-3/4 bg-gray-800 rounded mb-2" />
+                      <div className="h-3 w-1/2 bg-gray-800 rounded" />
+                    </div>
+                    <div className="w-12 h-4 bg-gray-800 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : filteredJobs.length === 0 ? (
+          ) : recentJobs.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="rounded-xl border border-dashed border-gray-700 py-16 text-center"
+              className="rounded-xl border border-dashed border-gray-700 py-12 text-center"
             >
-              <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-gray-800 p-4">
+              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-gray-800 p-3">
                 <svg
-                  className="h-8 w-8 text-gray-500"
+                  className="h-6 w-6 text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -686,73 +575,44 @@ function DashboardContent() {
                   />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-300">No jobs yet</h3>
+              <h3 className="text-base font-medium text-gray-300">No jobs yet</h3>
               <p className="mt-1 text-sm text-gray-500">
                 Create your first research job above to get started.
               </p>
               <button
                 onClick={() => {
-                  // Expand panel if collapsed and scroll to top
                   if (createPanelCollapsed) {
                     toggleCreatePanel();
                   }
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 touch-manipulation"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 touch-manipulation"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Create Your First Job
               </button>
             </motion.div>
-          ) : jobListView === 'table' ? (
-            /* Table View */
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <JobTable
-                jobs={filteredJobs}
-                onRefresh={handleRefresh}
-                isEditMode={isEditMode}
-                selectedJobIds={selectedJobIds}
-                onToggleSelect={(jobId) => {
-                  if (selectedJobIds.has(jobId)) {
-                    deselectJob(jobId);
-                  } else {
-                    selectJob(jobId);
-                  }
-                }}
-              />
-            </motion.div>
           ) : (
-            /* Card View */
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-4"
-            >
-              {filteredJobs.map((job, index) => (
-                <motion.div
-                  key={job.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <JobCard
-                    job={job}
-                    onRefresh={handleRefresh}
-                    isEditMode={isEditMode}
-                    isSelected={selectedJobIds.has(job.id)}
-                    onToggleSelect={() => {
-                      if (selectedJobIds.has(job.id)) {
-                        deselectJob(job.id);
-                      } else {
-                        selectJob(job.id);
-                      }
-                    }}
-                  />
-                </motion.div>
+            <div className="space-y-2">
+              {recentJobs.map((job, index) => (
+                <DashboardJobCard key={job.id} job={job} delay={index} />
               ))}
-            </motion.div>
+              
+              {/* View All Jobs link - only show if more than 5 jobs */}
+              {jobs.length > 5 && (
+                <a
+                  href="/queue"
+                  className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-800 hover:border-gray-700 hover:bg-gray-900/50 text-gray-400 hover:text-gray-300 transition-all group"
+                >
+                  <span className="text-sm">View all {jobs.length} jobs</span>
+                  <svg className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>
