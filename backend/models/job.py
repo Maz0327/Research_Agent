@@ -96,6 +96,25 @@ class JobStatusResponse(BaseModel):
     documents_ready: Optional[dict[str, Any]] = Field(
         None, description="Per-document availability (inline/storage)"
     )
+    # Booster tracking fields (separate from main job status)
+    booster_status: Optional[str] = Field(None, description="Booster execution status (queued, running, completed, failed)")
+    booster_started_at: Optional[datetime] = Field(None, description="When booster started")
+    booster_completed_at: Optional[datetime] = Field(None, description="When booster completed/failed")
+    booster_error: Optional[str] = Field(None, description="Booster error message if failed")
+    booster_progress_percent: Optional[int] = Field(None, description="Booster progress (0-100)")
+    # Producer packet tracking fields (separate from main job status)
+    producer_status: Optional[str] = Field(None, description="Producer packet execution status (queued, running, completed, failed)")
+    producer_started_at: Optional[datetime] = Field(None, description="When producer packet started")
+    producer_completed_at: Optional[datetime] = Field(None, description="When producer packet completed/failed")
+    producer_error: Optional[str] = Field(None, description="Producer packet error message if failed")
+    producer_progress_percent: Optional[int] = Field(None, description="Producer packet progress (0-100)")
+    # Iteration tracking fields (separate from main job status)
+    iteration_status: Optional[str] = Field(None, description="Current iteration status (queued, running, completed, failed)")
+    iteration_id: Optional[str] = Field(None, description="Current iteration ID (it_0001, ...)")
+    iteration_started_at: Optional[datetime] = Field(None, description="When current iteration started")
+    iteration_completed_at: Optional[datetime] = Field(None, description="When current iteration completed/failed")
+    iteration_error: Optional[str] = Field(None, description="Iteration error message if failed")
+    iteration_progress_percent: Optional[int] = Field(None, description="Iteration progress (0-100)")
 
     class Config:
         populate_by_name = True

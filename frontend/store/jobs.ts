@@ -1000,6 +1000,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
                 booster_completed_at: data.booster_completed_at,
                 booster_error: data.booster_error,
                 booster_progress_percent: data.booster_progress_percent,
+                // Producer packet tracking fields
+                producer_status: data.producer_status,
+                producer_started_at: data.producer_started_at,
+                producer_completed_at: data.producer_completed_at,
+                producer_error: data.producer_error,
+                producer_progress_percent: data.producer_progress_percent,
                 // Iteration tracking fields
                 iteration_status: data.iteration_status,
                 iteration_id: data.iteration_id,
