@@ -149,53 +149,91 @@ class SourceEntry:
         }
 
     def to_markdown(self) -> str:
-        """Render source entry as markdown section."""
+        """Render source entry as markdown section with visual hierarchy."""
+        # Status indicator
+        status_icon = {
+            SourceStatus.INGESTED: "**[INGESTED]**",
+            SourceStatus.PARTIAL: "**[PARTIAL]**",
+            SourceStatus.FAILED: "**[FAILED]**",
+        }.get(self.status, "**[UNKNOWN]**")
+
+        # Type badge
+        type_label = self.source_type.upper() if self.source_type else "SOURCE"
+
         lines = [
-            f"### SOURCE: {self.source_id}",
-            f"Type: {self.source_type}",
-            f"Title: {self.title}",
+            f"### {self.source_id}: {self.title}",
+            "",
+            f"> {type_label} {status_icon}",
+            "",
         ]
 
+        # Metadata block
+        lines.append("**Details:**")
         if self.creator:
-            lines.append(f"Creator: {self.creator}")
+            lines.append(f"- **Creator:** {self.creator}")
         if self.published:
-            lines.append(f"Published: {self.published}")
+            lines.append(f"- **Published:** {self.published}")
         if self.duration:
-            lines.append(f"Duration: {self.duration}")
+            lines.append(f"- **Duration:** {self.duration}")
         if self.word_count:
-            lines.append(f"Word Count: {self.word_count:,}")
-
-        lines.append(f"URL: {self.url}")
+            lines.append(f"- **Word Count:** {self.word_count:,}")
+        lines.append(f"- **URL:** {self.url}")
         lines.append("")
 
+        # Skim summary with better visual
         if self.skim_summary:
-            lines.append("#### Skim Summary")
+            lines.extend([
+                "**Quick Summary:**",
+                "",
+            ])
             for bullet in self.skim_summary:
                 lines.append(f"- {bullet}")
             lines.append("")
 
-        if self.full_text:
-            lines.append("#### FULL SOURCE TEXT (Canonical)")
-            lines.append(self.full_text)
-        elif self.full_text_unavailable_reason:
-            lines.extend([
-                "#### FULL SOURCE TEXT (Canonical)",
-                "FULL SOURCE TEXT UNAVAILABLE",
-                "",
-                f"Reason: {self.full_text_unavailable_reason}",
-                f"Analysis Mode: {self.transcript_provenance.gemini_analysis_mode.value if self.transcript_provenance else 'unknown'}",
-                "",
-                "This source was analyzed without verbatim transcript text.",
-                "All extracted content should be treated as approximate.",
-            ])
-
+        # Transcript provenance (for video sources) - show before full text
         if self.transcript_provenance:
             tp = self.transcript_provenance
+            confidence_label = {
+                ConfidenceLevel.HIGH: "High",
+                ConfidenceLevel.MEDIUM: "Medium",
+                ConfidenceLevel.LOW: "Low",
+            }.get(tp.semantic_precision, "Unknown")
+
             lines.extend([
+                "**Transcript Quality:**",
                 "",
-                "#### Transcript Provenance",
-                f"Source: {tp.transcript_source.title()} | Mode: {tp.gemini_analysis_mode.value}",
-                f"Verification: {'Full quote verification available' if tp.quote_verification else 'Limited verification'}",
+                f"| Attribute | Value |",
+                f"|-----------|-------|",
+                f"| Source | {tp.transcript_source.title()} |",
+                f"| Analysis Mode | {tp.gemini_analysis_mode.value} |",
+                f"| Quote Verification | {'Available' if tp.quote_verification else 'Limited'} |",
+                f"| Confidence | {confidence_label} |",
+                "",
+            ])
+
+        # Failure reason for failed sources
+        if self.status == SourceStatus.FAILED and self.failure_reason:
+            lines.extend([
+                "> **Failed:** " + self.failure_reason,
+                "",
+            ])
+
+        # Full source text
+        if self.full_text:
+            lines.extend([
+                "<details>",
+                "<summary><strong>Full Source Text</strong> (click to expand)</summary>",
+                "",
+                "```",
+                self.full_text[:5000] + ("..." if len(self.full_text) > 5000 else ""),
+                "```",
+                "",
+                "</details>",
+            ])
+        elif self.full_text_unavailable_reason:
+            lines.extend([
+                "> **Text Unavailable:** " + self.full_text_unavailable_reason,
+                "",
             ])
 
         return "\n".join(lines)
@@ -239,24 +277,67 @@ class SourceLedger:
         }
 
     def to_markdown(self) -> str:
-        """Render full Source Ledger as markdown."""
+        """Render full Source Ledger as markdown with visual hierarchy."""
+        # Count sources by status
+        ingested = self.ingested_count
+        failed = self.failed_count
+        partial = sum(1 for s in self.sources if s.status == SourceStatus.PARTIAL)
+        total = len(self.sources)
+
         lines = [
             "# SOURCE LEDGER",
-            f"Topic: {self.topic}",
             "",
-            "## SOURCE MANIFEST",
-            "| Source ID | Type | Title | Status |",
-            "|-----------|------|-------|--------|",
+            f"> **Research Topic:** {self.topic}",
+            "",
+            "---",
+            "",
+            "## Overview",
+            "",
+            f"| Metric | Count |",
+            f"|--------|-------|",
+            f"| Total Sources | {total} |",
+            f"| Successfully Ingested | {ingested} |",
+            f"| Partially Processed | {partial} |",
+            f"| Failed | {failed} |",
+            "",
         ]
 
-        for s in self.sources:
-            lines.append(f"| {s.source_id} | {s.source_type} | {s.title[:40]}... | {s.status.value} |")
+        # Quality indicator
+        if failed == 0 and partial == 0:
+            lines.append("> **Status:** All sources successfully processed")
+        elif failed > 0:
+            lines.append(f"> **Warning:** {failed} source(s) failed to process")
+        lines.extend(["", "---", ""])
 
-        lines.extend(["", "---", "", "## SOURCES", ""])
+        # Source manifest with better formatting
+        lines.extend([
+            "## Source Manifest",
+            "",
+            "| # | ID | Type | Title | Status |",
+            "|---|-----|------|-------|--------|",
+        ])
 
-        for source in self.sources:
+        for i, s in enumerate(self.sources, 1):
+            status_badge = {
+                SourceStatus.INGESTED: "Ingested",
+                SourceStatus.PARTIAL: "Partial",
+                SourceStatus.FAILED: "Failed",
+            }.get(s.status, "Unknown")
+            title_truncated = s.title[:35] + "..." if len(s.title) > 35 else s.title
+            lines.append(f"| {i} | {s.source_id} | {s.source_type} | {title_truncated} | {status_badge} |")
+
+        lines.extend(["", "---", ""])
+
+        # Detailed sources section
+        lines.extend([
+            "## Detailed Source Analysis",
+            "",
+        ])
+
+        for i, source in enumerate(self.sources, 1):
             lines.append(source.to_markdown())
-            lines.extend(["", "---", ""])
+            if i < len(self.sources):
+                lines.extend(["", "---", ""])
 
         return "\n".join(lines)
 

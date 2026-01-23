@@ -243,12 +243,12 @@ class TestSourceEntry:
         )
         md = entry.to_markdown()
 
-        assert "### SOURCE: SRC_1" in md
-        assert "Type: youtube" in md
-        assert "Creator: Test Creator" in md
-        assert "#### Skim Summary" in md
+        assert "### SRC_1:" in md  # New format: "### SRC_1: Title"
+        assert "YOUTUBE" in md  # Type shown as badge
+        assert "**Creator:** Test Creator" in md  # Bolded metadata
+        assert "**Quick Summary:**" in md  # New heading
         assert "Point one" in md
-        assert "#### FULL SOURCE TEXT (Canonical)" in md
+        assert "Full Source Text" in md  # In collapsible details
         assert "Full transcript here" in md
 
 
@@ -331,9 +331,11 @@ class TestSourceLedger:
         md = ledger.to_markdown()
 
         assert "# SOURCE LEDGER" in md
-        assert "Topic: Test topic" in md
-        assert "## SOURCE MANIFEST" in md
+        assert "**Research Topic:** Test topic" in md  # New format
+        assert "## Source Manifest" in md  # Title case
         assert "SRC_1" in md
+        assert "## Overview" in md  # New overview section
+        assert "Total Sources | 1" in md  # Stats table
 
 
 # =============================================================================
