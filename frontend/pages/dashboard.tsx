@@ -513,6 +513,29 @@ function DashboardContent() {
           </AnimatePresence>
         </motion.div>
 
+        {/* Active Jobs Quick Link - ADHD-friendly navigation */}
+        {jobs.filter(j => j.status === 'running' || j.status === 'queued').length > 0 && (
+          <motion.a
+            href="/queue"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-4 flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-sm font-medium text-blue-300">
+                {jobs.filter(j => j.status === 'running').length} running, {jobs.filter(j => j.status === 'queued').length} queued
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300">
+              <span>View Queue</span>
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </motion.a>
+        )}
+
         {/* Jobs List */}
         <div>
           {/* Bulk errors display */}

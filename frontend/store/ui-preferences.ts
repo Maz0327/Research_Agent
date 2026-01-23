@@ -20,7 +20,8 @@ interface UIPreferencesState extends UIPreferences {
 }
 
 const defaultPreferences: UIPreferences = {
-  createPanelCollapsed: false,
+  // ADHD-friendly: Panel collapsed by default so users see their jobs first
+  createPanelCollapsed: true,
   jobListView: 'card',
 };
 
