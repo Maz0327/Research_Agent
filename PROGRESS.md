@@ -1,6 +1,6 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-22 14:25
+**Last Updated:** 2026-01-23 19:00
 **Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
 **Current Task:** Backend/Frontend Stability
 **Branch:** feature/vision-alignment-v1
@@ -914,37 +914,153 @@ All acceptance tests pass:
 
 ## Current Session
 
-**Date:** 2026-01-20
+**Date:** 2026-01-23
 **Tasks Planned:**
-- Document Accordion UI Implementation
+- Iteration Loop Implementation
+- Job Detail Page UX Refactor
 
-**Tasks Completed:**
-- ✅ Created PDF export utility (`frontend/lib/pdf-export.ts`)
-- ✅ Created DocumentAccordion component with lazy loading
-- ✅ Refactored JobResults to use accordion stack layout
-- ✅ Moved Booster/Producer Packet buttons from JobActions to JobResults
-- ✅ Added conditional Doc 3 accordion rendering
-- ✅ Added button disabled state for incomplete jobs
+### Part 1: Iteration Loop Implementation
 
-### Files Created (Frontend)
-- `frontend/lib/pdf-export.ts` — Reusable PDF export utility
-- `frontend/components/job-card/DocumentAccordion.tsx` — Collapsible document accordion
+**Goal:** Allow users to iterate on completed jobs with different research modes
 
-### Files Modified (Frontend)
-- `frontend/components/job-card/JobResults.tsx` — Accordion stack, action bar, Doc 3 conditional
-- `frontend/components/job-card/JobActions.tsx` — Removed Booster/Producer buttons (moved to JobResults)
-- `frontend/components/JobCard.tsx` — Pass onRefresh to JobResults
+**Backend Implementation:**
+- [x] Created `IterationBundle` and `IterationRequest` models in `backend/models/job_record.py`
+- [x] Added iteration tracking fields to Job model: `iteration_status`, `iteration_id`, `iteration_progress_percent`, etc.
+- [x] Added `iterations` array to Artifacts model
+- [x] Created POST `/jobs/{job_id}/iterate` endpoint in `jobs_routes.py`
+- [x] Created `run_iteration_task` Celery task in `worker.py`
+- [x] Added TOCTOU race condition fix with migration 022 (`iteration_claim` column)
+- [x] Applied migration to Supabase production
 
-### Key Features
-- Documents load only when accordion expanded (lazy loading)
-- Per-document PDF download button
-- Framer Motion animations for smooth expand/collapse
-- Doc 3 appears only when it exists
-- Action buttons disabled until job status is completed
-- Color scheme preserved: gray (Doc 0), blue (Doc 1), purple (Doc 2), amber (Doc 3)
+**Frontend Implementation:**
+- [x] Created `frontend/components/job-detail/IterationDialog.tsx` — Modal for iteration mode selection
+- [x] Created `frontend/components/job-detail/ArtifactCard.tsx` — Card component for each artifact
+- [x] Created `frontend/components/job-detail/ActiveTaskBanner.tsx` — Progress banner for running tasks
+- [x] Created `frontend/components/job-detail/IterationSelector.tsx` — Dropdown for version switching
+- [x] Created `frontend/components/job-detail/JobDetailHeader.tsx` — Header with job info and actions
+- [x] Added `triggerIteration()` to jobs store
 
-### Commits
-- `eee8b86` — feat(frontend): Replace document grid with accordion UI
+**Iteration Modes:**
+- `more_sources` — Add more sources to the research
+- `deeper` — Deeper analysis of existing content
+- `different_angle` — Explore from a different perspective
+- `custom` — User-provided custom prompt
+
+**Commits:**
+- `14c3f34` — feat(backend): Add Iteration Loop with TOCTOU protection
+
+### Part 2: Job Detail Page UX Refactor (3 Phases)
+
+**Plan:** `plans/260123-1700-job-detail-ux-refactor/plan.md`
+
+#### Phase 1: Job Detail Page Foundation
+
+**Goal:** Create dedicated `/jobs/[id]` page with artifact card grid
+
+**Files Created:**
+- `frontend/components/job-detail/ArtifactCardGrid.tsx` — Orchestrates all artifact cards
+  - Document state determination based on job status and artifacts
+  - Iteration version switching (baseline vs iterations)
+  - Document viewer modal integration
+  - Click handlers for viewing/triggering artifacts
+- `frontend/components/job-detail/index.ts` — Barrel export for all job-detail components
+- `frontend/pages/jobs/[id].tsx` — Full job detail page
+  - Header with job info and back navigation
+  - Active task banners (booster/iteration/producer)
+  - Artifact card grid with 6 cards
+  - Iteration dialog modal
+  - Delete confirmation modal
+  - Polling for active secondary tasks
+
+#### Phase 2: Dashboard Simplification
+
+**Goal:** Remove Level 2 expansion from dashboard, add navigation to detail page
+
+**Files Created:**
+- `frontend/components/job-card/TaskBadges.tsx` — Mini badges for secondary task status
+  - Shows booster/iteration/producer status on dashboard cards
+  - Color-coded: blue (booster), purple (iteration), green (producer)
+
+**Files Modified:**
+- `frontend/components/JobCard.tsx`:
+  - Removed Level 2 expansion (moved to detail page)
+  - Added TaskBadges component
+  - Added navigation to `/jobs/[id]` on card click
+- `frontend/store/jobs.ts`:
+  - Added iteration tracking fields to `refreshJob()`:
+    - `iteration_status`, `iteration_id`, `iteration_started_at`
+    - `iteration_completed_at`, `iteration_error`, `iteration_progress_percent`
+- `frontend/pages/dashboard.tsx`:
+  - Updated polling to include secondary tasks
+  - Now polls when booster/iteration status is `running` or `queued`
+
+#### Phase 3: Polish & Bug Fixes
+
+**ESLint Fixes:**
+- `pages/jobs/[id].tsx` line 329: Escaped apostrophes (`you're` → `you&apos;re`)
+- `IterationSelector.tsx` line 150: Escaped quotes (`"..."` → `&quot;...&quot;`)
+
+**React Hooks Fix:**
+- `ArtifactCardGrid.tsx`: Wrapped `iterations` in `useMemo` to prevent dependency changes
+
+**TypeScript Fix:**
+- `ActiveTaskBanner.tsx`: Added type assertion for `colorClasses` (possibly undefined)
+
+**Build Result:**
+- All ESLint errors resolved
+- All TypeScript errors resolved
+- 13/13 static pages generated
+- New route `/jobs/[id]` is 7.34 kB
+
+**Commits:**
+- `09a59bb` — feat(frontend): Job Detail Page UX Refactor (3 phases)
+
+### Files Summary (2026-01-23)
+
+**Backend Files Created:**
+- Migration 022: `iteration_claim` column for TOCTOU protection
+
+**Backend Files Modified:**
+- `backend/models/job_record.py` — IterationBundle, IterationRequest, iteration fields
+- `backend/app/routes/jobs_routes.py` — POST /jobs/{job_id}/iterate endpoint
+- `backend/worker.py` — run_iteration_task Celery task
+
+**Frontend Files Created:**
+- `frontend/components/job-detail/ArtifactCardGrid.tsx`
+- `frontend/components/job-detail/index.ts`
+- `frontend/pages/jobs/[id].tsx`
+- `frontend/components/job-card/TaskBadges.tsx`
+
+**Frontend Files Modified:**
+- `frontend/components/job-detail/IterationSelector.tsx` — Quote escaping
+- `frontend/components/job-detail/ActiveTaskBanner.tsx` — TypeScript fix
+- `frontend/components/JobCard.tsx` — Removed L2, added navigation + badges
+- `frontend/store/jobs.ts` — Iteration tracking fields
+- `frontend/pages/dashboard.tsx` — Secondary task polling
+
+### Key Architectural Decisions
+
+**Progressive Disclosure Pattern:**
+- Dashboard (L0/L1): Shows job list with status, badges for active tasks
+- Job Detail Page: Full artifact grid, document viewing, action triggers
+- This reduces cognitive load on dashboard while providing full control on detail page
+
+**TOCTOU Race Condition Prevention:**
+- Added `iteration_claim` column with `UNIQUE` constraint
+- Worker claims job atomically before processing
+- Prevents duplicate iterations if user double-clicks
+
+---
+
+## Session: 2026-01-20 (Evening): Document Accordion UI
+
+- [x] Created `frontend/lib/pdf-export.ts` — reusable PDF export utility
+- [x] Created `frontend/components/job-card/DocumentAccordion.tsx` — collapsible document sections
+- [x] Updated `frontend/components/job-card/JobResults.tsx` — accordion layout with action bar
+- [x] Simplified `frontend/components/job-card/JobActions.tsx` — removed duplicate buttons
+- [x] Fixed missing `onRefresh` prop in `frontend/components/JobCard.tsx`
+- [x] Frontend build passes, lint passes
+- [x] Committed: `eee8b86 feat(frontend): Replace document grid with accordion UI`
 
 ---
 

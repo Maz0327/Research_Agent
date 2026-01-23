@@ -530,6 +530,103 @@ Implementation:
 
 ---
 
+## ADR-017: Iteration Loop for Completed Jobs
+
+**Date:** 2026-01-23
+**Status:** ACCEPTED
+**Deciders:** Project Owner
+
+### Context
+Users often want to refine research after initial completion — more sources, deeper analysis, or different perspectives. Previously, the only option was to create a new job.
+
+### Decision
+**Implement Iteration Loop that re-runs semantic pipeline with user-selected mode on completed jobs.**
+
+Iteration modes:
+| Mode | Description |
+|------|-------------|
+| `more_sources` | Add more sources to existing research |
+| `deeper` | Deeper analysis of existing content |
+| `different_angle` | Explore from different perspective |
+| `custom` | User-provided custom prompt |
+
+Each iteration:
+1. Creates new `IterationBundle` with unique `iteration_id` (format: `it_XXXX`)
+2. Re-runs extraction → synthesis → assembly pipeline
+3. Stores outputs in `artifacts.iterations[]` array
+4. Does NOT modify baseline documents (Doc 0/1/2)
+
+TOCTOU protection:
+- `iteration_claim` column with UNIQUE constraint
+- Worker claims job atomically before processing
+- Prevents duplicate iterations from double-clicks
+
+### Rationale
+1. Users shouldn't recreate jobs to refine research
+2. Baseline preserved — iterations are additive
+3. Version switching allows comparison
+4. TOCTOU protection prevents race conditions
+5. Aligns with Evolving Jobs pattern (ADR-007)
+
+### Consequences
+- New API endpoint: POST `/jobs/{job_id}/iterate`
+- New Celery task: `run_iteration_task`
+- Frontend iteration selector component
+- Database migration for `iteration_claim` column
+- Each iteration adds ~same cost as original job
+
+---
+
+## ADR-018: Progressive Disclosure UI Pattern
+
+**Date:** 2026-01-23
+**Status:** ACCEPTED
+**Deciders:** Project Owner
+
+### Context
+The dashboard was becoming overloaded with Level 0/1/2 expansion, document accordions, action buttons, and iteration controls all in one place. This created cognitive overload, especially for users with ADHD.
+
+### Decision
+**Implement progressive disclosure with dedicated Job Detail Page.**
+
+UI layers:
+| Layer | Location | Content |
+|-------|----------|---------|
+| L0 | Dashboard | Job list, titles, status badges |
+| L1 | Dashboard card | Summary, task badges, click to navigate |
+| L2 | Job Detail Page | Full artifact grid, document viewing, all actions |
+
+Dashboard simplification:
+- Remove document accordions from dashboard
+- Remove action buttons from dashboard cards
+- Add mini task badges (booster/iteration/producer status)
+- Card click navigates to `/jobs/[id]`
+
+Job Detail Page features:
+- Full header with back navigation
+- Active task banners with progress
+- 6-card artifact grid (Doc 0/1/2/3, Booster, Iteration)
+- Document viewer modal
+- Iteration dialog
+- Delete confirmation
+- Polling for running tasks
+
+### Rationale
+1. Reduces cognitive load on dashboard
+2. Provides clear information hierarchy
+3. Detail page has space for full controls
+4. Better mobile experience (less cramped)
+5. Follows progressive disclosure best practices
+
+### Consequences
+- New route: `/jobs/[id]`
+- New components: ArtifactCardGrid, TaskBadges
+- Dashboard cards become simpler navigation targets
+- Users must click through to take actions
+- Better scalability as features are added
+
+---
+
 ## Decision Index
 
 | ADR | Title | Status |
@@ -550,6 +647,8 @@ Implementation:
 | 014 | Legacy Pipeline Removal | Accepted |
 | 015 | Constitution Finalization & Single Authority | Accepted |
 | 016 | Artifacts Must Use Partial Merge in Atomic Updates | Accepted |
+| 017 | Iteration Loop for Completed Jobs | Accepted |
+| 018 | Progressive Disclosure UI Pattern | Accepted |
 
 ---
 
