@@ -38,7 +38,7 @@ function getArtifactState(
   type: ArtifactType,
   selectedVersion: string
 ): ArtifactState {
-  const { status, artifacts, booster_status, iteration_status } = job;
+  const { status, artifacts, booster_status, producer_status, iteration_status } = job;
   const mainComplete = status === 'completed' || status === 'completed_with_warnings';
 
   // Viewing iteration version
@@ -73,6 +73,9 @@ function getArtifactState(
 
     case 'doc_3':
       if (artifacts?.doc_3_path || artifacts?.producer_packet_md) return 'completed';
+      if (producer_status === 'failed') return 'failed';
+      if (producer_status === 'running') return 'running';
+      if (producer_status === 'queued') return 'queued';
       if (!mainComplete) return 'not_available';
       return 'ready';
 

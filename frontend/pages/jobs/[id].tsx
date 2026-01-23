@@ -231,6 +231,8 @@ function JobDetailContent() {
       job.status === 'queued' ||
       job.booster_status === 'running' ||
       job.booster_status === 'queued' ||
+      job.producer_status === 'running' ||
+      job.producer_status === 'queued' ||
       job.iteration_status === 'running' ||
       job.iteration_status === 'queued';
 
@@ -287,6 +289,13 @@ function JobDetailContent() {
         type: 'booster' as const,
         status: job.booster_status as 'queued' | 'running',
         progress: job.booster_progress_percent || 0,
+      };
+    }
+    if (job?.producer_status === 'running' || job?.producer_status === 'queued') {
+      return {
+        type: 'producer' as const,
+        status: job.producer_status as 'queued' | 'running',
+        progress: job.producer_progress_percent || 0,
       };
     }
     if (job?.iteration_status === 'running' || job?.iteration_status === 'queued') {

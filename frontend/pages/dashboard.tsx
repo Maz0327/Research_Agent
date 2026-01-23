@@ -119,13 +119,15 @@ function DashboardContent() {
     }, 100); // 100ms debounce to batch rapid updates
   }, [refreshJob]);
 
-  // Polling for running jobs (including secondary tasks like booster/iteration)
+  // Polling for running jobs (including secondary tasks like booster/producer/iteration)
   useEffect(() => {
     const jobsNeedingPolling = jobs.filter((job) =>
       job.status === 'running' ||
       job.status === 'queued' ||
       job.booster_status === 'running' ||
       job.booster_status === 'queued' ||
+      job.producer_status === 'running' ||
+      job.producer_status === 'queued' ||
       job.iteration_status === 'running' ||
       job.iteration_status === 'queued'
     );

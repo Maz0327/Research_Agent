@@ -236,6 +236,16 @@ export interface Job {
   booster_error?: string;
   /** Booster progress percentage (0-100) */
   booster_progress_percent?: number;
+  /** Producer packet execution status (separate from main job status) */
+  producer_status?: 'queued' | 'running' | 'completed' | 'failed' | null;
+  /** When producer packet started (ISO timestamp) */
+  producer_started_at?: string;
+  /** When producer packet completed/failed (ISO timestamp) */
+  producer_completed_at?: string;
+  /** Producer packet error message if failed */
+  producer_error?: string;
+  /** Producer packet progress percentage (0-100) */
+  producer_progress_percent?: number;
   /** Current iteration status (separate from main job status) */
   iteration_status?: 'queued' | 'running' | 'completed' | 'failed' | null;
   /** Current iteration ID being processed (it_0001, ...) */
@@ -848,10 +858,10 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       const data: BoosterResponse = await response.json();
 
-      // Update job status in local state
+      // Update booster_status in local state (DO NOT change job.status)
       set((state) => ({
         jobs: state.jobs.map((job) =>
-          job.id === jobId ? { ...job, status: 'running' as const, stage: 'booster' } : job
+          job.id === jobId ? { ...job, booster_status: 'queued' as const } : job
         ),
         actionInProgress: null,
       }));
@@ -887,10 +897,10 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       const data: ProducerPacketResponse = await response.json();
 
-      // Update job status in local state
+      // Update producer_status in local state (DO NOT change job.status)
       set((state) => ({
         jobs: state.jobs.map((job) =>
-          job.id === jobId ? { ...job, status: 'running' as const, stage: 'producer_packet' } : job
+          job.id === jobId ? { ...job, producer_status: 'queued' as const } : job
         ),
         actionInProgress: null,
       }));
