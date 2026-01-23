@@ -185,11 +185,11 @@ export function ArtifactCardGrid({
         if (selectedVersion !== 'baseline') {
           const iteration = iterations.find((it) => it.iteration_id === selectedVersion);
           if (iteration?.outputs) {
-            // Get inline data from iteration (iterations use inline data)
-            const inlineKey = docNumber === 0 ? 'source_ledger' :
-                             docNumber === 1 ? 'jump_start' :
-                             docNumber === 2 ? 'semantic_brief' :
-                             docNumber === 3 ? 'producer_packet' : null;
+            // Get inline data from iteration using positional keys (doc_0_inline, doc_1_inline, doc_2_inline)
+            // Note: Iterations only produce docs 0-2, not doc 3 (producer packet)
+            const inlineKey = docNumber === 0 ? 'doc_0_inline' :
+                             docNumber === 1 ? 'doc_1_inline' :
+                             docNumber === 2 ? 'doc_2_inline' : null;
 
             if (inlineKey && iteration.outputs[inlineKey as keyof typeof iteration.outputs]) {
               const inlineData = iteration.outputs[inlineKey as keyof typeof iteration.outputs] as Record<string, unknown>;
