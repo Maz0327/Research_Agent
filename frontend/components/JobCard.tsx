@@ -244,6 +244,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
               {/* Results display */}
               <JobResults
                 jobId={job.id}
+                jobTitle={displayTitle}
                 status={job.status}
                 driveFolderUrl={job.artifacts?.drive_folder_url}
                 error={job.error}

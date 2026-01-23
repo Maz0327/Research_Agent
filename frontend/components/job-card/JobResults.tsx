@@ -13,7 +13,7 @@
 import { useState, useCallback } from 'react';
 import { JobStatus } from './job-card-config';
 import { ExportButton } from './ExportButton';
-import { DocumentAccordion } from './DocumentAccordion';
+import { DocumentCardGrid } from './DocumentCardGrid';
 import { useJobsStore } from '../../store/jobs';
 
 // Document output structure from backend
@@ -55,6 +55,8 @@ interface JobArtifacts {
 
 interface JobResultsProps {
   jobId: string;
+  /** Job title for breadcrumbs in document viewer */
+  jobTitle?: string;
   status: JobStatus;
   driveFolderUrl?: string;
   error?: string;
@@ -71,6 +73,7 @@ interface JobResultsProps {
 
 export function JobResults({
   jobId,
+  jobTitle,
   status,
   driveFolderUrl,
   error,
@@ -197,74 +200,13 @@ export function JobResults({
           <ExportButton jobId={jobId} />
         </div>
 
-        {/* Document Accordions */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">Research Documents</h3>
-
-          {/* Doc 0 - Source Ledger */}
-          {hasDoc(0) && (
-            <DocumentAccordion
-              jobId={jobId}
-              docKey="doc_0"
-              title="Source Ledger"
-              subtitle="What was analyzed"
-              colorScheme="gray"
-              inlineMarkdown={getInlineMarkdown(0)}
-              hasStoragePath={!!artifacts?.doc_0_path}
-            />
-          )}
-
-          {/* Doc 1 - Jump-Start */}
-          {hasDoc(1) && (
-            <DocumentAccordion
-              jobId={jobId}
-              docKey="doc_1"
-              title="Jump-Start"
-              subtitle="Where to go next"
-              colorScheme="blue"
-              inlineMarkdown={getInlineMarkdown(1)}
-              hasStoragePath={!!artifacts?.doc_1_path}
-            />
-          )}
-
-          {/* Doc 2 - Semantic Brief */}
-          {hasDoc(2) && (
-            <DocumentAccordion
-              jobId={jobId}
-              docKey="doc_2"
-              title="Semantic Brief"
-              subtitle="What sources reveal"
-              colorScheme="purple"
-              inlineMarkdown={getInlineMarkdown(2)}
-              hasStoragePath={!!artifacts?.doc_2_path}
-            />
-          )}
-
-          {/* Booster - Deep Research Expansion (conditional) */}
-          {isBoosterCompleted && artifacts?.booster_expansion_md && (
-            <DocumentAccordion
-              jobId={jobId}
-              docKey="booster"
-              title="Deep Research"
-              subtitle="Expanded directions & perspectives"
-              colorScheme="indigo"
-              inlineMarkdown={artifacts.booster_expansion_md}
-              hasStoragePath={false}
-            />
-          )}
-
-          {/* Doc 3 - Producer Packet (conditional) */}
-          {hasDoc3 && (
-            <DocumentAccordion
-              jobId={jobId}
-              docKey="doc_3"
-              title="Producer Packet"
-              subtitle="Creative layer output"
-              colorScheme="amber"
-              hasStoragePath={!!artifacts?.doc_3_path}
-            />
-          )}
-        </div>
+        {/* Document Cards Grid - Click to open fullscreen */}
+        <DocumentCardGrid
+          jobId={jobId}
+          jobTitle={jobTitle}
+          artifacts={artifacts}
+          boosterMarkdown={isBoosterCompleted ? artifacts?.booster_expansion_md : undefined}
+        />
 
         {/* Action Bar - Separate section with clear divider */}
         <div className="pt-5 sm:pt-6 mt-2 border-t border-gray-800/50">

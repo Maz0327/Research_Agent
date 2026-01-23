@@ -7,6 +7,7 @@ export type { JobStatus, StatusConfig } from './job-card-config';
 export { ClipSheet } from './ClipSheet';
 export type { Clip } from './ClipSheet';
 export { DisambiguationPanel } from './DisambiguationPanel';
+export { DocumentCardGrid } from './DocumentCardGrid';
 export { JobActions } from './JobActions';
 export { JobResults } from './JobResults';
 export { ProgressBar } from './ProgressBar';

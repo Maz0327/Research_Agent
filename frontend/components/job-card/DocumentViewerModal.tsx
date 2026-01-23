@@ -19,7 +19,7 @@ import { transformMarkdownForDisplay } from '@/lib/document-formatters';
 export interface DocumentViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  docNumber: 0 | 1 | 2;
+  docNumber: 0 | 1 | 2 | 3 | 'B';
   title: string;
   markdown?: string;
   data: Record<string, unknown>;
@@ -28,7 +28,7 @@ export interface DocumentViewerModalProps {
 }
 
 // Document type styling
-const docStyles = {
+const docStyles: Record<0 | 1 | 2 | 3 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string }> = {
   0: {
     headerBg: 'bg-gray-800',
     headerBorder: 'border-gray-700',
@@ -47,13 +47,27 @@ const docStyles = {
     badge: 'bg-purple-900/50 text-purple-300',
     accent: 'text-purple-400',
   },
+  3: {
+    headerBg: 'bg-amber-900/30',
+    headerBorder: 'border-amber-800/50',
+    badge: 'bg-amber-900/50 text-amber-300',
+    accent: 'text-amber-400',
+  },
+  'B': {
+    headerBg: 'bg-indigo-900/30',
+    headerBorder: 'border-indigo-800/50',
+    badge: 'bg-indigo-900/50 text-indigo-300',
+    accent: 'text-indigo-400',
+  },
 };
 
 // Document titles for breadcrumbs
-const docTitles = {
+const docTitles: Record<0 | 1 | 2 | 3 | 'B', string> = {
   0: 'Source Ledger',
   1: 'Jump-Start Directions',
   2: 'Semantic Brief',
+  3: 'Producer Packet',
+  'B': 'Deep Research',
 };
 
 export function DocumentViewerModal({
