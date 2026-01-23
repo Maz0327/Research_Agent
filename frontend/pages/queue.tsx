@@ -3,7 +3,7 @@
  * Tabs: Active (running/queued), Completed, Failed
  * ADHD-friendly: Clear status indicators, progress tracking, and easy navigation.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -310,10 +310,10 @@ function JobsContent() {
   }, [queryTab]);
 
   // Update URL when tab changes
-  const handleTabChange = (tab: TabType) => {
+  const handleTabChange = useCallback((tab: TabType) => {
     setActiveTab(tab);
     router.push(`/queue?tab=${tab}`, undefined, { shallow: true });
-  };
+  }, [router]);
 
   // Filter jobs by tab
   const activeJobs = useMemo(() => {
@@ -375,7 +375,7 @@ function JobsContent() {
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, activeJobs.length, completedJobs.length, isLoading]);
+  }, [activeTab, activeJobs.length, completedJobs.length, isLoading, handleTabChange]);
 
   if (isLoading) {
     return (

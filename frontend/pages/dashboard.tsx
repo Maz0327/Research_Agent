@@ -3,6 +3,7 @@
  * Features dark mode design with modern UI/UX.
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../components/Layout';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
@@ -501,25 +502,28 @@ function DashboardContent() {
 
         {/* Active Jobs Quick Link - ADHD-friendly navigation */}
         {activeJobsCount > 0 && (
-          <motion.a
-            href="/queue?tab=active"
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mb-6 flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 transition-colors group"
           >
-            <div className="flex items-center gap-3">
-              <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-sm font-medium text-blue-300">
-                {activeJobsCount} active job{activeJobsCount > 1 ? 's' : ''} in queue
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300">
-              <span>View Queue</span>
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </motion.a>
+            <Link
+              href="/queue?tab=active"
+              className="mb-6 flex items-center justify-between px-4 py-3 rounded-xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse" />
+                <span className="text-sm font-medium text-blue-300">
+                  {activeJobsCount} active job{activeJobsCount > 1 ? 's' : ''} in queue
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300">
+                <span>View Queue</span>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
+          </motion.div>
         )}
 
         {/* Recent Jobs Section - Compact View */}
@@ -527,7 +531,7 @@ function DashboardContent() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base sm:text-lg font-semibold text-gray-100">Recent Jobs</h2>
             {jobs.length > 0 && (
-              <a
+              <Link
                 href="/queue"
                 className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
               >
@@ -535,7 +539,7 @@ function DashboardContent() {
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </a>
+              </Link>
             )}
           </div>
 
@@ -602,7 +606,7 @@ function DashboardContent() {
               
               {/* View All Jobs link - only show if more than 5 jobs */}
               {jobs.length > 5 && (
-                <a
+                <Link
                   href="/queue"
                   className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-800 hover:border-gray-700 hover:bg-gray-900/50 text-gray-400 hover:text-gray-300 transition-all group"
                 >
@@ -610,7 +614,7 @@ function DashboardContent() {
                   <svg className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                </a>
+                </Link>
               )}
             </div>
           )}
