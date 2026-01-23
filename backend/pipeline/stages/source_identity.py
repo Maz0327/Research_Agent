@@ -24,6 +24,7 @@ from backend.pipeline.transcript_acquisition import (
     is_transcript_available,
 )
 from backend.state import update_job
+from backend.integrations.supadata_client import fetch_video_metadata
 
 
 @dataclass
@@ -479,9 +480,10 @@ def stage_source_identity(ctx: PipelineContext) -> None:
     This stage:
     1. Collects all sources from previous stages (videos, articles, reddit)
     2. Acquires transcripts for video sources
-    3. Assigns stable source_id (SRC_1, SRC_2, ...)
-    4. Builds TranscriptProvenance metadata
-    5. Stores packages in ctx.source_identity_packages
+    3. Fetches video metadata via Supadata (additive, non-blocking)
+    4. Assigns stable source_id (SRC_1, SRC_2, ...)
+    5. Builds TranscriptProvenance metadata
+    6. Stores packages in ctx.source_identity_packages
 
     The output ctx.source_identity_packages is consumed by semantic_extraction.
     """
@@ -496,12 +498,27 @@ def stage_source_identity(ctx: PipelineContext) -> None:
     packages: list[SourceIdentityPackage] = []
     source_index = 0
 
+    # Collect video metadata for all videos (additive feature, non-blocking)
+    video_metadata: dict[str, Any] = {}
+
     # Process YouTube videos
     for video in ctx.youtube_videos:
         try:
             package = build_source_identity_from_video(video, source_index)
             packages.append(package)
             source_index += 1
+
+            # Fetch Supadata metadata (additive, non-blocking)
+            url = video.get("url", video.get("video_url", ""))
+            if url:
+                try:
+                    metadata = fetch_video_metadata(url)
+                    if metadata:
+                        video_metadata[url] = metadata
+                        logger.info(f"  ✓ Metadata acquired for {package.source_id}")
+                except Exception as e:
+                    # Metadata fetch is non-blocking - log warning, continue
+                    logger.warning(f"  ⚠ Metadata fetch failed for {package.source_id}: {e}")
 
             if not package.is_accessible:
                 ctx.add_warning(
@@ -564,10 +581,11 @@ def stage_source_identity(ctx: PipelineContext) -> None:
     logger.info(
         f"Source identity complete: {len(packages)} packages "
         f"({accessible_count} accessible, {transcript_grounded_count} transcript_grounded, "
-        f"{video_only_count} video_only)"
+        f"{video_only_count} video_only), {len(video_metadata)} metadata fetched"
     )
 
-    # Update job with identity summary
+    # Update job with identity summary AND video metadata
+    # Store video_metadata in artifacts under stable key: artifacts.video_metadata
     update_job(
         ctx.job_id,
         partial_outputs={
@@ -579,6 +597,9 @@ def stage_source_identity(ctx: PipelineContext) -> None:
                 "sources": [p.to_dict() for p in packages],
             }
         },
+        partial_artifacts={
+            "video_metadata": video_metadata,
+        } if video_metadata else None,
     )
 
     # Warn if all sources are inaccessible

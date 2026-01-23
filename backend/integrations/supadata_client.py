@@ -197,6 +197,50 @@ class SupadataClient:
             logger.error(f"Supadata scrape failed: {sanitized}")
             raise SupadataError(f"Failed to scrape URL: {sanitized}") from e
 
+    @with_rate_limit("supadata")
+    def fetch_metadata(self, url: str) -> Dict[str, Any]:
+        """
+        Fetch unified metadata for a video/content URL.
+
+        Supadata returns a unified schema with: platform, title, author, stats,
+        media (thumbnailUrl, duration), createdAt, etc.
+
+        Args:
+            url: Video URL (YouTube, TikTok, Instagram, Twitter, Facebook)
+
+        Returns:
+            Dict with unified metadata schema
+
+        Note:
+            This is an additive feature - failures should not block the pipeline.
+            Callers should handle exceptions gracefully.
+        """
+        try:
+            logger.info(f"Supadata metadata: {url[:50]}...")
+
+            response = self.http.get("/metadata", params={"url": url})
+
+            if response.status_code != 200:
+                error_text = response.text[:200] if response.text else "No error message"
+                raise SupadataError(f"Metadata API returned {response.status_code}: {error_text}")
+
+            data = response.json()
+
+            logger.info(f"Supadata metadata success: platform={data.get('platform')}, title={data.get('title', '')[:30]}...")
+
+            return data
+
+        except httpx.HTTPError as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.warning(f"Supadata metadata HTTP error: {sanitized}")
+            raise SupadataError(f"HTTP error: {sanitized}") from e
+        except SupadataError:
+            raise
+        except Exception as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.warning(f"Supadata metadata failed: {sanitized}")
+            raise SupadataError(f"Failed to get metadata: {sanitized}") from e
+
     def detect_platform(self, url: str) -> Optional[Platform]:
         """
         Detect which platform a URL belongs to.
@@ -263,3 +307,29 @@ def get_platform_reliability(platform: Platform) -> str:
         Platform.FACEBOOK: "medium",
     }
     return reliability.get(platform, "low")
+
+
+def fetch_video_metadata(url: str) -> Optional[Dict[str, Any]]:
+    """
+    Convenience function to fetch video metadata with Supadata.
+
+    Returns None if Supadata is not configured or fails.
+    This is an additive feature - failures should not block the pipeline.
+
+    Args:
+        url: Video URL
+
+    Returns:
+        Metadata dict or None on failure
+    """
+    try:
+        if not is_supadata_available():
+            logger.debug("Supadata not available for metadata fetch")
+            return None
+
+        client = SupadataClient()
+        return client.fetch_metadata(url)
+    except Exception as e:
+        sanitized = sanitize_error_message(e, include_type=False)
+        logger.warning(f"Supadata metadata failed (non-blocking): {sanitized}")
+        return None
