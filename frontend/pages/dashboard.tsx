@@ -119,13 +119,20 @@ function DashboardContent() {
     }, 100); // 100ms debounce to batch rapid updates
   }, [refreshJob]);
 
-  // Polling for running jobs
+  // Polling for running jobs (including secondary tasks like booster/iteration)
   useEffect(() => {
-    const runningJobs = jobs.filter((job) => job.status === 'running' || job.status === 'queued');
-    if (runningJobs.length === 0) return;
+    const jobsNeedingPolling = jobs.filter((job) =>
+      job.status === 'running' ||
+      job.status === 'queued' ||
+      job.booster_status === 'running' ||
+      job.booster_status === 'queued' ||
+      job.iteration_status === 'running' ||
+      job.iteration_status === 'queued'
+    );
+    if (jobsNeedingPolling.length === 0) return;
 
     const interval = setInterval(() => {
-      batchRefreshJobs(runningJobs.map((job) => job.id));
+      batchRefreshJobs(jobsNeedingPolling.map((job) => job.id));
     }, POLLING_INTERVALS.JOB_STATUS);
 
     return () => {

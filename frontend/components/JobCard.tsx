@@ -3,12 +3,14 @@
  * Uses modular sub-components for better maintainability.
  *
  * Progressive Disclosure Levels:
- * - Level 0 (Collapsed): Title + Status + ETA
+ * - Level 0 (Collapsed): Title + Status + ETA + TaskBadges
  * - Level 1 (Quick View): + Progress + Inline actions
- * - Level 2 (Full Details): + Documents + All metadata
+ *
+ * Clicking navigates to /jobs/[id] detail page for full view.
  */
 import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/router';
+import { motion } from 'framer-motion';
 import { Job } from '../store/jobs';
 import useETA from '../hooks/useETA';
 import {
@@ -16,14 +18,13 @@ import {
   pipelineLabels,
   StatusBadge,
   ProgressBar,
-  JobResults,
-  JobActions,
   DisambiguationPanel,
 } from './job-card';
 import { QuickActions } from './job-card/QuickActions';
+import { TaskBadges } from './job-card/TaskBadges';
 
-// Expansion levels for progressive disclosure
-type ExpansionLevel = 0 | 1 | 2;
+// Expansion levels for progressive disclosure (Level 2 moved to detail page)
+type ExpansionLevel = 0 | 1;
 
 interface JobCardProps {
   job: Job;
@@ -44,22 +45,19 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function JobCard({ job, onRefresh, isEditMode = false, isSelected = false, onToggleSelect }: JobCardProps) {
+  const router = useRouter();
   const [expansionLevel, setExpansionLevel] = useState<ExpansionLevel>(0);
   const canSelect = !['running', 'queued'].includes(job.status);
 
-  // Handle card header click - cycle through levels
+  // Handle card header click - toggle Level 0/1 or navigate
   const handleHeaderClick = useCallback(() => {
-    setExpansionLevel((prev) => {
-      if (prev === 0) return 1; // Collapsed -> Quick View
-      if (prev === 1) return 0; // Quick View -> Collapsed (clicking header collapses)
-      return 0; // Full Details -> Collapsed
-    });
+    setExpansionLevel((prev) => (prev === 0 ? 1 : 0));
   }, []);
 
-  // Expand directly to full details
-  const expandToDetails = useCallback(() => {
-    setExpansionLevel(2);
-  }, []);
+  // Navigate to job detail page
+  const navigateToDetail = useCallback(() => {
+    router.push(`/jobs/${job.id}`);
+  }, [router, job.id]);
 
   // Fallback to queued config for unknown statuses (e.g., deleted, archived)
   const config = statusConfig[job.status] || statusConfig.queued;
@@ -155,6 +153,17 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 {job.warning_count} warning{job.warning_count > 1 ? 's' : ''} during processing
               </p>
             )}
+
+            {/* Task badges for secondary tasks */}
+            <TaskBadges
+              boosterStatus={job.booster_status}
+              boosterProgressPercent={job.booster_progress_percent}
+              iterationStatus={job.iteration_status}
+              iterationId={job.iteration_id}
+              iterationProgressPercent={job.iteration_progress_percent}
+              iterationCount={job.artifacts?.iterations?.filter((it) => it.status === 'completed').length}
+              hasProducerPacket={!!(job.artifacts?.doc_3_path || job.artifacts?.producer_packet_md)}
+            />
           </div>
 
           {/* Status + chevron - responsive gap */}
@@ -190,7 +199,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
             jobId={job.id}
             status={job.status}
             driveFolderUrl={job.artifacts?.drive_folder_url}
-            onExpandDetails={expandToDetails}
+            onExpandDetails={navigateToDetail}
           />
         )}
 
@@ -205,77 +214,6 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
         )}
       </div>
 
-      {/* Level 2: Full expanded content */}
-      <AnimatePresence>
-        {expansionLevel === 2 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="overflow-hidden"
-          >
-            {/* Responsive padding for expanded content */}
-            <div className="border-t border-gray-800 px-4 sm:px-6 py-5 sm:py-6 space-y-5 sm:space-y-6">
-              {/* Full prompt - collapsible section */}
-              {job.title && job.prompt !== job.title && (
-                <div className="pb-4 border-b border-gray-800/50">
-                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-                    Original Prompt
-                  </h4>
-                  <p className="text-sm text-gray-300 leading-relaxed break-words whitespace-pre-wrap" style={{ overflowWrap: 'anywhere' }}>{job.prompt}</p>
-                </div>
-              )}
-
-              {/* Time info - stack on mobile, inline on desktop */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500">Elapsed:</span>
-                  <span className="text-gray-300 font-medium">{elapsed}</span>
-                </div>
-                {eta && job.status === 'running' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Remaining:</span>
-                    <span className="text-blue-400 font-medium">{eta}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Results display */}
-              <JobResults
-                jobId={job.id}
-                jobTitle={displayTitle}
-                status={job.status}
-                driveFolderUrl={job.artifacts?.drive_folder_url}
-                error={job.error}
-                pipeline={job.pipeline}
-                artifacts={job.artifacts}
-                onRefresh={onRefresh}
-                boosterStatus={job.booster_status}
-                boosterError={job.booster_error}
-                boosterProgressPercent={job.booster_progress_percent}
-              />
-
-              {/* Actions */}
-              <JobActions
-                jobId={job.id}
-                status={job.status}
-                driveFolderUrl={job.artifacts?.drive_folder_url}
-                pipeline={job.pipeline}
-                hasDocuments={!!(
-                  job.artifacts?.source_ledger ||
-                  job.artifacts?.jump_start ||
-                  job.artifacts?.semantic_brief ||
-                  job.artifacts?.doc_0_path ||
-                  job.artifacts?.doc_1_path ||
-                  job.artifacts?.doc_2_path
-                )}
-                onRefresh={onRefresh}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }

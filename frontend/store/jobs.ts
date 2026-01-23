@@ -990,6 +990,13 @@ export const useJobsStore = create<JobsState>((set, get) => ({
                 booster_completed_at: data.booster_completed_at,
                 booster_error: data.booster_error,
                 booster_progress_percent: data.booster_progress_percent,
+                // Iteration tracking fields
+                iteration_status: data.iteration_status,
+                iteration_id: data.iteration_id,
+                iteration_started_at: data.iteration_started_at,
+                iteration_completed_at: data.iteration_completed_at,
+                iteration_error: data.iteration_error,
+                iteration_progress_percent: data.iteration_progress_percent,
               }
             : job
         ),
