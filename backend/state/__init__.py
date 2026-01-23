@@ -1,4 +1,7 @@
-"""Job persistence interface and implementations."""
+"""Job persistence interface and implementations.
+
+Updated: 2026-01-22 - Verified all booster fields are correctly exposed.
+"""
 from datetime import datetime
 
 from backend.models.job_record import Artifacts, JobRecord
