@@ -15,6 +15,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import DOMPurify from 'dompurify';
 import { transformMarkdownWithDetails } from '@/lib/document-formatters';
+import { ShareButton } from './ShareButton';
 
 export interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export interface DocumentViewerModalProps {
   data: Record<string, unknown>;
   // Optional: job title for breadcrumb
   jobTitle?: string;
+  // Optional: job ID for sharing (enables share button)
+  jobId?: string;
 }
 
 // Document type styling
@@ -78,6 +81,7 @@ export function DocumentViewerModal({
   markdown,
   data,
   jobTitle,
+  jobId,
 }: DocumentViewerModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const style = docStyles[docNumber];
@@ -238,6 +242,14 @@ export function DocumentViewerModal({
 
               {/* Right side buttons */}
               <div className="flex items-center gap-2">
+                {/* Share button - only show for shareable doc types with jobId */}
+                {jobId && docNumber !== 'B' && (
+                  <ShareButton
+                    jobId={jobId}
+                    docType={`doc_${docNumber}` as 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3'}
+                    docTitle={docTitles[docNumber]}
+                  />
+                )}
                 <button
                   onClick={handleCopy}
                   className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition flex items-center gap-2 min-h-[44px] touch-manipulation"

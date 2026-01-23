@@ -421,6 +421,7 @@ export function ArtifactCardGrid({
         markdown={docModal.markdown}
         data={docModal.data}
         jobTitle={job.title || job.prompt}
+        jobId={job.id}
       />
     </div>
   );

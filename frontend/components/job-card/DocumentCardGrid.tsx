@@ -666,6 +666,7 @@ export function DocumentCardGrid({
           markdown={docContent.markdown}
           data={docContent.data}
           jobTitle={jobTitle}
+          jobId={jobId}
         />
       )}
 
