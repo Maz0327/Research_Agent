@@ -1702,6 +1702,25 @@ async def list_jobs_endpoint(
             "warnings": warnings_list,
             "warning_count": warning_count,
             "created_at": job.created_at.isoformat(),
+            # Booster tracking fields
+            "booster_status": getattr(job, 'booster_status', None),
+            "booster_started_at": getattr(job, 'booster_started_at', None).isoformat() if getattr(job, 'booster_started_at', None) else None,
+            "booster_completed_at": getattr(job, 'booster_completed_at', None).isoformat() if getattr(job, 'booster_completed_at', None) else None,
+            "booster_error": getattr(job, 'booster_error', None),
+            "booster_progress_percent": getattr(job, 'booster_progress_percent', None),
+            # Producer packet tracking fields
+            "producer_status": getattr(job, 'producer_status', None),
+            "producer_started_at": getattr(job, 'producer_started_at', None).isoformat() if getattr(job, 'producer_started_at', None) else None,
+            "producer_completed_at": getattr(job, 'producer_completed_at', None).isoformat() if getattr(job, 'producer_completed_at', None) else None,
+            "producer_error": getattr(job, 'producer_error', None),
+            "producer_progress_percent": getattr(job, 'producer_progress_percent', None),
+            # Iteration tracking fields
+            "iteration_status": getattr(job, 'iteration_status', None),
+            "iteration_id": getattr(job, 'iteration_id', None),
+            "iteration_started_at": getattr(job, 'iteration_started_at', None).isoformat() if getattr(job, 'iteration_started_at', None) else None,
+            "iteration_completed_at": getattr(job, 'iteration_completed_at', None).isoformat() if getattr(job, 'iteration_completed_at', None) else None,
+            "iteration_error": getattr(job, 'iteration_error', None),
+            "iteration_progress_percent": getattr(job, 'iteration_progress_percent', None),
         })
 
     return {"jobs": jobs_data}
@@ -1809,6 +1828,25 @@ async def get_job_status(
         updated_at=None,
         interpretations=interpretations,
         documents_ready=documents_ready,
+        # Booster tracking fields
+        booster_status=getattr(job, 'booster_status', None),
+        booster_started_at=getattr(job, 'booster_started_at', None),
+        booster_completed_at=getattr(job, 'booster_completed_at', None),
+        booster_error=getattr(job, 'booster_error', None),
+        booster_progress_percent=getattr(job, 'booster_progress_percent', None),
+        # Producer packet tracking fields
+        producer_status=getattr(job, 'producer_status', None),
+        producer_started_at=getattr(job, 'producer_started_at', None),
+        producer_completed_at=getattr(job, 'producer_completed_at', None),
+        producer_error=getattr(job, 'producer_error', None),
+        producer_progress_percent=getattr(job, 'producer_progress_percent', None),
+        # Iteration tracking fields
+        iteration_status=getattr(job, 'iteration_status', None),
+        iteration_id=getattr(job, 'iteration_id', None),
+        iteration_started_at=getattr(job, 'iteration_started_at', None),
+        iteration_completed_at=getattr(job, 'iteration_completed_at', None),
+        iteration_error=getattr(job, 'iteration_error', None),
+        iteration_progress_percent=getattr(job, 'iteration_progress_percent', None),
     )
 
 
