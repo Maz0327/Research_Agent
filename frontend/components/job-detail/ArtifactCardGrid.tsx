@@ -38,7 +38,7 @@ function getArtifactState(
   type: ArtifactType,
   selectedVersion: string
 ): ArtifactState {
-  const { status, artifacts, booster_status, iteration_status } = job;
+  const { status, artifacts, booster_status, producer_status, iteration_status } = job;
   const mainComplete = status === 'completed' || status === 'completed_with_warnings';
 
   // Viewing iteration version
@@ -73,6 +73,9 @@ function getArtifactState(
 
     case 'doc_3':
       if (artifacts?.doc_3_path || artifacts?.producer_packet_md) return 'completed';
+      if (producer_status === 'failed') return 'failed';
+      if (producer_status === 'running') return 'running';
+      if (producer_status === 'queued') return 'queued';
       if (!mainComplete) return 'not_available';
       return 'ready';
 
@@ -100,9 +103,10 @@ function getArtifactState(
   }
 }
 
-/** Fetch document content from storage */
-async function fetchDocument(
-  path: string
+/** Fetch document content from API endpoint */
+async function fetchDocumentFromAPI(
+  jobId: string,
+  docType: 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3'
 ): Promise<{ data: Record<string, unknown>; markdown?: string }> {
   const token = await getAccessToken();
   const headers: Record<string, string> = {
@@ -112,7 +116,8 @@ async function fetchDocument(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}/storage/download?path=${encodeURIComponent(path)}`, {
+  // Call the correct backend endpoint
+  const response = await fetch(`${API_URL}/jobs/${jobId}/documents/${docType}`, {
     headers,
   });
 
@@ -120,10 +125,26 @@ async function fetchDocument(
     throw new Error(`Failed to fetch document: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const result = await response.json();
+
+  // Backend returns either {url, expires_in} for storage jobs or inline data
+  if (result.url) {
+    // Fetch from signed URL
+    const docResponse = await fetch(result.url);
+    if (!docResponse.ok) {
+      throw new Error(`Failed to fetch from storage: ${docResponse.statusText}`);
+    }
+    const data = await docResponse.json();
+    return {
+      data: data.data || data,
+      markdown: data.markdown || data.content,
+    };
+  }
+
+  // Inline data returned directly
   return {
-    data,
-    markdown: data.markdown || data.content,
+    data: result.data || result,
+    markdown: result.markdown || result.content,
   };
 }
 
@@ -164,21 +185,21 @@ export function ArtifactCardGrid({
         if (selectedVersion !== 'baseline') {
           const iteration = iterations.find((it) => it.iteration_id === selectedVersion);
           if (iteration?.outputs) {
-            // Get path or inline data from iteration
-            const pathKey = `doc_${docNumber}_path` as keyof typeof iteration.outputs;
-            const inlineKey = `doc_${docNumber}_inline` as keyof typeof iteration.outputs;
+            // Get inline data from iteration (iterations use inline data)
+            const inlineKey = docNumber === 0 ? 'source_ledger' :
+                             docNumber === 1 ? 'jump_start' :
+                             docNumber === 2 ? 'semantic_brief' :
+                             docNumber === 3 ? 'producer_packet' : null;
 
-            if (iteration.outputs[pathKey]) {
-              const result = await fetchDocument(iteration.outputs[pathKey] as string);
-              data = result.data;
-              markdown = result.markdown;
-            } else if (iteration.outputs[inlineKey]) {
-              data = iteration.outputs[inlineKey] as Record<string, unknown>;
-              markdown = (data as { markdown?: string }).markdown;
+            if (inlineKey && iteration.outputs[inlineKey as keyof typeof iteration.outputs]) {
+              const inlineData = iteration.outputs[inlineKey as keyof typeof iteration.outputs] as Record<string, unknown>;
+              const nestedData = inlineData.data as Record<string, unknown> | undefined;
+              data = nestedData || inlineData;
+              markdown = (inlineData as { markdown?: string }).markdown;
             }
           }
         } else {
-          // Baseline documents
+          // Baseline documents - use API endpoint
           const { artifacts } = job;
           if (!artifacts) {
             throw new Error('No artifacts available');
@@ -186,41 +207,42 @@ export function ArtifactCardGrid({
 
           switch (docNumber) {
             case 0:
+              // Try API first, fall back to inline data
               if (artifacts.doc_0_path) {
-                const result = await fetchDocument(artifacts.doc_0_path);
+                const result = await fetchDocumentFromAPI(job.id, 'doc_0');
                 data = result.data;
                 markdown = result.markdown;
               } else if (artifacts.source_ledger) {
-                data = artifacts.source_ledger.data;
+                data = artifacts.source_ledger.data || artifacts.source_ledger;
                 markdown = artifacts.source_ledger.markdown;
               }
               break;
 
             case 1:
               if (artifacts.doc_1_path) {
-                const result = await fetchDocument(artifacts.doc_1_path);
+                const result = await fetchDocumentFromAPI(job.id, 'doc_1');
                 data = result.data;
                 markdown = result.markdown;
               } else if (artifacts.jump_start) {
-                data = artifacts.jump_start.data;
+                data = artifacts.jump_start.data || artifacts.jump_start;
                 markdown = artifacts.jump_start.markdown;
               }
               break;
 
             case 2:
               if (artifacts.doc_2_path) {
-                const result = await fetchDocument(artifacts.doc_2_path);
+                const result = await fetchDocumentFromAPI(job.id, 'doc_2');
                 data = result.data;
                 markdown = result.markdown;
               } else if (artifacts.semantic_brief) {
-                data = artifacts.semantic_brief.data;
+                data = artifacts.semantic_brief.data || artifacts.semantic_brief;
                 markdown = artifacts.semantic_brief.markdown;
               }
               break;
 
             case 3:
               if (artifacts.doc_3_path) {
-                const result = await fetchDocument(artifacts.doc_3_path);
+                const result = await fetchDocumentFromAPI(job.id, 'doc_3');
                 data = result.data;
                 markdown = result.markdown;
               } else if (artifacts.producer_packet_md) {
@@ -230,6 +252,7 @@ export function ArtifactCardGrid({
               break;
 
             case 'B':
+              // Booster uses inline data only
               if (artifacts.booster_output) {
                 data = artifacts.booster_output;
                 markdown = artifacts.booster_expansion_md;
