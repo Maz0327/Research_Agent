@@ -164,3 +164,219 @@ class TestCancelJobEndpoint:
         # app_client fixture already has auth mocked
         response = app_client.post("/jobs/550e8400-e29b-41d4-a716-446655440000/cancel")
         assert response.status_code == 404
+
+
+class TestIterateJobEndpoint:
+    """Tests for POST /jobs/{job_id}/iterate endpoint.
+
+    Iteration is APPEND-ONLY: never modifies baseline artifacts,
+    never changes job.status from completed.
+    """
+
+    def test_iterate_job_invalid_uuid(self, app_client):
+        """Invalid job ID format should return 400."""
+        response = app_client.post(
+            "/jobs/not-a-valid-uuid/iterate",
+            json={"mode": "more_sources"}
+        )
+        assert response.status_code == 400
+        assert "Invalid job ID" in response.json()["detail"]
+
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_not_found(self, mock_get_job, app_client):
+        """Non-existent job should return 404."""
+        mock_get_job.return_value = None
+
+        response = app_client.post(
+            "/jobs/550e8400-e29b-41d4-a716-446655440000/iterate",
+            json={"mode": "more_sources"}
+        )
+        assert response.status_code == 404
+        assert "Job not found" in response.json()["detail"]
+
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_wrong_owner(self, mock_get_job, app_client, sample_job_record):
+        """Iterating someone else's job should return 403."""
+        sample_job_record.user_id = "different-user-456"
+        mock_get_job.return_value = sample_job_record
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={"mode": "more_sources"}
+        )
+        assert response.status_code == 403
+        assert "Access denied" in response.json()["detail"]
+
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_not_completed(self, mock_get_job, app_client, sample_job_record):
+        """Iterating a non-completed job should return 400."""
+        sample_job_record.status = "running"
+        mock_get_job.return_value = sample_job_record
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={"mode": "more_sources"}
+        )
+        assert response.status_code == 400
+        assert "must be completed" in response.json()["detail"]
+
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_already_running(self, mock_get_job, app_client, sample_job_record):
+        """Iterating when another iteration is running should return 409."""
+        sample_job_record.status = "completed"
+        sample_job_record.iteration_status = "running"
+        mock_get_job.return_value = sample_job_record
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={"mode": "more_sources"}
+        )
+        assert response.status_code == 409
+        assert "already running" in response.json()["detail"]
+
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_missing_baseline_docs(self, mock_get_job, app_client, sample_job_record):
+        """Iterating without baseline docs should return 400."""
+        sample_job_record.status = "completed"
+        sample_job_record.artifacts = Artifacts()  # Empty artifacts
+        mock_get_job.return_value = sample_job_record
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={"mode": "more_sources"}
+        )
+        assert response.status_code == 400
+        assert "Baseline documents required" in response.json()["detail"]
+
+    @patch("backend.worker.run_iteration_task")
+    @patch("backend.app.routes.jobs_routes.update_job")
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_success(
+        self, mock_get_job, mock_update_job, mock_iteration_task, app_client, sample_job_record
+    ):
+        """Successful iteration should queue task and return iteration_id."""
+        # Setup completed job with baseline docs
+        sample_job_record.status = "completed"
+        sample_job_record.iteration_status = None
+        sample_job_record.artifacts = Artifacts(
+            doc_0_path="jobs/test/doc_0.json",
+            doc_1_path="jobs/test/doc_1.json",
+            doc_2_path="jobs/test/doc_2.json",
+            iterations=[],  # No prior iterations
+        )
+        mock_get_job.return_value = sample_job_record
+        mock_update_job.return_value = sample_job_record
+
+        # Mock the Celery task
+        mock_iteration_task.apply_async = MagicMock()
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={
+                "mode": "more_sources",
+                "user_prompt": "Find more diverse perspectives",
+                "max_new_sources": 4,
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["job_id"] == sample_job_record.job_id
+        assert data["iteration_id"] == "it_0001"  # First iteration
+        assert data["iteration_index"] == 1
+        assert data["status"] == "queued"
+
+        # Verify task was queued
+        mock_iteration_task.apply_async.assert_called_once()
+
+    @patch("backend.worker.run_iteration_task")
+    @patch("backend.app.routes.jobs_routes.update_job")
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_increments_index(
+        self, mock_get_job, mock_update_job, mock_iteration_task, app_client, sample_job_record
+    ):
+        """Second iteration should have index 2 and id it_0002."""
+        sample_job_record.status = "completed"
+        sample_job_record.iteration_status = None
+        sample_job_record.artifacts = Artifacts(
+            doc_0_path="jobs/test/doc_0.json",
+            doc_1_path="jobs/test/doc_1.json",
+            doc_2_path="jobs/test/doc_2.json",
+            iterations=[
+                {
+                    "iteration_id": "it_0001",
+                    "index": 1,
+                    "status": "completed",
+                    "created_at": "2026-01-20T00:00:00Z",
+                    "request": {"mode": "more_sources"},
+                }
+            ],
+        )
+        mock_get_job.return_value = sample_job_record
+        mock_update_job.return_value = sample_job_record
+        mock_iteration_task.apply_async = MagicMock()
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={"mode": "deeper"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["iteration_id"] == "it_0002"
+        assert data["iteration_index"] == 2
+
+    def test_iterate_job_validates_mode(self, app_client):
+        """Invalid mode should return 422."""
+        response = app_client.post(
+            "/jobs/550e8400-e29b-41d4-a716-446655440000/iterate",
+            json={"mode": "invalid_mode"}
+        )
+        assert response.status_code == 422  # Validation error
+
+    def test_iterate_job_validates_max_new_sources(self, app_client):
+        """max_new_sources > 10 should return 422."""
+        response = app_client.post(
+            "/jobs/550e8400-e29b-41d4-a716-446655440000/iterate",
+            json={"mode": "more_sources", "max_new_sources": 15}
+        )
+        assert response.status_code == 422
+
+    @patch("backend.worker.run_iteration_task")
+    @patch("backend.app.routes.jobs_routes.update_job")
+    @patch("backend.app.routes.jobs_routes.get_job")
+    def test_iterate_job_concurrent_race_condition(
+        self, mock_get_job, mock_update_job, mock_iteration_task, app_client, sample_job_record
+    ):
+        """Concurrent iteration attempts should return 409 via unique constraint.
+
+        TOCTOU Fix: The unique partial index on (id) WHERE iteration_status IN
+        ('queued', 'running') ensures only one active iteration per job.
+        If update_job raises a unique constraint violation, we return 409.
+        """
+        sample_job_record.status = "completed"
+        sample_job_record.iteration_status = None  # Passes application check
+        sample_job_record.artifacts = Artifacts(
+            doc_0_path="jobs/test/doc_0.json",
+            doc_1_path="jobs/test/doc_1.json",
+            doc_2_path="jobs/test/doc_2.json",
+            iterations=[],
+        )
+        mock_get_job.return_value = sample_job_record
+
+        # Simulate unique constraint violation from database
+        mock_update_job.side_effect = Exception(
+            "duplicate key value violates unique constraint \"idx_one_active_iteration_per_job\""
+        )
+        mock_iteration_task.apply_async = MagicMock()
+
+        response = app_client.post(
+            f"/jobs/{sample_job_record.job_id}/iterate",
+            json={"mode": "more_sources"}
+        )
+
+        assert response.status_code == 409
+        assert "already in progress" in response.json()["detail"]
+
+        # Task should NOT be queued when constraint violation occurs
+        mock_iteration_task.apply_async.assert_not_called()

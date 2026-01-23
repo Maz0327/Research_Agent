@@ -6,6 +6,7 @@ import {
   formatIdWithRef,
   formatTimestamp,
   transformMarkdownForDisplay,
+  transformMarkdownWithDetails,
   getConfidenceDisplay,
   getSourceTypeDisplay,
 } from '@/lib/document-formatters';
@@ -114,6 +115,107 @@ describe('transformMarkdownForDisplay', () => {
   it('handles empty/null input gracefully', () => {
     expect(transformMarkdownForDisplay('')).toBe('');
     expect(transformMarkdownForDisplay(null as unknown as string)).toBe(null);
+  });
+
+  it('does not modify fenced code blocks', () => {
+    const input = '```\nconst id = "SRC_1";\nconsole.log(KP_1);\n```';
+    const result = transformMarkdownForDisplay(input);
+    expect(result).toContain('SRC_1');
+    expect(result).toContain('KP_1');
+    expect(result).not.toContain('Source 1');
+    expect(result).not.toContain('Key Point 1');
+  });
+
+  it('does not modify inline code', () => {
+    const input = 'Use `SRC_1` to reference the first source.';
+    const result = transformMarkdownForDisplay(input);
+    expect(result).toContain('`SRC_1`');
+  });
+
+  it('does not modify markdown links', () => {
+    const input = 'See [SRC_1 Details](https://example.com/SRC_1/info) for more.';
+    const result = transformMarkdownForDisplay(input);
+    // The entire markdown link should be preserved
+    expect(result).toContain('https://example.com/SRC_1/info');
+  });
+
+  it('does not modify bare URLs', () => {
+    const input = 'Visit https://example.com/sources/SRC_1?id=KP_1 for details.';
+    const result = transformMarkdownForDisplay(input);
+    expect(result).toContain('https://example.com/sources/SRC_1?id=KP_1');
+  });
+
+  it('transforms IDs outside protected sections only', () => {
+    const input = 'SRC_1 is mentioned in `SRC_2` and also in https://x.com/SRC_3';
+    const result = transformMarkdownForDisplay(input);
+    // SRC_1 (outside) should be transformed
+    expect(result).toContain('Source 1');
+    // SRC_2 (in inline code) should NOT be transformed
+    expect(result).toContain('`SRC_2`');
+    // SRC_3 (in URL) should NOT be transformed
+    expect(result).toContain('SRC_3');
+  });
+
+  it('handles mixed content correctly', () => {
+    const input = `## Key Points
+
+KP_1: The main finding from SRC_1.
+
+\`\`\`json
+{
+  "source_id": "SRC_1",
+  "key_point_id": "KP_1"
+}
+\`\`\`
+
+See [source details](https://example.com/SRC_1) for more.
+
+GAP_1: What about SRC_2?`;
+
+    const result = transformMarkdownForDisplay(input);
+
+    // Outside protected sections - should transform
+    expect(result).toContain('Key Point 1');
+    expect(result).toContain('Source 1');
+    expect(result).toContain('Open Question 1');
+    expect(result).toContain('Source 2');
+
+    // Inside code block - should NOT transform
+    expect(result).toContain('"source_id": "SRC_1"');
+    expect(result).toContain('"key_point_id": "KP_1"');
+
+    // Inside URL - should NOT transform
+    expect(result).toContain('https://example.com/SRC_1');
+  });
+});
+
+describe('transformMarkdownWithDetails', () => {
+  it('shows friendly labels when showDetails=false', () => {
+    const input = 'See SRC_1 and KP_2.';
+    const result = transformMarkdownWithDetails(input, false);
+    expect(result).toBe('See Source 1 and Key Point 2.');
+    expect(result).not.toContain('SRC_1');
+    expect(result).not.toContain('KP_2');
+  });
+
+  it('shows friendly labels with internal IDs when showDetails=true', () => {
+    const input = 'See SRC_1 and KP_2.';
+    const result = transformMarkdownWithDetails(input, true);
+    expect(result).toContain('Source 1 (SRC_1)');
+    expect(result).toContain('Key Point 2 (KP_2)');
+  });
+
+  it('protects code blocks even with showDetails=true', () => {
+    const input = '```\nconst x = "SRC_1";\n```';
+    const result = transformMarkdownWithDetails(input, true);
+    expect(result).toContain('"SRC_1"');
+    expect(result).not.toContain('Source 1');
+  });
+
+  it('protects URLs even with showDetails=true', () => {
+    const input = 'Visit https://example.com/SRC_1';
+    const result = transformMarkdownWithDetails(input, true);
+    expect(result).toContain('https://example.com/SRC_1');
   });
 });
 

@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import DOMPurify from 'dompurify';
-import { transformMarkdownForDisplay } from '@/lib/document-formatters';
+import { transformMarkdownWithDetails } from '@/lib/document-formatters';
 
 export interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -82,6 +82,7 @@ export function DocumentViewerModal({
   const modalRef = useRef<HTMLDivElement>(null);
   const style = docStyles[docNumber];
   const [copied, setCopied] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Close on escape key
   useEffect(() => {
@@ -202,7 +203,7 @@ export function DocumentViewerModal({
               <div className="max-w-prose mx-auto">
                 {isMarkdown ? (
                   <div className="prose prose-invert prose-sm max-w-none">
-                    <MarkdownRenderer content={transformMarkdownForDisplay(markdown)} />
+                    <MarkdownRenderer content={transformMarkdownWithDetails(markdown, showDetails)} />
                   </div>
                 ) : (
                   <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
@@ -213,33 +214,57 @@ export function DocumentViewerModal({
             </div>
 
             {/* Footer - sticky on mobile */}
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-700 bg-gray-800/50">
-              <button
-                onClick={handleCopy}
-                className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition flex items-center gap-2 min-h-[44px] touch-manipulation"
-              >
-                {copied ? (
-                  <>
-                    <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="text-green-400">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                    </svg>
-                    Copy
-                  </>
-                )}
-              </button>
-              <button
-                onClick={onClose}
-                className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-600 text-gray-200 hover:bg-gray-500 transition min-h-[44px] touch-manipulation"
-              >
-                Close
-              </button>
+            <div className="flex-shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-700 bg-gray-800/50">
+              {/* Details toggle - left side (markdown only) */}
+              {isMarkdown ? (
+                <button
+                  onClick={() => setShowDetails(!showDetails)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 min-h-[40px] touch-manipulation ${
+                    showDetails
+                      ? 'bg-blue-600/30 text-blue-300 border border-blue-600/50'
+                      : 'bg-gray-700/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700'
+                  }`}
+                  title={showDetails ? 'Hide internal IDs' : 'Show internal IDs for debugging'}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  <span className="hidden sm:inline">{showDetails ? 'Hide IDs' : 'Show IDs'}</span>
+                  <span className="sm:hidden">IDs</span>
+                </button>
+              ) : (
+                <div />
+              )}
+
+              {/* Right side buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopy}
+                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition flex items-center gap-2 min-h-[44px] touch-manipulation"
+                >
+                  {copied ? (
+                    <>
+                      <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-green-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                      Copy
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-600 text-gray-200 hover:bg-gray-500 transition min-h-[44px] touch-manipulation"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

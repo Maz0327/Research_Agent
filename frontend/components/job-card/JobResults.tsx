@@ -69,6 +69,14 @@ interface JobResultsProps {
   boosterError?: string;
   /** Booster progress percentage (0-100) */
   boosterProgressPercent?: number;
+  /** Iteration execution status (separate from main job status) */
+  iterationStatus?: 'queued' | 'running' | 'completed' | 'failed' | null;
+  /** Current iteration ID being processed */
+  iterationId?: string;
+  /** Iteration error message if failed */
+  iterationError?: string;
+  /** Iteration progress percentage (0-100) */
+  iterationProgressPercent?: number;
 }
 
 export function JobResults({
@@ -83,13 +91,19 @@ export function JobResults({
   boosterStatus,
   boosterError,
   boosterProgressPercent,
+  iterationStatus,
+  iterationId,
+  iterationError,
+  iterationProgressPercent,
 }: JobResultsProps) {
   const [isTriggeringBooster, setIsTriggeringBooster] = useState(false);
   const [isTriggeringProducer, setIsTriggeringProducer] = useState(false);
+  const [isTriggeringIteration, setIsTriggeringIteration] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const triggerBooster = useJobsStore((state) => state.triggerBooster);
   const triggerProducerPacket = useJobsStore((state) => state.triggerProducerPacket);
+  const triggerIteration = useJobsStore((state) => state.triggerIteration);
 
   // Booster state helpers
   const isBoosterRunning = boosterStatus === 'running' || boosterStatus === 'queued';
@@ -125,6 +139,31 @@ export function JobResults({
       setIsTriggeringProducer(false);
     }
   }, [jobId, isTriggeringProducer, triggerProducerPacket, onRefresh]);
+
+  // Handle Iteration trigger
+  const handleIteration = useCallback(async (
+    mode: string,
+    userPrompt: string,
+    maxNewSources: number,
+    angle?: string
+  ) => {
+    if (isTriggeringIteration) return;
+    setIsTriggeringIteration(true);
+    setActionError(null);
+    try {
+      await triggerIteration(jobId, {
+        mode: mode as 'more_sources' | 'deeper' | 'different_angle' | 'custom',
+        user_prompt: userPrompt,
+        max_new_sources: maxNewSources,
+        angle,
+      });
+      onRefresh?.();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to start iteration');
+    } finally {
+      setIsTriggeringIteration(false);
+    }
+  }, [jobId, isTriggeringIteration, triggerIteration, onRefresh]);
 
   // Error state
   if (status === 'failed' && error) {
@@ -206,84 +245,35 @@ export function JobResults({
           jobTitle={jobTitle}
           artifacts={artifacts}
           boosterMarkdown={isBoosterCompleted ? artifacts?.booster_expansion_md : undefined}
+          boosterStatus={boosterStatus}
+          boosterProgressPercent={boosterProgressPercent}
+          canTriggerActions={canTriggerActions}
+          onTriggerBooster={handleBooster}
+          onTriggerProducerPacket={handleProducerPacket}
+          isTriggeringBooster={isTriggeringBooster}
+          isTriggeringProducer={isTriggeringProducer}
+          iterationStatus={iterationStatus}
+          iterationId={iterationId}
+          iterationProgressPercent={iterationProgressPercent}
+          onTriggerIteration={handleIteration}
+          isTriggeringIteration={isTriggeringIteration}
         />
 
-        {/* Action Bar - Separate section with clear divider */}
-        <div className="pt-5 sm:pt-6 mt-2 border-t border-gray-800/50">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 sm:mb-4">Actions</h3>
-          {/* Mobile: full-width stacked buttons, Desktop: inline wrap */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
-            {/* Generate Producer Packet - only if Doc 3 doesn't exist */}
-            {!hasDoc3 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleProducerPacket(); }}
-                disabled={!canTriggerActions || isTriggeringProducer}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600/20 border border-amber-600/30 px-4 py-3 sm:py-2.5 text-sm font-medium text-amber-400 transition hover:bg-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
-              >
-                {isTriggeringProducer ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Producer Packet
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Deep Research (Booster) - touch-friendly */}
-            <button
-              onClick={(e) => { e.stopPropagation(); handleBooster(); }}
-              disabled={!canTriggerActions || isTriggeringBooster || isBoosterRunning}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600/20 border border-indigo-600/30 px-4 py-3 sm:py-2.5 text-sm font-medium text-indigo-400 transition hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
-            >
-            {(isTriggeringBooster || isBoosterRunning) ? (
-              <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                {boosterStatus === 'running' ? `${boosterProgressPercent || 0}%` : 'Starting...'}
-              </>
-            ) : isBoosterCompleted ? (
-              <>
-                <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Complete
-              </>
-            ) : isBoosterFailed ? (
-              <>
-                <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-red-400">Failed</span>
-              </>
-            ) : (
-              <>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Deep Research
-              </>
-            )}
-          </button>
-          </div>
-        </div>
 
         {/* Booster Error */}
         {isBoosterFailed && boosterError && (
           <div className="rounded-lg bg-red-900/20 p-4 mt-4">
             <p className="text-sm text-red-300 leading-relaxed">
               <strong>Booster Error:</strong> {boosterError}
+            </p>
+          </div>
+        )}
+
+        {/* Iteration Error */}
+        {iterationStatus === 'failed' && iterationError && (
+          <div className="rounded-lg bg-red-900/20 p-4 mt-4">
+            <p className="text-sm text-red-300 leading-relaxed">
+              <strong>Iteration Error:</strong> {iterationError}
             </p>
           </div>
         )}

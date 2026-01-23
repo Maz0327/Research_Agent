@@ -94,6 +94,13 @@ def update_job(
     producer_completed_at: datetime | None = None,
     producer_error: str | None = None,
     producer_progress_percent: int | None = None,
+    # Iteration tracking fields (separate from main job status)
+    iteration_status: str | None = None,
+    iteration_id: str | None = None,
+    iteration_started_at: datetime | None = None,
+    iteration_completed_at: datetime | None = None,
+    iteration_error: str | None = None,
+    iteration_progress_percent: int | None = None,
 ) -> JobRecord | None:
     """
     Update a job with partial updates.
@@ -123,6 +130,12 @@ def update_job(
         producer_completed_at: When producer completed/failed
         producer_error: Producer error message if failed
         producer_progress_percent: Producer progress (0-100)
+        iteration_status: Current iteration status (queued/running/completed/failed)
+        iteration_id: Current iteration ID being processed (it_0001, ...)
+        iteration_started_at: When current iteration started
+        iteration_completed_at: When current iteration completed/failed
+        iteration_error: Current iteration error message if failed
+        iteration_progress_percent: Current iteration progress (0-100)
 
     Returns:
         Updated JobRecord if found, None otherwise
@@ -153,6 +166,12 @@ def update_job(
         producer_completed_at=producer_completed_at,
         producer_error=producer_error,
         producer_progress_percent=producer_progress_percent,
+        iteration_status=iteration_status,
+        iteration_id=iteration_id,
+        iteration_started_at=iteration_started_at,
+        iteration_completed_at=iteration_completed_at,
+        iteration_error=iteration_error,
+        iteration_progress_percent=iteration_progress_percent,
     )
 
 

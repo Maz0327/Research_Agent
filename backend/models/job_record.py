@@ -5,6 +5,73 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
+# =============================================================================
+# ITERATION DATA MODELS
+# =============================================================================
+
+class IterationRequest(BaseModel):
+    """Request parameters for an iteration."""
+    mode: str = Field(..., description="Iteration mode: more_sources, deeper, different_angle, custom")
+    user_prompt: str = Field(default="", description="User prompt for iteration")
+    target: str = Field(default="semantic_docs", description="Target for iteration (semantic_docs only for now)")
+    max_new_sources: int = Field(default=4, ge=0, le=10, description="Max new sources to add")
+    angle: Optional[str] = Field(None, description="Specific angle to explore")
+    constraints: dict[str, Any] = Field(default_factory=lambda: {"keep_doc0_schema": True})
+
+
+class IterationInputs(BaseModel):
+    """Inputs captured at iteration start."""
+    baseline_doc_0_path: Optional[str] = Field(None, description="Baseline Doc 0 storage path")
+    baseline_doc_1_path: Optional[str] = Field(None, description="Baseline Doc 1 storage path")
+    baseline_doc_2_path: Optional[str] = Field(None, description="Baseline Doc 2 storage path")
+    baseline_sources_hash: Optional[str] = Field(None, description="Hash of baseline sources for delta detection")
+    source_urls_added: list[str] = Field(default_factory=list, description="URLs added in this iteration")
+    source_urls_used: list[str] = Field(default_factory=list, description="All URLs used (baseline + added)")
+
+
+class IterationOutputs(BaseModel):
+    """Outputs produced by an iteration."""
+    doc_0_path: Optional[str] = Field(None, description="Iteration Doc 0 storage path")
+    doc_1_path: Optional[str] = Field(None, description="Iteration Doc 1 storage path")
+    doc_2_path: Optional[str] = Field(None, description="Iteration Doc 2 storage path")
+    doc_0_inline: Optional[dict[str, Any]] = Field(None, description="Doc 0 inline data (fallback)")
+    doc_1_inline: Optional[dict[str, Any]] = Field(None, description="Doc 1 inline data (fallback)")
+    doc_2_inline: Optional[dict[str, Any]] = Field(None, description="Doc 2 inline data (fallback)")
+
+
+class IterationMetrics(BaseModel):
+    """Metrics for an iteration."""
+    llm_calls: int = Field(default=0, description="Number of LLM calls")
+    tokens_in: int = Field(default=0, description="Total input tokens")
+    tokens_out: int = Field(default=0, description="Total output tokens")
+    wall_time_ms: int = Field(default=0, description="Wall clock time in milliseconds")
+
+
+class IterationError(BaseModel):
+    """Error information for a failed iteration."""
+    message: str = Field(..., description="Error message")
+    stack: Optional[str] = Field(None, description="Stack trace")
+
+
+class Iteration(BaseModel):
+    """A single iteration in the iteration loop.
+
+    Each iteration produces a new set of doc_0/doc_1/doc_2 WITHOUT modifying baseline.
+    """
+    iteration_id: str = Field(..., description="Stable iteration ID (it_0001, it_0002, ...)")
+    index: int = Field(..., ge=1, description="1-based iteration index")
+    created_at: str = Field(..., description="ISO8601 timestamp when iteration was created")
+    started_at: Optional[str] = Field(None, description="ISO8601 timestamp when iteration started running")
+    completed_at: Optional[str] = Field(None, description="ISO8601 timestamp when iteration completed/failed")
+    status: str = Field(default="queued", description="Status: queued, running, completed, failed")
+    error: Optional[IterationError] = Field(None, description="Error info if failed")
+
+    request: IterationRequest = Field(..., description="Request parameters")
+    inputs: IterationInputs = Field(default_factory=IterationInputs, description="Captured inputs")
+    outputs: IterationOutputs = Field(default_factory=IterationOutputs, description="Produced outputs")
+    metrics: IterationMetrics = Field(default_factory=IterationMetrics, description="Execution metrics")
+
+
 class Artifacts(BaseModel):
     """Artifacts associated with a job.
 
@@ -37,6 +104,13 @@ class Artifacts(BaseModel):
     # Producer Packet (Doc 3)
     producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline)")
     producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
+
+    # =========================================================================
+    # ITERATIONS (Append-only array of iteration bundles)
+    # =========================================================================
+    # Each iteration produces new doc_0/doc_1/doc_2 WITHOUT modifying baseline.
+    # IMPORTANT: Never overwrite baseline doc_*_path keys - iterations are ADDITIVE.
+    iterations: list[Iteration] = Field(default_factory=list, description="Iteration history (append-only)")
 
 
 class Outputs(BaseModel):
@@ -126,6 +200,15 @@ class JobRecord(BaseModel):
     producer_completed_at: Optional[datetime] = Field(None, description="When producer completed/failed")
     producer_error: Optional[str] = Field(None, description="Producer error message if failed")
     producer_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Producer progress (0-100)")
+
+    # Iteration tracking (separate from main pipeline status)
+    # IMPORTANT: Iteration must NEVER modify jobs.status - these fields track iteration independently
+    iteration_status: Optional[str] = Field(None, description="Current iteration status: queued, running, completed, failed")
+    iteration_id: Optional[str] = Field(None, description="Current iteration ID being processed (it_0001, ...)")
+    iteration_started_at: Optional[datetime] = Field(None, description="When current iteration started")
+    iteration_completed_at: Optional[datetime] = Field(None, description="When current iteration completed/failed")
+    iteration_error: Optional[str] = Field(None, description="Current iteration error message if failed")
+    iteration_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Current iteration progress (0-100)")
 
     # Configuration
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")

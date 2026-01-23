@@ -1397,6 +1397,222 @@ async def generate_producer_packet(
 
 
 # =============================================================================
+# ITERATION LOOP ENDPOINT (Phase 9)
+# =============================================================================
+
+from backend.models.job import IterateJobRequest, IterateJobResponse
+
+
+@router.post("/{job_id}/iterate", response_model=IterateJobResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def run_job_iteration(
+    request: Request,
+    job_id: str,
+    iterate_request: IterateJobRequest,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Trigger an iteration on a completed job.
+
+    APPEND-ONLY: Every iteration produces a new artifact bundle under
+    job.artifacts.iterations[]. Baseline doc_0/doc_1/doc_2 are NEVER modified.
+
+    Prerequisites:
+    - Job must be in 'completed' or 'completed_with_warnings' status
+    - Baseline docs (Doc 0, Doc 1, Doc 2) must exist
+    - No iteration currently running
+
+    Iteration modes:
+    - more_sources: Find and analyze additional sources
+    - deeper: Deeper analysis of existing sources
+    - different_angle: Explore a different perspective
+    - custom: User-defined iteration via prompt
+
+    CRITICAL:
+    - jobs.status remains 'completed' after iteration starts
+    - Iteration failure does NOT affect baseline documents
+    - Each iteration gets its own iteration_id: it_0001, it_0002, ...
+
+    Returns status and iteration_id. Poll job status for completion.
+    """
+    from datetime import datetime, timezone
+    from backend.models.job_record import Iteration, IterationRequest, IterationInputs
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed (main pipeline)
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to run iteration. Current status: '{job_status}'"
+        )
+
+    # Check iteration status (separate from job.status)
+    iteration_status = job.iteration_status if hasattr(job, "iteration_status") else None
+    if iteration_status == "running":
+        raise HTTPException(
+            status_code=409,
+            detail="An iteration is already running for this job"
+        )
+    if iteration_status == "queued":
+        raise HTTPException(
+            status_code=409,
+            detail="An iteration is already queued for this job"
+        )
+
+    # Get artifacts
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    # Verify baseline docs exist
+    doc_0_path = artifacts_dict.get("doc_0_path")
+    doc_1_path = artifacts_dict.get("doc_1_path")
+    doc_2_path = artifacts_dict.get("doc_2_path")
+    source_ledger = artifacts_dict.get("source_ledger")
+    jump_start = artifacts_dict.get("jump_start")
+    semantic_brief = artifacts_dict.get("semantic_brief")
+
+    # Must have either storage path or inline data for each doc
+    has_doc_0 = bool(doc_0_path or source_ledger)
+    has_doc_1 = bool(doc_1_path or jump_start)
+    has_doc_2 = bool(doc_2_path or semantic_brief)
+
+    if not (has_doc_0 and has_doc_1 and has_doc_2):
+        missing = []
+        if not has_doc_0:
+            missing.append("Doc 0 (Source Ledger)")
+        if not has_doc_1:
+            missing.append("Doc 1 (Jump-Start)")
+        if not has_doc_2:
+            missing.append("Doc 2 (Semantic Brief)")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Baseline documents required for iteration: {', '.join(missing)}"
+        )
+
+    # Get existing iterations
+    existing_iterations = artifacts_dict.get("iterations", [])
+    next_index = len(existing_iterations) + 1
+    iteration_id = f"it_{next_index:04d}"
+
+    # Build iteration request object
+    iter_request = IterationRequest(
+        mode=iterate_request.mode,
+        user_prompt=iterate_request.user_prompt,
+        target="semantic_docs",  # Only semantic docs for now
+        max_new_sources=iterate_request.max_new_sources,
+        angle=iterate_request.angle,
+        constraints={"keep_doc0_schema": True},
+    )
+
+    # Build iteration inputs capturing baseline state
+    iter_inputs = IterationInputs(
+        baseline_doc_0_path=doc_0_path,
+        baseline_doc_1_path=doc_1_path,
+        baseline_doc_2_path=doc_2_path,
+        baseline_sources_hash=None,  # Will be computed by worker
+        source_urls_added=[],
+        source_urls_used=[],
+    )
+
+    # Create iteration object
+    now = datetime.now(timezone.utc)
+    new_iteration = Iteration(
+        iteration_id=iteration_id,
+        index=next_index,
+        created_at=now.isoformat(),
+        started_at=None,
+        completed_at=None,
+        status="queued",
+        error=None,
+        request=iter_request,
+        inputs=iter_inputs,
+    )
+
+    # Append iteration to artifacts (APPEND-ONLY, DO NOT modify other keys)
+    updated_iterations = existing_iterations + [new_iteration.model_dump()]
+
+    # Update artifacts with new iteration
+    from backend.models.job_record import Artifacts
+    updated_artifacts = Artifacts(**{
+        **artifacts_dict,
+        "iterations": updated_iterations,
+    })
+
+    # Update job with iteration tracking (DO NOT modify job.status)
+    # The unique partial index on (id) WHERE iteration_status IN ('queued', 'running')
+    # prevents race conditions - if two requests try simultaneously, one will fail
+    try:
+        update_job(
+            job_id,
+            iteration_status="queued",
+            iteration_id=iteration_id,
+            iteration_started_at=now,
+            iteration_progress_percent=0,
+            iteration_error=None,  # Clear any previous error
+            artifacts=updated_artifacts,
+        )
+    except Exception as e:
+        # Check for unique constraint violation (TOCTOU race condition)
+        error_str = str(e).lower()
+        if "unique" in error_str or "duplicate" in error_str or "23505" in error_str:
+            logger.warning(f"Concurrent iteration attempt blocked for job {job_id}: {e}")
+            raise HTTPException(
+                status_code=409,
+                detail="An iteration is already in progress for this job (concurrent request blocked)"
+            )
+        # Re-raise other exceptions
+        raise
+
+    # Queue iteration task
+    from backend.worker import run_iteration_task
+    logger.info(f"Enqueuing iteration task for job {job_id}, iteration {iteration_id}")
+    run_iteration_task.apply_async(
+        (job_id, iteration_id, user.user_id),
+        task_id=f"{job_id}_{iteration_id}"
+    )
+
+    # Audit log
+    logger.info(
+        "Iteration triggered",
+        extra={
+            "job_id": job_id,
+            "iteration_id": iteration_id,
+            "iteration_index": next_index,
+            "mode": iterate_request.mode,
+            "user_id": user.user_id,
+            "event": "iteration_triggered",
+        }
+    )
+
+    return IterateJobResponse(
+        job_id=job_id,
+        iteration_id=iteration_id,
+        iteration_index=next_index,
+        status="queued",
+        message=f"Iteration {iteration_id} started. Baseline documents remain unchanged.",
+    )
+
+
+# =============================================================================
 # DEPRECATED: Legacy Job Preview (2026-01-19)
 # =============================================================================
 

@@ -154,6 +154,19 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
         booster_completed_at=_parse_datetime(row.get("booster_completed_at")),
         booster_error=row.get("booster_error"),
         booster_progress_percent=row.get("booster_progress_percent"),
+        # Producer tracking fields
+        producer_status=row.get("producer_status"),
+        producer_started_at=_parse_datetime(row.get("producer_started_at")),
+        producer_completed_at=_parse_datetime(row.get("producer_completed_at")),
+        producer_error=row.get("producer_error"),
+        producer_progress_percent=row.get("producer_progress_percent"),
+        # Iteration tracking fields
+        iteration_status=row.get("iteration_status"),
+        iteration_id=row.get("iteration_id"),
+        iteration_started_at=_parse_datetime(row.get("iteration_started_at")),
+        iteration_completed_at=_parse_datetime(row.get("iteration_completed_at")),
+        iteration_error=row.get("iteration_error"),
+        iteration_progress_percent=row.get("iteration_progress_percent"),
     )
 
 
@@ -303,6 +316,13 @@ class SupabaseJobStore(JobStore):
         producer_completed_at: Optional[datetime] = None,
         producer_error: Optional[str] = None,
         producer_progress_percent: Optional[int] = None,
+        # Iteration tracking fields (separate from main job status)
+        iteration_status: Optional[str] = None,
+        iteration_id: Optional[str] = None,
+        iteration_started_at: Optional[datetime] = None,
+        iteration_completed_at: Optional[datetime] = None,
+        iteration_error: Optional[str] = None,
+        iteration_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record in Supabase using atomic operations.
@@ -335,6 +355,12 @@ class SupabaseJobStore(JobStore):
             producer_completed_at: When producer completed/failed
             producer_error: Producer error message if failed
             producer_progress_percent: Producer progress (0-100)
+            iteration_status: Current iteration status (queued/running/completed/failed)
+            iteration_id: Current iteration ID being processed (it_0001, ...)
+            iteration_started_at: When current iteration started
+            iteration_completed_at: When current iteration completed/failed
+            iteration_error: Current iteration error message if failed
+            iteration_progress_percent: Current iteration progress (0-100)
 
         Returns:
             Updated JobRecord or None if job not found
@@ -370,8 +396,12 @@ class SupabaseJobStore(JobStore):
             producer_status, producer_started_at, producer_completed_at,
             producer_error, producer_progress_percent is not None
         ])
+        has_iteration_fields = any([
+            iteration_status, iteration_id, iteration_started_at, iteration_completed_at,
+            iteration_error, iteration_progress_percent is not None
+        ])
 
-        if needs_atomic or has_booster_fields or has_producer_fields:
+        if needs_atomic or has_booster_fields or has_producer_fields or has_iteration_fields:
             return self._update_job_atomic(
                 job_id=job_id,
                 status=status,
@@ -392,6 +422,12 @@ class SupabaseJobStore(JobStore):
                 producer_completed_at=producer_completed_at,
                 producer_error=producer_error,
                 producer_progress_percent=producer_progress_percent,
+                iteration_status=iteration_status,
+                iteration_id=iteration_id,
+                iteration_started_at=iteration_started_at,
+                iteration_completed_at=iteration_completed_at,
+                iteration_error=iteration_error,
+                iteration_progress_percent=iteration_progress_percent,
             )
         else:
             return self._update_job_simple(
@@ -430,6 +466,12 @@ class SupabaseJobStore(JobStore):
         producer_completed_at: Optional[datetime] = None,
         producer_error: Optional[str] = None,
         producer_progress_percent: Optional[int] = None,
+        iteration_status: Optional[str] = None,
+        iteration_id: Optional[str] = None,
+        iteration_started_at: Optional[datetime] = None,
+        iteration_completed_at: Optional[datetime] = None,
+        iteration_error: Optional[str] = None,
+        iteration_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """Update job using atomic RPC function for JSONB merges."""
         try:
@@ -461,6 +503,13 @@ class SupabaseJobStore(JobStore):
                 "p_producer_completed_at": producer_completed_at.isoformat() if producer_completed_at else None,
                 "p_producer_error": producer_error,
                 "p_producer_progress_percent": producer_progress_percent,
+                # Iteration fields
+                "p_iteration_status": iteration_status,
+                "p_iteration_id": iteration_id,
+                "p_iteration_started_at": iteration_started_at.isoformat() if iteration_started_at else None,
+                "p_iteration_completed_at": iteration_completed_at.isoformat() if iteration_completed_at else None,
+                "p_iteration_error": iteration_error,
+                "p_iteration_progress_percent": iteration_progress_percent,
             }
 
             logger.debug(f"Calling atomic_update_job RPC for job {job_id}")
@@ -499,6 +548,12 @@ class SupabaseJobStore(JobStore):
                 producer_completed_at=producer_completed_at,
                 producer_error=producer_error,
                 producer_progress_percent=producer_progress_percent,
+                iteration_status=iteration_status,
+                iteration_id=iteration_id,
+                iteration_started_at=iteration_started_at,
+                iteration_completed_at=iteration_completed_at,
+                iteration_error=iteration_error,
+                iteration_progress_percent=iteration_progress_percent,
             )
 
     def _update_job_fallback(
@@ -523,6 +578,12 @@ class SupabaseJobStore(JobStore):
         producer_completed_at: Optional[datetime] = None,
         producer_error: Optional[str] = None,
         producer_progress_percent: Optional[int] = None,
+        iteration_status: Optional[str] = None,
+        iteration_id: Optional[str] = None,
+        iteration_started_at: Optional[datetime] = None,
+        iteration_completed_at: Optional[datetime] = None,
+        iteration_error: Optional[str] = None,
+        iteration_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Fallback update method using READ-MERGE-WRITE pattern.
@@ -568,6 +629,20 @@ class SupabaseJobStore(JobStore):
             payload["producer_error"] = producer_error
         if producer_progress_percent is not None:
             payload["producer_progress_percent"] = producer_progress_percent
+
+        # Iteration fields
+        if iteration_status is not None:
+            payload["iteration_status"] = iteration_status
+        if iteration_id is not None:
+            payload["iteration_id"] = iteration_id
+        if iteration_started_at is not None:
+            payload["iteration_started_at"] = iteration_started_at.isoformat()
+        if iteration_completed_at is not None:
+            payload["iteration_completed_at"] = iteration_completed_at.isoformat()
+        if iteration_error is not None:
+            payload["iteration_error"] = iteration_error
+        if iteration_progress_percent is not None:
+            payload["iteration_progress_percent"] = iteration_progress_percent
 
         # For merge operations, fetch current state (race condition here)
         if partial_outputs or partial_artifacts or warnings_append:

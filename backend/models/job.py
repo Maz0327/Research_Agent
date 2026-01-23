@@ -619,3 +619,43 @@ class ProcessPendingResponse(BaseModel):
     job_id: str = Field(..., description="Job identifier")
     status: str = Field(..., description="Job status: processing")
     pending_count: int = Field(..., description="Number of sources being processed")
+
+
+# =============================================================================
+# Iteration Loop Models (Phase 9)
+# =============================================================================
+
+class IterateJobRequest(BaseModel):
+    """Request to run an iteration on a completed job.
+
+    Iterations append new doc bundles WITHOUT overwriting baseline artifacts.
+    """
+    mode: Literal["more_sources", "deeper", "different_angle", "custom"] = Field(
+        "more_sources",
+        description="Iteration mode: more_sources (find more), deeper (deeper analysis), different_angle (new perspective), custom (user-defined)"
+    )
+    user_prompt: str = Field(
+        "",
+        max_length=2000,
+        description="User prompt for iteration guidance"
+    )
+    max_new_sources: int = Field(
+        4,
+        ge=0,
+        le=10,
+        description="Maximum new sources to find and analyze"
+    )
+    angle: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Specific angle to explore (for different_angle mode)"
+    )
+
+
+class IterateJobResponse(BaseModel):
+    """Response after starting an iteration."""
+    job_id: str = Field(..., description="Job identifier")
+    iteration_id: str = Field(..., description="Iteration identifier (it_0001, it_0002, ...)")
+    iteration_index: int = Field(..., description="1-based iteration index")
+    status: str = Field(..., description="Iteration status: queued")
+    message: str = Field(..., description="Status message")

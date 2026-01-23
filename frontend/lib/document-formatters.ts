@@ -132,10 +132,72 @@ export function formatTimestampWithRelative(
 // =============================================================================
 
 /**
+ * Protected content placeholder for code blocks and URLs during transformation.
+ * Uses a unique token that won't appear in real content.
+ */
+const PLACEHOLDER_PREFIX = '\u0000PROTECTED_';
+const PLACEHOLDER_SUFFIX = '_END\u0000';
+
+/**
+ * Extract protected sections (code blocks, URLs) and replace with placeholders.
+ * Returns the modified text and a map of placeholders to original content.
+ */
+function protectSections(text: string): { text: string; protected: Map<string, string> } {
+  const protectedMap = new Map<string, string>();
+  let counter = 0;
+  let result = text;
+
+  // Protect fenced code blocks (``` ... ```)
+  result = result.replace(/```[\s\S]*?```/g, (match) => {
+    const placeholder = `${PLACEHOLDER_PREFIX}CODE_${counter++}${PLACEHOLDER_SUFFIX}`;
+    protectedMap.set(placeholder, match);
+    return placeholder;
+  });
+
+  // Protect inline code (`...`)
+  result = result.replace(/`[^`\n]+`/g, (match) => {
+    const placeholder = `${PLACEHOLDER_PREFIX}INLINE_${counter++}${PLACEHOLDER_SUFFIX}`;
+    protectedMap.set(placeholder, match);
+    return placeholder;
+  });
+
+  // Protect markdown links [text](url)
+  result = result.replace(/\[[^\]]*\]\([^)]+\)/g, (match) => {
+    const placeholder = `${PLACEHOLDER_PREFIX}LINK_${counter++}${PLACEHOLDER_SUFFIX}`;
+    protectedMap.set(placeholder, match);
+    return placeholder;
+  });
+
+  // Protect bare URLs (http:// or https://)
+  result = result.replace(/https?:\/\/[^\s<>"]+/g, (match) => {
+    const placeholder = `${PLACEHOLDER_PREFIX}URL_${counter++}${PLACEHOLDER_SUFFIX}`;
+    protectedMap.set(placeholder, match);
+    return placeholder;
+  });
+
+  return { text: result, protected: protectedMap };
+}
+
+/**
+ * Restore protected sections from placeholders.
+ */
+function restoreProtectedSections(text: string, protectedMap: Map<string, string>): string {
+  let result = text;
+  protectedMap.forEach((original, placeholder) => {
+    result = result.replace(placeholder, original);
+  });
+  return result;
+}
+
+/**
  * Transform markdown content for user-friendly display.
  *
  * This replaces internal IDs with readable labels throughout the
  * markdown content without modifying the stored JSON.
+ *
+ * SAFETY: Does NOT transform IDs inside:
+ * - Code blocks (fenced or inline)
+ * - URLs (bare or markdown links)
  *
  * @param markdown - Raw markdown content
  * @returns Transformed markdown with user-friendly labels
@@ -143,20 +205,66 @@ export function formatTimestampWithRelative(
 export function transformMarkdownForDisplay(markdown: string): string {
   if (!markdown) return markdown;
 
-  let result = markdown;
+  // Step 1: Protect code blocks and URLs from transformation
+  const { text: safeText, protected: protectedMap } = protectSections(markdown);
 
-  // Replace standalone IDs (e.g., "SRC_1" → "Source 1")
-  // Pattern matches IDs at word boundaries, not part of URLs or other strings
+  let result = safeText;
+
+  // Step 2: Replace standalone IDs (e.g., "SRC_1" → "Source 1")
+  // Pattern matches IDs at word boundaries, not part of other strings
   Object.keys(ID_LABEL_MAP).forEach((prefix) => {
     const label = ID_LABEL_MAP[prefix];
     // Match PREFIX_NUMBER with word boundaries
-    // Negative lookbehind for / to avoid matching in URLs
     const pattern = new RegExp(`(?<![/\\w])${prefix}_(\\d+)(?![\\w])`, 'g');
     result = result.replace(pattern, `${label} $1`);
   });
 
-  // Normalize section headings for readability
+  // Step 3: Normalize section headings for readability
   result = normalizeHeadings(result);
+
+  // Step 4: Restore protected sections
+  result = restoreProtectedSections(result, protectedMap);
+
+  return result;
+}
+
+/**
+ * Transform markdown with optional Details toggle to reveal internal IDs.
+ *
+ * When showDetails=true, IDs are shown as "Source 1 (SRC_1)"
+ * When showDetails=false, IDs are shown as "Source 1"
+ *
+ * @param markdown - Raw markdown content
+ * @param showDetails - Whether to show internal IDs in parentheses
+ * @returns Transformed markdown
+ */
+export function transformMarkdownWithDetails(markdown: string, showDetails: boolean): string {
+  if (!markdown) return markdown;
+
+  // Step 1: Protect code blocks and URLs
+  const { text: safeText, protected: protectedMap } = protectSections(markdown);
+
+  let result = safeText;
+
+  // Step 2: Replace IDs with optional internal reference
+  Object.keys(ID_LABEL_MAP).forEach((prefix) => {
+    const label = ID_LABEL_MAP[prefix];
+    const pattern = new RegExp(`(?<![/\\w])(${prefix}_(\\d+))(?![\\w])`, 'g');
+
+    if (showDetails) {
+      // Show both: "Source 1 (SRC_1)"
+      result = result.replace(pattern, `${label} $2 ($1)`);
+    } else {
+      // Show friendly only: "Source 1"
+      result = result.replace(pattern, `${label} $2`);
+    }
+  });
+
+  // Step 3: Normalize headings
+  result = normalizeHeadings(result);
+
+  // Step 4: Restore protected sections
+  result = restoreProtectedSections(result, protectedMap);
 
   return result;
 }

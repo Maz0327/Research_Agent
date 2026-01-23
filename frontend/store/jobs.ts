@@ -145,6 +145,51 @@ export interface JobArtifacts {
   // Producer Packet markdown (Phase 8)
   /** Producer packet markdown output */
   producer_packet_md?: string;
+  // Iteration Loop (Phase 9)
+  /** Iteration bundles - each iteration produces its own doc set */
+  iterations?: IterationBundle[];
+}
+
+/**
+ * Iteration bundle - append-only artifact set per iteration
+ */
+export interface IterationBundle {
+  iteration_id: string;
+  index: number;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  error?: {
+    message: string;
+    stack?: string;
+  };
+  request: {
+    mode: string;
+    user_prompt: string;
+    max_new_sources: number;
+    angle?: string;
+  };
+  inputs?: {
+    baseline_doc_0_path?: string;
+    baseline_doc_1_path?: string;
+    baseline_doc_2_path?: string;
+    source_urls_added: string[];
+  };
+  outputs?: {
+    doc_0_path?: string;
+    doc_1_path?: string;
+    doc_2_path?: string;
+    doc_0_inline?: Record<string, unknown>;
+    doc_1_inline?: Record<string, unknown>;
+    doc_2_inline?: Record<string, unknown>;
+  };
+  metrics?: {
+    llm_calls: number;
+    tokens_in: number;
+    tokens_out: number;
+    wall_time_ms: number;
+  };
 }
 
 /**
@@ -191,6 +236,18 @@ export interface Job {
   booster_error?: string;
   /** Booster progress percentage (0-100) */
   booster_progress_percent?: number;
+  /** Current iteration status (separate from main job status) */
+  iteration_status?: 'queued' | 'running' | 'completed' | 'failed' | null;
+  /** Current iteration ID being processed (it_0001, ...) */
+  iteration_id?: string;
+  /** When current iteration started (ISO timestamp) */
+  iteration_started_at?: string;
+  /** When current iteration completed/failed (ISO timestamp) */
+  iteration_completed_at?: string;
+  /** Current iteration error message if failed */
+  iteration_error?: string;
+  /** Current iteration progress percentage (0-100) */
+  iteration_progress_percent?: number;
 }
 
 /** Error from a bulk operation */
@@ -314,6 +371,31 @@ export interface ProducerPacketResponse {
   message: string;
 }
 
+/**
+ * Iteration request parameters
+ */
+export interface IterationRequest {
+  /** Iteration mode: more_sources, deeper, different_angle, custom */
+  mode: 'more_sources' | 'deeper' | 'different_angle' | 'custom';
+  /** User prompt for iteration guidance */
+  user_prompt?: string;
+  /** Max new sources to find (0-10) */
+  max_new_sources?: number;
+  /** Specific angle to explore (for different_angle mode) */
+  angle?: string;
+}
+
+/**
+ * Iteration trigger response
+ */
+export interface IterationResponse {
+  job_id: string;
+  iteration_id: string;
+  iteration_index: number;
+  status: string;
+  message: string;
+}
+
 interface JobsState {
   jobs: Job[];
   isLoading: boolean;
@@ -322,7 +404,7 @@ interface JobsState {
   isPreviewLoading: boolean;
   // Action loading states
   isRefreshing: boolean;
-  actionInProgress: 'booster' | 'producer' | 'cancel' | 'delete' | 'archive' | null;
+  actionInProgress: 'booster' | 'producer' | 'iteration' | 'cancel' | 'delete' | 'archive' | null;
   // Bulk selection state
   selectedJobIds: Set<string>;
   isEditMode: boolean;
@@ -337,6 +419,7 @@ interface JobsState {
   createMixedInputJob: (request: MixedInputRequest) => Promise<MixedInputResponse>;
   triggerBooster: (jobId: string) => Promise<BoosterResponse>;
   triggerProducerPacket: (jobId: string) => Promise<ProducerPacketResponse>;
+  triggerIteration: (jobId: string, request: IterationRequest) => Promise<IterationResponse>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -815,6 +898,52 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       return data;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to trigger producer packet';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
+  },
+
+  triggerIteration: async (jobId: string, request: IterationRequest): Promise<IterationResponse> => {
+    set({ actionInProgress: 'iteration' });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/iterate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to start iteration');
+      }
+
+      const data: IterationResponse = await response.json();
+
+      // Update job iteration status in local state (DO NOT change job.status)
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId
+            ? {
+                ...job,
+                iteration_status: 'queued' as const,
+                iteration_id: data.iteration_id,
+              }
+            : job
+        ),
+        actionInProgress: null,
+      }));
+
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start iteration';
       set({ error: message, actionInProgress: null });
       throw error;
     }

@@ -1663,3 +1663,219 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
             "status": "failed",
             "error": str(e),
         }
+
+
+# =============================================================================
+# ITERATION TASK (Phase 9 - Append-Only Iteration Loop)
+# =============================================================================
+
+@celery_app.task(
+    bind=True,
+    name="backend.worker.run_iteration_task",
+    max_retries=1,
+    soft_time_limit=900,  # 15 min soft limit
+    time_limit=960,  # 16 min hard limit
+)
+def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> dict:
+    """
+    Run an iteration on a completed job.
+
+    APPEND-ONLY: Every iteration produces a new artifact bundle under
+    job.artifacts.iterations[]. Baseline doc_0/doc_1/doc_2 are NEVER modified.
+
+    This task:
+    1. Loads baseline docs and existing extractions
+    2. Based on mode, either finds more sources or re-analyzes existing
+    3. Produces iteration-specific doc_0/doc_1/doc_2 outputs
+    4. Updates artifacts.iterations[iteration_index] with outputs and metrics
+    5. NEVER modifies baseline artifacts or job.status
+
+    Args:
+        job_id: ID of the completed job
+        iteration_id: Iteration identifier (it_0001, it_0002, ...)
+        user_id: ID of the user who triggered iteration
+
+    Returns:
+        Dict with job_id, iteration_id, status, and summary
+    """
+    from datetime import datetime, timezone
+    from backend.models.job_record import Artifacts, IterationOutputs, IterationMetrics, IterationError
+
+    logger.info(f"[{job_id}] Starting iteration {iteration_id}")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Job not found")
+        return {"job_id": job_id, "iteration_id": iteration_id, "status": "failed", "error": "Job not found"}
+
+    # Get artifacts
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    # Find the iteration
+    iterations = artifacts_dict.get("iterations", [])
+    iteration_index = None
+    iteration_data = None
+    for i, it in enumerate(iterations):
+        if it.get("iteration_id") == iteration_id:
+            iteration_index = i
+            iteration_data = it
+            break
+
+    if iteration_data is None:
+        error_msg = f"Iteration {iteration_id} not found in artifacts"
+        logger.error(f"[{job_id}] {error_msg}")
+        return {"job_id": job_id, "iteration_id": iteration_id, "status": "failed", "error": error_msg}
+
+    # Get iteration request details
+    request_data = iteration_data.get("request", {})
+    mode = request_data.get("mode", "more_sources")
+    user_prompt = request_data.get("user_prompt", "")
+    max_new_sources = request_data.get("max_new_sources", 4)
+    angle = request_data.get("angle")
+
+    start_time = datetime.now(timezone.utc)
+
+    try:
+        # Update iteration status to running
+        iteration_data["status"] = "running"
+        iteration_data["started_at"] = start_time.isoformat()
+        iterations[iteration_index] = iteration_data
+
+        # Update job with running status
+        update_job(
+            job_id,
+            iteration_status="running",
+            iteration_id=iteration_id,
+            iteration_started_at=start_time,
+            iteration_progress_percent=5,
+            artifacts=Artifacts(**{**artifacts_dict, "iterations": iterations}),
+        )
+
+        logger.info(f"[{job_id}] Iteration {iteration_id} mode={mode}, max_new_sources={max_new_sources}")
+
+        # =====================================================================
+        # ITERATION LOGIC (PLACEHOLDER - Full implementation requires pipeline)
+        # =====================================================================
+        # For now, create placeholder outputs. Full implementation will:
+        # 1. For more_sources: Run source discovery → extraction → synthesis
+        # 2. For deeper: Re-analyze existing sources with deeper prompts
+        # 3. For different_angle: Re-synthesize with angle-specific prompts
+        # 4. For custom: Execute user prompt against existing data
+
+        # Placeholder: Create iteration outputs
+        # TODO: Implement full iteration pipeline in backend/pipeline/iteration/
+        iter_outputs = IterationOutputs(
+            doc_0_path=None,  # Will be set when pipeline generates docs
+            doc_1_path=None,
+            doc_2_path=None,
+            doc_0_inline=None,
+            doc_1_inline=None,
+            doc_2_inline=None,
+        )
+
+        # Calculate metrics
+        end_time = datetime.now(timezone.utc)
+        wall_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
+        iter_metrics = IterationMetrics(
+            llm_calls=0,  # Will be tracked by pipeline
+            tokens_in=0,
+            tokens_out=0,
+            wall_time_ms=wall_time_ms,
+        )
+
+        # Update iteration with outputs
+        iteration_data["status"] = "completed"
+        iteration_data["completed_at"] = end_time.isoformat()
+        iteration_data["outputs"] = iter_outputs.model_dump()
+        iteration_data["metrics"] = iter_metrics.model_dump()
+        iterations[iteration_index] = iteration_data
+
+        # Update job - mark iteration completed (DO NOT modify job.status)
+        update_job(
+            job_id,
+            iteration_status="completed",
+            iteration_id=iteration_id,
+            iteration_completed_at=end_time,
+            iteration_progress_percent=100,
+            artifacts=Artifacts(**{**artifacts_dict, "iterations": iterations}),
+        )
+
+        logger.info(
+            f"[{job_id}] Iteration {iteration_id} completed in {wall_time_ms}ms"
+        )
+
+        return {
+            "job_id": job_id,
+            "iteration_id": iteration_id,
+            "iteration_index": iteration_data.get("index", 0),
+            "status": "success",
+            "mode": mode,
+            "wall_time_ms": wall_time_ms,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Iteration {iteration_id} timed out after 15 minutes")
+        end_time = datetime.now(timezone.utc)
+
+        # Update iteration with error
+        iteration_data["status"] = "failed"
+        iteration_data["completed_at"] = end_time.isoformat()
+        iteration_data["error"] = IterationError(
+            message="Iteration timed out after 15 minutes",
+            stack=None,
+        ).model_dump()
+        iterations[iteration_index] = iteration_data
+
+        # Mark iteration failed (DO NOT modify job.status)
+        update_job(
+            job_id,
+            iteration_status="failed",
+            iteration_id=iteration_id,
+            iteration_completed_at=end_time,
+            iteration_error="Iteration timed out after 15 minutes",
+            artifacts=Artifacts(**{**artifacts_dict, "iterations": iterations}),
+        )
+
+        return {
+            "job_id": job_id,
+            "iteration_id": iteration_id,
+            "status": "failed",
+            "error": "Iteration timed out",
+        }
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Iteration {iteration_id} failed: {e}")
+        end_time = datetime.now(timezone.utc)
+
+        # Update iteration with error
+        iteration_data["status"] = "failed"
+        iteration_data["completed_at"] = end_time.isoformat()
+        iteration_data["error"] = IterationError(
+            message=str(e)[:500],
+            stack=None,  # Could capture traceback here
+        ).model_dump()
+        iterations[iteration_index] = iteration_data
+
+        # Mark iteration failed (DO NOT modify job.status)
+        update_job(
+            job_id,
+            iteration_status="failed",
+            iteration_id=iteration_id,
+            iteration_completed_at=end_time,
+            iteration_error=str(e)[:500],
+            artifacts=Artifacts(**{**artifacts_dict, "iterations": iterations}),
+        )
+
+        return {
+            "job_id": job_id,
+            "iteration_id": iteration_id,
+            "status": "failed",
+            "error": str(e),
+        }

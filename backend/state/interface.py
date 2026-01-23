@@ -87,6 +87,13 @@ class JobStore(ABC):
         producer_completed_at: Optional[datetime] = None,
         producer_error: Optional[str] = None,
         producer_progress_percent: Optional[int] = None,
+        # Iteration tracking fields (separate from main job status)
+        iteration_status: Optional[str] = None,
+        iteration_id: Optional[str] = None,
+        iteration_started_at: Optional[datetime] = None,
+        iteration_completed_at: Optional[datetime] = None,
+        iteration_error: Optional[str] = None,
+        iteration_progress_percent: Optional[int] = None,
     ) -> Optional[JobRecord]:
         """
         Update a job record with partial updates.
@@ -116,6 +123,12 @@ class JobStore(ABC):
             producer_completed_at: When producer completed/failed
             producer_error: Producer error message if failed
             producer_progress_percent: Producer progress (0-100)
+            iteration_status: Current iteration status (queued/running/completed/failed)
+            iteration_id: Current iteration ID being processed (it_0001, ...)
+            iteration_started_at: When current iteration started
+            iteration_completed_at: When current iteration completed/failed
+            iteration_error: Current iteration error message if failed
+            iteration_progress_percent: Current iteration progress (0-100)
 
         Returns:
             Updated JobRecord if found and updated, None otherwise
