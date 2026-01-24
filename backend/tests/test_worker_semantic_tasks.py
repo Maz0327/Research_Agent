@@ -489,23 +489,12 @@ class TestCrossReferenceStageLogic:
 class TestStateManagement:
     """Tests for state management functions used by worker."""
 
-    def test_get_job_function_exists(self):
-        """get_job function should exist."""
-        from backend.state import get_job
-
-        assert callable(get_job)
-
-    def test_update_job_function_exists(self):
-        """update_job function should exist."""
-        from backend.state import update_job
-
-        assert callable(update_job)
-
-    def test_list_jobs_function_exists(self):
-        """list_jobs function should exist."""
-        from backend.state import list_jobs
-
-        assert callable(list_jobs)
+    @pytest.mark.parametrize("func_name", ["get_job", "update_job", "list_jobs"])
+    def test_state_functions_exist(self, func_name):
+        """State management functions should exist and be callable."""
+        from backend import state
+        func = getattr(state, func_name)
+        assert callable(func)
 
 
 # =============================================================================
@@ -544,19 +533,14 @@ class TestPipelineContext:
 class TestStageRecovery:
     """Tests for stage recovery utilities."""
 
-    def test_run_stage_with_recovery_exists(self):
-        """run_stage_with_recovery should exist."""
+    def test_run_stage_with_recovery_callable(self):
+        """run_stage_with_recovery should be callable."""
         from backend.pipeline.stage_runner import run_stage_with_recovery
-
         assert callable(run_stage_with_recovery)
 
-    def test_stage_group_class_exists(self):
-        """StageGroup class should exist and be usable."""
+    def test_stage_group_instantiation(self):
+        """StageGroup should be instantiable and track results."""
         from backend.pipeline.stage_runner import StageGroup
-
-        # StageGroup is a class that tracks stage execution results
-        assert StageGroup is not None
-        # Should be instantiable with a name
         group = StageGroup(name="test_group")
         assert group.name == "test_group"
         assert group.results == []

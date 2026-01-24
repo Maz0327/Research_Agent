@@ -24,6 +24,9 @@ class WhisperTranscriptionClient:
     DO NOT skip Tier 1. Always try native captions first!
     """
 
+    # OpenAI Whisper API file size limit (25MB)
+    MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024
+
     def __init__(self):
         """Initialize Whisper client."""
         self.api_key = os.getenv("OPENAI_API_KEY")
@@ -187,6 +190,60 @@ class WhisperTranscriptionClient:
         file_size = os.path.getsize(audio_path)
         return (file_size / 16000) / 60.0  # Rough estimate
 
+    def _compress_audio(self, audio_path: str, target_bitrate: str = "48k") -> str:
+        """
+        Compress audio file to reduce size below Whisper API limit.
+
+        Uses ffmpeg to re-encode audio at lower bitrate (mono, 48kbps).
+        Speech is still intelligible at this bitrate.
+
+        Args:
+            audio_path: Path to audio file
+            target_bitrate: Target bitrate (default 48k for speech)
+
+        Returns:
+            Path to compressed audio file
+
+        Raises:
+            RuntimeError: If compression fails
+        """
+        output_path = audio_path.replace(".mp3", "_compressed.mp3")
+
+        try:
+            logger.info(f"Compressing audio from {os.path.getsize(audio_path) / 1024 / 1024:.1f}MB...")
+
+            cmd = [
+                "ffmpeg",
+                "-y",  # Overwrite output
+                "-i", audio_path,
+                "-ac", "1",  # Mono
+                "-ab", target_bitrate,  # Target bitrate
+                "-ar", "16000",  # 16kHz sample rate (optimal for speech)
+                output_path,
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 min timeout
+            )
+
+            if result.returncode != 0:
+                logger.error(f"ffmpeg compression failed: {result.stderr}")
+                raise RuntimeError(f"Audio compression failed: {result.stderr}")
+
+            new_size = os.path.getsize(output_path)
+            logger.info(f"Audio compressed to {new_size / 1024 / 1024:.1f}MB")
+
+            return output_path
+
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Audio compression timed out")
+        except Exception as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            raise RuntimeError(f"Failed to compress audio: {sanitized}")
+
     def transcribe_youtube(
         self,
         video_id: str,
@@ -204,6 +261,9 @@ class WhisperTranscriptionClient:
         Returns:
             Dict with transcript and cost
         """
+        audio_path = None
+        compressed_path = None
+
         try:
             # Download audio
             audio_path = self.download_audio(video_id)
@@ -213,15 +273,29 @@ class WhisperTranscriptionClient:
             if duration > max_duration_minutes:
                 raise ValueError(f"Video too long: {duration:.1f}m > {max_duration_minutes}m limit")
 
-            # Transcribe
-            result = self.transcribe(audio_path)
-            result["video_id"] = video_id
+            # Check file size - Whisper API has 25MB limit
+            file_size = os.path.getsize(audio_path)
+            transcribe_path = audio_path
 
-            # Cleanup
-            try:
-                os.remove(audio_path)
-            except OSError:
-                pass
+            if file_size > self.MAX_FILE_SIZE_BYTES:
+                logger.warning(
+                    f"Audio file {file_size / 1024 / 1024:.1f}MB exceeds "
+                    f"Whisper limit of {self.MAX_FILE_SIZE_BYTES / 1024 / 1024:.0f}MB, compressing..."
+                )
+                compressed_path = self._compress_audio(audio_path)
+                transcribe_path = compressed_path
+
+                # Verify compressed size
+                compressed_size = os.path.getsize(compressed_path)
+                if compressed_size > self.MAX_FILE_SIZE_BYTES:
+                    raise ValueError(
+                        f"Audio still too large after compression: "
+                        f"{compressed_size / 1024 / 1024:.1f}MB > 25MB limit"
+                    )
+
+            # Transcribe
+            result = self.transcribe(transcribe_path)
+            result["video_id"] = video_id
 
             return result
 
@@ -229,6 +303,15 @@ class WhisperTranscriptionClient:
             sanitized = sanitize_error_message(e, include_type=False)
             logger.error(f"YouTube transcription failed for {video_id}: {sanitized}")
             raise RuntimeError(f"YouTube transcription failed: {sanitized}") from e
+
+        finally:
+            # Cleanup all audio files
+            for path in [audio_path, compressed_path]:
+                if path:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
 
 
 def transcribe_with_whisper(video_id: str, max_duration: float = 60.0) -> Dict:

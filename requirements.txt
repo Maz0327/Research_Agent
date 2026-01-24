@@ -52,6 +52,7 @@ exa-py>=1.0.0
 # YouTube transcript enhancements
 yt-dlp>=2024.1.0
 mutagen>=1.47.0
+youtube-transcript-api>=0.6.0  # Tier 3 fallback for captions (local only, fails on cloud IPs)
 
 # Optional: AssemblyAI for Tier 3 transcripts
 # assemblyai>=0.20.0

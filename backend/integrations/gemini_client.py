@@ -82,21 +82,22 @@ class GeminiTruncationError(Exception):
 # =============================================================================
 def parse_json_from_llm_response(text: str) -> dict:
     """Parse JSON from LLM response with multiple fallback strategies.
-    
+
     H-001: Handles edge cases:
     - ```json code blocks
     - ``` code blocks without language
     - Plain JSON (no code blocks)
     - JSON with trailing text
-    
+    - Truncated JSON (attempts repair)
+
     L-001: Single source of truth for JSON extraction.
-    
+
     Args:
         text: Raw LLM response text
-        
+
     Returns:
         Parsed JSON as dict
-        
+
     Raises:
         GeminiParseError: If no valid JSON can be extracted
     """
@@ -107,7 +108,7 @@ def parse_json_from_llm_response(text: str) -> dict:
             return json.loads(json_str)
         except (IndexError, json.JSONDecodeError):
             pass  # Try next strategy
-    
+
     # Strategy 2: Look for ``` code blocks without language
     if "```" in text:
         try:
@@ -115,13 +116,13 @@ def parse_json_from_llm_response(text: str) -> dict:
             return json.loads(json_str)
         except (IndexError, json.JSONDecodeError):
             pass  # Try next strategy
-    
+
     # Strategy 3: Try parsing the entire text as JSON
     try:
         return json.loads(text.strip())
     except json.JSONDecodeError:
         pass
-    
+
     # Strategy 4: Find first { to last } (H-001: handles trailing text)
     first_brace = text.find("{")
     last_brace = text.rfind("}")
@@ -131,12 +132,114 @@ def parse_json_from_llm_response(text: str) -> dict:
             return json.loads(json_str)
         except json.JSONDecodeError:
             pass
-    
+
+    # Strategy 5: Attempt truncation repair for incomplete JSON
+    # This handles cases where Gemini output was cut off mid-response
+    if first_brace != -1:
+        try:
+            repaired = _repair_truncated_json(text[first_brace:])
+            if repaired:
+                return repaired
+        except Exception:
+            pass
+
     # All strategies failed
     raise GeminiParseError(
         f"Could not extract valid JSON from response",
         raw_response=text[:500]  # Include first 500 chars for debugging
     )
+
+
+def _repair_truncated_json(json_str: str) -> dict | None:
+    """Attempt to repair truncated JSON by closing unclosed structures.
+
+    This is a best-effort recovery for LLM responses that were cut off.
+    It attempts to close unclosed strings, arrays, and objects.
+
+    Args:
+        json_str: Potentially truncated JSON string starting with {
+
+    Returns:
+        Repaired JSON dict or None if repair failed
+    """
+    # Track nesting depth of braces and brackets
+    brace_depth = 0
+    bracket_depth = 0
+    in_string = False
+    escape_next = False
+    last_valid_pos = 0
+
+    for i, char in enumerate(json_str):
+        if escape_next:
+            escape_next = False
+            continue
+
+        if char == '\\' and in_string:
+            escape_next = True
+            continue
+
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+
+        if in_string:
+            continue
+
+        if char == '{':
+            brace_depth += 1
+        elif char == '}':
+            brace_depth -= 1
+            if brace_depth == 0:
+                last_valid_pos = i + 1
+        elif char == '[':
+            bracket_depth += 1
+        elif char == ']':
+            bracket_depth -= 1
+
+    # If we have a complete object, try parsing it
+    if last_valid_pos > 0 and brace_depth >= 0:
+        try:
+            return json.loads(json_str[:last_valid_pos])
+        except json.JSONDecodeError:
+            pass
+
+    # Try to repair by closing unclosed structures
+    repair = json_str
+
+    # Close unclosed string (if in_string is True)
+    if in_string:
+        repair += '"'
+
+    # Close unclosed arrays
+    repair += ']' * bracket_depth
+
+    # Close unclosed objects
+    repair += '}' * brace_depth
+
+    try:
+        result = json.loads(repair)
+        logger.warning(f"JSON repair successful: closed {brace_depth} braces, {bracket_depth} brackets")
+        return result
+    except json.JSONDecodeError:
+        # Try more aggressive repair: find last complete array element
+        # Look for patterns like "}, {" or "], [" and truncate there
+        for pattern in ['},', '],', '",']:
+            last_good = json_str.rfind(pattern)
+            if last_good > 0:
+                truncated = json_str[:last_good + 1]
+                # Count remaining structure
+                b_depth = truncated.count('{') - truncated.count('}')
+                a_depth = truncated.count('[') - truncated.count(']')
+                if b_depth >= 0 and a_depth >= 0:
+                    repaired = truncated + ']' * a_depth + '}' * b_depth
+                    try:
+                        result = json.loads(repaired)
+                        logger.warning(f"JSON repair (aggressive) successful at position {last_good}")
+                        return result
+                    except json.JSONDecodeError:
+                        continue
+
+        return None
 
 
 def validate_youtube_url(url: str) -> bool:

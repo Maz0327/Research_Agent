@@ -203,41 +203,19 @@ class TestBasePromptBuilder:
 class TestModePromptInheritance:
     """Test that mode-specific prompts properly inherit from base."""
 
-    def test_transcript_grounded_mode_exists(self):
-        """transcript_grounded mode must exist."""
-        from backend.pipeline.prompts.modes import transcript_grounded
-        assert hasattr(transcript_grounded, "build_transcript_grounded_prompt") or \
-               hasattr(transcript_grounded, "TRANSCRIPT_GROUNDED_INSTRUCTIONS")
-
-    def test_caption_grounded_mode_exists(self):
-        """caption_grounded mode must exist."""
-        from backend.pipeline.prompts.modes import caption_grounded
-        assert hasattr(caption_grounded, "build_caption_grounded_prompt") or \
-               hasattr(caption_grounded, "CAPTION_GROUNDED_INSTRUCTIONS")
-
-    def test_video_only_mode_exists(self):
-        """video_only mode must exist."""
-        from backend.pipeline.prompts.modes import video_only
-        assert hasattr(video_only, "build_video_only_prompt") or \
-               hasattr(video_only, "VIDEO_ONLY_INSTRUCTIONS")
-
-    def test_text_provided_mode_exists(self):
-        """text_provided mode must exist."""
-        from backend.pipeline.prompts.modes import text_provided
-        assert hasattr(text_provided, "build_text_provided_prompt") or \
-               hasattr(text_provided, "TEXT_PROVIDED_INSTRUCTIONS")
-
-    def test_ocr_extracted_mode_exists(self):
-        """ocr_extracted mode must exist."""
-        from backend.pipeline.prompts.modes import ocr_extracted
-        assert hasattr(ocr_extracted, "build_ocr_extracted_prompt") or \
-               hasattr(ocr_extracted, "OCR_EXTRACTED_INSTRUCTIONS")
-
-    def test_article_fetched_mode_exists(self):
-        """article_fetched mode must exist."""
-        from backend.pipeline.prompts.modes import article_fetched
-        assert hasattr(article_fetched, "build_article_fetched_prompt") or \
-               hasattr(article_fetched, "ARTICLE_FETCHED_INSTRUCTIONS")
+    @pytest.mark.parametrize("mode_name,build_func,instructions_const", [
+        ("transcript_grounded", "build_transcript_grounded_prompt", "TRANSCRIPT_GROUNDED_INSTRUCTIONS"),
+        ("caption_grounded", "build_caption_grounded_prompt", "CAPTION_GROUNDED_INSTRUCTIONS"),
+        ("video_only", "build_video_only_prompt", "VIDEO_ONLY_INSTRUCTIONS"),
+        ("text_provided", "build_text_provided_prompt", "TEXT_PROVIDED_INSTRUCTIONS"),
+        ("ocr_extracted", "build_ocr_extracted_prompt", "OCR_EXTRACTED_INSTRUCTIONS"),
+        ("article_fetched", "build_article_fetched_prompt", "ARTICLE_FETCHED_INSTRUCTIONS"),
+    ])
+    def test_mode_prompt_module_exists(self, mode_name, build_func, instructions_const):
+        """All 6 analysis mode prompt modules must exist with expected exports."""
+        import importlib
+        module = importlib.import_module(f"backend.pipeline.prompts.modes.{mode_name}")
+        assert hasattr(module, build_func) or hasattr(module, instructions_const)
 
 
 # =============================================================================
