@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../../components/Layout';
 import { ProtectedRoute, useAuth } from '../../components/AuthProvider';
 import { useJobsStore, type IterationRequest } from '../../store/jobs';
-import { POLLING_INTERVALS } from '../../lib/constants';
+import { POLLING_INTERVALS, getStageLabel, getStageDescription } from '../../lib/constants';
 import {
   JobDetailHeader,
   ActiveTaskBanner,
@@ -386,11 +386,11 @@ function JobDetailContent() {
                 <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                 <div>
                   <p className="font-medium text-blue-300">
-                    {job.status === 'queued' ? 'Job queued...' : `Processing: ${job.stage || 'Running'}...`}
+                    {job.status === 'queued' ? 'Waiting in queue...' : getStageLabel(job.stage)}
                   </p>
-                  {job.pass_detail && (
-                    <p className="text-sm text-gray-400">{job.pass_detail}</p>
-                  )}
+                  <p className="text-sm text-gray-400">
+                    {job.pass_detail || getStageDescription(job.stage) || 'Processing your research...'}
+                  </p>
                 </div>
               </div>
               <span className="text-sm font-mono text-blue-300">{job.progress_percent}%</span>

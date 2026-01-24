@@ -1760,41 +1760,50 @@ def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> di
         logger.info(f"[{job_id}] Iteration {iteration_id} mode={mode}, max_new_sources={max_new_sources}")
 
         # =====================================================================
-        # ITERATION LOGIC (PLACEHOLDER - Full implementation requires pipeline)
+        # ITERATION PIPELINE
         # =====================================================================
-        # For now, create placeholder outputs. Full implementation will:
-        # 1. For more_sources: Run source discovery → extraction → synthesis
-        # 2. For deeper: Re-analyze existing sources with deeper prompts
-        # 3. For different_angle: Re-synthesize with angle-specific prompts
-        # 4. For custom: Execute user prompt against existing data
+        from backend.pipeline.iteration import (
+            load_baseline,
+            create_iteration_context,
+            store_iteration_docs,
+        )
+        from backend.pipeline.iteration.modes import run_iteration_mode
 
-        # Placeholder: Create iteration outputs
-        # TODO: Implement full iteration pipeline in backend/pipeline/iteration/
-        iter_outputs = IterationOutputs(
-            doc_0_path=None,  # Will be set when pipeline generates docs
-            doc_1_path=None,
-            doc_2_path=None,
-            doc_0_inline=None,
-            doc_1_inline=None,
-            doc_2_inline=None,
+        # Get job config for topic
+        config_dict = {}
+        if hasattr(job, "config_json") and job.config_json:
+            config_dict = job.config_json if isinstance(job.config_json, dict) else {}
+
+        # Load baseline data from completed job
+        baseline = load_baseline(job_id, artifacts_dict, config_dict)
+
+        # Create iteration context and metrics tracker
+        ctx, metrics = create_iteration_context(job_id, iteration_id, baseline, mode)
+
+        # Run the appropriate iteration mode
+        doc_0, doc_1, doc_2 = run_iteration_mode(
+            mode=mode,
+            ctx=ctx,
+            baseline=baseline,
+            metrics=metrics,
+            user_prompt=user_prompt,
+            max_new_sources=max_new_sources,
+            angle=angle,
         )
 
-        # Calculate metrics
+        # Store iteration outputs to GCS
+        outputs = store_iteration_docs(job_id, iteration_id, doc_0, doc_1, doc_2)
+
+        # Finalize metrics
+        final_metrics = metrics.finalize()
+
         end_time = datetime.now(timezone.utc)
-        wall_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-        iter_metrics = IterationMetrics(
-            llm_calls=0,  # Will be tracked by pipeline
-            tokens_in=0,
-            tokens_out=0,
-            wall_time_ms=wall_time_ms,
-        )
-
-        # Update iteration with outputs
+        # Update iteration with success
         iteration_data["status"] = "completed"
         iteration_data["completed_at"] = end_time.isoformat()
-        iteration_data["outputs"] = iter_outputs.model_dump()
-        iteration_data["metrics"] = iter_metrics.model_dump()
+        iteration_data["outputs"] = outputs.model_dump()
+        iteration_data["metrics"] = final_metrics.model_dump()
         iterations[iteration_index] = iteration_data
 
         # Update job - mark iteration completed (DO NOT modify job.status)
@@ -1808,7 +1817,8 @@ def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> di
         )
 
         logger.info(
-            f"[{job_id}] Iteration {iteration_id} completed in {wall_time_ms}ms"
+            f"[{job_id}] Iteration {iteration_id} completed in {final_metrics.wall_time_ms}ms, "
+            f"mode={mode}, llm_calls={final_metrics.llm_calls}"
         )
 
         return {
@@ -1817,7 +1827,9 @@ def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> di
             "iteration_index": iteration_data.get("index", 0),
             "status": "success",
             "mode": mode,
-            "wall_time_ms": wall_time_ms,
+            "wall_time_ms": final_metrics.wall_time_ms,
+            "outputs": outputs.model_dump(),
+            "metrics": final_metrics.model_dump(),
         }
 
     except SoftTimeLimitExceeded:

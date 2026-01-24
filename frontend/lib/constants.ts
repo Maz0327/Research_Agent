@@ -88,3 +88,66 @@ export const SCREENSHOT_PLATFORM_HINTS = [
   { value: 'forum', label: 'Forum', icon: '💬' },
   { value: 'other', label: 'Other', icon: '📄' },
 ] as const;
+
+/**
+ * Stage label mapping - converts backend stage names to user-friendly descriptions.
+ * Backend stage names are technical (snake_case), this provides human-readable labels.
+ */
+export const STAGE_LABELS: Record<string, { label: string; description: string }> = {
+  // Main pipeline stages
+  source_identity: { label: 'Identifying Sources', description: 'Analyzing source content and metadata' },
+  semantic_extraction: { label: 'Extracting Insights', description: 'Pulling key points and claims from sources' },
+  semantic_validation: { label: 'Validating Content', description: 'Verifying extracted information' },
+  gap_analysis: { label: 'Finding Gaps', description: 'Identifying missing research angles' },
+  semantic_synthesis: { label: 'Synthesizing', description: 'Combining insights across sources' },
+  document_assembly: { label: 'Creating Documents', description: 'Assembling research outputs' },
+  completion: { label: 'Finalizing', description: 'Completing research job' },
+
+  // Transcript stages
+  extracting_transcripts: { label: 'Extracting Transcripts', description: 'Getting video transcripts' },
+  storing_transcripts: { label: 'Saving Transcripts', description: 'Storing extracted transcripts' },
+
+  // Video analysis stages
+  pass_1_extraction: { label: 'Video Analysis', description: 'Analyzing video content' },
+
+  // Evolving job stages (add sources flow)
+  evolving_source_identity: { label: 'Processing New Sources', description: 'Analyzing added sources' },
+  evolving_extraction: { label: 'Extracting New Content', description: 'Processing added source content' },
+  evolving_validation: { label: 'Validating Additions', description: 'Verifying new source content' },
+  evolving_gap_analysis: { label: 'Updating Gaps', description: 'Reassessing research gaps' },
+  cross_reference: { label: 'Cross-Referencing', description: 'Comparing new and existing sources' },
+  addendum_assembly: { label: 'Creating Addendum', description: 'Assembling updated documents' },
+  evolving_complete: { label: 'Update Complete', description: 'Source addition completed' },
+
+  // Status stages
+  completed: { label: 'Completed', description: 'Research complete' },
+  error: { label: 'Error', description: 'An error occurred' },
+  timeout: { label: 'Timed Out', description: 'Process took too long' },
+  no_pending_sources: { label: 'No Pending Sources', description: 'Nothing to process' },
+
+  // Booster stages
+  booster_running: { label: 'Deep Research', description: 'Expanding research directions' },
+
+  // Producer stages
+  producer_running: { label: 'Creating Producer Packet', description: 'Generating creative content' },
+
+  // Iteration stages
+  iteration_running: { label: 'Running Iteration', description: 'Processing research iteration' },
+} as const;
+
+/**
+ * Get user-friendly stage label with fallback
+ */
+export function getStageLabel(stage: string | null | undefined): string {
+  if (!stage) return 'Running';
+  const info = STAGE_LABELS[stage];
+  return info?.label || stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Get stage description for additional context
+ */
+export function getStageDescription(stage: string | null | undefined): string | null {
+  if (!stage) return null;
+  return STAGE_LABELS[stage]?.description || null;
+}

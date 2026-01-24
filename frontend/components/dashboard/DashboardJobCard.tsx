@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import { statusConfig, pipelineLabels } from '../job-card/job-card-config';
 import type { Job } from '../../store/jobs';
+import { getStageLabel } from '../../lib/constants';
 
 interface DashboardJobCardProps {
   job: Job;
@@ -140,7 +141,7 @@ export function DashboardJobCard({ job, delay = 0 }: DashboardJobCardProps) {
           {/* Progress details for active jobs */}
           {isActive && (
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-              <span>{job.pass_detail || job.stage || 'Processing...'}</span>
+              <span>{job.pass_detail || getStageLabel(job.stage)}</span>
             </div>
           )}
           

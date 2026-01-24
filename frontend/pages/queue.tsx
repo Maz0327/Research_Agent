@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../components/Layout';
 import { ProtectedRoute } from '../components/AuthProvider';
 import { useJobsStore, type Job } from '../store/jobs';
-import { POLLING_INTERVALS } from '../lib/constants';
+import { POLLING_INTERVALS, getStageLabel } from '../lib/constants';
 import { statusConfig, pipelineLabels } from '../components/job-card/job-card-config';
 
 // Tab types
@@ -80,7 +80,7 @@ function estimateETA(progress: number, startTime?: string): string {
 /** Active job card with progress details */
 function ActiveJobCard({ job, position }: { job: Job; position: number }) {
   const router = useRouter();
-  const stageDescription = job.pass_detail || job.stage || 'Processing...';
+  const stageDescription = job.pass_detail || getStageLabel(job.stage);
   const progress = job.progress_percent || 0;
   const config = statusConfig[job.status as keyof typeof statusConfig] || statusConfig.queued;
 
