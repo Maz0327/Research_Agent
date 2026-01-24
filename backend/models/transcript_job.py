@@ -31,17 +31,16 @@ class TranscriptRequest(BaseModel):
     @field_validator('video_urls')
     @classmethod
     def validate_video_urls(cls, v: list[str]) -> list[str]:
-        """Validate that all URLs are YouTube URLs."""
-        youtube_pattern = re.compile(
-            r'^https?://(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[A-Za-z0-9_-]{11}',
-            re.IGNORECASE
-        )
+        """Validate YouTube URLs, filtering out non-video URLs (channels, playlists)."""
+        from backend.utils.validators import filter_youtube_video_urls
 
-        for url in v:
-            if not youtube_pattern.match(url):
-                raise ValueError(f"Invalid YouTube URL: {url}")
+        # Filter to only valid video URLs, silently skip channels/playlists
+        valid_urls, skipped = filter_youtube_video_urls(v)
 
-        return v
+        if not valid_urls:
+            raise ValueError("No valid YouTube video URLs provided")
+
+        return valid_urls
 
     @field_validator('doc_title')
     @classmethod

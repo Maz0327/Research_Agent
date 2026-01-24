@@ -94,6 +94,7 @@ def validate_youtube_url(url: str) -> tuple[str, str]:
     - https://youtu.be/VIDEO_ID
     - https://youtube.com/watch?v=VIDEO_ID
     - https://www.youtube.com/embed/VIDEO_ID
+    - https://www.youtube.com/shorts/VIDEO_ID
 
     Args:
         url: YouTube URL to validate
@@ -109,12 +110,19 @@ def validate_youtube_url(url: str) -> tuple[str, str]:
 
     url = url.strip()
 
+    # Strip markdown link format: "https://url [text](url)" -> "https://url"
+    # Also handles: "url [text](url)" format
+    markdown_match = re.match(r'^(https?://[^\s\[\]]+?)(?:\s*\[.*?\]\(.*?\))?$', url)
+    if markdown_match:
+        url = markdown_match.group(1)
+
     # Pattern for various YouTube URL formats
     patterns = [
         r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([A-Za-z0-9_-]{11})',
         r'(?:https?://)?youtu\.be/([A-Za-z0-9_-]{11})',
         r'(?:https?://)?(?:www\.)?youtube\.com/embed/([A-Za-z0-9_-]{11})',
         r'(?:https?://)?(?:www\.)?youtube\.com/v/([A-Za-z0-9_-]{11})',
+        r'(?:https?://)?(?:www\.)?youtube\.com/shorts/([A-Za-z0-9_-]{11})',
     ]
 
     for pattern in patterns:
@@ -127,8 +135,64 @@ def validate_youtube_url(url: str) -> tuple[str, str]:
 
     raise ValidationError(
         f"Invalid YouTube URL format: {url}. "
-        "Supported formats: youtube.com/watch?v=..., youtu.be/..."
+        "Supported formats: youtube.com/watch?v=..., youtu.be/..., youtube.com/shorts/..."
     )
+
+
+def is_youtube_video_url(url: str) -> bool:
+    """
+    Check if URL is a YouTube video URL (not channel, playlist, etc.).
+
+    Returns True for video URLs, False for channels/playlists/other.
+    Does not raise exceptions.
+    """
+    if not url:
+        return False
+
+    url = url.strip()
+
+    # Strip markdown link format
+    markdown_match = re.match(r'^(https?://[^\s\[\]]+?)(?:\s*\[.*?\]\(.*?\))?$', url)
+    if markdown_match:
+        url = markdown_match.group(1)
+
+    # Patterns that indicate a video
+    video_patterns = [
+        r'youtube\.com/watch\?v=',
+        r'youtu\.be/',
+        r'youtube\.com/embed/',
+        r'youtube\.com/v/',
+        r'youtube\.com/shorts/',
+    ]
+
+    for pattern in video_patterns:
+        if re.search(pattern, url, re.IGNORECASE):
+            return True
+
+    return False
+
+
+def filter_youtube_video_urls(urls: list[str]) -> tuple[list[str], list[str]]:
+    """
+    Filter a list of URLs to only include valid YouTube video URLs.
+
+    Returns:
+        Tuple of (valid_video_urls, skipped_urls)
+    """
+    valid_urls = []
+    skipped_urls = []
+
+    for url in urls:
+        if is_youtube_video_url(url):
+            try:
+                validated_url, _ = validate_youtube_url(url)
+                valid_urls.append(validated_url)
+            except ValidationError:
+                skipped_urls.append(url)
+        else:
+            skipped_urls.append(url)
+
+    return valid_urls, skipped_urls
 
 
 def validate_email(email: str) -> str:

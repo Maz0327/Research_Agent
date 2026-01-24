@@ -157,8 +157,27 @@ class SourceEntry:
             SourceStatus.FAILED: "**[FAILED]**",
         }.get(self.status, "**[UNKNOWN]**")
 
-        # Type badge
+        # Type badge with Shorts indicator
         type_label = self.source_type.upper() if self.source_type else "SOURCE"
+
+        # Detect YouTube Shorts by URL pattern or short duration
+        is_shorts = False
+        if self.source_type == "youtube" and self.url:
+            is_shorts = "/shorts/" in self.url
+        # Also detect by duration if under 60 seconds (Shorts are typically <60s)
+        if self.source_type == "youtube" and self.duration:
+            try:
+                # Parse duration like "0:45" or "1:23"
+                parts = self.duration.split(":")
+                if len(parts) == 2:
+                    mins, secs = int(parts[0]), int(parts[1])
+                    if mins == 0 and secs <= 60:
+                        is_shorts = True
+            except (ValueError, IndexError):
+                pass
+
+        if is_shorts:
+            type_label = "YOUTUBE SHORTS"
 
         lines = [
             f"### {self.source_id}: {self.title}",
@@ -183,11 +202,30 @@ class SourceEntry:
         # Skim summary with better visual
         if self.skim_summary:
             lines.extend([
-                "**Quick Summary:**",
+                "",
+                "#### Quick Summary",
                 "",
             ])
             for bullet in self.skim_summary:
                 lines.append(f"- {bullet}")
+            lines.append("")
+
+        # Extracted index (claims, entities, themes)
+        has_extracted_content = self.claim_ids or self.entity_names or self.theme_ids
+        if has_extracted_content:
+            lines.extend([
+                "",
+                "#### Extracted Content Index",
+                "",
+            ])
+            if self.claim_ids:
+                lines.append(f"- **Claims:** {', '.join(self.claim_ids[:10])}" +
+                           (f" (+{len(self.claim_ids) - 10} more)" if len(self.claim_ids) > 10 else ""))
+            if self.entity_names:
+                lines.append(f"- **Entities:** {', '.join(self.entity_names[:10])}" +
+                           (f" (+{len(self.entity_names) - 10} more)" if len(self.entity_names) > 10 else ""))
+            if self.theme_ids:
+                lines.append(f"- **Themes:** {', '.join(self.theme_ids)}")
             lines.append("")
 
         # Transcript provenance (for video sources) - show before full text
@@ -200,7 +238,8 @@ class SourceEntry:
             }.get(tp.semantic_precision, "Unknown")
 
             lines.extend([
-                "**Transcript Quality:**",
+                "",
+                "#### Transcript Quality",
                 "",
                 f"| Attribute | Value |",
                 f"|-----------|-------|",

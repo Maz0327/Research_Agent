@@ -209,22 +209,17 @@ class VideoAnalysisRequest(BaseModel):
     @field_validator('video_urls')
     @classmethod
     def validate_video_urls(cls, v: list[str]) -> list[str]:
-        """Validate YouTube URLs."""
-        from backend.utils.validators import validate_youtube_url, ValidationError as ValidatorError
+        """Validate YouTube URLs, filtering out non-video URLs (channels, playlists)."""
+        from backend.utils.validators import filter_youtube_video_urls
 
-        validated_urls = []
-        for url in v:
-            try:
-                validated_url, _ = validate_youtube_url(url.strip())
-                validated_urls.append(validated_url)
-            except ValidatorError as e:
-                raise ValueError(str(e))
+        # Filter to only valid video URLs, silently skip channels/playlists
+        valid_urls, skipped = filter_youtube_video_urls(v)
 
         # Check for duplicates
-        if len(validated_urls) != len(set(validated_urls)):
+        if len(valid_urls) != len(set(valid_urls)):
             raise ValueError("Duplicate video URLs not allowed")
 
-        return validated_urls
+        return valid_urls
 
 
 class VideoAnalysisResponse(BaseModel):
@@ -470,21 +465,17 @@ class MixedInputRequest(BaseModel):
     @field_validator('video_urls')
     @classmethod
     def validate_video_urls(cls, v: list[str]) -> list[str]:
-        """Validate YouTube URLs."""
+        """Validate YouTube URLs, filtering out non-video URLs (channels, playlists)."""
         if not v:
             return v
 
-        from backend.utils.validators import validate_youtube_url, ValidationError as ValidatorError
+        from backend.utils.validators import filter_youtube_video_urls
 
-        validated_urls = []
-        for url in v:
-            try:
-                validated_url, _ = validate_youtube_url(url.strip())
-                validated_urls.append(validated_url)
-            except ValidatorError as e:
-                raise ValueError(f"Invalid YouTube URL: {e}")
+        # Filter to only valid video URLs, silently skip channels/playlists
+        valid_urls, skipped = filter_youtube_video_urls(v)
 
-        return validated_urls
+        # Return valid URLs (may be fewer than input)
+        return valid_urls
 
     @field_validator('article_urls')
     @classmethod
@@ -601,24 +592,20 @@ class AddSourcesRequest(BaseModel):
     @field_validator('video_urls')
     @classmethod
     def validate_video_urls(cls, v: list[str]) -> list[str]:
-        """Validate YouTube URLs."""
+        """Validate YouTube URLs, filtering out non-video URLs (channels, playlists)."""
         if not v:
             return v
-        from backend.utils.validators import validate_youtube_url, ValidationError as ValidatorError
-        validated = []
-        for url in v:
-            try:
-                validated_url, _ = validate_youtube_url(url.strip())
-                validated.append(validated_url)
-            except ValidatorError as e:
-                raise ValueError(f"Invalid YouTube URL: {e}")
-        return validated
+        from backend.utils.validators import filter_youtube_video_urls
+
+        # Filter to only valid video URLs, silently skip channels/playlists
+        valid_urls, skipped = filter_youtube_video_urls(v)
+        return valid_urls
 
     def model_post_init(self, __context) -> None:
         """Validate at least one source provided."""
         total = len(self.video_urls) + len(self.article_urls) + len(self.text_inputs)
         if total == 0:
-            raise ValueError("At least one source required")
+            raise ValueError("At least one source required (channels/playlists are filtered out)")
         if total > 10:
             raise ValueError(f"Maximum 10 sources per addition, got {total}")
 

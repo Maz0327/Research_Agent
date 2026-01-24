@@ -246,7 +246,7 @@ class TestSourceEntry:
         assert "### SRC_1:" in md  # New format: "### SRC_1: Title"
         assert "YOUTUBE" in md  # Type shown as badge
         assert "**Creator:** Test Creator" in md  # Bolded metadata
-        assert "**Quick Summary:**" in md  # New heading
+        assert "#### Quick Summary" in md  # Section heading
         assert "Point one" in md
         assert "Full Source Text" in md  # In collapsible details
         assert "Full transcript here" in md

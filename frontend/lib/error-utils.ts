@@ -23,7 +23,19 @@ export function formatError(error: unknown, fallback: string = 'An unexpected er
 }
 
 /**
+ * Pydantic validation error structure from FastAPI.
+ */
+interface PydanticValidationError {
+  type: string;
+  loc: (string | number)[];
+  msg: string;
+  input?: unknown;
+  ctx?: Record<string, unknown>;
+}
+
+/**
  * Extract error message from API response.
+ * Handles Pydantic validation errors (detail as array) and standard errors.
  *
  * @param response - The response object or error
  * @param fallback - Fallback message
@@ -35,6 +47,23 @@ export function formatApiError(
 ): string {
   if (response && typeof response === 'object') {
     const resp = response as Record<string, unknown>;
+
+    // Handle Pydantic validation errors (detail is array of error objects)
+    if (Array.isArray(resp.detail)) {
+      const errors = resp.detail as PydanticValidationError[];
+      if (errors.length > 0) {
+        // Format each validation error into readable message
+        const messages = errors.map(err => {
+          const field = err.loc?.slice(1).join('.') || 'input';
+          // Extract the actual error message, removing "Value error, " prefix if present
+          const msg = err.msg?.replace(/^Value error,\s*/i, '') || 'Invalid value';
+          return `${field}: ${msg}`;
+        });
+        return messages.join('; ');
+      }
+    }
+
+    // Handle standard string detail
     if (typeof resp.detail === 'string') {
       return resp.detail;
     }

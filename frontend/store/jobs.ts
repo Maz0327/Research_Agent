@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
 import { API_URL } from '../lib/constants';
+import { formatApiError } from '../lib/error-utils';
 
 // Phase 3 types - import from job-card components
 import type { ContentBlueprint } from '../components/job-card/ContentBlueprintView';
@@ -528,7 +529,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to preview job');
+        throw new Error(formatApiError(errorData, 'Failed to preview job'));
       }
 
       const preview: JobPreview = await response.json();
@@ -636,7 +637,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create video analysis job');
+        throw new Error(formatApiError(errorData, 'Failed to create video analysis job'));
       }
 
       const data: VideoAnalysisResponse = await response.json();
@@ -685,7 +686,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create text input job');
+        throw new Error(formatApiError(errorData, 'Failed to create text input job'));
       }
 
       const data: TextInputResponse = await response.json();
@@ -750,7 +751,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create screenshot input job');
+        throw new Error(formatApiError(errorData, 'Failed to create screenshot input job'));
       }
 
       const data: ScreenshotInputResponse = await response.json();
@@ -799,7 +800,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create mixed input job');
+        throw new Error(formatApiError(errorData, 'Failed to create mixed input job'));
       }
 
       const data: MixedInputResponse = await response.json();
@@ -853,7 +854,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to trigger booster');
+        throw new Error(formatApiError(errorData, 'Failed to trigger booster'));
       }
 
       const data: BoosterResponse = await response.json();
@@ -892,7 +893,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to trigger producer packet');
+        throw new Error(formatApiError(errorData, 'Failed to trigger producer packet'));
       }
 
       const data: ProducerPacketResponse = await response.json();
@@ -932,7 +933,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to start iteration');
+        throw new Error(formatApiError(errorData, 'Failed to start iteration'));
       }
 
       const data: IterationResponse = await response.json();
@@ -1043,7 +1044,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to select interpretation');
+        throw new Error(formatApiError(errorData, 'Failed to select interpretation'));
       }
 
       // Update local state to show job is resuming
@@ -1082,7 +1083,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to cancel job');
+        throw new Error(formatApiError(errorData, 'Failed to cancel job'));
       }
 
       // Update local state to reflect cancellation
@@ -1119,7 +1120,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to delete job');
+        throw new Error(formatApiError(errorData, 'Failed to delete job'));
       }
 
       // Remove from local state
@@ -1152,7 +1153,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to archive job');
+        throw new Error(formatApiError(errorData, 'Failed to archive job'));
       }
 
       // Remove from local state (archived jobs are hidden)

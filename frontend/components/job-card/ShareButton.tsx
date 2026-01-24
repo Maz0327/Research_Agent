@@ -110,7 +110,7 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={status === 'creating'}
-        className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50 transition min-h-[40px] touch-manipulation"
+        className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-blue-300 bg-blue-900/40 hover:bg-blue-800/60 border border-blue-700/50 transition min-h-[40px] touch-manipulation"
         title={`Share ${docTitle || DOC_TYPE_NAMES[docType]}`}
       >
         {status === 'creating' ? (

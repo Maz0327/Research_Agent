@@ -1,0 +1,225 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                  RESEARCH AGENT — VISUAL CODEBASE MAP                          ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+FRONTEND (Next.js)                    BACKEND (FastAPI + Celery)
+─────────────────────────────────────────────────────────────────────────────
+
+pages/                                backend/app/
+├── index.tsx ········                ├── main.py (FastAPI app)
+├── dashboard.tsx      ····           ├── config.py
+├── jobs/[id].tsx      ◄──────────┐   └── routes/
+├── settings.tsx                   │       ├── jobs_routes.py (MAIN)
+├── login.tsx                      │       ├── settings_routes.py
+└── admin/                         │       ├── admin_routes.py
+                                  │       ├── export_routes.py
+components/                        │       └── ...
+├── job-card/                      │
+│   ├── JobCard.tsx                │   backend/worker.py (Celery Tasks)
+│   ├── StatusBadge.tsx            │   ├── run_research_job
+│   ├── TaskBadges.tsx ◄───────────┤   ├── run_gemini_video_job
+│   └── ProgressBar.tsx            │   ├── run_booster_task
+├── job-detail/ (NEW)              │   ├── run_producer_task
+│   ├── ArtifactCard.tsx ◄─────────┤   └── run_iteration_task
+│   ├── ArtifactCardGrid.tsx       │
+│   ├── IterationDialog.tsx        │   backend/pipeline/
+│   └── IterationSelector.tsx      │   ├── stages/
+└── ...                            │   │   ├── stage_0_initialization
+                                  │   │   ├── stage_1_source_identity
+store/                            │   │   ├── stage_2_semantic_extraction
+├── jobs.ts ◄──────────────────────┼───┼───├── stage_3_validation
+├── auth.ts                        │   │   ├── stage_4_gap_analysis
+└── settings.ts                    │   │   ├── stage_5_synthesis
+                                  │   │   ├── stage_6_assembly
+lib/                              │   │   ├── stage_9_drive_upload
+├── constants.ts                   │   │   └── stage_10_completion
+├── pdf-export.ts                  │   ├── prompts/
+└── ...                            │   │   ├── modes/ (6 analysis modes)
+                                  │   │   ├── semantic_extraction_prompt
+                                  │   │   └── ...
+                                  │   ├── booster/
+                                  │   ├── producer/
+                                  │   └── context.py
+
+
+AUTHENTICATION & STATE              DATABASE & STORAGE
+────────────────────────────────    ─────────────────────────────────
+
+Supabase Auth                       Supabase (PostgreSQL)
+    │                              ├── jobs (status, artifacts)
+    ├─► JWT Token                  ├── users (profiles)
+    └─► User ID                    ├── job_sources (inputs)
+                                   └── error_logs
+
+Supabase Storage (Bucket)
+├── documents/{user_id}/
+│   ├── {job_id}/
+│   │   ├── doc_0.md (Source Ledger)
+│   │   ├── doc_1.md (Jump-Start)
+│   │   ├── doc_2.md (Semantic Brief)
+│   │   ├── doc_3.md (Producer Packet)
+│   │   └── iteration_{id}/
+│   │       ├── doc_0.md
+│   │       ├── doc_1.md
+│   │       └── doc_2.md
+
+
+PIPELINE EXECUTION FLOW
+──────────────────────────────────────────────────────────────────────────────
+
+User Input (Dashboard)
+       ↓
+POST /jobs (jobs_routes.py)
+       ↓
+run_research_job (Celery Task)
+       ↓
+┌──────────────────────────────────────────────────────────────────┐
+│ SEMANTIC PIPELINE (10 Stages)                                    │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Stage 0: Initialization                                         │
+│  └─► Load config, create PipelineContext                         │
+│                                                                  │
+│  Stage 1: Source Identity                                        │
+│  └─► Map inputs to AnalysisMode (6 modes)                       │
+│      • transcript_grounded (HIGH ceiling)                        │
+│      • caption_grounded (MEDIUM ceiling)                         │
+│      • video_only (LOW ceiling)                                  │
+│      • text_provided (MEDIUM ceiling)                            │
+│      • ocr_extracted (MEDIUM ceiling)                            │
+│      • article_fetched (HIGH ceiling)                            │
+│                                                                  │
+│  Stage 2: Semantic Extraction                                    │
+│  └─► Gemini (per-source isolated calls) ◄── CRITICAL RULE 1     │
+│      • Source 1 → LLM Call 1 → Extraction 1                     │
+│      • Source 2 → LLM Call 2 → Extraction 2                     │
+│      • Source 3 → LLM Call 3 → Extraction 3                     │
+│                                                                  │
+│  Stage 3: Semantic Validation                                    │
+│  └─► Enforce confidence ceilings ◄── CRITICAL RULE 2             │
+│      • Quote verification (fuzzy matching)                       │
+│      • Validation stage auto-corrects overconfident results      │
+│                                                                  │
+│  Stage 4: Gap Analysis                                           │
+│  └─► Identify gaps in coverage                                   │
+│                                                                  │
+│  Stage 5: Semantic Synthesis                                     │
+│  └─► Cross-source analysis (themes, tensions)                   │
+│      • Only cross-source work (after isolation)                  │
+│                                                                  │
+│  Stage 6: Document Assembly                                      │
+│  └─► Assemble Doc 0 (Source Ledger)                              │
+│      └─► Assemble Doc 1 (Jump-Start)                             │
+│          └─► Assemble Doc 2 (Semantic Brief)                     │
+│                                                                  │
+│  Stage 9: Drive Upload                                           │
+│  └─► Upload Doc 0/1/2 to Supabase Storage                        │
+│                                                                  │
+│  Stage 10: Completion                                            │
+│  └─► Finalize artifacts, update job status                       │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+       ↓
+Optional Extended Pipelines
+├─► Booster (Deep Research)
+│   └─► Generate research directions
+├─► Producer (Creative Interpretation)
+│   └─► 4-stage creative pipeline (Doc 3)
+└─► Iteration (Loop)
+    └─► Re-run pipeline with new angle
+
+       ↓
+Job Complete ✓ Return to Frontend
+
+
+CRITICAL DECISION POINTS
+────────────────────────────────────────────────────────────────────────────────
+
+✓ Source Isolation (RULE 1)
+  Each source → separate LLM call (no cross-contamination)
+
+✓ Confidence Ceilings (RULE 2)
+  Mode-specific limits enforced in validation stage
+  HIGH: 0.8-1.0
+  MEDIUM: 0.5-0.8
+  LOW: 0.3-0.5
+
+✓ Prompt Components (RULE 3)
+  ALL LLM prompts require 5 components:
+  1. Source Identity Lock
+  2. Confidence Ceiling Declaration
+  3. Empty Output Permission
+  4. Layered Extraction (L1 → L2 → L3)
+  5. Output Schema
+
+✓ Pipeline Order (RULE 4)
+  INGESTION → EXTRACTION → VALIDATION → SYNTHESIS → ASSEMBLY → UPLOAD → COMPLETION
+  Never skip. Never reorder.
+
+
+TESTING COVERAGE
+────────────────────────────────────────────────────────────────────────────────
+
+960+ Tests (All Passing)
+├── Models:       200+ tests (semantic_units, document_outputs, etc)
+├── Stages:       250+ tests (extraction, validation, synthesis, etc)
+├── Routes:       150+ tests (jobs, admin, settings, etc)
+├── Integration:  100+ tests (full pipeline flow)
+└── Edge Cases:   100+ tests (negative inputs, error recovery)
+
+Test Infrastructure:
+├── conftest.py (mocked Gemini, Supabase)
+└── test_*.py (41 test files, no real API calls)
+
+
+RECENT COMMITS (Jan 2026)
+────────────────────────────────────────────────────────────────────────────────
+
+14c3f34 - feat(backend): Add Iteration Loop with TOCTOU protection
+09a59bb - feat(frontend): Job Detail Page UX Refactor
+a19fab7 - feat(frontend): ADHD-friendly UI improvements
+73d690b - fix: AuthProvider hooks
+3a02d5c - feat(frontend): Add booster accordion
+db5b6c5 - fix: Backend storage unwrapping + b_roll parsing
+
+
+DEPLOYMENT CHECKLIST
+────────────────────────────────────────────────────────────────────────────────
+
+Frontend:
+  ✅ npm run build (no errors)
+  ✅ npm run lint (no errors)
+  ✅ No TypeScript errors (npx tsc --noEmit)
+
+Backend:
+  ✅ pytest backend/tests/ -v (960+ tests passing)
+  ✅ python scripts/validate-contracts.py (no drift)
+  ✅ Migration 022 applied to Supabase
+
+Deployment:
+  ✅ git push to feature/vision-alignment-v1
+  ✅ Deploy to Railway (backend)
+  ✅ Deploy to Vercel (frontend)
+  ✅ Verify API endpoints responding
+
+
+KEY FILES FOR CODE REVIEW
+────────────────────────────────────────────────────────────────────────────────
+
+Priority 0 (Review First):
+  • backend/app/main.py
+  • backend/worker.py
+  • backend/app/routes/jobs_routes.py
+  • backend/pipeline/stages/semantic_extraction.py
+  • backend/state/impl/supabase.py
+
+Priority 1 (Review Second):
+  • backend/models/job_record.py
+  • backend/models/semantic_units.py
+  • backend/pipeline/prompts/modes/base.py
+
+Priority 2 (Spot Check):
+  • backend/tests/test_semantic_pipeline_integration.py
+  • frontend/pages/jobs/[id].tsx
+  • frontend/store/jobs.ts
+
