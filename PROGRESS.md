@@ -1,6 +1,6 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-23 19:00
+**Last Updated:** 2026-01-24 12:00
 **Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
 **Current Task:** Backend/Frontend Stability
 **Branch:** feature/vision-alignment-v1
@@ -913,6 +913,65 @@ All acceptance tests pass:
 ---
 
 ## Current Session
+
+**Date:** 2026-01-24
+**Tasks Planned:**
+- Railway/Celery worker debugging
+- API rate limits research and configuration
+
+### Railway Worker Investigation
+
+**Goal:** Understand why Railway worker wasn't taking iteration/booster/producer tasks
+
+**Investigation Result:**
+- Confirmed task routes were already fixed in previous session (commit `b878353`)
+- Missing routes for: `run_iteration_task`, `run_booster_task`, `run_producer_task`
+- Fix was already deployed, no additional changes needed
+- Railway deployment uses standard Celery configuration with Redis broker
+
+**Debugger Report:** `plans/reports/debugger-260124-1128-railway-worker-deployment.md`
+
+### API Rate Limits Research & Configuration
+
+**Goal:** Research actual API rate limits to prevent lockouts and update configuration
+
+**APIs Researched:**
+| API | Previous Config | Actual Limit | Updated Config | Status |
+|-----|----------------|--------------|----------------|--------|
+| **Gemini** | 60 RPM | Paid: 150-300 RPM | 100 RPM | ✅ Safe margin |
+| **OpenAI GPT** | 60 RPM | Tier 1: ~500 RPM | 60 RPM | ✅ Conservative |
+| **Whisper** | 10 RPM | ~50 RPM | 10 RPM | ✅ Safe |
+| **YouTube** | 60 RPM | 10K units/day | Split: search 6 RPM, read 60 RPM | ✅ Unit-aware |
+| **Supadata** | 10 RPM | Plan-dependent | 10 RPM | ✅ Conservative |
+| **Jina Reader** | 100 RPM | With key: 500 RPM | 200 RPM | ✅ Safe margin |
+| **Supabase** | N/A | 1200 reads/s | 500 RPM | ✅ No concern |
+
+**Key Changes to `backend/utils/rate_limiter.py`:**
+1. **Gemini:** 60 → 100 RPM (paid tier allows 150-300)
+2. **Jina:** 100 → 200 RPM (with API key allows 500)
+3. **YouTube:** Split into `youtube` (search, 6 RPM) and `youtube_read` (60 RPM)
+4. **Supabase:** Added explicit config (500 RPM / 10000 RPH)
+5. Added date comment for configuration update
+
+**Research Report:** `plans/reports/research-260124-1128-api-rate-limits.md`
+
+### Files Modified (2026-01-24)
+
+**Backend:**
+- `backend/utils/rate_limiter.py` — Updated rate limit configurations for all APIs
+
+**Reports Created:**
+- `plans/reports/research-260124-1128-api-rate-limits.md` — Full API rate limits research
+- `plans/reports/debugger-260124-1128-railway-worker-deployment.md` — Railway worker analysis
+
+### Commits (2026-01-24)
+
+- Previous session commit `b878353` — UI/UX fixes + task routes (pushed)
+- `a32a190` — feat: Update API rate limits based on documentation research
+
+---
+
+## Previous Session
 
 **Date:** 2026-01-23
 **Tasks Planned:**
