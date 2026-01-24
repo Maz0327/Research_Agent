@@ -37,20 +37,40 @@ _rate_limiter_states: dict[str, RateLimiterState] = {}
 
 
 # Default configurations per API service
+# Updated 2026-01-24 based on actual API documentation research
 DEFAULT_RATE_LIMITS: dict[str, RateLimitConfig] = {
+    # OpenAI: Tier-based, 500+ RPM typical. Conservative config.
     "openai": RateLimitConfig(requests_per_minute=60, requests_per_hour=500),
+    # Perplexity: Standard limits
     "perplexity": RateLimitConfig(requests_per_minute=30, requests_per_hour=300),
+    # Tavily: Standard limits
     "tavily": RateLimitConfig(requests_per_minute=60, requests_per_hour=1000),
+    # Serper: Higher limits available
     "serper": RateLimitConfig(requests_per_minute=100, requests_per_hour=2500),
+    # Exa: Standard limits
     "exa": RateLimitConfig(requests_per_minute=60, requests_per_hour=1000),
-    "youtube": RateLimitConfig(requests_per_minute=60, requests_per_hour=10000),
+    # YouTube: 10K units/day. Search=100 units, so ~100 searches/day max.
+    # Using 6 RPM to spread across the day (6*60*24=8640 units if all searches)
+    "youtube": RateLimitConfig(requests_per_minute=6, requests_per_hour=100),
+    # YouTube read operations (list videos, get details) = 1 unit each
+    "youtube_read": RateLimitConfig(requests_per_minute=60, requests_per_hour=1000),
+    # Reddit: 60 RPM with OAuth
     "reddit": RateLimitConfig(requests_per_minute=60, requests_per_hour=600),
+    # Supadata: Plan-dependent, conservative for stability
     "supadata": RateLimitConfig(requests_per_minute=10, requests_per_hour=100),
+    # Whisper: 50 RPM default, keeping conservative due to upload time
     "whisper": RateLimitConfig(requests_per_minute=10, requests_per_hour=50),
-    "gemini": RateLimitConfig(requests_per_minute=60, requests_per_hour=1500),
+    # Gemini Paid Tier 1: 150-300 RPM, 1M TPM. Using 100 RPM for safety.
+    "gemini": RateLimitConfig(requests_per_minute=100, requests_per_hour=2000),
+    # GDELT: Standard limits
     "gdelt": RateLimitConfig(requests_per_minute=30, requests_per_hour=300),
-    "jina": RateLimitConfig(requests_per_minute=100, requests_per_hour=2000),
+    # Jina with API key: 500 RPM, 2M TPM. Using 200 RPM for safety.
+    "jina": RateLimitConfig(requests_per_minute=200, requests_per_hour=5000),
+    # Google Drive: Standard limits
     "google_drive": RateLimitConfig(requests_per_minute=60, requests_per_hour=300),
+    # Supabase: Very high limits (1200 reads/s), no real concern
+    "supabase": RateLimitConfig(requests_per_minute=500, requests_per_hour=10000),
+    # Default fallback
     "default": RateLimitConfig(requests_per_minute=60, requests_per_hour=1000),
 }
 
