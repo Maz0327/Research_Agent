@@ -145,6 +145,20 @@ export function ArtifactCard({
   const config = ARTIFACT_CONFIG[type];
   const styles = STATE_STYLES[state];
 
+  // User-friendly status descriptions for running state
+  const getRunningDescription = () => {
+    switch (type) {
+      case 'booster':
+        return 'Expanding research directions...';
+      case 'iteration':
+        return 'Running additional analysis...';
+      case 'doc_3':
+        return 'Generating creative output...';
+      default:
+        return 'Processing...';
+    }
+  };
+
   // Determine action label based on state
   const getActionLabel = () => {
     switch (state) {
@@ -153,9 +167,9 @@ export function ArtifactCard({
       case 'ready':
         return config.readyLabel;
       case 'queued':
-        return 'Queued...';
+        return 'Queued - waiting to start...';
       case 'running':
-        return `${progressPercent}%`;
+        return `${progressPercent}% - ${getRunningDescription()}`;
       case 'completed':
         if (type === 'iteration' && iterationCount > 0) {
           return `${iterationCount} iteration${iterationCount > 1 ? 's' : ''}`;

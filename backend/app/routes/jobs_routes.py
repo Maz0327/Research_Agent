@@ -963,7 +963,7 @@ async def get_document(
     from backend.integrations.supabase_storage import get_storage_client
 
     # Validate doc_type
-    valid_doc_types = {"doc_0", "doc_1", "doc_2", "doc_3"}
+    valid_doc_types = {"doc_0", "doc_1", "doc_2", "doc_3", "booster"}
     if doc_type not in valid_doc_types:
         raise HTTPException(
             status_code=400,
@@ -1003,17 +1003,19 @@ async def get_document(
     else:
         artifacts_dict = {}
 
-    # Map doc_type to path field and inline field
+    # Map doc_type to path field, inline field, and optional markdown field
     doc_mapping = {
-        "doc_0": {"path_field": "doc_0_path", "inline_field": "source_ledger"},
-        "doc_1": {"path_field": "doc_1_path", "inline_field": "jump_start"},
-        "doc_2": {"path_field": "doc_2_path", "inline_field": "semantic_brief"},
-        "doc_3": {"path_field": "doc_3_path", "inline_field": "producer_packet"},
+        "doc_0": {"path_field": "doc_0_path", "inline_field": "source_ledger", "markdown_field": None},
+        "doc_1": {"path_field": "doc_1_path", "inline_field": "jump_start", "markdown_field": None},
+        "doc_2": {"path_field": "doc_2_path", "inline_field": "semantic_brief", "markdown_field": None},
+        "doc_3": {"path_field": "doc_3_path", "inline_field": "producer_packet", "markdown_field": "producer_packet_md"},
+        "booster": {"path_field": None, "inline_field": None, "markdown_field": "booster_expansion_md"},
     }
 
     mapping = doc_mapping[doc_type]
-    storage_path = artifacts_dict.get(mapping["path_field"])
-    inline_data = artifacts_dict.get(mapping["inline_field"])
+    storage_path = artifacts_dict.get(mapping["path_field"]) if mapping["path_field"] else None
+    inline_data = artifacts_dict.get(mapping["inline_field"]) if mapping["inline_field"] else None
+    markdown_content = artifacts_dict.get(mapping["markdown_field"]) if mapping["markdown_field"] else None
 
     # Try storage path first (new jobs)
     if storage_path:
@@ -1031,6 +1033,14 @@ async def get_document(
             except Exception as e:
                 logger.warning(f"Failed to get signed URL for {storage_path}: {e}")
                 # Fall through to inline data
+
+    # Check for flat markdown field first (producer_packet_md, booster_expansion_md)
+    if markdown_content:
+        logger.info(f"Returning markdown content for {doc_type} of job {job_id}")
+        return {
+            "data": {},
+            "markdown": markdown_content,
+        }
 
     # Fall back to inline data (legacy jobs or storage failure)
     if inline_data:

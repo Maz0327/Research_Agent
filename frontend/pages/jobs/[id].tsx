@@ -1,6 +1,7 @@
 /**
  * Job Detail Page - Full page view for a single research job
- * Shows artifact cards, active task banners, and iteration selector.
+ * Shows artifact cards and iteration selector.
+ * Loading states are shown directly on artifact cards (not in banners).
  */
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
@@ -11,7 +12,6 @@ import { useJobsStore, type IterationRequest } from '../../store/jobs';
 import { POLLING_INTERVALS, getStageLabel, getStageDescription } from '../../lib/constants';
 import {
   JobDetailHeader,
-  ActiveTaskBanner,
   ArtifactCardGrid,
 } from '../../components/job-detail';
 
@@ -282,34 +282,6 @@ function JobDetailContent() {
     [jobId, triggerIteration]
   );
 
-  // Determine active task for banner
-  const getActiveTask = () => {
-    if (job?.booster_status === 'running' || job?.booster_status === 'queued') {
-      return {
-        type: 'booster' as const,
-        status: job.booster_status as 'queued' | 'running',
-        progress: job.booster_progress_percent || 0,
-      };
-    }
-    if (job?.producer_status === 'running' || job?.producer_status === 'queued') {
-      return {
-        type: 'producer' as const,
-        status: job.producer_status as 'queued' | 'running',
-        progress: job.producer_progress_percent || 0,
-      };
-    }
-    if (job?.iteration_status === 'running' || job?.iteration_status === 'queued') {
-      return {
-        type: 'iteration' as const,
-        status: job.iteration_status as 'queued' | 'running',
-        progress: job.iteration_progress_percent || 0,
-        iterationId: job.iteration_id,
-      };
-    }
-    return null;
-  };
-
-  const activeTask = getActiveTask();
   const actionsDisabled = !!actionInProgress;
 
   // Loading state
@@ -362,17 +334,7 @@ function JobDetailContent() {
           actionsDisabled={actionsDisabled}
         />
 
-        {/* Active Task Banner */}
-        <AnimatePresence>
-          {activeTask && (
-            <ActiveTaskBanner
-              taskType={activeTask.type}
-              status={activeTask.status}
-              progressPercent={activeTask.progress}
-              iterationId={activeTask.iterationId}
-            />
-          )}
-        </AnimatePresence>
+        {/* Active task loading states are now shown on individual artifact cards */}
 
         {/* Main job running indicator */}
         {(job.status === 'running' || job.status === 'queued') && (

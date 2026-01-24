@@ -90,17 +90,9 @@ export function DashboardJobCard({ job, delay = 0 }: DashboardJobCardProps) {
     return () => clearInterval(interval);
   }, [isActive, job.progress_percent, job.stage_started_at, job.created_at]);
 
-  // Determine navigation target based on job status
+  // Always navigate to job detail page
   const handleClick = () => {
-    if (isActive) {
-      router.push('/queue?tab=active');
-    } else if (isCompleted) {
-      router.push('/queue?tab=completed');
-    } else if (isFailed) {
-      router.push('/queue?tab=failed');
-    } else {
-      router.push(`/jobs/${job.id}`);
-    }
+    router.push(`/jobs/${job.id}`);
   };
 
   return (
@@ -131,7 +123,7 @@ export function DashboardJobCard({ job, delay = 0 }: DashboardJobCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-medium text-gray-100 truncate">
-              {job.title || 'Untitled Job'}
+              {job.title || job.prompt || 'Untitled Job'}
             </h4>
             <span className={`flex-shrink-0 px-1.5 py-0.5 text-xs rounded ${config.bgColor} ${config.textColor}`}>
               {config.label}

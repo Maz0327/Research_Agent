@@ -35,6 +35,9 @@ celery_app.conf.update(
     task_routes={
         "backend.worker.run_research_job": {"queue": "research"},
         "backend.worker.run_gemini_video_job": {"queue": "research"},
+        "backend.worker.run_iteration_task": {"queue": "research"},
+        "backend.worker.run_booster_task": {"queue": "research"},
+        "backend.worker.run_producer_task": {"queue": "research"},
     },
     task_default_queue="research",
     task_default_exchange="research",
