@@ -489,3 +489,21 @@ axiosRetry(apiClient, {
 - Priority 5: 2 hours (frontend retry interceptor)
 
 **Total:** 7.5-9.5 hours for full resilience implementation.
+
+---
+
+## TODOs (Deferred Items)
+
+### Priority 2-5 (Not Implemented)
+
+- [ ] **Storage Client Retry** - `supabase_storage.py` uses Supabase SDK (has internal retry), evaluate if additional retry needed
+- [ ] **Frontend Retry Logic** - Add axios-retry or similar interceptor for API calls
+- [ ] **Background Health Check** - Periodic Supabase connectivity test with cache invalidation
+- [ ] **Timeout Standardization** - Align 15s (supabase_store) vs 5s (supabase.py) timeouts
+
+### Follow-up Investigations
+
+- [ ] **Celery Task-Level Retry** - Configure Celery tasks to retry on Supabase connection failures
+- [ ] **Supabase SDK Behavior** - Document built-in retry/reconnect in `supabase-py` and `@supabase/supabase-js`
+- [ ] **Monitoring/Alerting** - Add metrics for connection errors, alert on repeated failures
+- [ ] **Integration Tests** - Simulate server restart scenarios in test suite
