@@ -1555,6 +1555,40 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
 
         job_dict["artifacts"] = artifacts_dict
 
+        # Fetch semantic_brief (Doc 2) from storage if needed for producer pipeline
+        doc_2_path = artifacts_dict.get("doc_2_path")
+        semantic_brief = artifacts_dict.get("semantic_brief")
+
+        def _has_semantic_content(sb: dict | None) -> bool:
+            """Check if semantic_brief has actual content (themes/key_points)."""
+            if not sb or not isinstance(sb, dict):
+                return False
+            # Check direct themes or key_points
+            if sb.get("themes") or sb.get("key_points"):
+                return True
+            # Check nested data format (storage download format)
+            data = sb.get("data")
+            if isinstance(data, dict):
+                if data.get("themes") or data.get("key_points"):
+                    return True
+            return False
+
+        needs_doc2_fetch = doc_2_path and not _has_semantic_content(semantic_brief)
+
+        if needs_doc2_fetch:
+            try:
+                from backend.integrations.supabase_storage import get_storage_client
+                storage = get_storage_client()
+                if storage:
+                    doc_2_data = storage.download_document(doc_2_path)
+                    artifacts_dict["semantic_brief"] = doc_2_data
+                    job_dict["artifacts"] = artifacts_dict
+                    logger.info(f"[{job_id}] Fetched semantic_brief from storage for producer")
+                else:
+                    logger.warning(f"[{job_id}] Storage client unavailable - cannot fetch semantic_brief")
+            except Exception as e:
+                logger.warning(f"[{job_id}] Failed to fetch semantic_brief: {e}")
+
     # Verify gating requirements
     can_generate, reason = can_generate_producer_packet(job_dict)
     if not can_generate:
