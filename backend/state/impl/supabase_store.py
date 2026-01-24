@@ -9,6 +9,12 @@ from typing import Any, Optional
 import httpx
 from loguru import logger
 from supabase import create_client, Client
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from backend.config import get_settings
 from backend.models.job_record import Artifacts, JobRecord, Outputs
@@ -18,6 +24,38 @@ from backend.utils.validators import validate_uuid, ValidationError
 
 # Constants
 SUPABASE_API_TIMEOUT = 15.0  # seconds
+
+# Retry configuration for connection resilience during Supabase server updates
+SUPABASE_MAX_RETRIES = 3
+SUPABASE_RETRY_MIN_WAIT = 1  # seconds
+SUPABASE_RETRY_MAX_WAIT = 4  # seconds
+
+# Exception types that warrant retry (connection issues, not HTTP errors)
+RETRYABLE_EXCEPTIONS = (
+    httpx.ConnectError,
+    httpx.TimeoutException,
+    httpx.NetworkError,
+)
+
+
+def _on_retry_callback(retry_state):
+    """Log retry attempts and clear stale client cache on connection failure."""
+    logger.warning(
+        f"Supabase connection failed, retrying (attempt {retry_state.attempt_number}/{SUPABASE_MAX_RETRIES}): "
+        f"{retry_state.outcome.exception()}"
+    )
+    # Clear cached client to force fresh connection on retry
+    _get_supabase_client.cache_clear()
+
+
+# Reusable retry decorator for Supabase operations
+supabase_retry = retry(
+    stop=stop_after_attempt(SUPABASE_MAX_RETRIES),
+    wait=wait_exponential(multiplier=1, min=SUPABASE_RETRY_MIN_WAIT, max=SUPABASE_RETRY_MAX_WAIT),
+    retry=retry_if_exception_type(RETRYABLE_EXCEPTIONS),
+    before_sleep=_on_retry_callback,
+    reraise=True,
+)
 
 
 @lru_cache()
@@ -220,11 +258,18 @@ class SupabaseJobStore(JobStore):
             user_id or "anonymous",
         )
 
-        client = self._get_http_client()
-        resp = client.post(url, headers=headers, json=payload)
+        @supabase_retry
+        def _execute_create():
+            client = self._get_http_client()
+            resp = client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            return resp
 
         try:
-            resp.raise_for_status()
+            resp = _execute_create()
+        except RETRYABLE_EXCEPTIONS as e:
+            logger.error("Failed to create job after retries: %s", sanitize_error_message(e))
+            raise
         except httpx.HTTPError as e:
             logger.error("Failed to create job in Supabase: %s", sanitize_error_message(e))
             raise
@@ -265,8 +310,16 @@ class SupabaseJobStore(JobStore):
             "limit": 1,
         }
 
-        client = self._get_http_client()
-        resp = client.get(url, headers=headers, params=params)
+        @supabase_retry
+        def _execute_get():
+            client = self._get_http_client()
+            return client.get(url, headers=headers, params=params)
+
+        try:
+            resp = _execute_get()
+        except RETRYABLE_EXCEPTIONS as e:
+            logger.error("Failed to fetch job %s after retries: %s", job_id, sanitize_error_message(e))
+            raise
 
         if resp.status_code == 404:
             return None
@@ -512,8 +565,17 @@ class SupabaseJobStore(JobStore):
                 "p_iteration_progress_percent": iteration_progress_percent,
             }
 
+            @supabase_retry
+            def _execute_rpc():
+                return client.rpc("atomic_update_job", rpc_params).execute()
+
             logger.debug(f"Calling atomic_update_job RPC for job {job_id}")
-            result = client.rpc("atomic_update_job", rpc_params).execute()
+            try:
+                result = _execute_rpc()
+            except RETRYABLE_EXCEPTIONS as e:
+                logger.warning(f"Connection failed during atomic update for job {job_id}: {e}")
+                # Fall through to fallback below
+                raise
 
             if not result.data:
                 logger.warning(f"Job {job_id} not found for atomic update")
@@ -722,8 +784,16 @@ class SupabaseJobStore(JobStore):
 
         logger.debug(f"Updating job {job_id} in Supabase with keys: {list(payload.keys())}")
 
-        client = self._get_http_client()
-        resp = client.patch(url, headers=headers, params=params, json=payload)
+        @supabase_retry
+        def _execute_patch():
+            client = self._get_http_client()
+            return client.patch(url, headers=headers, params=params, json=payload)
+
+        try:
+            resp = _execute_patch()
+        except RETRYABLE_EXCEPTIONS as e:
+            logger.error("Failed to update job %s after retries: %s", job_id, sanitize_error_message(e))
+            raise
 
         if resp.status_code == 404:
             logger.warning(f"Job {job_id} not found for update")
@@ -831,11 +901,18 @@ class SupabaseJobStore(JobStore):
 
         logger.debug(f"Listing jobs with params: {params}")
 
-        client = self._get_http_client()
-        resp = client.get(url, headers=headers, params=params)
+        @supabase_retry
+        def _execute_list():
+            client = self._get_http_client()
+            resp = client.get(url, headers=headers, params=params)
+            resp.raise_for_status()
+            return resp
 
         try:
-            resp.raise_for_status()
+            resp = _execute_list()
+        except RETRYABLE_EXCEPTIONS as e:
+            logger.error("Failed to list jobs after retries: %s", sanitize_error_message(e))
+            raise
         except httpx.HTTPError as e:
             logger.error("Failed to list jobs from Supabase: %s", sanitize_error_message(e))
             raise

@@ -5,9 +5,29 @@ from typing import Any, Optional
 
 import httpx
 from loguru import logger
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from backend.config import require_supabase
 from backend.models.job import JobStatus
+
+# Retry configuration for connection resilience
+RETRYABLE_EXCEPTIONS = (
+    httpx.ConnectError,
+    httpx.TimeoutException,
+    httpx.NetworkError,
+)
+
+supabase_retry = retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=4),
+    retry=retry_if_exception_type(RETRYABLE_EXCEPTIONS),
+    reraise=True,
+)
 
 
 def _rest_base_url() -> str:
@@ -49,11 +69,19 @@ def create_job(topic: str) -> JobStatus:
     }
 
     logger.info(f"Creating job in Supabase for topic={topic!r}")
-    with httpx.Client(timeout=5.0) as client:
-        resp = client.post(url, headers=headers, json=payload)
+
+    @supabase_retry
+    def _execute():
+        with httpx.Client(timeout=5.0) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            return resp
 
     try:
-        resp.raise_for_status()
+        resp = _execute()
+    except RETRYABLE_EXCEPTIONS as e:
+        logger.error(f"Failed to create job in Supabase after retries: {e}")
+        raise
     except httpx.HTTPError as e:
         logger.error(f"Failed to create job in Supabase: {e} - body={resp.text!r}")
         raise
@@ -82,8 +110,16 @@ def get_job(job_id: str) -> Optional[JobStatus]:
         "limit": 1,
     }
 
-    with httpx.Client(timeout=5.0) as client:
-        resp = client.get(url, headers=headers, params=params)
+    @supabase_retry
+    def _execute():
+        with httpx.Client(timeout=5.0) as client:
+            return client.get(url, headers=headers, params=params)
+
+    try:
+        resp = _execute()
+    except RETRYABLE_EXCEPTIONS as e:
+        logger.error(f"Failed to fetch job {job_id} after retries: {e}")
+        raise
 
     if resp.status_code == 404:
         return None
@@ -120,8 +156,17 @@ def update_job_status(job_id: str, status: str, result: Optional[dict[str, Any]]
     }
 
     logger.info(f"Updating job {job_id} in Supabase to status={status!r}")
-    with httpx.Client(timeout=5.0) as client:
-        resp = client.patch(url, headers=headers, params=params, json=payload)
+
+    @supabase_retry
+    def _execute():
+        with httpx.Client(timeout=5.0) as client:
+            return client.patch(url, headers=headers, params=params, json=payload)
+
+    try:
+        resp = _execute()
+    except RETRYABLE_EXCEPTIONS as e:
+        logger.error(f"Failed to update job {job_id} after retries: {e}")
+        raise
 
     if resp.status_code == 404:
         logger.warning(f"Job {job_id} not found for update")
