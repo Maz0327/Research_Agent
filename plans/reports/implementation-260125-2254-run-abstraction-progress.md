@@ -88,6 +88,24 @@ When `run_id` provided:
 When `run_id` is None:
 - V1 behavior (job-level storage)
 
+### 6. Run Mode Executors (`backend/pipeline/runs/modes/`)
+
+| File | Purpose |
+|------|---------|
+| `base.py` | `RunModeExecutor` base class with progress, metrics, storage |
+| `add_sources.py` | Add new sources, create delta Doc 0, regenerate Doc 1/2 |
+| `regenerate.py` | Re-run synthesis with same sources, optional user guidance |
+
+**add_sources mode:**
+- Searches for sources via Tavily integration
+- Creates delta Doc 0 (new sources only)
+- Merges parent + delta for full Doc 0 on display
+- Regenerates Doc 1/2 with all sources
+
+**regenerate mode:**
+- Inherits parent Doc 0 unchanged
+- Regenerates Doc 1/2 with optional user prompt guidance
+
 ---
 
 ## Commits
@@ -97,6 +115,7 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 315a8f6 feat(api): add run-scoped Producer/Booster endpoints
 4bb3d9d feat(worker): add run-scoped storage for Producer/Booster
 6be369d feat(api): add V2 run-based iteration endpoint
+8ee1436 feat(pipeline): add V2 run mode executors
 ```
 
 ---
@@ -105,14 +124,9 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 
 ### High Priority
 
-1. **Run Iteration Modes** - Implement actual logic for:
-   - `add_sources`: Search for new sources, extract, merge Doc 0 delta
-   - `fix_weak`: Use gap_ids to guide focused research
-   - `counter`: Find counterarguments to specified claims
-   - `angle`: Explore different perspective
-   - `regenerate`: Re-run synthesis with same sources
+1. ~~**Run Iteration Modes**~~ ✅ Implemented add_sources and regenerate modes
 
-2. **Worker Task Update** - Create `run_run_task` or update `run_iteration_task` to handle V2 Run types
+2. **Worker Task Update** - Wire up `run_iteration_task` to use V2 run modes
 
 ### Medium Priority
 
