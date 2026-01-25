@@ -1904,6 +1904,23 @@ class CreateRunResponse(PydanticBaseModel):
     message: str
 
 
+class RunStatusResponse(PydanticBaseModel):
+    """Response for run status polling."""
+    job_id: str
+    run_id: str
+    run_index: int
+    run_type: str
+    parent_run_id: Optional[str] = None
+    status: str
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    progress_percent: int = 0
+    error: Optional[dict] = None
+    outputs: Optional[dict] = None
+    metrics: Optional[dict] = None
+
+
 @router.post("/{job_id}/runs", response_model=CreateRunResponse)
 @limiter.limit(RATE_LIMITS["jobs_create"])
 async def create_run(
@@ -2117,6 +2134,88 @@ async def create_run(
         parent_run_id=parent_run.run_id,
         status="queued",
         message=f"Run {new_run_id} ({run_request.run_type}) started. Parent run documents unchanged.",
+    )
+
+
+@router.get("/{job_id}/runs/{run_id}", response_model=RunStatusResponse)
+@limiter.limit(RATE_LIMITS["jobs_status"])
+async def get_run_status(
+    request: Request,
+    job_id: str,
+    run_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Get status of a specific run.
+
+    Used for polling run progress during execution.
+    Returns run status, progress, outputs (if completed), and error (if failed).
+    """
+    from backend.models.run_models import ensure_runs_migrated
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get artifacts
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+
+    # Get or migrate runs
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or user.user_id,
+    )
+
+    # Find the requested run
+    target_run = None
+    for run in runs:
+        if run.run_id == run_id:
+            target_run = run
+            break
+
+    if not target_run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+
+    # Get progress from job iteration tracking (reused for runs)
+    progress_percent = 0
+    if hasattr(job, "iteration_id") and job.iteration_id == run_id:
+        progress_percent = getattr(job, "iteration_progress_percent", 0) or 0
+
+    # Format timestamps
+    def fmt_ts(ts):
+        if ts is None:
+            return None
+        if hasattr(ts, "isoformat"):
+            return ts.isoformat()
+        return str(ts)
+
+    # Build response
+    return RunStatusResponse(
+        job_id=job_id,
+        run_id=target_run.run_id,
+        run_index=target_run.run_index,
+        run_type=target_run.run_type.value if hasattr(target_run.run_type, "value") else str(target_run.run_type),
+        parent_run_id=target_run.parent_run_id,
+        status=target_run.status.value if hasattr(target_run.status, "value") else str(target_run.status),
+        created_at=fmt_ts(target_run.created_at),
+        started_at=fmt_ts(target_run.started_at),
+        completed_at=fmt_ts(target_run.completed_at),
+        progress_percent=progress_percent,
+        error=target_run.error.model_dump() if target_run.error and hasattr(target_run.error, "model_dump") else (target_run.error if isinstance(target_run.error, dict) else None),
+        outputs=target_run.outputs.model_dump() if target_run.outputs and hasattr(target_run.outputs, "model_dump") else (target_run.outputs if isinstance(target_run.outputs, dict) else None),
+        metrics=target_run.metrics.model_dump() if target_run.metrics and hasattr(target_run.metrics, "model_dump") else (target_run.metrics if isinstance(target_run.metrics, dict) else None),
     )
 
 
