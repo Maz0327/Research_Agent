@@ -8,6 +8,12 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from loguru import logger
 
+from backend.utils.markdown_helpers import (
+    github_alert,
+    section_header,
+    confidence_badge,
+)
+
 
 # Evidence level definitions
 EVIDENCE_LEVELS = {
@@ -411,37 +417,80 @@ Focus on what a documentary creator needs to understand the story."""
         return " ".join(parts)
 
     def to_markdown(self, brief: ResearchBrief) -> str:
-        """Convert ResearchBrief to markdown format."""
+        """Convert ResearchBrief to markdown format with improved formatting."""
+        # Count items for summary
+        counts = {
+            "claims": len(brief.claims_matrix),
+            "figures": len(brief.key_figures),
+            "events": len(brief.timeline),
+            "quotes": len(brief.quotable_moments),
+        }
+
         lines = [
-            f"# Research Brief: {brief.topic}",
+            section_header(f"Research Brief: {brief.topic}", "📋", 1),
             "",
-            "---",
-            "",
-            "## The Story in 60 Seconds",
-            "",
-            brief.summary or "*Summary not available*",
-            "",
-            "---",
-            "",
-            "## Claims Matrix",
-            "",
-            "| Claim | Evidence Level | Sources |",
-            "|-------|---------------|---------|",
         ]
 
+        # Executive summary card
+        lines.extend([
+            github_alert(
+                "NOTE",
+                f"**Claims:** {counts['claims']} | "
+                f"**Key Figures:** {counts['figures']} | "
+                f"**Timeline Events:** {counts['events']} | "
+                f"**Quotes:** {counts['quotes']}"
+            ),
+            "",
+            "---",
+            "",
+        ])
+
+        # Story in 60 seconds
+        lines.extend([
+            section_header("The Story in 60 Seconds", "⏱️", 2),
+            "",
+            f"> {brief.summary}" if brief.summary else "*Summary not available*",
+            "",
+            "---",
+            "",
+        ])
+
+        # Claims Matrix
+        lines.extend([
+            section_header("Claims Matrix", "📊", 2),
+            "",
+            "| Claim | Evidence | Sources |",
+            "|-------|:--------:|---------|",
+        ])
+
+        evidence_icons = {
+            "VERIFIED": "🟢",
+            "PROBABLE": "🟡",
+            "SPECULATIVE": "🟠",
+            "DISPUTED": "🔴",
+        }
+
         for claim in brief.claims_matrix:
-            claim_text = claim.get("claim", "")[:80]
+            claim_text = claim.get("claim", "")[:70] + "..." if len(claim.get("claim", "")) > 70 else claim.get("claim", "")
             level = claim.get("evidence_level", "SPECULATIVE")
+            icon = evidence_icons.get(level, "⚪")
             sources = ", ".join(claim.get("sources", [])[:2]) or "—"
-            lines.append(f"| {claim_text} | **{level}** | {sources} |")
+            lines.append(f"| {claim_text} | {icon} **{level}** | {sources} |")
 
         lines.extend([
             "",
-            "*Evidence Levels: VERIFIED (3+ sources) > PROBABLE (2 sources) > SPECULATIVE (1 source) > DISPUTED (conflicting)*",
+            github_alert(
+                "TIP",
+                "**Evidence Levels:** 🟢 VERIFIED (3+ sources) → 🟡 PROBABLE (2 sources) → 🟠 SPECULATIVE (1 source) → 🔴 DISPUTED"
+            ),
             "",
             "---",
             "",
-            "## Key Figures",
+        ])
+
+        # Key Figures
+        lines.extend([
+            section_header("Key Figures", "👤", 2),
             "",
         ])
 
@@ -452,52 +501,70 @@ Focus on what a documentary creator needs to understand the story."""
             quotes = figure.get("quotes", [])
 
             lines.append(f"### {name}")
-            if role:
-                lines.append(f"**Role:** {role}")
-            if stance:
-                lines.append(f"**Stance:** {stance}")
+            lines.append("")
+            if role or stance:
+                lines.append(f"| Role | Stance |")
+                lines.append(f"|------|--------|")
+                lines.append(f"| {role or '—'} | {stance or '—'} |")
+                lines.append("")
             if quotes:
                 for q in quotes[:2]:
-                    lines.append(f"> \"{q}\"")
-            lines.append("")
+                    lines.append(f"> *\"{q}\"*")
+                lines.append("")
 
+        lines.extend(["---", ""])
+
+        # Timeline
         lines.extend([
-            "---",
+            section_header("Timeline", "📅", 2),
             "",
-            "## Timeline",
-            "",
+            "| Date | Event | Sources |",
+            "|------|-------|---------|",
         ])
 
         for event in brief.timeline:
             date = event.get("date", "Unknown")
-            text = event.get("event", "")
+            text = event.get("event", "")[:60] + "..." if len(event.get("event", "")) > 60 else event.get("event", "")
             sources = event.get("sources", [])
-            source_str = f" *({', '.join(sources[:2])})*" if sources else ""
-            lines.append(f"- **{date}**: {text}{source_str}")
+            source_str = ", ".join(sources[:2]) if sources else "—"
+            lines.append(f"| **{date}** | {text} | {source_str} |")
 
+        lines.extend(["", "---", ""])
+
+        # Perspectives
         lines.extend([
-            "",
-            "---",
-            "",
-            "## Perspectives",
+            section_header("Perspectives", "🔍", 2),
             "",
         ])
 
         perspectives = brief.perspectives
         if perspectives.get("mainstream"):
-            lines.append(f"**Mainstream:** {perspectives['mainstream']}")
-            lines.append("")
+            lines.extend([
+                "### 📢 Mainstream View",
+                "",
+                f"> {perspectives['mainstream']}",
+                "",
+            ])
         if perspectives.get("alternative"):
-            lines.append(f"**Alternative:** {perspectives['alternative']}")
-            lines.append("")
+            lines.extend([
+                "### 🔄 Alternative View",
+                "",
+                f"> {perspectives['alternative']}",
+                "",
+            ])
         if perspectives.get("unexplored"):
-            lines.append(f"**Unexplored Angles:** {perspectives['unexplored']}")
-            lines.append("")
+            lines.extend([
+                "### 🕳️ Unexplored Angles",
+                "",
+                f"> {perspectives['unexplored']}",
+                "",
+            ])
 
+        lines.extend(["---", ""])
+
+        # Quotable Moments
         lines.extend([
-            "---",
-            "",
-            "## Quotable Moments",
+            section_header("Quotable Moments", "💬", 2),
             "",
         ])
 
@@ -505,16 +572,19 @@ Focus on what a documentary creator needs to understand the story."""
             quote = moment.get("quote", "")
             source = moment.get("source", "")
             context = moment.get("context", "")
-            lines.append(f"> \"{quote}\"")
-            lines.append(f"> — {source}")
+            lines.extend([
+                f"> *\"{quote}\"*",
+                f"> — **{source}**",
+            ])
             if context:
                 lines.append(f"> *Context: {context[:100]}*")
             lines.append("")
 
+        # Footer
         lines.extend([
             "---",
             "",
-            "*Generated by Research Agent*",
+            github_alert("NOTE", "**Generated by Research Agent**"),
         ])
 
         return "\n".join(lines)

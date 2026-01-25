@@ -15,6 +15,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
+from backend.utils.markdown_helpers import (
+    github_alert,
+    sensitivity_icon,
+    section_header,
+    creative_notice_block,
+    type_icon,
+)
+
 
 class HookType(str, Enum):
     """Types of opening hooks."""
@@ -294,216 +302,305 @@ class ProducerPacket:
         }
 
     def to_markdown(self) -> str:
-        """Generate markdown representation."""
+        """Generate markdown representation with improved formatting."""
+        # Count sections for summary
+        section_counts = {
+            "angles": len(self.narrative_angles),
+            "hooks": len(self.opening_hooks),
+            "structures": len(self.structure_options),
+            "titles": len(self.title_options),
+            "moments": len(self.key_moments),
+            "thumbnails": len(self.thumbnail_concepts),
+        }
+
         lines = [
-            "# Producer Packet",
-            "",
-            f"**Job ID:** {self.job_id}",
-            f"**Generated:** {self.generated_at[:10]}",
-            "",
-            "> **CREATIVE INTERPRETATION NOTICE**",
-            f"> {CREATIVE_INTERPRETATION_NOTICE}",
-            "",
-            "---",
-            "",
-            "## Story Core",
-            "",
-            f"**Central Question:** {self.story_core.central_question}",
-            "",
-            f"**One-Sentence Pitch:** {self.story_core.one_sentence_pitch}",
-            "",
-            f"**Why This Matters:** {self.story_core.why_this_matters}",
-            "",
-            f"**Target Audience:** {self.story_core.target_audience}",
-            "",
-            f"**Emotional Arc:** {self.story_core.emotional_arc}",
-            "",
-            "---",
+            section_header("Producer Packet", "🎬", 1),
             "",
         ]
 
+        # Executive summary
+        lines.extend([
+            github_alert(
+                "NOTE",
+                f"**Job:** {self.job_id} | **Generated:** {self.generated_at[:10]}\n> \n> "
+                f"**Sections:** {section_counts['angles']} angles | "
+                f"{section_counts['hooks']} hooks | "
+                f"{section_counts['titles']} titles | "
+                f"{section_counts['moments']} moments"
+            ),
+            "",
+        ])
+
+        # Creative interpretation notice
+        lines.extend([
+            creative_notice_block(),
+            "",
+            "---",
+            "",
+        ])
+
+        # Story Core
+        lines.extend([
+            section_header("Story Core", "🎯", 2),
+            "",
+            "| Element | Content |",
+            "|---------|---------|",
+            f"| **Central Question** | {self.story_core.central_question} |",
+            f"| **One-Sentence Pitch** | {self.story_core.one_sentence_pitch} |",
+            f"| **Why This Matters** | {self.story_core.why_this_matters} |",
+            f"| **Target Audience** | {self.story_core.target_audience} |",
+            f"| **Emotional Arc** | {self.story_core.emotional_arc} |",
+            "",
+            "---",
+            "",
+        ])
+
         # Narrative Angles
         if self.narrative_angles:
-            lines.append("## Narrative Angles")
-            lines.append("")
+            lines.extend([
+                section_header("Narrative Angles", "📐", 2),
+                "",
+            ])
             for angle in self.narrative_angles:
-                lines.append(f"### {angle.angle_id}: {angle.title}")
-                lines.append("")
-                lines.append(angle.description)
-                lines.append("")
-                if angle.strengths:
-                    lines.append("**Strengths:**")
-                    for s in angle.strengths:
-                        lines.append(f"- {s}")
-                    lines.append("")
-                if angle.weaknesses:
-                    lines.append("**Weaknesses:**")
-                    for w in angle.weaknesses:
-                        lines.append(f"- {w}")
+                lines.extend([
+                    f"### {angle.angle_id}: {angle.title}",
+                    "",
+                    f"> {angle.description}",
+                    "",
+                ])
+                if angle.strengths or angle.weaknesses:
+                    lines.append("| ✅ Strengths | ⚠️ Weaknesses |")
+                    lines.append("|-------------|---------------|")
+                    max_len = max(len(angle.strengths or []), len(angle.weaknesses or []))
+                    for i in range(max_len):
+                        s = angle.strengths[i] if i < len(angle.strengths or []) else "—"
+                        w = angle.weaknesses[i] if i < len(angle.weaknesses or []) else "—"
+                        lines.append(f"| {s} | {w} |")
                     lines.append("")
                 if angle.best_for:
                     lines.append(f"**Best For:** {angle.best_for}")
                     lines.append("")
                 if angle.key_sources:
-                    lines.append(f"**Key Sources:** {', '.join(angle.key_sources)}")
+                    lines.append(f"**Key Sources:** `{', '.join(angle.key_sources)}`")
                     lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["---", ""])
 
         # Opening Hooks
         if self.opening_hooks:
-            lines.append("## Opening Hooks")
-            lines.append("")
+            lines.extend([
+                section_header("Opening Hooks", "🎣", 2),
+                "",
+            ])
             for i, hook in enumerate(self.opening_hooks, 1):
-                lines.append(f"### Hook {i}: {hook.hook_type.value.replace('_', ' ').title()}")
-                lines.append("")
-                lines.append(f"> {hook.content}")
-                lines.append("")
-                lines.append(f"**Tone:** {hook.tone}")
+                hook_type_label = hook.hook_type.value.replace("_", " ").title()
+                lines.extend([
+                    f"### Hook {i}: {hook_type_label}",
+                    "",
+                    f"> *\"{hook.content}\"*",
+                    "",
+                    f"**Tone:** {hook.tone}",
+                ])
                 if hook.source_basis:
-                    lines.append(f"**Source Basis:** {', '.join(hook.source_basis)}")
+                    lines.append(f"**Sources:** `{', '.join(hook.source_basis)}`")
                 lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["---", ""])
 
         # Structure Options
         if self.structure_options:
-            lines.append("## Structure Options")
-            lines.append("")
+            lines.extend([
+                section_header("Structure Options", "🏗️", 2),
+                "",
+            ])
             for opt in self.structure_options:
-                lines.append(f"### {opt.structure_type.value.replace('_', ' ').title()}")
-                lines.append("")
-                lines.append(opt.description)
-                lines.append("")
+                struct_label = opt.structure_type.value.replace("_", " ").title()
+                lines.extend([
+                    f"### {struct_label}",
+                    "",
+                    f"> {opt.description}",
+                    "",
+                ])
                 if opt.section_breakdown:
                     lines.append("**Section Breakdown:**")
                     for i, section in enumerate(opt.section_breakdown, 1):
                         lines.append(f"{i}. {section}")
                     lines.append("")
-                if opt.pros:
-                    lines.append("**Pros:**")
-                    for p in opt.pros:
-                        lines.append(f"- {p}")
+                if opt.pros or opt.cons:
+                    lines.append("| ✅ Pros | ⚠️ Cons |")
+                    lines.append("|---------|---------|")
+                    max_len = max(len(opt.pros or []), len(opt.cons or []))
+                    for i in range(max_len):
+                        p = opt.pros[i] if i < len(opt.pros or []) else "—"
+                        c = opt.cons[i] if i < len(opt.cons or []) else "—"
+                        lines.append(f"| {p} | {c} |")
                     lines.append("")
-                if opt.cons:
-                    lines.append("**Cons:**")
-                    for c in opt.cons:
-                        lines.append(f"- {c}")
-                    lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["---", ""])
 
         # Title Options
         if self.title_options:
-            lines.append("## Title Options")
-            lines.append("")
-            lines.append("| Title | Subtitle | Tone |")
-            lines.append("|-------|----------|------|")
-            for t in self.title_options:
+            lines.extend([
+                section_header("Title Options", "📝", 2),
+                "",
+                "| # | Title | Subtitle | Tone |",
+                "|--:|-------|----------|------|",
+            ])
+            for i, t in enumerate(self.title_options, 1):
                 subtitle = t.subtitle or "—"
-                lines.append(f"| {t.title} | {subtitle} | {t.tone.value} |")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
+                tone_label = t.tone.value.replace("_", " ").title()
+                lines.append(f"| {i} | **{t.title}** | {subtitle} | {tone_label} |")
+            lines.extend(["", "---", ""])
 
         # Key Moments
         if self.key_moments:
-            lines.append("## Key Moments")
+            lines.extend([
+                section_header("Key Moments", "⭐", 2),
+                "",
+                "| Moment | Source | Timestamp | Why Compelling |",
+                "|--------|--------|-----------|----------------|",
+            ])
+            for m in self.key_moments:
+                moment_text = m.moment[:50] + "..." if len(m.moment) > 50 else m.moment
+                timestamp = m.timestamp or "—"
+                why = m.why_compelling[:40] + "..." if m.why_compelling and len(m.why_compelling) > 40 else (m.why_compelling or "—")
+                lines.append(f"| {moment_text} | `{m.source_id}` | {timestamp} | {why} |")
+            lines.extend(["", ""])
+            # Add detailed breakdown below table
+            lines.append("<details>")
+            lines.append("<summary><strong>Detailed Moment Breakdown</strong></summary>")
             lines.append("")
             for m in self.key_moments:
-                lines.append(f"**{m.moment}** [{m.source_id}]")
+                lines.extend([
+                    f"**{m.moment}** [`{m.source_id}`]",
+                ])
                 if m.timestamp:
-                    lines.append(f"- Timestamp: {m.timestamp}")
+                    lines.append(f"- ⏱️ Timestamp: {m.timestamp}")
                 if m.why_compelling:
-                    lines.append(f"- Why compelling: {m.why_compelling}")
+                    lines.append(f"- 💡 Why compelling: {m.why_compelling}")
                 if m.potential_use:
-                    lines.append(f"- Potential use: {m.potential_use}")
+                    lines.append(f"- 🎬 Potential use: {m.potential_use}")
                 lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["</details>", "", "---", ""])
 
         # Thumbnail Concepts
         if self.thumbnail_concepts:
-            lines.append("## Thumbnail Concepts")
-            lines.append("")
-            for c in self.thumbnail_concepts:
-                lines.append(f"**{c.concept}**")
+            lines.extend([
+                section_header("Thumbnail Concepts", "🖼️", 2),
+                "",
+            ])
+            for i, c in enumerate(self.thumbnail_concepts, 1):
+                lines.extend([
+                    f"### Concept {i}: {c.concept}",
+                    "",
+                ])
                 if c.visual_elements:
-                    lines.append(f"- Visual elements: {', '.join(c.visual_elements)}")
+                    lines.append(f"- 🎨 **Visual elements:** {', '.join(c.visual_elements)}")
                 if c.text_overlay:
-                    lines.append(f"- Text overlay: {c.text_overlay}")
+                    lines.append(f"- 📝 **Text overlay:** \"{c.text_overlay}\"")
                 if c.emotional_appeal:
-                    lines.append(f"- Emotional appeal: {c.emotional_appeal}")
+                    lines.append(f"- 💭 **Emotional appeal:** {c.emotional_appeal}")
                 lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["---", ""])
 
         # Risk Assessment
         if self.risk_assessment:
-            lines.append("## Risk Assessment")
-            lines.append("")
-            lines.append(f"**Sensitivity Level:** {self.risk_assessment.sensitivity_level.value.upper()}")
-            lines.append("")
+            sens_level = self.risk_assessment.sensitivity_level.value.upper()
+            sens_icon = sensitivity_icon(self.risk_assessment.sensitivity_level.value)
+            lines.extend([
+                section_header("Risk Assessment", "⚠️", 2),
+                "",
+            ])
+            # Sensitivity alert
+            alert_type = "CAUTION" if sens_level in ("HIGH", "CRITICAL") else "WARNING" if sens_level == "MEDIUM" else "NOTE"
+            lines.extend([
+                github_alert(alert_type, f"**Sensitivity Level:** {sens_icon} {sens_level}"),
+                "",
+            ])
             if self.risk_assessment.potential_issues:
-                lines.append("**Potential Issues:**")
+                lines.append("### ⚡ Potential Issues")
+                lines.append("")
                 for issue in self.risk_assessment.potential_issues:
                     lines.append(f"- {issue}")
                 lines.append("")
             if self.risk_assessment.mitigation_suggestions:
-                lines.append("**Mitigation Suggestions:**")
+                lines.append("### 🛡️ Mitigation Suggestions")
+                lines.append("")
                 for m in self.risk_assessment.mitigation_suggestions:
                     lines.append(f"- {m}")
                 lines.append("")
             if self.risk_assessment.legal_considerations:
-                lines.append("**Legal Considerations:**")
+                lines.append("### ⚖️ Legal Considerations")
+                lines.append("")
                 for item in self.risk_assessment.legal_considerations:
                     lines.append(f"- {item}")
                 lines.append("")
             if self.risk_assessment.ethical_considerations:
-                lines.append("**Ethical Considerations:**")
+                lines.append("### 🤔 Ethical Considerations")
+                lines.append("")
                 for e in self.risk_assessment.ethical_considerations:
                     lines.append(f"- {e}")
                 lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["---", ""])
 
         # Interview Suggestions
         if self.interview_suggestions:
-            lines.append("## Interview Suggestions")
-            lines.append("")
+            lines.extend([
+                section_header("Interview Suggestions", "🎤", 2),
+                "",
+            ])
             if self.interview_suggestions.people_to_contact:
-                lines.append("### People to Contact")
+                lines.extend([
+                    "### 👤 People to Contact",
+                    "",
+                    "| Name | Role | Why Relevant |",
+                    "|------|------|--------------|",
+                ])
+                for p in self.interview_suggestions.people_to_contact:
+                    why = p.why_relevant[:50] + "..." if len(p.why_relevant) > 50 else p.why_relevant
+                    lines.append(f"| **{p.name}** | {p.role} | {why} |")
+                lines.append("")
+                # Detailed questions in collapsible
+                lines.append("<details>")
+                lines.append("<summary><strong>Interview Questions</strong></summary>")
                 lines.append("")
                 for p in self.interview_suggestions.people_to_contact:
-                    lines.append(f"**{p.name}** ({p.role})")
-                    lines.append(f"- Why relevant: {p.why_relevant}")
                     if p.potential_questions:
-                        lines.append("- Questions:")
+                        lines.append(f"**{p.name}:**")
                         for q in p.potential_questions:
-                            lines.append(f"  - {q}")
-                    lines.append("")
+                            lines.append(f"- {q}")
+                        lines.append("")
+                lines.extend(["</details>", ""])
             if self.interview_suggestions.expert_perspectives_needed:
-                lines.append("### Expert Perspectives Needed")
-                lines.append("")
+                lines.extend([
+                    "### 🎓 Expert Perspectives Needed",
+                    "",
+                ])
                 for exp in self.interview_suggestions.expert_perspectives_needed:
                     lines.append(f"- {exp}")
                 lines.append("")
-            lines.append("---")
-            lines.append("")
+            lines.extend(["---", ""])
 
         # B-Roll Suggestions
         if self.b_roll_suggestions:
-            lines.append("## B-Roll Suggestions")
-            lines.append("")
+            lines.extend([
+                section_header("B-Roll Suggestions", "🎞️", 2),
+                "",
+                "| Description | Purpose | Sources |",
+                "|-------------|---------|---------|",
+            ])
             for b in self.b_roll_suggestions:
-                lines.append(f"**{b.description}**")
-                lines.append(f"- Purpose: {b.purpose}")
-                if b.source_options:
-                    lines.append(f"- Source options: {', '.join(b.source_options)}")
-                lines.append("")
-            lines.append("---")
-            lines.append("")
+                desc = b.description[:40] + "..." if len(b.description) > 40 else b.description
+                sources = ", ".join(b.source_options) if b.source_options else "—"
+                lines.append(f"| {desc} | {b.purpose} | {sources} |")
+            lines.extend(["", "---", ""])
 
-        lines.append("*Producer Packet complete. This is creative interpretation, not factual research.*")
+        # Footer
+        lines.extend([
+            "",
+            github_alert(
+                "NOTE",
+                "**Producer Packet complete.**\n> \n> "
+                "This is creative interpretation, not factual research. "
+                "Always verify claims independently before production."
+            ),
+        ])
 
         return "\n".join(lines)
