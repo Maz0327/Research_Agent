@@ -51,6 +51,23 @@ from backend.models.producer_models import (
     TitleTone,
     SensitivityLevel,
 )
+from backend.models.run_models import (
+    Run,
+    RunType,
+    RunStatus,
+    RunRequest,
+    RunOutputs,
+    RunMetrics,
+    RunError,
+    RunProducerPacket,
+    RunBoosterExpansion,
+    ensure_runs_migrated,
+    create_baseline_run,
+    create_iteration_run,
+    map_iteration_mode_to_run_type,
+    get_run_type_label,
+    RUN_TYPE_LABELS,
+)
 
 __all__ = [
     # Job models
@@ -110,5 +127,21 @@ __all__ = [
     "StructureType",
     "TitleTone",
     "SensitivityLevel",
+    # Run models (Run Abstraction)
+    "Run",
+    "RunType",
+    "RunStatus",
+    "RunRequest",
+    "RunOutputs",
+    "RunMetrics",
+    "RunError",
+    "RunProducerPacket",
+    "RunBoosterExpansion",
+    "ensure_runs_migrated",
+    "create_baseline_run",
+    "create_iteration_run",
+    "map_iteration_mode_to_run_type",
+    "get_run_type_label",
+    "RUN_TYPE_LABELS",
 ]
 
