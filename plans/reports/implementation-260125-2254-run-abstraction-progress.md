@@ -120,6 +120,34 @@ Updated `run_iteration_task` to support both V1 and V2:
 
 ---
 
+### 8. Frontend UI Components
+
+#### TypeScript Types (`frontend/types/run.ts`)
+
+- `RunStatus`, `RunType` - Status and type enums
+- `Run` interface - Complete run object
+- `RunRequest`, `RunOutputs`, `RunMetrics` - Supporting interfaces
+- `RUN_TYPE_LABELS`, `RUN_TYPE_ICONS` - Display constants
+- Helper functions: `isV2Run()`, `getRunLabel()`, `getRunIcon()`
+
+#### RunSelector Component (`frontend/components/job-detail/RunSelector.tsx`)
+
+Unified dropdown supporting both V2 runs and V1 iterations:
+- Shows baseline option with badge
+- V2 RUNS section with type icons and labels
+- V1 ITERATIONS section (legacy) with mode labels
+- Relative time formatting
+- Run type badge colors
+
+#### ArtifactCardGrid Updates (`frontend/components/job-detail/ArtifactCardGrid.tsx`)
+
+- Replaced `IterationSelector` with `RunSelector`
+- Updated `getArtifactState()` to handle V2 runs
+- Updated `openDocViewer()` to load V2 run documents
+- Added `runs` to `JobArtifacts` type in store
+
+---
+
 ## Commits
 
 ```
@@ -129,6 +157,8 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 6be369d feat(api): add V2 run-based iteration endpoint
 8ee1436 feat(pipeline): add V2 run mode executors
 9cca824 feat(worker): wire run_iteration_task to V2 run modes
+95c779a feat(frontend): add V2 run types and RunSelector component
+a79267e feat(frontend): integrate RunSelector in ArtifactCardGrid
 ```
 
 ---
@@ -141,19 +171,17 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 
 2. ~~**Worker Task Update**~~ ✅ Wired run_iteration_task to V2 run modes
 
+3. ~~**UI Updates**~~ ✅ RunSelector component with V2 run support
+
 ### Medium Priority
 
-3. **UI Updates** - Replace IterationSelector with RunSelector:
-   - Show all runs in dropdown
-   - Display run type badges
-   - Support run-scoped Producer/Booster buttons
-
 4. **Run Status Endpoint** - Add `GET /{job_id}/runs/{run_id}` for polling
+5. **Run-scoped Producer/Booster UI buttons** - Update UI to call run-scoped endpoints
 
 ### Low Priority
 
-5. **Migration Script** - Optional: migrate existing iterations[] to runs[]
-6. **Cleanup** - Remove legacy iteration code after transition
+6. **Migration Script** - Optional: migrate existing iterations[] to runs[]
+7. **Cleanup** - Remove legacy iteration code after transition
 
 ---
 
