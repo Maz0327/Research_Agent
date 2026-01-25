@@ -1407,6 +1407,231 @@ async def generate_producer_packet(
 
 
 # =============================================================================
+# RUN-SCOPED PRODUCER/BOOSTER ENDPOINTS (V2 Run Abstraction)
+# =============================================================================
+
+@router.post("/{job_id}/runs/{run_id}/producer")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def run_producer_for_run(
+    request: Request,
+    job_id: str,
+    run_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Generate Producer Packet (Doc 3) for a specific run.
+
+    V2 Run Abstraction: Producer outputs are scoped to individual runs.
+    This allows different iterations to have their own producer packets.
+
+    Args:
+        job_id: Job ID
+        run_id: Run ID (e.g., 'run_0' for baseline, 'run_1' for first iteration)
+    """
+    from backend.pipeline.producer.gating import can_generate_producer_packet
+    from backend.models.run_models import ensure_runs_migrated, RunStatus
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    # Validate run_id format
+    if not run_id.startswith("run_"):
+        raise HTTPException(status_code=400, detail="Invalid run ID format. Expected 'run_0', 'run_1', etc.")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to generate producer packet. Current status: '{job_status}'"
+        )
+
+    # Get artifacts and find the run
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if not artifacts:
+        raise HTTPException(status_code=400, detail="Job has no artifacts")
+
+    # Migrate legacy artifacts to runs if needed
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or "system",
+    )
+
+    # Find the requested run
+    target_run = None
+    for run in runs:
+        if run.run_id == run_id:
+            target_run = run
+            break
+
+    if not target_run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+
+    if target_run.status != RunStatus.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run must be completed to generate producer. Current status: '{target_run.status}'"
+        )
+
+    # Check if producer already running for this run
+    if target_run.producer_packet and target_run.producer_packet.status in (RunStatus.QUEUED, RunStatus.RUNNING):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Producer is already {target_run.producer_packet.status.value} for run {run_id}"
+        )
+
+    # Queue producer task with run_id
+    from backend.worker import run_producer_task
+    from datetime import datetime, timezone
+
+    # Update job status
+    update_job(
+        job_id,
+        producer_status="queued",
+        producer_started_at=datetime.now(timezone.utc),
+        producer_progress_percent=0,
+        producer_error=None,
+    )
+
+    logger.info(f"Enqueuing producer task for job {job_id} run {run_id}")
+    run_producer_task.apply_async(
+        (job_id, user.user_id, run_id),  # Pass run_id to worker
+        task_id=f"{job_id}_{run_id}_producer"
+    )
+
+    return {
+        "job_id": job_id,
+        "run_id": run_id,
+        "status": "queued",
+        "producer_status": "queued",
+        "message": f"Producer Packet for run {run_id} started.",
+    }
+
+
+@router.post("/{job_id}/runs/{run_id}/booster")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def run_booster_for_run(
+    request: Request,
+    job_id: str,
+    run_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Trigger Deep Research Booster for a specific run.
+
+    V2 Run Abstraction: Booster outputs are scoped to individual runs.
+    This allows different iterations to have their own booster expansions.
+
+    Args:
+        job_id: Job ID
+        run_id: Run ID (e.g., 'run_0' for baseline, 'run_1' for first iteration)
+    """
+    from backend.models.run_models import ensure_runs_migrated, RunStatus
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    # Validate run_id format
+    if not run_id.startswith("run_"):
+        raise HTTPException(status_code=400, detail="Invalid run ID format. Expected 'run_0', 'run_1', etc.")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to run booster. Current status: '{job_status}'"
+        )
+
+    # Get artifacts and find the run
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if not artifacts:
+        raise HTTPException(status_code=400, detail="Job has no artifacts")
+
+    # Migrate legacy artifacts to runs if needed
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or "system",
+    )
+
+    # Find the requested run
+    target_run = None
+    for run in runs:
+        if run.run_id == run_id:
+            target_run = run
+            break
+
+    if not target_run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+
+    if target_run.status != RunStatus.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run must be completed to run booster. Current status: '{target_run.status}'"
+        )
+
+    # Check if booster already running for this run
+    if target_run.booster_expansion and target_run.booster_expansion.status in (RunStatus.QUEUED, RunStatus.RUNNING):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Booster is already {target_run.booster_expansion.status.value} for run {run_id}"
+        )
+
+    # Queue booster task with run_id
+    from backend.worker import run_booster_task
+    from datetime import datetime, timezone
+
+    # Update job status
+    update_job(
+        job_id,
+        booster_status="queued",
+        booster_started_at=datetime.now(timezone.utc),
+        booster_progress_percent=0,
+        booster_error=None,
+    )
+
+    logger.info(f"Enqueuing booster task for job {job_id} run {run_id}")
+    run_booster_task.apply_async(
+        (job_id, user.user_id, run_id),  # Pass run_id to worker
+        task_id=f"{job_id}_{run_id}_booster"
+    )
+
+    return {
+        "job_id": job_id,
+        "run_id": run_id,
+        "status": "queued",
+        "booster_status": "queued",
+        "message": f"Deep Research Booster for run {run_id} started.",
+    }
+
+
+# =============================================================================
 # ITERATION LOOP ENDPOINT (Phase 9)
 # =============================================================================
 
