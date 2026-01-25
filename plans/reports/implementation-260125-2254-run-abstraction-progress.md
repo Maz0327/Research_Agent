@@ -108,6 +108,18 @@ When `run_id` is None:
 
 ---
 
+### 7. Worker Task V2 Support (`backend/worker.py`)
+
+Updated `run_iteration_task` to support both V1 and V2:
+
+- Detects V2 runs by `run_id.startswith("run_")`
+- Routes V2 runs to `_run_v2_run_task()` helper
+- Uses run mode executors (add_sources, regenerate)
+- Falls back to regenerate for unimplemented modes
+- Includes `_mark_run_failed()` for consistent error handling
+
+---
+
 ## Commits
 
 ```
@@ -116,6 +128,7 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 4bb3d9d feat(worker): add run-scoped storage for Producer/Booster
 6be369d feat(api): add V2 run-based iteration endpoint
 8ee1436 feat(pipeline): add V2 run mode executors
+9cca824 feat(worker): wire run_iteration_task to V2 run modes
 ```
 
 ---
@@ -126,7 +139,7 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 
 1. ~~**Run Iteration Modes**~~ ✅ Implemented add_sources and regenerate modes
 
-2. **Worker Task Update** - Wire up `run_iteration_task` to use V2 run modes
+2. ~~**Worker Task Update**~~ ✅ Wired run_iteration_task to V2 run modes
 
 ### Medium Priority
 
