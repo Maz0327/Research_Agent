@@ -24,10 +24,10 @@ interface DocModalState {
 export interface ArtifactCardGridProps {
   /** Job data */
   job: Job;
-  /** Handler to trigger booster */
-  onTriggerBooster: () => void;
-  /** Handler to trigger producer packet */
-  onTriggerProducer: () => void;
+  /** Handler to trigger booster (optional runId for V2 runs) */
+  onTriggerBooster: (runId?: string) => void;
+  /** Handler to trigger producer packet (optional runId for V2 runs) */
+  onTriggerProducer: (runId?: string) => void;
   /** Handler to open iteration dialog */
   onOpenIterationDialog: () => void;
   /** Whether actions are disabled (loading state) */
@@ -347,14 +347,22 @@ export function ArtifactCardGrid({
           if (state === 'completed') {
             openDocViewer(3, 'Producer Packet');
           } else if (state === 'ready' && !actionsDisabled) {
-            onTriggerProducer();
+            // Pass runId for V2 runs (except baseline run_0)
+            const producerRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
+              ? selectedVersion
+              : undefined;
+            onTriggerProducer(producerRunId);
           }
           break;
         case 'booster':
           if (state === 'completed') {
             openDocViewer('B', 'Deep Research');
           } else if (state === 'ready' && !actionsDisabled) {
-            onTriggerBooster();
+            // Pass runId for V2 runs (except baseline run_0)
+            const boosterRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
+              ? selectedVersion
+              : undefined;
+            onTriggerBooster(boosterRunId);
           }
           break;
         case 'iteration':
