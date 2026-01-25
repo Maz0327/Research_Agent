@@ -18,3 +18,6 @@ export type { ArtifactCardGridProps } from './ArtifactCardGrid';
 
 export { IterationSelector } from './IterationSelector';
 export type { IterationSelectorProps } from './IterationSelector';
+
+export { RunSelector } from './RunSelector';
+export type { RunSelectorProps } from './RunSelector';

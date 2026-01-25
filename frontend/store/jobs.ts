@@ -149,6 +149,9 @@ export interface JobArtifacts {
   // Iteration Loop (Phase 9)
   /** Iteration bundles - each iteration produces its own doc set */
   iterations?: IterationBundle[];
+  // V2 Run Abstraction (Phase 10)
+  /** V2 runs - unified model for baseline/iterations/regenerations */
+  runs?: unknown[];
 }
 
 /**
