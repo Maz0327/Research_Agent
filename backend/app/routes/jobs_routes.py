@@ -1848,6 +1848,279 @@ async def run_job_iteration(
 
 
 # =============================================================================
+# V2 RUN-BASED ITERATION ENDPOINT (Run Abstraction)
+# =============================================================================
+
+from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
+from typing import List
+
+
+class CreateRunRequest(PydanticBaseModel):
+    """Request to create a new run (V2 iteration)."""
+    run_type: str = PydanticField(
+        ...,
+        description="Run type: add_sources, fix_weak, counter, angle, regenerate"
+    )
+    parent_run_id: str = PydanticField(
+        default="run_0",
+        description="Parent run ID to build on (default: baseline)"
+    )
+    user_prompt: str = PydanticField(
+        default="",
+        description="Optional user guidance for the run"
+    )
+    # Type-specific fields
+    new_source_urls: List[str] = PydanticField(
+        default_factory=list,
+        description="URLs to add (for add_sources type)"
+    )
+    max_new_sources: int = PydanticField(
+        default=4,
+        ge=1, le=10,
+        description="Max sources to add (for add_sources type)"
+    )
+    gap_ids: List[str] = PydanticField(
+        default_factory=list,
+        description="Gap IDs to address (for fix_weak type)"
+    )
+    claim_ids: List[str] = PydanticField(
+        default_factory=list,
+        description="Claim IDs to find counters for (for counter type)"
+    )
+    perspective: str = PydanticField(
+        default="",
+        description="New angle to explore (for angle type)"
+    )
+
+
+class CreateRunResponse(PydanticBaseModel):
+    """Response after creating a run."""
+    job_id: str
+    run_id: str
+    run_index: int
+    run_type: str
+    parent_run_id: str
+    status: str
+    message: str
+
+
+@router.post("/{job_id}/runs", response_model=CreateRunResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def create_run(
+    request: Request,
+    job_id: str,
+    run_request: CreateRunRequest,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Create a new run (V2 iteration) on a completed job.
+
+    V2 Run Abstraction: Uses Run model instead of legacy Iteration.
+    Each run produces Doc 0/1/2 outputs scoped to the run.
+
+    Run types:
+    - add_sources: Add more sources (Doc 0 append-only, Doc 1/2 regenerated)
+    - fix_weak: Address gaps/weaknesses identified in previous run
+    - counter: Find counterarguments to claims
+    - angle: Explore a different perspective
+    - regenerate: Re-run synthesis with same sources
+
+    CRITICAL:
+    - jobs.status remains 'completed' after run starts
+    - Run failure does NOT affect parent run documents
+    - For add_sources: Doc 0 is delta-only (new sources), merged on display
+
+    Returns run_id and status. Poll job status for completion.
+    """
+    from datetime import datetime, timezone
+    from backend.models.run_models import (
+        Run, RunType, RunStatus, RunRequest, RunOutputs,
+        ensure_runs_migrated, create_iteration_run,
+    )
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    # Validate run_type
+    valid_run_types = ["add_sources", "fix_weak", "counter", "angle", "regenerate"]
+    if run_request.run_type not in valid_run_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid run_type. Must be one of: {', '.join(valid_run_types)}"
+        )
+
+    # Map string to RunType enum
+    run_type_map = {
+        "add_sources": RunType.ADD_SOURCES,
+        "fix_weak": RunType.FIX_WEAK_SPOTS,
+        "counter": RunType.COUNTERARGUMENT,
+        "angle": RunType.DIFFERENT_ANGLE,
+        "regenerate": RunType.REGENERATE,
+    }
+    run_type = run_type_map[run_request.run_type]
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to create run. Current status: '{job_status}'"
+        )
+
+    # Check if another run/iteration is in progress
+    iteration_status = job.iteration_status if hasattr(job, "iteration_status") else None
+    if iteration_status in ("running", "queued"):
+        raise HTTPException(
+            status_code=409,
+            detail="Another run/iteration is already in progress for this job"
+        )
+
+    # Get artifacts
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    # Get or migrate runs
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or user.user_id,
+    )
+
+    if not runs:
+        raise HTTPException(
+            status_code=400,
+            detail="No baseline run found. Job must have completed baseline documents."
+        )
+
+    # Find parent run
+    parent_run = None
+    for run in runs:
+        if run.run_id == run_request.parent_run_id:
+            parent_run = run
+            break
+
+    if not parent_run:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Parent run '{run_request.parent_run_id}' not found"
+        )
+
+    if parent_run.status != RunStatus.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Parent run must be completed. Current status: '{parent_run.status}'"
+        )
+
+    # Calculate next run index
+    next_index = max(r.run_index for r in runs) + 1
+    new_run_id = f"run_{next_index}"
+
+    # Build run request
+    now = datetime.now(timezone.utc)
+    new_run_request = RunRequest(
+        user_prompt=run_request.user_prompt or None,
+        new_source_urls=run_request.new_source_urls if run_request.new_source_urls else None,
+        max_new_sources=run_request.max_new_sources if run_type == RunType.ADD_SOURCES else None,
+        gap_ids=run_request.gap_ids if run_request.gap_ids else None,
+        claim_ids=run_request.claim_ids if run_request.claim_ids else None,
+        perspective=run_request.perspective or None,
+        requested_by=user.user_id,
+        requested_at=now,
+    )
+
+    # Create new run
+    new_run = Run(
+        run_id=new_run_id,
+        run_index=next_index,
+        run_type=run_type,
+        parent_run_id=parent_run.run_id,
+        status=RunStatus.QUEUED,
+        request=new_run_request,
+        created_at=now,
+    )
+
+    # Append to runs list
+    runs.append(new_run)
+
+    # Update artifacts with new runs
+    from backend.models.job_record import Artifacts
+    updated_artifacts = Artifacts(**{
+        **artifacts_dict,
+        "runs": [r.model_dump() for r in runs],
+    })
+
+    # Update job with run tracking
+    try:
+        update_job(
+            job_id,
+            iteration_status="queued",  # Reuse iteration tracking for now
+            iteration_id=new_run_id,
+            iteration_started_at=now,
+            iteration_progress_percent=0,
+            iteration_error=None,
+            artifacts=updated_artifacts,
+        )
+    except Exception as e:
+        error_str = str(e).lower()
+        if "unique" in error_str or "duplicate" in error_str or "23505" in error_str:
+            logger.warning(f"Concurrent run creation blocked for job {job_id}: {e}")
+            raise HTTPException(
+                status_code=409,
+                detail="Another run is already in progress (concurrent request blocked)"
+            )
+        raise
+
+    # Queue run task (reuse iteration task for now, will be updated)
+    from backend.worker import run_iteration_task
+    logger.info(f"Enqueuing run task for job {job_id}, run {new_run_id}")
+    run_iteration_task.apply_async(
+        (job_id, new_run_id, user.user_id),
+        task_id=f"{job_id}_{new_run_id}"
+    )
+
+    # Audit log
+    logger.info(
+        "Run created",
+        extra={
+            "job_id": job_id,
+            "run_id": new_run_id,
+            "run_index": next_index,
+            "run_type": run_request.run_type,
+            "parent_run_id": parent_run.run_id,
+            "user_id": user.user_id,
+            "event": "run_created",
+        }
+    )
+
+    return CreateRunResponse(
+        job_id=job_id,
+        run_id=new_run_id,
+        run_index=next_index,
+        run_type=run_request.run_type,
+        parent_run_id=parent_run.run_id,
+        status="queued",
+        message=f"Run {new_run_id} ({run_request.run_type}) started. Parent run documents unchanged.",
+    )
+
+
+# =============================================================================
 # DEPRECATED: Legacy Job Preview (2026-01-19)
 # =============================================================================
 
