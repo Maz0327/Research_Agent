@@ -146,6 +146,18 @@ Unified dropdown supporting both V2 runs and V1 iterations:
 - Updated `openDocViewer()` to load V2 run documents
 - Added `runs` to `JobArtifacts` type in store
 
+### 9. Run Status Polling (`backend/app/routes/jobs_routes.py`)
+
+- Added `GET /{job_id}/runs/{run_id}` endpoint
+- Returns run status, progress, outputs, metrics, error
+- `RunStatusResponse` model with full run details
+
+### 10. Run-scoped Producer/Booster UI
+
+- Updated `triggerBooster(jobId, runId?)` and `triggerProducerPacket(jobId, runId?)` in store
+- ArtifactCardGrid passes runId when viewing V2 runs
+- Calls run-scoped endpoints when runId provided
+
 ---
 
 ## Commits
@@ -159,6 +171,8 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 9cca824 feat(worker): wire run_iteration_task to V2 run modes
 95c779a feat(frontend): add V2 run types and RunSelector component
 a79267e feat(frontend): integrate RunSelector in ArtifactCardGrid
+66e94d2 feat(api): add GET /runs/{run_id} endpoint for status polling
+34f2304 feat(frontend): add run-scoped Producer/Booster support
 ```
 
 ---
@@ -175,8 +189,8 @@ a79267e feat(frontend): integrate RunSelector in ArtifactCardGrid
 
 ### Medium Priority
 
-4. **Run Status Endpoint** - Add `GET /{job_id}/runs/{run_id}` for polling
-5. **Run-scoped Producer/Booster UI buttons** - Update UI to call run-scoped endpoints
+4. ~~**Run Status Endpoint**~~ ✅ Added `GET /{job_id}/runs/{run_id}` for polling
+5. ~~**Run-scoped Producer/Booster UI buttons**~~ ✅ Updated UI to call run-scoped endpoints
 
 ### Low Priority
 
