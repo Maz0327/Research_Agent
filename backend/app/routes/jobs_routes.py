@@ -1638,7 +1638,7 @@ async def run_booster_for_run(
 from backend.models.job import IterateJobRequest, IterateJobResponse
 
 
-@router.post("/{job_id}/iterate", response_model=IterateJobResponse)
+@router.post("/{job_id}/iterate", response_model=IterateJobResponse, deprecated=True)
 @limiter.limit(RATE_LIMITS["jobs_create"])
 async def run_job_iteration(
     request: Request,
@@ -1647,6 +1647,13 @@ async def run_job_iteration(
     user: AuthUser = Depends(get_active_user),
 ):
     """
+    DEPRECATED: Use POST /{job_id}/runs instead.
+
+    This V1 iteration endpoint is deprecated as of 2026-01-26.
+    New code should use the V2 Run Abstraction via POST /jobs/{job_id}/runs.
+
+    ---
+
     Trigger an iteration on a completed job.
 
     APPEND-ONLY: Every iteration produces a new artifact bundle under

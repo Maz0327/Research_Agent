@@ -16,8 +16,5 @@ export type { ArtifactCardProps, ArtifactState, ArtifactType } from './ArtifactC
 export { ArtifactCardGrid } from './ArtifactCardGrid';
 export type { ArtifactCardGridProps } from './ArtifactCardGrid';
 
-export { IterationSelector } from './IterationSelector';
-export type { IterationSelectorProps } from './IterationSelector';
-
 export { RunSelector } from './RunSelector';
 export type { RunSelectorProps } from './RunSelector';
