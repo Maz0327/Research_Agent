@@ -92,6 +92,12 @@ function getArtifactState(
   }
 
   switch (type) {
+    case 'claims_doc':
+      // Claim extraction jobs use doc_0_path for claims_doc storage
+      if (artifacts?.doc_0_path || artifacts?.source_ledger) return 'completed';
+      if (status === 'running' || status === 'queued') return 'running';
+      return 'not_available';
+
     case 'doc_0':
       if (artifacts?.doc_0_path || artifacts?.source_ledger) return 'completed';
       if (status === 'running' || status === 'queued') return 'running';
@@ -196,6 +202,9 @@ export function ArtifactCardGrid({
   onOpenIterationDialog,
   actionsDisabled = false,
 }: ArtifactCardGridProps) {
+  // Check if this is a claim extraction job
+  const isClaimExtractionJob = job.pipeline === 'claim_extraction';
+
   // Selected iteration version ('baseline' or iteration_id)
   const [selectedVersion, setSelectedVersion] = useState<string>('baseline');
 
@@ -368,6 +377,12 @@ export function ArtifactCardGrid({
       const state = getArtifactState(job, type, selectedVersion);
 
       switch (type) {
+        case 'claims_doc':
+          if (state === 'completed') {
+            // For claim extraction jobs, open claims doc using doc_0 endpoint
+            openDocViewer(0, 'Claims Document');
+          }
+          break;
         case 'doc_0':
           if (state === 'completed') {
             openDocViewer(0, 'Source Ledger');
@@ -422,6 +437,46 @@ export function ArtifactCardGrid({
   const completedRunCount = runs.filter((r) => r.status === 'completed' && r.run_type !== 'baseline').length;
   const totalCompletedCount = completedIterationCount + completedRunCount;
 
+  // Render claim extraction UI (single card)
+  if (isClaimExtractionJob) {
+    return (
+      <div className="space-y-6">
+        {/* Single card for claims document */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <ArtifactCard
+            type="claims_doc"
+            state={getArtifactState(job, 'claims_doc', selectedVersion)}
+            progressPercent={job.progress_percent}
+            onClick={() => handleCardClick('claims_doc')}
+          />
+        </div>
+
+        {/* Loading overlay */}
+        {isLoadingDoc && (
+          <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
+            <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-white">Loading document...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Document viewer modal */}
+        <DocumentViewerModal
+          isOpen={docModal.isOpen}
+          onClose={() => setDocModal((s) => ({ ...s, isOpen: false }))}
+          docNumber={docModal.docNumber}
+          title={docModal.title}
+          markdown={docModal.markdown}
+          data={docModal.data}
+          jobTitle={job.title || job.prompt}
+          jobId={job.id}
+        />
+      </div>
+    );
+  }
+
+  // Render semantic pipeline UI (full 6 cards)
   return (
     <div className="space-y-6">
       {/* Run/Iteration selector - show if runs or iterations exist */}

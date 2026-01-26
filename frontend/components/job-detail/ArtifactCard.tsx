@@ -21,7 +21,8 @@ export type ArtifactType =
   | 'doc_2'
   | 'doc_3'
   | 'booster'
-  | 'iteration';
+  | 'iteration'
+  | 'claims_doc';
 
 /** Configuration for each artifact type */
 const ARTIFACT_CONFIG: Record<ArtifactType, {
@@ -65,6 +66,12 @@ const ARTIFACT_CONFIG: Record<ArtifactType, {
     subtitle: 'Additional Passes',
     icon: '🔄',
     readyLabel: 'Run New Pass'
+  },
+  claims_doc: {
+    title: 'Claims Document',
+    subtitle: 'Extracted Claims',
+    icon: '📝',
+    readyLabel: 'View Claims'
   },
 };
 
