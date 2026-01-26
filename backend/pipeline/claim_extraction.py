@@ -208,7 +208,11 @@ def extract_claims_from_youtube(
             )
 
         data = result.get("data", {})
-        raw_claims = data.get("claims", [])
+        # Handle both cases: Gemini may return {"claims": [...]} or just [...]
+        if isinstance(data, list):
+            raw_claims = data  # Gemini returned claims array directly
+        else:
+            raw_claims = data.get("claims", [])
 
         claims: list[Claim] = []
         explicit_count = 0
@@ -323,7 +327,11 @@ def extract_claims_from_text(
             )
 
         data = result.get("data", {})
-        raw_claims = data.get("claims", [])
+        # Handle both cases: Gemini may return {"claims": [...]} or just [...]
+        if isinstance(data, list):
+            raw_claims = data  # Gemini returned claims array directly
+        else:
+            raw_claims = data.get("claims", [])
 
         claims: list[Claim] = []
         explicit_count = 0
@@ -435,7 +443,11 @@ def extract_claims_from_screenshot(
             )
 
         data = result.get("data", {})
-        raw_claims = data.get("claims", [])
+        # Handle both cases: Gemini may return {"claims": [...]} or just [...]
+        if isinstance(data, list):
+            raw_claims = data  # Gemini returned claims array directly
+        else:
+            raw_claims = data.get("claims", [])
 
         claims: list[Claim] = []
         explicit_count = 0
