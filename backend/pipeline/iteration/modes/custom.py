@@ -75,10 +75,13 @@ def run_custom(
     # Restore original topic
     ctx.topic = original_topic
 
-    # Extract docs
+    # Extract docs with markdown for frontend rendering
     doc_0 = result["source_ledger"].to_dict()
+    doc_0["markdown"] = result["source_ledger"].to_markdown()
     doc_1 = result["jump_start"].to_dict()
+    doc_1["markdown"] = result["jump_start"].to_markdown()
     doc_2 = result["semantic_brief"].to_dict()
+    doc_2["markdown"] = result["semantic_brief"].to_markdown()
 
     # Add iteration metadata to docs
     doc_0["iteration_id"] = iteration_id

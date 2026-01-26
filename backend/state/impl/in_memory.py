@@ -168,13 +168,17 @@ class InMemoryJobStore(JobStore):
         user_id: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
+        archived: Optional[bool] = None,
     ) -> list[JobRecord]:
         """List jobs, optionally filtered by user_id."""
         with self._lock:
             jobs = list(self._jobs.values())
 
-        # Exclude deleted and archived jobs by default
-        jobs = [job for job in jobs if job.status not in ("deleted", "archived")]
+        # Filter by archived status (default: exclude archived)
+        if archived is True:
+            jobs = [job for job in jobs if job.archived]
+        elif archived is False or archived is None:
+            jobs = [job for job in jobs if not job.archived]
 
         # Filter by user_id if provided (outside lock - operating on copy)
         if user_id is not None:
@@ -188,3 +192,13 @@ class InMemoryJobStore(JobStore):
         end = offset + limit
 
         return jobs[start:end]
+
+    def archive_job(self, job_id: str, archived: bool = True) -> Optional[JobRecord]:
+        """Archive or unarchive a job."""
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return None
+            job.archived = archived
+            logger.info(f"{'Archived' if archived else 'Unarchived'} job {job_id}")
+            return job

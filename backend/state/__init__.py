@@ -19,6 +19,7 @@ __all__ = [
     "update_job",
     "update_job_status",  # Backward compatibility
     "list_jobs",
+    "archive_job",
 ]
 
 
@@ -197,6 +198,7 @@ def list_jobs(
     user_id: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    archived: bool | None = None,
 ) -> list[JobRecord]:
     """
     List jobs, optionally filtered by user_id.
@@ -205,9 +207,25 @@ def list_jobs(
         user_id: Optional user ID to filter by
         limit: Maximum number of jobs to return
         offset: Number of jobs to skip (for pagination)
+        archived: Filter by archived status (None/False = non-archived, True = archived)
 
     Returns:
         List of JobRecords, sorted by created_at descending
     """
     store = get_job_store()
-    return store.list_jobs(user_id=user_id, limit=limit, offset=offset)
+    return store.list_jobs(user_id=user_id, limit=limit, offset=offset, archived=archived)
+
+
+def archive_job(job_id: str, archived: bool = True) -> JobRecord | None:
+    """
+    Archive or unarchive a job.
+
+    Args:
+        job_id: Job identifier
+        archived: True to archive, False to unarchive (recover)
+
+    Returns:
+        Updated JobRecord if found, None otherwise
+    """
+    store = get_job_store()
+    return store.archive_job(job_id, archived=archived)

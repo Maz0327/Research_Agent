@@ -22,7 +22,7 @@ from backend.models.job import (
     AddSourcesRequest, AddSourcesResponse, ProcessPendingResponse,
     SourceStateEnum, JobSource,
 )
-from backend.state import create_job, get_job, update_job, list_jobs
+from backend.state import create_job, get_job, update_job, list_jobs, archive_job
 from backend.utils.validators import ValidationError, validate_video_job_inputs
 from backend.worker import run_research_job, run_gemini_video_job
 
@@ -2301,10 +2301,13 @@ async def list_jobs_endpoint(
             error = job.warnings[-1] if job.warnings else "Insufficient data to complete analysis"
             warning_count = len(job.warnings) if job.warnings else 0
 
+        # Get title from job.title or fall back to config_json.title/topic
+        title = job.title or job.config_json.get("title") or job.config_json.get("topic") or prompt
+
         jobs_data.append({
             "id": job.job_id,
             "prompt": prompt,
-            "title": job.title,
+            "title": title,
             "pipeline": pipeline,
             "status": job.status,
             "stage": job.stage,
@@ -3173,3 +3176,113 @@ def _generate_job_pdf(job) -> bytes:
     doc.build(story)
     buffer.seek(0)
     return buffer.read()
+
+
+# ============================================================================
+# Archive Management Endpoints
+# ============================================================================
+
+@router.get("/archived")
+@limiter.limit(RATE_LIMITS["jobs_list"])
+async def list_archived_jobs_endpoint(
+    request: Request,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+    limit: int = 50,
+    offset: int = 0,
+):
+    """List all archived jobs for the current user."""
+    user_id = user.user_id if user else None
+    jobs = list_jobs(user_id=user_id, limit=limit, offset=offset, archived=True)
+
+    jobs_data = []
+    for job in jobs:
+        prompt = job.config_json.get("prompt") or job.config_json.get("topic", "")
+        pipeline = job.config_json.get("job_type") or job.config_json.get("pipeline", "full")
+        title = job.title or job.config_json.get("title") or job.config_json.get("topic") or prompt
+
+        jobs_data.append({
+            "id": job.job_id,
+            "prompt": prompt,
+            "title": title,
+            "pipeline": pipeline,
+            "status": job.status,
+            "created_at": job.created_at.isoformat(),
+            "archived": job.archived,
+        })
+
+    return {"jobs": jobs_data}
+
+
+@router.post("/{job_id}/archive")
+@limiter.limit(RATE_LIMITS["jobs_cancel"])  # Reuse cancel rate limit
+async def archive_job_endpoint(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Archive a job (hide from main job list)."""
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner or admin can archive
+    if job.user_id != user.user_id and not is_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized to archive this job")
+
+    # Cannot archive running jobs
+    if job.status in ("queued", "running"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot archive a running or queued job. Cancel it first."
+        )
+
+    updated_job = archive_job(job_id, archived=True)
+    if not updated_job:
+        raise HTTPException(status_code=500, detail="Failed to archive job")
+
+    logger.info(
+        "Job archived",
+        extra={"job_id": job_id, "archived_by": user.user_id, "event": "job_archived"}
+    )
+
+    return {"message": "Job archived successfully", "job_id": job_id}
+
+
+@router.post("/{job_id}/unarchive")
+@limiter.limit(RATE_LIMITS["jobs_cancel"])  # Reuse cancel rate limit
+async def unarchive_job_endpoint(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Unarchive (recover) a job back to the main job list."""
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner or admin can unarchive
+    if job.user_id != user.user_id and not is_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized to unarchive this job")
+
+    updated_job = archive_job(job_id, archived=False)
+    if not updated_job:
+        raise HTTPException(status_code=500, detail="Failed to unarchive job")
+
+    logger.info(
+        "Job unarchived",
+        extra={"job_id": job_id, "unarchived_by": user.user_id, "event": "job_unarchived"}
+    )
+
+    return {"message": "Job recovered successfully", "job_id": job_id}

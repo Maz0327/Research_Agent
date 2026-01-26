@@ -205,7 +205,23 @@ export function ArtifactCardGrid({
         if (!isBaseline && isV2Run(selectedVersion)) {
           // V2 Run - check run outputs
           const run = runs.find((r) => r.run_id === selectedVersion);
-          if (run?.outputs) {
+
+          // Handle Doc 3 (Producer Packet) - stored in run.producer_packet
+          if (docNumber === 3 && run?.producer_packet) {
+            if (run.producer_packet.status === 'completed') {
+              data = run.producer_packet.inline || {};
+              markdown = run.producer_packet.markdown;
+            }
+          }
+          // Handle Booster - stored in run.booster_expansion
+          else if (docNumber === 'B' && run?.booster_expansion) {
+            if (run.booster_expansion.status === 'completed') {
+              data = run.booster_expansion.output || {};
+              markdown = run.booster_expansion.markdown;
+            }
+          }
+          // Handle Doc 0/1/2 - stored in run.outputs
+          else if (run?.outputs) {
             // V2 runs use doc_X_inline keys in outputs
             const inlineKey = docNumber === 0 ? 'doc_0_inline' :
                              docNumber === 1 ? 'doc_1_inline' :
