@@ -48,6 +48,7 @@ RATE_LIMITS = {
     "jobs_create": "10/hour",
     "jobs_list": "30/minute",
     "jobs_get": "60/minute",
+    "jobs_status": "60/minute",  # Run status polling
     "jobs_cancel": "10/minute",
 
     # Transcripts routes
