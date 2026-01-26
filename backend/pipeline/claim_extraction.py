@@ -585,14 +585,13 @@ def run_claim_extraction_pipeline(
 
         source_id = f"SRC_{current_source:03d}"
 
-        # Fetch article content
+        # Fetch article content using Supadata
         try:
-            from backend.integrations.firecrawl_client import FirecrawlClient
-
-            firecrawl = FirecrawlClient()
-            article = firecrawl.scrape_url(url)
-            content = article.get("content", article.get("markdown", ""))
-            article_title = article.get("title", f"Article {i+1}")
+            supadata = SupadataClient()
+            article = supadata.scrape_url(url)
+            content = article.get("content", "")
+            # Extract title from URL or use default
+            article_title = url.split("/")[-1].replace("-", " ").replace("_", " ")[:50] or f"Article {i+1}"
 
             if not content:
                 logger.warning(f"No content fetched for {url}")
