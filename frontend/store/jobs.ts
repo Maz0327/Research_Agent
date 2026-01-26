@@ -282,6 +282,49 @@ export interface VideoAnalysisResponse {
 }
 
 /**
+ * Claim extraction text input
+ */
+export interface ClaimExtractionTextInput {
+  title: string;
+  content: string;
+  platform_hint?: string;
+}
+
+/**
+ * Claim extraction screenshot input
+ */
+export interface ClaimExtractionScreenshot {
+  filename: string;
+  base64: string;
+  platform_hint?: string;
+}
+
+/**
+ * Claim extraction job request
+ */
+export interface ClaimExtractionRequest {
+  title: string;
+  video_urls?: string[];
+  article_urls?: string[];
+  text_inputs?: ClaimExtractionTextInput[];
+  screenshots?: ClaimExtractionScreenshot[];
+  model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+}
+
+/**
+ * Claim extraction job response
+ */
+export interface ClaimExtractionResponse {
+  job_id: string;
+  source_count: number;
+  video_count: number;
+  article_count: number;
+  text_count: number;
+  screenshot_count: number;
+  warnings?: string[];
+}
+
+/**
  * Text input job request - for user-pasted content
  */
 export interface TextInputRequest {
@@ -430,10 +473,10 @@ interface JobsState {
   fetchArchivedJobs: () => Promise<void>;
   previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
   createJob: (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => Promise<string>;
-  createVideoAnalysisJob: (videoUrls: string[], title?: string, model?: 'gemini-2.5-flash' | 'gemini-2.5-pro') => Promise<VideoAnalysisResponse>;
   createTextInputJob: (request: TextInputRequest) => Promise<TextInputResponse>;
   createScreenshotInputJob: (file: File, topic: string, platformHint?: string, contextNote?: string) => Promise<ScreenshotInputResponse>;
   createMixedInputJob: (request: MixedInputRequest) => Promise<MixedInputResponse>;
+  createClaimExtractionJob: (request: ClaimExtractionRequest) => Promise<ClaimExtractionResponse>;
   triggerBooster: (jobId: string, runId?: string) => Promise<BoosterResponse>;
   triggerProducerPacket: (jobId: string, runId?: string) => Promise<ProducerPacketResponse>;
   triggerIteration: (jobId: string, request: IterationRequest) => Promise<IterationResponse>;
@@ -615,67 +658,6 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
-  createVideoAnalysisJob: async (
-    videoUrls: string[],
-    title?: string,
-    model: 'gemini-2.5-flash' | 'gemini-2.5-pro' = 'gemini-2.5-flash'
-  ): Promise<VideoAnalysisResponse> => {
-    set({ isLoading: true, error: null });
-    try {
-      const token = await getAccessToken();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const body: Record<string, unknown> = {
-        video_urls: videoUrls,
-        model,
-      };
-      if (title) {
-        body.title = title;
-      }
-
-      const response = await fetch(`${API_URL}/jobs/video-analysis`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(formatApiError(errorData, 'Failed to create video analysis job'));
-      }
-
-      const data: VideoAnalysisResponse = await response.json();
-
-      // Add job to local state
-      const newJob: Job = {
-        id: data.job_id,
-        prompt: title || `Video Analysis (${data.video_count} videos)`,
-        pipeline: 'video_analysis',
-        status: 'queued',
-        progress_percent: 0,
-        created_at: new Date().toISOString(),
-      };
-
-      set((state) => ({
-        jobs: [newJob, ...state.jobs],
-        isLoading: false,
-      }));
-
-      return data;
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to create video analysis job',
-        isLoading: false,
-      });
-      throw error;
-    }
-  },
-
   createTextInputJob: async (request: TextInputRequest): Promise<TextInputResponse> => {
     set({ isLoading: true, error: null });
     try {
@@ -839,6 +821,56 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to create mixed input job',
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  createClaimExtractionJob: async (request: ClaimExtractionRequest): Promise<ClaimExtractionResponse> => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/claim-extraction`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to create claim extraction job'));
+      }
+
+      const data: ClaimExtractionResponse = await response.json();
+
+      // Add job to local state
+      const newJob: Job = {
+        id: data.job_id,
+        prompt: request.title,
+        title: request.title,
+        pipeline: 'claim_extraction',
+        status: 'queued',
+        progress_percent: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        jobs: [newJob, ...state.jobs],
+        isLoading: false,
+      }));
+
+      return data;
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create claim extraction job',
         isLoading: false,
       });
       throw error;

@@ -38,6 +38,7 @@ celery_app.conf.update(
         "backend.worker.run_iteration_task": {"queue": "research"},
         "backend.worker.run_booster_task": {"queue": "research"},
         "backend.worker.run_producer_task": {"queue": "research"},
+        "backend.worker.run_claim_extraction_job": {"queue": "research"},
     },
     task_default_queue="research",
     task_default_exchange="research",
@@ -2205,3 +2206,203 @@ def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> di
             "status": "failed",
             "error": str(e),
         }
+
+
+# =============================================================================
+# Claim Extraction Task
+# =============================================================================
+
+@celery_app.task(
+    name="backend.worker.run_claim_extraction_job",
+    time_limit=1800,  # 30 min hard limit
+    soft_time_limit=1500,  # 25 min soft limit
+)
+def run_claim_extraction_job(job_id: str) -> dict:
+    """
+    Celery task for Claim Extraction pipeline.
+
+    Extracts ALL claims (explicit and implied) from provided sources:
+    - YouTube videos (with timestamp anchors)
+    - Article URLs (with line range anchors)
+    - User-provided text (with line range anchors)
+    - Screenshots (with image index anchors)
+
+    NO claim verification - extraction only.
+    NO source retrieval - only analyzes provided inputs.
+
+    Output: ClaimsDocument stored in Supabase Storage
+
+    Args:
+        job_id: Unique identifier for the claim extraction job
+
+    Returns:
+        Dict with job_id, status, claim counts, and any errors
+    """
+    from backend.integrations.gemini_client import GeminiClient
+    from backend.integrations.supabase_storage import get_storage_client
+    from backend.pipeline.claim_extraction import run_claim_extraction_pipeline
+    from backend.models.job_record import Artifacts
+
+    logger.info(f"[{job_id}] Starting Claim Extraction Pipeline")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Job not found")
+        return {"job_id": job_id, "status": "failed", "error": "Job not found"}
+
+    config = job.config_json or {}
+    title = config.get("title", "Claim Extraction")
+    model = config.get("model", "gemini-2.5-flash")
+
+    # Extract input sources from config
+    video_urls = config.get("video_urls", [])
+    article_urls = config.get("article_urls", [])
+    text_inputs = config.get("text_inputs", [])
+    screenshots = config.get("screenshots", [])
+
+    total_sources = len(video_urls) + len(article_urls) + len(text_inputs) + len(screenshots)
+
+    if total_sources == 0:
+        logger.error(f"[{job_id}] No sources provided")
+        update_job(job_id, status="failed", stage="error", error="No sources provided")
+        return {"job_id": job_id, "status": "failed", "error": "No sources provided"}
+
+    logger.info(
+        f"[{job_id}] Processing {total_sources} sources: "
+        f"{len(video_urls)} videos, {len(article_urls)} articles, "
+        f"{len(text_inputs)} text inputs, {len(screenshots)} screenshots"
+    )
+
+    # Update status to running
+    update_job(
+        job_id,
+        status="running",
+        stage="claim_extraction",
+        progress_percent=5,
+    )
+
+    # Progress callback
+    def progress_callback(current: int, total: int, status: str):
+        """Update job progress during extraction."""
+        try:
+            progress = int(5 + (current / total) * 85)  # 5-90%
+            update_job(
+                job_id,
+                stage=f"extracting_{current}_{total}",
+                progress_percent=progress,
+                config_json={
+                    **config,
+                    "current_source": current,
+                    "total_sources": total,
+                    "extraction_status": status,
+                },
+            )
+            logger.info(f"[{job_id}] {status} ({current}/{total})")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Progress update failed: {e}")
+
+    try:
+        # Initialize Gemini client
+        client = GeminiClient()
+
+        # Run claim extraction pipeline
+        claims_doc = run_claim_extraction_pipeline(
+            gemini_client=client,
+            job_id=job_id,
+            title=title,
+            video_urls=video_urls,
+            article_urls=article_urls,
+            text_inputs=text_inputs,
+            screenshots=screenshots,
+            model=model,
+            progress_callback=progress_callback,
+        )
+
+        # Store claims document in Supabase Storage
+        update_job(job_id, stage="storing_results", progress_percent=90)
+
+        storage = get_storage_client()
+        claims_doc_path = None
+
+        if storage:
+            try:
+                claims_doc_path = storage.upload_document(
+                    job_id=job_id,
+                    doc_type="claims_doc",
+                    content=claims_doc.to_dict(),
+                )
+                logger.info(f"[{job_id}] Stored claims document at {claims_doc_path}")
+            except Exception as storage_error:
+                logger.warning(f"[{job_id}] Failed to store claims doc: {storage_error}")
+        else:
+            logger.warning(f"[{job_id}] Storage not available, storing inline")
+
+        # Build artifacts with claims document
+        artifacts = Artifacts(
+            # Store path if available, otherwise store inline
+            doc_0_path=claims_doc_path,  # Reuse doc_0_path for claims doc
+            source_ledger=claims_doc.to_dict() if not claims_doc_path else None,
+        )
+
+        # Determine final status
+        warnings = []
+        final_status = "completed"
+
+        if claims_doc.metadata.total_claims == 0:
+            warnings.append("No claims extracted from provided sources")
+            final_status = "completed_with_warnings"
+
+        # Update job with results
+        update_job(
+            job_id,
+            status=final_status,
+            stage="completed",
+            progress_percent=100,
+            title=title,
+            artifacts=artifacts,
+            warnings=warnings if warnings else None,
+        )
+
+        logger.info(
+            f"[{job_id}] Claim extraction completed: "
+            f"{claims_doc.metadata.total_claims} claims "
+            f"({claims_doc.metadata.total_explicit} explicit, "
+            f"{claims_doc.metadata.total_implied} implied) "
+            f"from {claims_doc.metadata.source_count} sources"
+        )
+
+        return {
+            "job_id": job_id,
+            "status": final_status,
+            "total_claims": claims_doc.metadata.total_claims,
+            "explicit_claims": claims_doc.metadata.total_explicit,
+            "implied_claims": claims_doc.metadata.total_implied,
+            "source_count": claims_doc.metadata.source_count,
+            "claims_doc_path": claims_doc_path,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Claim extraction timed out after 25 minutes")
+        update_job(
+            job_id,
+            status="failed",
+            stage="timeout",
+            error="Claim extraction timed out. Try processing fewer sources.",
+            warnings=["Task exceeded 25 minute time limit"],
+        )
+        return {
+            "job_id": job_id,
+            "status": "failed",
+            "error": "Claim extraction timed out after 25 minutes",
+        }
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Claim extraction failed: {e}")
+        update_job(
+            job_id,
+            status="failed",
+            stage="error",
+            error=str(e),
+            warnings=[f"Claim extraction failed: {str(e)}"],
+        )
+        return {"job_id": job_id, "status": "failed", "error": str(e)}

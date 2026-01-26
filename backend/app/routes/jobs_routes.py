@@ -14,17 +14,17 @@ from backend.auth.admin import is_admin
 from backend.models.job import (
     CreateJobRequest, CreateJobResponse, JobStatusResponse,
     SelectInterpretationRequest, PreviewJobRequest, PreviewJobResponse,
-    VideoAnalysisRequest, VideoAnalysisResponse, VideoAnalysisStatusResponse,
     TextInputRequest, TextInputResponse,
     ScreenshotInputRequest, ScreenshotInputResponse,
     MixedInputRequest, MixedInputResponse, SourceAccepted,
     # Phase 6: Evolving Jobs
     AddSourcesRequest, AddSourcesResponse, ProcessPendingResponse,
     SourceStateEnum, JobSource,
+    # Claim Extraction
+    ClaimExtractionRequest, ClaimExtractionResponse,
 )
 from backend.state import create_job, get_job, update_job, list_jobs, archive_job
-from backend.utils.validators import ValidationError, validate_video_job_inputs
-from backend.worker import run_research_job, run_gemini_video_job
+from backend.worker import run_research_job, run_claim_extraction_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -147,40 +147,47 @@ async def create_job_endpoint(
 
 
 # =============================================================================
-# Video Analysis Endpoint (URL-first Gemini extraction - PRIMARY FLOW)
+# Claim Extraction Endpoints
 # =============================================================================
 
-@router.post("/video-analysis", response_model=VideoAnalysisResponse)
+@router.post("/claim-extraction", response_model=ClaimExtractionResponse)
 @limiter.limit(RATE_LIMITS["jobs_create"])
-async def create_video_analysis_job(
+async def create_claim_extraction_job(
     request: Request,
-    job_request: VideoAnalysisRequest,
+    job_request: ClaimExtractionRequest,
     user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """
-    Create a new video analysis job (URL-first Gemini extraction).
+    Create a claim extraction job from multiple input types.
 
-    This is the PRIMARY job creation endpoint for the Gemini pivot.
-    User provides YouTube URLs directly → Gemini extracts clips/quotes.
+    Accepts:
+    - YouTube video URLs (transcripts analyzed for claims)
+    - Article URLs (fetched and analyzed)
+    - User-provided text (directly analyzed)
+    - Screenshots (OCR + vision analysis)
 
-    Returns estimated cost and job ID for polling.
+    Extracts ALL claims (explicit and implied) without verification.
+    Output: ClaimsDocument stored and displayed like Doc 0/1/2.
     """
-    # Validate video URLs and get cost estimate
-    validation = validate_video_job_inputs(
-        video_urls=job_request.video_urls,
-        video_durations=None,  # Will estimate based on count
-        model=job_request.model,
-    )
+    # Count sources
+    video_count = len(job_request.video_urls) if job_request.video_urls else 0
+    article_count = len(job_request.article_urls) if job_request.article_urls else 0
+    text_count = len(job_request.text_inputs) if job_request.text_inputs else 0
+    screenshot_count = len(job_request.screenshots) if job_request.screenshots else 0
+    total_sources = video_count + article_count + text_count + screenshot_count
 
-    if not validation.valid:
-        raise HTTPException(status_code=422, detail=validation.error)
+    if total_sources == 0:
+        raise HTTPException(status_code=422, detail="At least one source must be provided")
 
     # Build config_json for the job
     config_json = {
-        "video_urls": job_request.video_urls,
+        "title": job_request.title,
         "model": job_request.model,
-        "title": job_request.title or f"Video Analysis ({len(job_request.video_urls)} videos)",
-        "job_type": "video_analysis",  # Distinguish from topic-based jobs
+        "job_type": "claim_extraction",
+        "video_urls": job_request.video_urls or [],
+        "article_urls": job_request.article_urls or [],
+        "text_inputs": [t.model_dump() for t in job_request.text_inputs] if job_request.text_inputs else [],
+        "screenshots": [s.model_dump() for s in job_request.screenshots] if job_request.screenshots else [],
     }
 
     # Store user info
@@ -194,98 +201,33 @@ async def create_video_analysis_job(
 
     # Audit log
     logger.info(
-        "Video analysis job created",
+        "Claim extraction job created",
         extra={
             "job_id": job.job_id,
             "user_id": user_id or "anonymous",
-            "video_count": len(job_request.video_urls),
+            "video_count": video_count,
+            "article_count": article_count,
+            "text_count": text_count,
+            "screenshot_count": screenshot_count,
+            "total_sources": total_sources,
             "model": job_request.model,
-            "estimated_cost": validation.estimated_cost,
             "ip": request.client.host if request.client else None,
-            "event": "video_analysis_job_created",
+            "event": "claim_extraction_job_created",
         }
     )
 
     # Enqueue Celery task
-    logger.info(f"Enqueuing Gemini video job {job.job_id} for {len(job_request.video_urls)} videos")
-    run_gemini_video_job.apply_async((job.job_id,), task_id=job.job_id)
+    logger.info(f"Enqueuing claim extraction job {job.job_id} for {total_sources} sources")
+    run_claim_extraction_job.apply_async((job.job_id,), task_id=job.job_id)
 
-    return VideoAnalysisResponse(
+    return ClaimExtractionResponse(
         job_id=job.job_id,
-        estimated_cost=validation.estimated_cost,
-        total_duration_minutes=validation.total_duration_minutes,
-        video_count=len(job_request.video_urls),
-        warnings=validation.warnings if validation.warnings else None,
-    )
-
-
-@router.get("/video-analysis/{job_id}", response_model=VideoAnalysisStatusResponse)
-@limiter.limit(RATE_LIMITS["jobs_get"])
-async def get_video_analysis_status(
-    request: Request,
-    job_id: str,
-    user: Optional[AuthUser] = Depends(get_optional_active_user),
-):
-    """Get the status of a video analysis job."""
-    # Validate job_id format
-    try:
-        uuid.UUID(job_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid job ID format")
-
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    # Authorization check
-    if job.user_id is not None:
-        if user is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Authentication required to view this job",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        if job.user_id != user.user_id:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-    # Extract progress info from config_json
-    current_video = job.config_json.get("current_video") if job.config_json else None
-    total_videos = len(job.config_json.get("video_urls", [])) if job.config_json else None
-
-    # Extract clips/quotes counts from artifacts
-    clips_count = None
-    quotes_count = None
-    producer_packet = None
-
-    if job.artifacts:
-        artifacts_dict = job.artifacts.model_dump(exclude_none=True) if hasattr(job.artifacts, "model_dump") else {}
-        clips = artifacts_dict.get("clips", [])
-        quotes = artifacts_dict.get("quotes", [])
-        clips_count = len(clips) if clips else None
-        quotes_count = len(quotes) if quotes else None
-
-        # If completed (with or without warnings) or failed_insufficient, include producer packet
-        # failed_insufficient still has partial artifacts that may be useful
-        if job.status in ("completed", "completed_with_warnings", "failed_insufficient"):
-            producer_packet = artifacts_dict
-
-    # Extract error
-    error = None
-    if job.status == "failed":
-        if job.warnings:
-            error = job.warnings[-1]
-
-    return VideoAnalysisStatusResponse(
-        job_id=job.job_id,
-        status=job.status,
-        progress_percent=job.progress_percent,
-        current_video=current_video,
-        total_videos=total_videos,
-        clips_count=clips_count,
-        quotes_count=quotes_count,
-        error=error,
-        created_at=job.created_at,
-        producer_packet=producer_packet,
+        source_count=total_sources,
+        video_count=video_count,
+        article_count=article_count,
+        text_count=text_count,
+        screenshot_count=screenshot_count,
+        warnings=None,
     )
 
 

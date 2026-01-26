@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any, Literal, Optional
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class JobStatus(BaseModel):
@@ -246,6 +246,86 @@ class VideoAnalysisStatusResponse(BaseModel):
     producer_packet: Optional[dict[str, Any]] = Field(
         None, description="Full ProducerPacket when job completes"
     )
+
+
+# =============================================================================
+# Claim Extraction Models
+# =============================================================================
+
+class ClaimExtractionTextInput(BaseModel):
+    """Text input for claim extraction."""
+    title: str = Field(..., min_length=1, max_length=200, description="Title for this text input")
+    content: str = Field(..., min_length=10, max_length=100000, description="Text content to analyze")
+    platform_hint: Optional[str] = Field(None, description="Platform hint (twitter, reddit, etc.)")
+
+
+class ClaimExtractionScreenshot(BaseModel):
+    """Screenshot input for claim extraction."""
+    filename: str = Field(..., description="Original filename")
+    base64: str = Field(..., description="Base64-encoded image data")
+    platform_hint: Optional[str] = Field(None, description="Platform hint (twitter, reddit, etc.)")
+
+
+class ClaimExtractionRequest(BaseModel):
+    """Request model for claim extraction job.
+
+    Accepts multiple input types: YouTube URLs, article URLs, text inputs, screenshots.
+    Extracts ALL claims (explicit and implied) without verification.
+    """
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Title for the claim extraction project"
+    )
+    video_urls: Optional[list[str]] = Field(
+        None,
+        max_length=10,
+        description="YouTube video URLs to analyze (max 10)"
+    )
+    article_urls: Optional[list[str]] = Field(
+        None,
+        max_length=20,
+        description="Article URLs to fetch and analyze (max 20)"
+    )
+    text_inputs: Optional[list[ClaimExtractionTextInput]] = Field(
+        None,
+        max_length=10,
+        description="User-provided text inputs (max 10)"
+    )
+    screenshots: Optional[list[ClaimExtractionScreenshot]] = Field(
+        None,
+        max_length=10,
+        description="Screenshot images to analyze (max 10)"
+    )
+    model: Literal["gemini-2.5-flash", "gemini-2.5-pro"] = Field(
+        "gemini-2.5-flash",
+        description="Gemini model to use for extraction"
+    )
+
+    @model_validator(mode='after')
+    def validate_at_least_one_source(self) -> 'ClaimExtractionRequest':
+        """Ensure at least one source is provided."""
+        has_videos = self.video_urls and len(self.video_urls) > 0
+        has_articles = self.article_urls and len(self.article_urls) > 0
+        has_text = self.text_inputs and len(self.text_inputs) > 0
+        has_screenshots = self.screenshots and len(self.screenshots) > 0
+
+        if not (has_videos or has_articles or has_text or has_screenshots):
+            raise ValueError("At least one source must be provided")
+
+        return self
+
+
+class ClaimExtractionResponse(BaseModel):
+    """Response model for claim extraction job creation."""
+    job_id: str
+    source_count: int = Field(..., description="Total number of sources to analyze")
+    video_count: int = Field(default=0, description="Number of videos")
+    article_count: int = Field(default=0, description="Number of articles")
+    text_count: int = Field(default=0, description="Number of text inputs")
+    screenshot_count: int = Field(default=0, description="Number of screenshots")
+    warnings: Optional[list[str]] = Field(None, description="Any warnings")
 
 
 # =============================================================================
