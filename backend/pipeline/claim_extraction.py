@@ -542,12 +542,18 @@ def run_claim_extraction_pipeline(
 
         source_id = f"SRC_{current_source:03d}"
 
-        # Fetch transcript using Supadata
+        # Fetch transcript and metadata using Supadata
         try:
             supadata = SupadataClient()
+
+            # Fetch metadata first for title
+            from backend.integrations.supadata_client import fetch_video_metadata
+            metadata = fetch_video_metadata(url)
+            video_title = metadata.get("title", f"Video {i+1}") if metadata else f"Video {i+1}"
+
+            # Fetch transcript
             transcript_result = supadata.get_transcript(url)
-            transcript = transcript_result.get("transcript", "")
-            video_title = transcript_result.get("title", f"Video {i+1}")
+            transcript = transcript_result.get("text", "")  # Note: key is "text", not "transcript"
 
             if not transcript:
                 logger.warning(f"No transcript available for {url}")
