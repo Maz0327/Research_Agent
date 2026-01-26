@@ -386,26 +386,36 @@ export interface ProducerPacketResponse {
 }
 
 /**
- * Iteration request parameters
+ * V2 Run request parameters (replaces IterationRequest)
  */
-export interface IterationRequest {
-  /** Iteration mode: more_sources, deeper, different_angle, custom */
-  mode: 'more_sources' | 'deeper' | 'different_angle' | 'custom';
-  /** User prompt for iteration guidance */
+export interface CreateRunRequest {
+  /** Run type: add_sources, fix_weak, counter, angle, regenerate */
+  run_type: 'add_sources' | 'fix_weak' | 'counter' | 'angle' | 'regenerate';
+  /** Parent run ID to build on (default: run_0) */
+  parent_run_id?: string;
+  /** User guidance for the run */
   user_prompt?: string;
-  /** Max new sources to find (0-10) */
+  /** URLs to add (for add_sources type) */
+  new_source_urls?: string[];
+  /** Max sources to add (for add_sources type) */
   max_new_sources?: number;
-  /** Specific angle to explore (for different_angle mode) */
-  angle?: string;
+  /** Gap IDs to address (for fix_weak type) */
+  gap_ids?: string[];
+  /** Claim IDs to find counters for (for counter type) */
+  claim_ids?: string[];
+  /** New angle to explore (for angle type) */
+  perspective?: string;
 }
 
 /**
- * Iteration trigger response
+ * V2 Run creation response
  */
-export interface IterationResponse {
+export interface CreateRunResponse {
   job_id: string;
-  iteration_id: string;
-  iteration_index: number;
+  run_id: string;
+  run_index: number;
+  run_type: string;
+  parent_run_id: string;
   status: string;
   message: string;
 }
@@ -436,7 +446,7 @@ interface JobsState {
   createMixedInputJob: (request: MixedInputRequest) => Promise<MixedInputResponse>;
   triggerBooster: (jobId: string, runId?: string) => Promise<BoosterResponse>;
   triggerProducerPacket: (jobId: string, runId?: string) => Promise<ProducerPacketResponse>;
-  triggerIteration: (jobId: string, request: IterationRequest) => Promise<IterationResponse>;
+  createRun: (jobId: string, request: CreateRunRequest) => Promise<CreateRunResponse>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -933,7 +943,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
-  triggerIteration: async (jobId: string, request: IterationRequest): Promise<IterationResponse> => {
+  createRun: async (jobId: string, request: CreateRunRequest): Promise<CreateRunResponse> => {
     set({ actionInProgress: 'iteration' });
     try {
       const token = await getAccessToken();
@@ -944,18 +954,28 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_URL}/jobs/${jobId}/iterate`, {
+      // V2 endpoint: POST /jobs/{id}/runs
+      const response = await fetch(`${API_URL}/jobs/${jobId}/runs`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          run_type: request.run_type,
+          parent_run_id: request.parent_run_id || 'run_0',
+          user_prompt: request.user_prompt || '',
+          new_source_urls: request.new_source_urls || [],
+          max_new_sources: request.max_new_sources || 4,
+          gap_ids: request.gap_ids || [],
+          claim_ids: request.claim_ids || [],
+          perspective: request.perspective || '',
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(formatApiError(errorData, 'Failed to start iteration'));
+        throw new Error(formatApiError(errorData, 'Failed to create run'));
       }
 
-      const data: IterationResponse = await response.json();
+      const data: CreateRunResponse = await response.json();
 
       // Update job iteration status in local state (DO NOT change job.status)
       set((state) => ({
@@ -964,7 +984,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
             ? {
                 ...job,
                 iteration_status: 'queued' as const,
-                iteration_id: data.iteration_id,
+                iteration_id: data.run_id,
               }
             : job
         ),
@@ -973,7 +993,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       return data;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to start iteration';
+      const message = error instanceof Error ? error.message : 'Failed to create run';
       set({ error: message, actionInProgress: null });
       throw error;
     }

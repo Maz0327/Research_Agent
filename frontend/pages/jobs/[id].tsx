@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../../components/Layout';
 import { ProtectedRoute, useAuth } from '../../components/AuthProvider';
-import { useJobsStore, type IterationRequest } from '../../store/jobs';
+import { useJobsStore, type CreateRunRequest } from '../../store/jobs';
 import { POLLING_INTERVALS, getStageLabel, getStageDescription } from '../../lib/constants';
 import {
   JobDetailHeader,
@@ -31,32 +31,37 @@ function JobDetailSkeleton() {
   );
 }
 
-/** Iteration Dialog Modal */
+/** Iteration Dialog Modal - V2 Run Types */
 interface IterationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (request: IterationRequest) => void;
+  onSubmit: (request: CreateRunRequest) => void;
   isSubmitting: boolean;
 }
 
+/** V2 Run type for dropdown */
+type RunType = 'add_sources' | 'fix_weak' | 'counter' | 'angle' | 'regenerate';
+
 function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationDialogProps) {
-  const [mode, setMode] = useState<IterationRequest['mode']>('more_sources');
+  const [runType, setRunType] = useState<RunType>('add_sources');
   const [userPrompt, setUserPrompt] = useState('');
   const [maxNewSources, setMaxNewSources] = useState(4);
-  const [angle, setAngle] = useState('');
+  const [perspective, setPerspective] = useState('');
 
   const handleSubmit = () => {
-    onSubmit({
-      mode,
+    const request: CreateRunRequest = {
+      run_type: runType,
+      parent_run_id: 'run_0', // Default to baseline
       user_prompt: userPrompt || undefined,
-      max_new_sources: mode === 'more_sources' ? maxNewSources : undefined,
-      angle: mode === 'different_angle' ? angle : undefined,
-    });
+      max_new_sources: runType === 'add_sources' ? maxNewSources : undefined,
+      perspective: runType === 'angle' ? perspective : undefined,
+    };
+    onSubmit(request);
     // Reset form
-    setMode('more_sources');
+    setRunType('add_sources');
     setUserPrompt('');
     setMaxNewSources(4);
-    setAngle('');
+    setPerspective('');
   };
 
   if (!isOpen) return null;
@@ -73,46 +78,48 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
           <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Run Iteration
+          Create New Run
         </h3>
 
-        {/* Mode Selection */}
+        {/* Run Type Selection */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Mode</label>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Run Type</label>
           <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value as IterationRequest['mode'])}
+            value={runType}
+            onChange={(e) => setRunType(e.target.value as RunType)}
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
-            <option value="more_sources">Find More Sources</option>
-            <option value="deeper">Deeper Analysis</option>
-            <option value="different_angle">Different Angle</option>
-            <option value="custom">Custom (User Prompt)</option>
+            <option value="add_sources">Add More Sources</option>
+            <option value="fix_weak">Fix Weak Spots</option>
+            <option value="counter">Find Counterarguments</option>
+            <option value="angle">Different Angle</option>
+            <option value="regenerate">Regenerate Analysis</option>
           </select>
           <p className="text-xs text-gray-500 mt-1">
-            {mode === 'more_sources' && 'Search for additional sources to expand coverage'}
-            {mode === 'deeper' && 'Perform deeper analysis on existing sources'}
-            {mode === 'different_angle' && 'Explore a different perspective or angle'}
-            {mode === 'custom' && 'Define a custom iteration via prompt'}
+            {runType === 'add_sources' && 'Search for additional sources to expand coverage'}
+            {runType === 'fix_weak' && 'Address gaps and weaknesses in the analysis'}
+            {runType === 'counter' && 'Find opposing viewpoints and counterarguments'}
+            {runType === 'angle' && 'Explore a different perspective on the topic'}
+            {runType === 'regenerate' && 'Re-run synthesis with current sources'}
           </p>
         </div>
 
-        {/* Angle input (for different_angle mode) */}
-        {mode === 'different_angle' && (
+        {/* Perspective input (for angle run type) */}
+        {runType === 'angle' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Angle to Explore</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Perspective to Explore</label>
             <input
               type="text"
-              value={angle}
-              onChange={(e) => setAngle(e.target.value)}
+              value={perspective}
+              onChange={(e) => setPerspective(e.target.value)}
               placeholder="e.g., economic impact, environmental concerns"
               className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
           </div>
         )}
 
-        {/* Max new sources (for more_sources mode) */}
-        {mode === 'more_sources' && (
+        {/* Max new sources (for add_sources run type) */}
+        {runType === 'add_sources' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Max New Sources: {maxNewSources}
@@ -135,15 +142,13 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
         {/* User prompt */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-300 mb-2">
-            {mode === 'custom' ? 'Custom Prompt' : 'Guidance (optional)'}
+            Guidance (optional)
           </label>
           <textarea
             value={userPrompt}
             onChange={(e) => setUserPrompt(e.target.value)}
             rows={3}
-            placeholder={mode === 'custom'
-              ? 'Describe what you want the iteration to do...'
-              : 'Any specific guidance for this iteration...'}
+            placeholder="Any specific guidance for this run..."
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
           />
         </div>
@@ -151,7 +156,7 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
         {/* Note about append-only */}
         <div className="mb-6 p-3 bg-gray-700/50 rounded-lg border border-gray-600/50">
           <p className="text-xs text-gray-400">
-            <span className="text-emerald-400 font-medium">Append-only:</span> Iterations create new document bundles without modifying your original research.
+            <span className="text-emerald-400 font-medium">Append-only:</span> Runs create new document bundles without modifying your original research.
           </p>
         </div>
 
@@ -166,10 +171,10 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || (mode === 'custom' && !userPrompt.trim())}
+            disabled={isSubmitting || (runType === 'angle' && !perspective.trim())}
             className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed rounded-lg transition"
           >
-            {isSubmitting ? 'Starting...' : 'Start Iteration'}
+            {isSubmitting ? 'Starting...' : 'Start Run'}
           </button>
         </div>
       </motion.div>
@@ -189,7 +194,7 @@ function JobDetailContent() {
     archiveJob,
     triggerBooster,
     triggerProducerPacket,
-    triggerIteration,
+    createRun,
     actionInProgress,
   } = useJobsStore();
   const { user } = useAuth();
@@ -273,13 +278,13 @@ function JobDetailContent() {
     await triggerProducerPacket(jobId, runId);
   }, [jobId, triggerProducerPacket]);
 
-  const handleTriggerIteration = useCallback(
-    async (request: IterationRequest) => {
+  const handleCreateRun = useCallback(
+    async (request: CreateRunRequest) => {
       if (!jobId) return;
-      await triggerIteration(jobId, request);
+      await createRun(jobId, request);
       setIterationDialogOpen(false);
     },
-    [jobId, triggerIteration]
+    [jobId, createRun]
   );
 
   const actionsDisabled = !!actionInProgress;
@@ -406,7 +411,7 @@ function JobDetailContent() {
             <IterationDialog
               isOpen={iterationDialogOpen}
               onClose={() => setIterationDialogOpen(false)}
-              onSubmit={handleTriggerIteration}
+              onSubmit={handleCreateRun}
               isSubmitting={actionInProgress === 'iteration'}
             />
           )}

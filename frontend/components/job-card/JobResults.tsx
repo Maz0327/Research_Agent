@@ -103,7 +103,7 @@ export function JobResults({
 
   const triggerBooster = useJobsStore((state) => state.triggerBooster);
   const triggerProducerPacket = useJobsStore((state) => state.triggerProducerPacket);
-  const triggerIteration = useJobsStore((state) => state.triggerIteration);
+  const createRun = useJobsStore((state) => state.createRun);
 
   // Booster state helpers
   const isBoosterRunning = boosterStatus === 'running' || boosterStatus === 'queued';
@@ -140,30 +140,30 @@ export function JobResults({
     }
   }, [jobId, isTriggeringProducer, triggerProducerPacket, onRefresh]);
 
-  // Handle Iteration trigger
+  // Handle Iteration trigger (V2 Run API)
   const handleIteration = useCallback(async (
-    mode: string,
+    runType: string,
     userPrompt: string,
     maxNewSources: number,
-    angle?: string
+    perspective?: string
   ) => {
     if (isTriggeringIteration) return;
     setIsTriggeringIteration(true);
     setActionError(null);
     try {
-      await triggerIteration(jobId, {
-        mode: mode as 'more_sources' | 'deeper' | 'different_angle' | 'custom',
+      await createRun(jobId, {
+        run_type: runType as 'add_sources' | 'fix_weak' | 'counter' | 'angle' | 'regenerate',
         user_prompt: userPrompt,
         max_new_sources: maxNewSources,
-        angle,
+        perspective,
       });
       onRefresh?.();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Failed to start iteration');
+      setActionError(err instanceof Error ? err.message : 'Failed to create run');
     } finally {
       setIsTriggeringIteration(false);
     }
-  }, [jobId, isTriggeringIteration, triggerIteration, onRefresh]);
+  }, [jobId, isTriggeringIteration, createRun, onRefresh]);
 
   // Error state
   if (status === 'failed' && error) {
