@@ -163,6 +163,7 @@ OUTPUT JSON ONLY, matching this schema:
   "tensions": [
     {{
       "tension_id": "TEN_1",
+      "label": "Short title (3-6 words describing the conflict)",
       "description": "...",
       "involved_key_points": ["KP_2", "KP_4"]
     }}
@@ -268,6 +269,7 @@ not the QUANTITY of items.
   "tensions": [
     {{
       "tension_id": "TEN_1",
+      "label": "Technology Claims vs Reality",
       "description": "Holmes claimed the technology worked at scale while technicians describe workarounds for every patient sample",
       "involved_key_points": ["KP_1", "KP_2"]
     }}

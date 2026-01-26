@@ -237,6 +237,7 @@ class Tension:
     """
     tension_id: str
     description: str
+    label: str = ""  # Short title (3-6 words, e.g., "Timeline Conflict")
     involved_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
 
     # Phase 5: Cross-Source Attribution
@@ -247,6 +248,7 @@ class Tension:
     def to_dict(self) -> dict[str, Any]:
         result = {
             "tension_id": self.tension_id,
+            "label": self.label,
             "description": self.description,
             "involved_key_points": self.involved_key_points,
         }
@@ -280,6 +282,7 @@ class Gap:
     gap_id: str
     description: str
     why_expected: str
+    label: str = ""  # Short title (3-6 words, e.g., "Missing Primary Docs")
     related_themes: list[str] = field(default_factory=list)  # Theme IDs
     related_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
     suggested_research_direction: Optional[str] = None
@@ -287,6 +290,7 @@ class Gap:
     def to_dict(self) -> dict[str, Any]:
         return {
             "gap_id": self.gap_id,
+            "label": self.label,
             "description": self.description,
             "why_expected": self.why_expected,
             "related_themes": self.related_themes,

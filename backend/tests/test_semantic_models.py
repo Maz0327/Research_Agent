@@ -403,6 +403,30 @@ class TestTension:
         assert tension.tension_id == "TEN_1"
         assert tension.description == "Sources disagree on the timeline of events."
         assert tension.involved_key_points == ["KP_1", "KP_2"]
+        assert tension.label == ""  # Default to empty string
+
+    def test_tension_with_label(self):
+        """Tension should support label field for UX."""
+        tension = Tension(
+            tension_id="TEN_1",
+            description="Two sources give conflicting dates for the merger announcement.",
+            label="Timeline Conflict",
+            involved_key_points=["KP_1", "KP_2"],
+        )
+        assert tension.label == "Timeline Conflict"
+        assert tension.tension_id == "TEN_1"
+
+    def test_tension_label_in_to_dict(self):
+        """to_dict should include label field."""
+        tension = Tension(
+            tension_id="TEN_1",
+            description="Test tension.",
+            label="Test Label",
+            involved_key_points=["KP_1"],
+        )
+        result = tension.to_dict()
+        assert result["label"] == "Test Label"
+        assert "label" in result
 
     def test_tension_with_cross_source_flag(self):
         """Tension should support cross-source attribution."""
@@ -467,6 +491,30 @@ class TestGap:
         assert gap.gap_id == "GAP_1"
         assert gap.description == "No response from the accused party."
         assert gap.why_expected == "A competent investigation would include their perspective."
+        assert gap.label == ""  # Default to empty string
+
+    def test_gap_with_label(self):
+        """Gap should support label field for UX."""
+        gap = Gap(
+            gap_id="GAP_1",
+            description="No primary documentation for the $50M claim.",
+            why_expected="Financial claims need supporting documents.",
+            label="Missing Primary Docs",
+        )
+        assert gap.label == "Missing Primary Docs"
+        assert gap.gap_id == "GAP_1"
+
+    def test_gap_label_in_to_dict(self):
+        """to_dict should include label field."""
+        gap = Gap(
+            gap_id="GAP_1",
+            description="Test gap.",
+            why_expected="Expected because...",
+            label="Test Label",
+        )
+        result = gap.to_dict()
+        assert result["label"] == "Test Label"
+        assert "label" in result
 
     def test_gap_with_related_themes(self):
         """Gap should support related theme references."""
@@ -903,3 +951,88 @@ class TestIDNamingConventions:
             timestamp_range="~00:00 - 01:00",
         )
         assert obs.observation_id.startswith("OBS_")
+
+
+# =============================================================================
+# TestIDFormatHelpers
+# =============================================================================
+
+
+class TestIDFormatHelpers:
+    """Tests for ID formatting helper functions."""
+
+    def test_format_internal_id_source(self):
+        """format_internal_id should convert SRC_N to 'Source N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("SRC_1") == "Source 1"
+        assert format_internal_id("SRC_12") == "Source 12"
+        assert format_internal_id("SRC_100") == "Source 100"
+
+    def test_format_internal_id_key_point(self):
+        """format_internal_id should convert KP_N to 'Key Point N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("KP_1") == "Key Point 1"
+        assert format_internal_id("KP_25") == "Key Point 25"
+
+    def test_format_internal_id_theme(self):
+        """format_internal_id should convert THEME_N to 'Theme N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("THEME_1") == "Theme 1"
+        assert format_internal_id("THEME_5") == "Theme 5"
+
+    def test_format_internal_id_tension(self):
+        """format_internal_id should convert TEN_N to 'Tension N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("TEN_1") == "Tension 1"
+        assert format_internal_id("TEN_3") == "Tension 3"
+
+    def test_format_internal_id_gap(self):
+        """format_internal_id should convert GAP_N to 'Open Question N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("GAP_1") == "Open Question 1"
+        assert format_internal_id("GAP_7") == "Open Question 7"
+
+    def test_format_internal_id_claim(self):
+        """format_internal_id should convert CLM_N to 'Claim N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("CLM_1") == "Claim 1"
+
+    def test_format_internal_id_quote(self):
+        """format_internal_id should convert QT_N to 'Quote N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("QT_1") == "Quote 1"
+
+    def test_format_internal_id_observation(self):
+        """format_internal_id should convert OBS_N to 'Observation N'."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("OBS_1") == "Observation 1"
+
+    def test_format_internal_id_passthrough(self):
+        """format_internal_id should pass through unknown IDs."""
+        from backend.utils.markdown_helpers import format_internal_id
+        assert format_internal_id("UNKNOWN_1") == "UNKNOWN_1"
+        assert format_internal_id("plain text") == "plain text"
+        assert format_internal_id("") == ""
+
+    def test_format_id_list_basic(self):
+        """format_id_list should convert list of IDs."""
+        from backend.utils.markdown_helpers import format_id_list
+        result = format_id_list(["KP_1", "KP_3", "KP_7"])
+        assert result == "Key Point 1, Key Point 3, Key Point 7"
+
+    def test_format_id_list_mixed_types(self):
+        """format_id_list should handle mixed ID types."""
+        from backend.utils.markdown_helpers import format_id_list
+        result = format_id_list(["SRC_1", "THEME_2", "GAP_3"])
+        assert result == "Source 1, Theme 2, Open Question 3"
+
+    def test_format_id_list_empty(self):
+        """format_id_list should handle empty list."""
+        from backend.utils.markdown_helpers import format_id_list
+        assert format_id_list([]) == ""
+
+    def test_format_id_list_custom_separator(self):
+        """format_id_list should support custom separator."""
+        from backend.utils.markdown_helpers import format_id_list
+        result = format_id_list(["KP_1", "KP_2"], separator=" | ")
+        assert result == "Key Point 1 | Key Point 2"

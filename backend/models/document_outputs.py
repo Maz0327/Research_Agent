@@ -23,6 +23,10 @@ from backend.models.semantic_units import (
     Tension,
     Theme,
 )
+from backend.utils.markdown_helpers import (
+    format_internal_id,
+    format_id_list,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -645,8 +649,7 @@ class JumpStartDirections:
         ])
         if self.key_points:
             for kp in self.key_points[:10]:  # Limit display
-                conf = _confidence_badge(kp.confidence) if hasattr(kp, 'confidence') else ""
-                lines.append(f"- **{kp.key_point_id}:** {kp.statement}")
+                lines.append(f"- **{format_internal_id(kp.key_point_id)}:** {kp.statement}")
             if len(self.key_points) > 10:
                 lines.append(f"- *...and {len(self.key_points) - 10} more key points*")
         else:
@@ -660,7 +663,9 @@ class JumpStartDirections:
         ])
         if self.tensions:
             for t in self.tensions:
-                lines.append(f"- **{t.tension_id}:** {t.description}")
+                # Use label if available, otherwise use truncated description
+                title = t.label if t.label else (t.description[:60] + "..." if len(t.description) > 60 else t.description)
+                lines.append(f"- **{format_internal_id(t.tension_id)}:** {title}")
         else:
             lines.append("*No tensions identified.*")
         lines.extend(["", "---", ""])
@@ -672,8 +677,13 @@ class JumpStartDirections:
         ])
         if self.gaps:
             for g in self.gaps:
+                # Use label if available, otherwise use truncated description
+                title = g.label if g.label else (g.description[:50] + "..." if len(g.description) > 50 else g.description)
                 lines.extend([
-                    f"### {g.gap_id}: {g.description}",
+                    f"### {format_internal_id(g.gap_id)}: {title}",
+                    "",
+                    f"> {g.description}",
+                    "",
                     f"**Why it matters:** {g.why_expected}",
                     "",
                 ])
@@ -858,7 +868,7 @@ class SemanticBrief:
             "",
             f"> {self.semantic_core}",
             "",
-            f"*Based on: {', '.join(self.semantic_core_based_on)}*" if self.semantic_core_based_on else "",
+            f"*Based on: {format_id_list(self.semantic_core_based_on)}*" if self.semantic_core_based_on else "",
             "",
             "---",
             "",
@@ -870,15 +880,19 @@ class SemanticBrief:
             "",
         ])
         if self.themes:
-            for theme in self.themes:
+            for i, theme in enumerate(self.themes):
                 lines.extend([
-                    f"### {theme.theme_id}: {theme.label}",
+                    f"### {format_internal_id(theme.theme_id)}: {theme.label}",
                     "",
-                    f"{theme.description}",
+                    f"> {theme.description}",
                     "",
-                    f"**Related Key Points:** `{', '.join(theme.related_key_points)}`",
+                    f"**Related Key Points:** {format_id_list(theme.related_key_points)}",
                     "",
                 ])
+                # Add divider between themes (not after last one)
+                if i < len(self.themes) - 1:
+                    lines.append("---")
+                    lines.append("")
         else:
             lines.append("*No themes identified.*")
         lines.extend(["---", ""])
@@ -892,10 +906,12 @@ class SemanticBrief:
         ])
         for kp in self.key_points[:15]:  # Limit for readability
             stmt = kp.statement[:80] + "..." if len(kp.statement) > 80 else kp.statement
-            sources = ", ".join(kp.source_ids[:3])
+            # Format source IDs to friendly labels
+            formatted_sources = [format_internal_id(sid) for sid in kp.source_ids[:3]]
+            sources = ", ".join(formatted_sources)
             if len(kp.source_ids) > 3:
                 sources += f" +{len(kp.source_ids) - 3}"
-            lines.append(f"| `{kp.key_point_id}` | {stmt} | {sources} |")
+            lines.append(f"| {format_internal_id(kp.key_point_id)} | {stmt} | {sources} |")
         if len(self.key_points) > 15:
             lines.append(f"| ... | *{len(self.key_points) - 15} more key points* | |")
         lines.extend(["", "---", ""])
@@ -906,15 +922,21 @@ class SemanticBrief:
                 "## ⚡ Tensions & Contradictions",
                 "",
             ])
-            for t in self.tensions:
+            for i, t in enumerate(self.tensions):
+                # Use label if available, otherwise truncate description
+                title = t.label if t.label else (t.description[:50] + "..." if len(t.description) > 50 else t.description)
                 lines.extend([
-                    f"### {t.tension_id}",
+                    f"### {format_internal_id(t.tension_id)}: {title}",
                     "",
-                    f"**Description:** {t.description}",
+                    f"> {t.description}",
                     "",
-                    f"**Involved:** `{', '.join(t.involved_key_points)}`",
+                    f"**Involved:** {format_id_list(t.involved_key_points)}",
                     "",
                 ])
+                # Add divider between tensions (not after last one)
+                if i < len(self.tensions) - 1:
+                    lines.append("---")
+                    lines.append("")
             lines.append("---")
             lines.append("")
 
@@ -924,15 +946,23 @@ class SemanticBrief:
             "",
         ])
         if self.gaps:
-            for g in self.gaps:
+            for i, g in enumerate(self.gaps):
+                # Use label if available, otherwise truncate description
+                title = g.label if g.label else (g.description[:50] + "..." if len(g.description) > 50 else g.description)
                 lines.extend([
-                    f"### {g.gap_id}",
+                    f"### {format_internal_id(g.gap_id)}: {title}",
+                    "",
+                    f"> {g.description}",
                     "",
                     f"**Why it matters:** {g.why_expected}",
                     "",
                     f"**Suggested research:** {g.suggested_research_direction or 'Not specified'}",
                     "",
                 ])
+                # Add divider between gaps (not after last one)
+                if i < len(self.gaps) - 1:
+                    lines.append("---")
+                    lines.append("")
         else:
             lines.append("*No gaps identified.*")
         lines.extend(["---", ""])
@@ -964,7 +994,7 @@ class SemanticBrief:
             for so in self.speculative_observations:
                 lines.extend([
                     f"- **{so.text}**",
-                    f"  - *Based on:* {', '.join(so.based_on)}",
+                    f"  - *Based on:* {format_id_list(so.based_on)}",
                     "",
                 ])
 
