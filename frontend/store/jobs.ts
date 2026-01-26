@@ -412,19 +412,22 @@ export interface IterationResponse {
 
 interface JobsState {
   jobs: Job[];
+  archivedJobs: Job[];
   isLoading: boolean;
+  isLoadingArchived: boolean;
   error: string | null;
   preview: JobPreview | null;
   isPreviewLoading: boolean;
   // Action loading states
   isRefreshing: boolean;
-  actionInProgress: 'booster' | 'producer' | 'iteration' | 'cancel' | 'delete' | 'archive' | null;
+  actionInProgress: 'booster' | 'producer' | 'iteration' | 'cancel' | 'delete' | 'archive' | 'unarchive' | null;
   // Bulk selection state
   selectedJobIds: Set<string>;
   isEditMode: boolean;
   bulkErrors: BulkError[];
   // Methods
   fetchJobs: () => Promise<void>;
+  fetchArchivedJobs: () => Promise<void>;
   previewJob: (prompt: string, pipeline: string, niche?: string) => Promise<JobPreview>;
   createJob: (prompt: string, pipeline: string, niche?: string, options?: { custom_subreddits?: string[] }) => Promise<string>;
   createVideoAnalysisJob: (videoUrls: string[], title?: string, model?: 'gemini-2.5-flash' | 'gemini-2.5-pro') => Promise<VideoAnalysisResponse>;
@@ -438,6 +441,7 @@ interface JobsState {
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
   archiveJob: (jobId: string) => Promise<void>;
+  unarchiveJob: (jobId: string) => Promise<void>;
   selectInterpretation: (jobId: string, indices: number[] | 'all') => Promise<void>;
   clearPreview: () => void;
   clearJobs: () => void;
@@ -454,7 +458,9 @@ interface JobsState {
 
 export const useJobsStore = create<JobsState>((set, get) => ({
   jobs: [],
+  archivedJobs: [],
   isLoading: false,
+  isLoadingArchived: false,
   error: null,
   preview: null,
   isPreviewLoading: false,
@@ -1178,6 +1184,75 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       const message = error instanceof Error ? error.message : 'Failed to archive job';
       set({ error: message, actionInProgress: null });
       throw error;
+    }
+  },
+
+  unarchiveJob: async (jobId: string) => {
+    set({ actionInProgress: 'unarchive' });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/unarchive`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to recover job'));
+      }
+
+      // Remove from archived list and refresh main jobs
+      set((state) => ({
+        archivedJobs: state.archivedJobs.filter((job) => job.id !== jobId),
+        actionInProgress: null,
+      }));
+
+      // Refresh main jobs list to include recovered job
+      get().fetchJobs();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to recover job';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
+  },
+
+  fetchArchivedJobs: async () => {
+    set({ isLoadingArchived: true });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/archived`, { headers });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch archived jobs');
+      }
+
+      const data = await response.json();
+      const jobs: Job[] = (data.jobs || []).map((job: Record<string, unknown>) => ({
+        id: job.id,
+        prompt: job.prompt || '',
+        title: job.title || '',
+        pipeline: job.pipeline || 'full',
+        status: job.status,
+        created_at: job.created_at,
+        progress_percent: 0,
+      }));
+
+      set({ archivedJobs: jobs, isLoadingArchived: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch archived jobs';
+      set({ error: message, isLoadingArchived: false });
     }
   },
 

@@ -141,6 +141,7 @@ class JobStore(ABC):
         user_id: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
+        archived: Optional[bool] = None,
     ) -> list[JobRecord]:
         """
         List jobs, optionally filtered by user_id.
@@ -149,8 +150,23 @@ class JobStore(ABC):
             user_id: Optional user ID to filter by (None for all jobs)
             limit: Maximum number of jobs to return
             offset: Number of jobs to skip (for pagination)
+            archived: Filter by archived status (None/False = non-archived, True = archived)
 
         Returns:
             List of JobRecords, sorted by created_at descending
+        """
+        pass
+
+    @abstractmethod
+    def archive_job(self, job_id: str, archived: bool = True) -> Optional[JobRecord]:
+        """
+        Archive or unarchive a job.
+
+        Args:
+            job_id: Job identifier
+            archived: True to archive, False to unarchive
+
+        Returns:
+            Updated JobRecord if found, None otherwise
         """
         pass

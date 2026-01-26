@@ -173,6 +173,7 @@ def _record_from_db_row(row: dict[str, Any]) -> JobRecord:
         user_id=row.get("user_id"),
         title=row.get("title"),
         pipeline=row.get("pipeline", "semantic"),
+        archived=row.get("archived", False),
         created_at=_parse_datetime(row.get("created_at")) or datetime.now(timezone.utc),
         status=row.get("status", "queued"),
         stage=row.get("stage"),
@@ -233,9 +234,15 @@ class SupabaseJobStore(JobStore):
         # Extract pipeline from config_json for the database column
         pipeline = config_json.get("pipeline", "investigation")
 
+        # Extract title from config_json (use topic as fallback, truncate if needed)
+        title = config_json.get("title") or config_json.get("topic") or config_json.get("prompt")
+        if title and len(title) > 100:
+            title = title[:97] + "..."
+
         payload: dict[str, Any] = {
             "status": "queued",
             "pipeline": pipeline,
+            "title": title,
             "config_json": config_json,
             "warnings": [],
             "artifacts": {},
@@ -848,6 +855,7 @@ class SupabaseJobStore(JobStore):
         offset: int = 0,
         status: Optional[str] = None,
         pipeline: Optional[str] = None,
+        archived: Optional[bool] = None,
     ) -> list[JobRecord]:
         """List jobs with optional filtering.
 
@@ -857,6 +865,7 @@ class SupabaseJobStore(JobStore):
             offset: Number of jobs to skip
             status: Filter by job status (queued, running, completed, failed, cancelled)
             pipeline: Filter by pipeline type
+            archived: Filter by archived status (None = non-archived only, True = archived only)
 
         Returns:
             List of JobRecord objects
@@ -888,9 +897,13 @@ class SupabaseJobStore(JobStore):
             if status not in valid_statuses:
                 raise ValueError(f"Invalid status: {status}. Must be one of {valid_statuses}")
             params["status"] = f"eq.{status}"
-        else:
-            # By default, exclude deleted and archived jobs from listing
-            params["status"] = "not.in.(deleted,archived)"
+
+        # Add archived filter (default: exclude archived jobs)
+        if archived is True:
+            params["archived"] = "eq.true"
+        elif archived is False or archived is None:
+            # Default: show only non-archived jobs
+            params["archived"] = "eq.false"
 
         # Add pipeline filter
         if pipeline is not None:
@@ -925,6 +938,52 @@ class SupabaseJobStore(JobStore):
         jobs = [_record_from_db_row(row) for row in data]
         logger.debug(f"Listed {len(jobs)} jobs from Supabase")
         return jobs
+
+    def archive_job(self, job_id: str, archived: bool = True) -> Optional[JobRecord]:
+        """Archive or unarchive a job.
+
+        Args:
+            job_id: Job identifier (UUID)
+            archived: True to archive, False to unarchive
+
+        Returns:
+            Updated JobRecord if found, None otherwise
+        """
+        try:
+            job_id = validate_uuid(job_id, "job_id")
+        except ValidationError as e:
+            logger.warning(f"Invalid job_id format in archive_job: {e}")
+            raise
+
+        url = _rest_base_url() + f"/jobs?id=eq.{job_id}"
+        headers = _headers()
+        headers["Prefer"] = "return=representation"
+
+        payload = {"archived": archived}
+
+        @supabase_retry
+        def _execute_archive():
+            client = self._get_http_client()
+            resp = client.patch(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            return resp
+
+        try:
+            resp = _execute_archive()
+        except RETRYABLE_EXCEPTIONS as e:
+            logger.error("Failed to archive job %s after retries: %s", job_id, sanitize_error_message(e))
+            raise
+        except httpx.HTTPError as e:
+            logger.error("Failed to archive job %s: %s", job_id, sanitize_error_message(e))
+            raise
+
+        data = resp.json()
+        if isinstance(data, list):
+            if not data:
+                return None
+            data = data[0]
+
+        return _record_from_db_row(data)
 
     def close(self) -> None:
         """Close HTTP client connection."""

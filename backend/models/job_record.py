@@ -239,6 +239,7 @@ class JobRecord(BaseModel):
     title: Optional[str] = Field(None, description="AI-generated short title for the job")
     pipeline: str = Field(default="investigation", description="Pipeline mode")
     niche: Optional[str] = Field(None, description="Niche overlay applied to job")
+    archived: bool = Field(default=False, description="Whether the job is archived")
 
     # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Job creation timestamp")

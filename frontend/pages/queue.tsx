@@ -15,7 +15,7 @@ import { POLLING_INTERVALS, getStageLabel } from '../lib/constants';
 import { statusConfig, pipelineLabels } from '../components/job-card/job-card-config';
 
 // Tab types
-type TabType = 'active' | 'completed' | 'failed';
+type TabType = 'active' | 'completed' | 'failed' | 'archived';
 
 /** Status badge component */
 function StatusDot({ status }: { status: string }) {
@@ -293,9 +293,71 @@ function TabButton({
   );
 }
 
+/** Archived job card with recovery option */
+function ArchivedJobCard({ job, onRecover }: { job: Job; onRecover: (jobId: string) => void }) {
+  const router = useRouter();
+  const [isRecovering, setIsRecovering] = useState(false);
+  const config = statusConfig[job.status as keyof typeof statusConfig] || statusConfig.completed;
+
+  const handleRecover = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsRecovering(true);
+    try {
+      await onRecover(job.id);
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={() => router.push(`/jobs/${job.id}`)}
+      className={`group relative flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-xl border border-gray-700 hover:border-gray-600 cursor-pointer transition-all opacity-70 hover:opacity-100`}
+    >
+      {/* Archive icon */}
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center">
+        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      </div>
+
+      {/* Job info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
+          <span className={`px-2 py-0.5 text-xs rounded-full ${config.bgColor} ${config.textColor}`}>
+            {config.label}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
+          <span>{pipelineLabels[job.pipeline] || job.pipeline}</span>
+          <span className="text-gray-600">•</span>
+          <span>{formatRelativeTime(job.created_at)}</span>
+        </div>
+      </div>
+
+      {/* Recover button */}
+      <button
+        onClick={handleRecover}
+        disabled={isRecovering}
+        className="flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+      >
+        {isRecovering ? (
+          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        ) : (
+          'Recover'
+        )}
+      </button>
+    </div>
+  );
+}
+
 function JobsContent() {
   const router = useRouter();
-  const { jobs, fetchJobs, refreshJob } = useJobsStore();
+  const { jobs, archivedJobs, fetchJobs, fetchArchivedJobs, refreshJob, unarchiveJob, isLoadingArchived } = useJobsStore();
   const [isLoading, setIsLoading] = useState(true);
   
   // Get initial tab from query parameter
@@ -304,10 +366,17 @@ function JobsContent() {
   
   // Sync tab with URL query parameter
   useEffect(() => {
-    if (queryTab && ['active', 'completed', 'failed'].includes(queryTab)) {
+    if (queryTab && ['active', 'completed', 'failed', 'archived'].includes(queryTab)) {
       setActiveTab(queryTab);
     }
   }, [queryTab]);
+
+  // Fetch archived jobs when switching to archived tab
+  useEffect(() => {
+    if (activeTab === 'archived') {
+      fetchArchivedJobs();
+    }
+  }, [activeTab, fetchArchivedJobs]);
 
   // Update URL when tab changes
   const handleTabChange = useCallback((tab: TabType) => {
@@ -344,6 +413,7 @@ function JobsContent() {
     active: activeJobs.length,
     completed: completedJobs.length,
     failed: failedJobs.length,
+    archived: archivedJobs.length,
   };
 
   // Initial fetch
@@ -385,7 +455,7 @@ function JobsContent() {
     );
   }
 
-  const currentJobs = activeTab === 'active' ? activeJobs : activeTab === 'completed' ? completedJobs : failedJobs;
+  const currentJobs = activeTab === 'active' ? activeJobs : activeTab === 'completed' ? completedJobs : activeTab === 'failed' ? failedJobs : archivedJobs;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -420,12 +490,19 @@ function JobsContent() {
         >
           Completed
         </TabButton>
-        <TabButton 
-          active={activeTab === 'failed'} 
+        <TabButton
+          active={activeTab === 'failed'}
           onClick={() => handleTabChange('failed')}
           count={counts.failed}
         >
           Failed
+        </TabButton>
+        <TabButton
+          active={activeTab === 'archived'}
+          onClick={() => handleTabChange('archived')}
+          count={counts.archived}
+        >
+          Archived
         </TabButton>
       </div>
 
@@ -438,8 +515,15 @@ function JobsContent() {
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
+          {/* Loading state for archived tab */}
+          {activeTab === 'archived' && isLoadingArchived && (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+            </div>
+          )}
+
           {/* Empty state */}
-          {currentJobs.length === 0 && (
+          {currentJobs.length === 0 && !(activeTab === 'archived' && isLoadingArchived) && (
             <div className="text-center py-16 bg-[#1a1a1a] rounded-xl border border-gray-800">
               <svg
                 className="mx-auto h-12 w-12 text-gray-600 mb-4"
@@ -461,6 +545,13 @@ function JobsContent() {
                     strokeWidth={1.5}
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
+                ) : activeTab === 'archived' ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                  />
                 ) : (
                   <path
                     strokeLinecap="round"
@@ -474,6 +565,7 @@ function JobsContent() {
                 {activeTab === 'active' && 'No active jobs in the queue'}
                 {activeTab === 'completed' && 'No completed jobs yet'}
                 {activeTab === 'failed' && 'No failed jobs'}
+                {activeTab === 'archived' && 'No archived jobs'}
               </p>
               {activeTab === 'active' && (
                 <Link
@@ -490,18 +582,22 @@ function JobsContent() {
           )}
 
           {/* Job lists */}
-          {currentJobs.length > 0 && (
+          {currentJobs.length > 0 && !(activeTab === 'archived' && isLoadingArchived) && (
             <div className="space-y-3">
               {activeTab === 'active' && activeJobs.map((job, idx) => (
                 <ActiveJobCard key={job.id} job={job} position={idx + 1} />
               ))}
-              
+
               {activeTab === 'completed' && completedJobs.map((job) => (
                 <CompletedJobCard key={job.id} job={job} />
               ))}
-              
+
               {activeTab === 'failed' && failedJobs.map((job) => (
                 <FailedJobCard key={job.id} job={job} />
+              ))}
+
+              {activeTab === 'archived' && archivedJobs.map((job) => (
+                <ArchivedJobCard key={job.id} job={job} onRecover={unarchiveJob} />
               ))}
             </div>
           )}
