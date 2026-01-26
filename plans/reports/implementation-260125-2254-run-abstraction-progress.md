@@ -158,6 +158,12 @@ Unified dropdown supporting both V2 runs and V1 iterations:
 - ArtifactCardGrid passes runId when viewing V2 runs
 - Calls run-scoped endpoints when runId provided
 
+### 11. Legacy Code Cleanup
+
+- Removed `IterationSelector.tsx` (replaced by RunSelector)
+- Marked `POST /{job_id}/iterate` endpoint as deprecated
+- Updated component barrel exports
+
 ---
 
 ## Commits
@@ -173,6 +179,7 @@ f2a3b6e feat(backend): add Run abstraction for unified research output managemen
 a79267e feat(frontend): integrate RunSelector in ArtifactCardGrid
 66e94d2 feat(api): add GET /runs/{run_id} endpoint for status polling
 34f2304 feat(frontend): add run-scoped Producer/Booster support
+da72e2a chore: remove legacy IterationSelector, deprecate /iterate endpoint
 ```
 
 ---
@@ -195,14 +202,14 @@ a79267e feat(frontend): integrate RunSelector in ArtifactCardGrid
 ### Low Priority
 
 6. **Migration Script** - Optional: migrate existing iterations[] to runs[]
-7. **Cleanup** - Remove legacy iteration code after transition
+7. ~~**Cleanup**~~ ✅ Removed IterationSelector, marked /iterate as deprecated
 
 ---
 
 ## Backward Compatibility
 
 - Existing V1 jobs work via `ensure_runs_migrated()` shim
-- Legacy `/iterate` endpoint still works
+- Legacy `/iterate` endpoint still works (marked deprecated)
 - Job-level Producer/Booster continue to work (run_id=None)
 - Iteration tracking fields reused for run status polling
 
