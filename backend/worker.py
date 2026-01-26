@@ -185,7 +185,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
         build_source_identity_from_article,
         build_source_identity_from_text,
         build_source_identity_from_screenshot,
+        _merge_supadata_metadata,
     )
+    from backend.integrations.supadata_client import fetch_video_metadata
     from backend.integrations.web_capture import (
         _fetch_url_content,
         _extract_text_with_trafilatura,
@@ -214,6 +216,17 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 # build_source_identity_from_video expects (video_data: dict, source_index: int)
                 video_data = {"url": url}
                 pkg = build_source_identity_from_video(video_data, source_counter - 1)
+
+                # Fetch and merge Supadata metadata for title/creator/duration
+                # (same as stage_source_identity does for research jobs)
+                try:
+                    metadata = fetch_video_metadata(url)
+                    if metadata:
+                        _merge_supadata_metadata(pkg, metadata)
+                        logger.info(f"[{job_id}] Metadata merged: title={pkg.title[:50]}...")
+                except Exception as meta_err:
+                    logger.warning(f"[{job_id}] Metadata fetch failed (non-blocking): {meta_err}")
+
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
             except Exception as e:
