@@ -185,7 +185,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
         build_source_identity_from_article,
         build_source_identity_from_text,
         build_source_identity_from_screenshot,
+        _merge_supadata_metadata,
     )
+    from backend.integrations.supadata_client import fetch_video_metadata
     from backend.integrations.web_capture import (
         _fetch_url_content,
         _extract_text_with_trafilatura,
@@ -214,6 +216,17 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 # build_source_identity_from_video expects (video_data: dict, source_index: int)
                 video_data = {"url": url}
                 pkg = build_source_identity_from_video(video_data, source_counter - 1)
+
+                # Fetch and merge Supadata metadata for title/creator/duration
+                # (same as stage_source_identity does for research jobs)
+                try:
+                    metadata = fetch_video_metadata(url)
+                    if metadata:
+                        _merge_supadata_metadata(pkg, metadata)
+                        logger.info(f"[{job_id}] Metadata merged: title={pkg.title[:50]}...")
+                except Exception as meta_err:
+                    logger.warning(f"[{job_id}] Metadata fetch failed (non-blocking): {meta_err}")
+
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
             except Exception as e:
@@ -880,7 +893,9 @@ def process_evolving_job(self, job_id: str, user_id: str) -> dict:
         build_source_identity_from_video,
         build_source_identity_from_article,
         build_source_identity_from_text,
+        _merge_supadata_metadata,
     )
+    from backend.integrations.supadata_client import fetch_video_metadata
     from backend.pipeline.stages import (
         stage_semantic_extraction,
         stage_semantic_validation,
@@ -929,32 +944,45 @@ def process_evolving_job(self, job_id: str, user_id: str) -> dict:
         # Build source identity packages for pending sources
         text_inputs_by_title = {ti.get("title"): ti for ti in pending_text_inputs}
 
-        for source_data in pending_sources:
+        for i, source_data in enumerate(pending_sources):
             source_id = source_data.get("source_id")
             source_type = source_data.get("source_type")
             url = source_data.get("url")
             title = source_data.get("title")
 
+            # Extract source index from source_id (e.g., "SRC_3" -> 2)
+            # Fall back to loop index if source_id format doesn't match
+            try:
+                source_index = int(source_id.replace("SRC_", "")) - 1 if source_id else i
+            except (ValueError, AttributeError):
+                source_index = i
+
             logger.info(f"[{job_id}] Building identity for {source_type}: {url or title}")
 
             try:
                 if source_type == "youtube":
-                    pkg = build_source_identity_from_video(
-                        video_url=url,
-                        source_id=source_id,
-                    )
+                    video_data = {"url": url, "title": title} if title else {"url": url}
+                    pkg = build_source_identity_from_video(video_data, source_index)
+
+                    # Fetch and merge Supadata metadata for title/creator/duration
+                    try:
+                        metadata = fetch_video_metadata(url)
+                        if metadata:
+                            _merge_supadata_metadata(pkg, metadata)
+                            logger.info(f"[{job_id}] Metadata merged: title={pkg.title[:50]}...")
+                    except Exception as meta_err:
+                        logger.warning(f"[{job_id}] Metadata fetch failed (non-blocking): {meta_err}")
+
                 elif source_type == "article":
-                    pkg = build_source_identity_from_article(
-                        article_url=url,
-                        source_id=source_id,
-                    )
+                    article_data = {"url": url, "title": title} if title else {"url": url}
+                    pkg = build_source_identity_from_article(article_data, source_index)
                 elif source_type == "user_text":
                     # Get content from pending_text_inputs
                     text_input = text_inputs_by_title.get(title, {})
                     pkg = build_source_identity_from_text(
-                        title=title or "User-provided text",
                         content=text_input.get("content", ""),
-                        source_id=source_id,
+                        source_label=title or "User-provided text",
+                        source_index=source_index,
                         platform_hint=text_input.get("platform_hint"),
                     )
                 else:
