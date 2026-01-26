@@ -45,10 +45,34 @@ function getArtifactState(
   const isBaseline = selectedVersion === 'baseline' || selectedVersion === 'run_0';
 
   // Viewing V2 run version
-  if (!isBaseline && isV2Run(selectedVersion) && type !== 'booster' && type !== 'iteration') {
+  if (!isBaseline && isV2Run(selectedVersion) && type !== 'iteration') {
     const runs = (artifacts?.runs || []) as Run[];
     const run = runs.find((r) => r.run_id === selectedVersion);
     if (!run) return 'not_available';
+
+    // Doc 3 (Producer Packet) - check run.producer_packet status
+    if (type === 'doc_3') {
+      if (run.producer_packet?.status === 'completed') return 'completed';
+      if (run.producer_packet?.status === 'failed') return 'failed';
+      if (run.producer_packet?.status === 'running') return 'running';
+      if (run.producer_packet?.status === 'queued') return 'queued';
+      // Run completed but producer not started yet - ready to trigger
+      if (run.status === 'completed') return 'ready';
+      return 'not_available';
+    }
+
+    // Booster - check run.booster_expansion status
+    if (type === 'booster') {
+      if (run.booster_expansion?.status === 'completed') return 'completed';
+      if (run.booster_expansion?.status === 'failed') return 'failed';
+      if (run.booster_expansion?.status === 'running') return 'running';
+      if (run.booster_expansion?.status === 'queued') return 'queued';
+      // Run completed but booster not started yet - ready to trigger
+      if (run.status === 'completed') return 'ready';
+      return 'not_available';
+    }
+
+    // Doc 0/1/2 - use run status directly
     if (run.status === 'completed') return 'completed';
     if (run.status === 'failed') return 'failed';
     if (run.status === 'running') return 'running';

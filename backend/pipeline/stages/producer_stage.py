@@ -63,8 +63,15 @@ def run_producer_pipeline(
     client = GeminiClient()
 
     # Extract context from job data
-    doc2 = job_data.get("artifacts", {}).get("semantic_brief", {})
+    doc2_raw = job_data.get("artifacts", {}).get("semantic_brief", {})
     sources = job_data.get("sources", [])
+
+    # Handle nested storage format: {"data": {...}, "markdown": "..."}
+    # vs direct format: {"themes": [...], ...}
+    if "data" in doc2_raw and isinstance(doc2_raw.get("data"), dict):
+        doc2 = doc2_raw["data"]
+    else:
+        doc2 = doc2_raw
 
     themes = doc2.get("themes", [])
     key_points = doc2.get("key_points", [])
