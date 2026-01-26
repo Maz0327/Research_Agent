@@ -78,6 +78,7 @@ For cross-source tensions:
 ```json
 {
     "tension_id": "TEN_1",
+    "label": "Conflicting Timeline Claims",
     "description": "Source A claims X while Source B claims Y",
     "is_cross_source": true,
     "sources_position_a": ["SRC_1"],
@@ -190,6 +191,7 @@ Speculation must:
   "tensions": [
     {{
       "tension_id": "TEN_1",
+      "label": "Short title (3-6 words describing the conflict)",
       "description": "...",
       "involved_key_points": ["KP_3", "KP_6"]
     }}
@@ -197,6 +199,7 @@ Speculation must:
   "gaps": [
     {{
       "gap_id": "GAP_1",
+      "label": "Short title (3-6 words describing what's missing)",
       "impact_on_understanding": "...",
       "what_would_help": "..."
     }}
@@ -284,6 +287,7 @@ not QUANTITY.
   "tensions": [
     {{
       "tension_id": "TEN_1",
+      "label": "Technology Readiness Contradiction",
       "description": "Leadership's public statements about technology readiness contradict technician accounts of workarounds required for every patient sample. This tension remains unresolved because no primary documentation of internal testing protocols has been made public.",
       "involved_key_points": ["KP_1", "KP_2"]
     }}
@@ -291,11 +295,13 @@ not QUANTITY.
   "gaps": [
     {{
       "gap_id": "GAP_1",
+      "label": "Missing Internal Technical Memos",
       "impact_on_understanding": "Without internal technical memos, we cannot determine whether leadership was aware of device limitations or genuinely believed in its capabilities.",
       "what_would_help": "FDA inspection reports or internal engineering documents from 2014-2015."
     }},
     {{
       "gap_id": "GAP_2",
+      "label": "No Patient Perspective",
       "impact_on_understanding": "No perspective from patients who received test results, limiting understanding of real-world impact.",
       "what_would_help": "Court testimony from affected patients or medical professionals who acted on Theranos results."
     }}
@@ -391,6 +397,7 @@ GOOD GAP: "No primary financial records are cited to support claims about fundin
   "gaps": [
     {{
       "gap_id": "GAP_1",
+      "label": "Short title (3-6 words describing what's missing)",
       "description": "What information is missing",
       "why_expected": "Why a researcher would expect this information",
       "related_themes": ["THEME_1"],
@@ -434,6 +441,7 @@ not QUANTITY.
   "gaps": [
     {{
       "gap_id": "GAP_1",
+      "label": "Missing Device Accuracy Docs",
       "description": "No internal engineering documentation showing device accuracy metrics",
       "why_expected": "Medical device companies typically maintain validation protocols; regulatory filings would reference these documents",
       "related_themes": ["THEME_1"],
@@ -442,6 +450,7 @@ not QUANTITY.
     }},
     {{
       "gap_id": "GAP_2",
+      "label": "No Walgreens Due Diligence",
       "description": "Missing perspective from Walgreens due diligence team",
       "why_expected": "A $350M partnership would involve legal and technical review; those reviewers could describe what they were shown",
       "related_themes": ["THEME_1"],
@@ -450,6 +459,7 @@ not QUANTITY.
     }},
     {{
       "gap_id": "GAP_3",
+      "label": "Missing Board Meeting Records",
       "description": "No primary documentation of board meeting discussions about technology status",
       "why_expected": "Board members testified about their knowledge; meeting minutes could verify timeline of awareness",
       "related_themes": ["THEME_2"],
@@ -458,6 +468,7 @@ not QUANTITY.
     }},
     {{
       "gap_id": "GAP_4",
+      "label": "No Patient Outcomes Data",
       "description": "Missing patient outcomes data from Theranos test results",
       "why_expected": "Claims about harm require documentation of actual medical decisions made based on faulty results",
       "related_themes": [],

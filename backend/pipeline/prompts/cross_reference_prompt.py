@@ -151,6 +151,7 @@ A new gap exists when:
     "new_tensions": [
         {{
             "tension_id": "TEN_X",
+            "label": "Short title (3-6 words)",
             "description": "Description of the tension",
             "involved_ids": ["KP_X", "KP_Y"],
             "is_cross_source": true
@@ -159,6 +160,7 @@ A new gap exists when:
     "new_gaps": [
         {{
             "gap_id": "GAP_X",
+            "label": "Short title (3-6 words)",
             "description": "What is now missing or unclear",
             "why_expected": "Why this gap matters given new content",
             "related_new_ids": ["KP_X"]
@@ -229,6 +231,7 @@ existing analysis. Your output depends on actual relationships found.
     "new_tensions": [
         {{
             "tension_id": "TEN_3",
+            "label": "Conflicting Meeting Dates",
             "description": "Three sources now give different dates for the key meeting: March (SRC_1), April (SRC_3), May (SRC_2)",
             "involved_ids": ["KP_1", "KP_7", "KP_4"],
             "is_cross_source": true
@@ -237,6 +240,7 @@ existing analysis. Your output depends on actual relationships found.
     "new_gaps": [
         {{
             "gap_id": "GAP_5",
+            "label": "Missing Internal Audit",
             "description": "New source references internal audit that original sources didn't mention",
             "why_expected": "Internal audit could resolve timeline conflicts",
             "related_new_ids": ["KP_7"]

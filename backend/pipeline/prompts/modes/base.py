@@ -267,6 +267,7 @@ Return ONLY valid JSON matching this structure:
   "tensions": [
     {{
       "tension_id": "TEN_1",
+      "label": "Short title (3-6 words)",
       "description": "Contradiction or meaning shift",
       "involved_key_points": ["KP_1", "KP_3"]
     }}

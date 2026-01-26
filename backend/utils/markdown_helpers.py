@@ -19,7 +19,86 @@ Usage:
     )
 """
 
+import re
 from typing import Optional
+
+
+# -----------------------------------------------------------------------------
+# ID FORMATTING (Convert internal IDs to user-friendly labels)
+# -----------------------------------------------------------------------------
+
+# Mapping of ID prefixes to human-readable labels
+ID_LABEL_MAP: dict[str, str] = {
+    "SRC": "Source",
+    "KP": "Key Point",
+    "CLM": "Claim",
+    "QT": "Quote",
+    "OBS": "Observation",
+    "THEME": "Theme",
+    "TEN": "Tension",
+    "GAP": "Open Question",
+    "REF": "Reference",
+    "EV": "Evidence",
+    "ANG": "Angle",
+}
+
+
+def format_internal_id(id_str: str) -> str:
+    """
+    Convert internal ID to user-friendly label.
+
+    Args:
+        id_str: Internal ID (e.g., 'SRC_1', 'KP_12', 'TEN_3')
+
+    Returns:
+        User-friendly label (e.g., 'Source 1', 'Key Point 12', 'Tension 3')
+
+    Examples:
+        format_internal_id('SRC_1')    -> 'Source 1'
+        format_internal_id('KP_12')    -> 'Key Point 12'
+        format_internal_id('THEME_2')  -> 'Theme 2'
+        format_internal_id('TEN_1')    -> 'Tension 1'
+        format_internal_id('GAP_5')    -> 'Open Question 5'
+        format_internal_id('unknown')  -> 'unknown' (passthrough)
+    """
+    if not id_str:
+        return id_str
+
+    match = re.match(r"^([A-Z]+)_(\d+)$", id_str)
+    if not match:
+        return id_str
+
+    prefix, number = match.groups()
+    label = ID_LABEL_MAP.get(prefix)
+
+    if not label:
+        return id_str
+    return f"{label} {number}"
+
+
+def format_id_list(ids: list[str], separator: str = ", ") -> str:
+    """
+    Format a list of internal IDs to user-friendly labels.
+
+    Args:
+        ids: List of internal IDs
+        separator: String to join formatted IDs
+
+    Returns:
+        Formatted string with all IDs converted
+
+    Example:
+        format_id_list(['KP_1', 'KP_3', 'KP_7'])
+        -> 'Key Point 1, Key Point 3, Key Point 7'
+    """
+    if not ids:
+        return ""
+    return separator.join(format_internal_id(id_str) for id_str in ids)
+
+
+# -----------------------------------------------------------------------------
+# STATUS AND BADGE HELPERS
+# -----------------------------------------------------------------------------
 
 
 def status_emoji(status: str) -> str:
