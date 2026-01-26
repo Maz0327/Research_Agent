@@ -1227,7 +1227,7 @@ def _build_and_store_addendum(ctx, job) -> None:
     time_limit=600,  # 10 min hard limit
     soft_time_limit=540,  # 9 min soft limit
 )
-def run_booster_task(self, job_id: str, user_id: str) -> dict:
+def run_booster_task(self, job_id: str, user_id: str, run_id: str = None) -> dict:
     """
     Run Deep Research Booster for a completed job.
 
@@ -1240,6 +1240,9 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
     CRITICAL: The booster produces DIRECTIONS, not FACTS.
     Booster failure does NOT affect existing documents.
 
+    V2 Run Abstraction: When run_id is provided, booster output is stored
+    in run-scoped storage under jobs/{job_id}/runs/{run_id}/booster_output.json.
+
     Prerequisites:
     - Job must be in 'completed' or 'completed_with_warnings' status
     - Doc 1 (JumpStartDirections) must exist
@@ -1248,6 +1251,7 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
     Args:
         job_id: ID of the completed job
         user_id: ID of the user who triggered the booster
+        run_id: Optional run ID for run-scoped storage (V2)
 
     Returns:
         Dict with job_id, status, cost, and summary
@@ -1374,12 +1378,6 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
         updated_jump_start["booster_expansion"] = booster_output_to_dict(booster_output)
         updated_jump_start["booster_expansion_md"] = expansion_md
 
-        # Build updated artifacts
-        updated_artifacts = artifacts_dict.copy()
-        updated_artifacts["jump_start"] = updated_jump_start
-        updated_artifacts["booster_output"] = booster_output_to_dict(booster_output)
-        updated_artifacts["booster_expansion_md"] = expansion_md
-
         # Summary for partial_outputs
         booster_summary = {
             "perspectives_count": len(booster_output.missing_perspectives),
@@ -1390,6 +1388,50 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
             "cost": cost,
             "warnings": warnings,
         }
+
+        # V2 Run-scoped storage vs V1 job-level storage
+        if run_id:
+            # V2: Store in run-scoped path
+            from backend.pipeline.runs.storage import store_run_booster
+            from backend.models.run_models import (
+                ensure_runs_migrated, RunBoosterExpansion, RunStatus
+            )
+
+            booster_output_dict = booster_output_to_dict(booster_output)
+            output_path, md_path = store_run_booster(
+                job_id, run_id, booster_output_dict, expansion_md
+            )
+
+            # Update run in artifacts.runs with booster data
+            runs = ensure_runs_migrated(
+                artifacts_dict,
+                job_created_at=job.created_at if hasattr(job, "created_at") else None,
+                job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+                user_id=user_id,
+            )
+
+            # Find and update the target run
+            for run in runs:
+                if run.run_id == run_id:
+                    run.booster_expansion = RunBoosterExpansion(
+                        status=RunStatus.COMPLETED,
+                        completed_at=datetime.now(timezone.utc),
+                        output=booster_output_dict,
+                        markdown=expansion_md,
+                    )
+                    break
+
+            # Store runs back in artifacts
+            updated_artifacts = artifacts_dict.copy()
+            updated_artifacts["runs"] = [r.model_dump() for r in runs]
+
+            logger.info(f"[{job_id}] Booster stored in run-scoped path: {output_path}")
+        else:
+            # V1: Store at job level (legacy)
+            updated_artifacts = artifacts_dict.copy()
+            updated_artifacts["jump_start"] = updated_jump_start
+            updated_artifacts["booster_output"] = booster_output_to_dict(booster_output)
+            updated_artifacts["booster_expansion_md"] = expansion_md
 
         # Store partial_outputs in config_json
         config = job.config_json.copy() if job.config_json else {}
@@ -1463,7 +1505,7 @@ def run_booster_task(self, job_id: str, user_id: str) -> dict:
     max_retries=1,
     soft_time_limit=300,  # 5 min soft limit
 )
-def run_producer_task(self, job_id: str, user_id: str) -> dict:
+def run_producer_task(self, job_id: str, user_id: str, run_id: str = None) -> dict:
     """
     Generate Producer Packet (Doc 3) for a completed job.
 
@@ -1476,6 +1518,9 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
     CRITICAL: Doc 3 is CREATIVE INTERPRETATION.
     Producer failure does NOT affect Doc 0/1/2.
 
+    V2 Run Abstraction: When run_id is provided, producer packet is stored
+    in run-scoped storage under jobs/{job_id}/runs/{run_id}/producer_packet.json.
+
     Prerequisites:
     - Job must be in 'completed' status
     - 4+ sources with at least 1 high-confidence
@@ -1484,6 +1529,7 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
     Args:
         job_id: ID of the completed job
         user_id: ID of the user who triggered producer packet
+        run_id: Optional run ID for run-scoped storage (V2)
 
     Returns:
         Dict with job_id, status, cost, and summary
@@ -1609,19 +1655,6 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
         logger.info(f"[{job_id}] Running producer pipeline")
         packet, cost, warnings = run_producer_pipeline(job_id, job_dict)
 
-        # Get existing artifacts
-        artifacts = job.artifacts if hasattr(job, "artifacts") else None
-        if artifacts and hasattr(artifacts, "model_dump"):
-            artifacts_dict = artifacts.model_dump(exclude_none=True)
-        elif isinstance(artifacts, dict):
-            artifacts_dict = artifacts
-        else:
-            artifacts_dict = {}
-
-        # Store producer packet in artifacts
-        artifacts_dict["producer_packet"] = packet.to_dict()
-        artifacts_dict["producer_packet_md"] = packet.to_markdown()
-
         # Summary for API response
         producer_summary = {
             "narrative_angles": len(packet.narrative_angles),
@@ -1633,6 +1666,61 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
             "warnings": warnings,
         }
 
+        # Get existing artifacts
+        artifacts = job.artifacts if hasattr(job, "artifacts") else None
+        if artifacts and hasattr(artifacts, "model_dump"):
+            artifacts_dict = artifacts.model_dump(exclude_none=True)
+        elif isinstance(artifacts, dict):
+            artifacts_dict = artifacts
+        else:
+            artifacts_dict = {}
+
+        packet_dict = packet.to_dict()
+        packet_md = packet.to_markdown()
+
+        # V2 Run-scoped storage vs V1 job-level storage
+        if run_id:
+            # V2: Store in run-scoped path
+            from backend.pipeline.runs.storage import store_run_producer
+            from backend.models.run_models import (
+                ensure_runs_migrated, RunProducerPacket, RunStatus
+            )
+
+            packet_path, md_path = store_run_producer(
+                job_id, run_id, packet_dict, packet_md
+            )
+
+            # Update run in artifacts.runs with producer data
+            runs = ensure_runs_migrated(
+                artifacts_dict,
+                job_created_at=job.created_at if hasattr(job, "created_at") else None,
+                job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+                user_id=user_id,
+            )
+
+            # Find and update the target run
+            for run in runs:
+                if run.run_id == run_id:
+                    run.producer_packet = RunProducerPacket(
+                        status=RunStatus.COMPLETED,
+                        completed_at=datetime.now(timezone.utc),
+                        path=packet_path,
+                        inline=packet_dict,
+                        markdown=packet_md,
+                    )
+                    break
+
+            # Store runs back in artifacts
+            partial_artifacts = {"runs": [r.model_dump() for r in runs]}
+
+            logger.info(f"[{job_id}] Producer stored in run-scoped path: {packet_path}")
+        else:
+            # V1: Store at job level (legacy)
+            partial_artifacts = {
+                "producer_packet": packet_dict,
+                "producer_packet_md": packet_md,
+            }
+
         # Store summary in config_json
         config = job.config_json.copy() if job.config_json else {}
         config["producer_summary"] = producer_summary
@@ -1642,10 +1730,7 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
         update_job(
             job_id,
             # DO NOT change job.status - it must stay "completed"
-            partial_artifacts={
-                "producer_packet": artifacts_dict.get("producer_packet"),
-                "producer_packet_md": artifacts_dict.get("producer_packet_md"),
-            },
+            partial_artifacts=partial_artifacts,
             config_json=config,
             warnings_append=warnings if warnings else None,
             # Producer tracking
@@ -1703,6 +1788,190 @@ def run_producer_task(self, job_id: str, user_id: str) -> dict:
 
 
 # =============================================================================
+# V2 RUN TASK HELPER (Run Abstraction)
+# =============================================================================
+
+def _run_v2_run_task(job_id: str, run_id: str, user_id: str) -> dict:
+    """
+    Execute a V2 run using run mode executors.
+
+    Args:
+        job_id: Job ID
+        run_id: Run ID (run_1, run_2, etc.)
+        user_id: User who triggered the run
+
+    Returns:
+        Dict with job_id, run_id, status, and outputs
+    """
+    from datetime import datetime, timezone
+    from backend.models.job_record import Artifacts
+    from backend.models.run_models import (
+        Run, RunType, RunStatus, RunOutputs, RunMetrics,
+        ensure_runs_migrated,
+    )
+    from backend.pipeline.runs.modes import run_add_sources, run_regenerate
+
+    logger.info(f"[{job_id}] Starting V2 run {run_id}")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Job not found")
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": "Job not found"}
+
+    # Get artifacts
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    # Get runs and find the target run
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=user_id,
+    )
+
+    target_run = None
+    run_index = None
+    for i, r in enumerate(runs):
+        if r.run_id == run_id:
+            target_run = r
+            run_index = i
+            break
+
+    if target_run is None:
+        error_msg = f"Run {run_id} not found in artifacts"
+        logger.error(f"[{job_id}] {error_msg}")
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": error_msg}
+
+    start_time = datetime.now(timezone.utc)
+
+    try:
+        # Update run status to running
+        target_run.status = RunStatus.RUNNING
+        target_run.started_at = start_time
+
+        # Update job with running status
+        update_job(
+            job_id,
+            iteration_status="running",
+            iteration_id=run_id,
+            iteration_started_at=start_time,
+            iteration_progress_percent=5,
+            artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+        )
+
+        run_type = target_run.run_type
+        logger.info(f"[{job_id}] Run {run_id} type={run_type.value}")
+
+        # Execute the appropriate run mode
+        if run_type == RunType.ADD_SOURCES:
+            outputs, metrics_dict = run_add_sources(
+                job_id=job_id,
+                run=target_run,
+                user_id=user_id,
+                artifacts_dict=artifacts_dict,
+            )
+        elif run_type == RunType.REGENERATE:
+            outputs, metrics_dict = run_regenerate(
+                job_id=job_id,
+                run=target_run,
+                user_id=user_id,
+                artifacts_dict=artifacts_dict,
+            )
+        elif run_type in (RunType.FIX_WEAK_SPOTS, RunType.COUNTERARGUMENT, RunType.DIFFERENT_ANGLE):
+            # These modes fall back to regenerate for now
+            logger.warning(f"[{job_id}] Run type {run_type.value} not fully implemented, using regenerate")
+            outputs, metrics_dict = run_regenerate(
+                job_id=job_id,
+                run=target_run,
+                user_id=user_id,
+                artifacts_dict=artifacts_dict,
+            )
+        else:
+            raise ValueError(f"Unknown run type: {run_type}")
+
+        end_time = datetime.now(timezone.utc)
+
+        # Update run with success
+        target_run.status = RunStatus.COMPLETED
+        target_run.completed_at = end_time
+        target_run.outputs = outputs
+        target_run.metrics = RunMetrics(**metrics_dict) if metrics_dict else None
+
+        # Update runs list
+        runs[run_index] = target_run
+
+        # Update job - mark run completed (DO NOT modify job.status)
+        update_job(
+            job_id,
+            iteration_status="completed",
+            iteration_id=run_id,
+            iteration_completed_at=end_time,
+            iteration_progress_percent=100,
+            artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+        )
+
+        wall_time_ms = int((end_time - start_time).total_seconds() * 1000)
+        logger.info(
+            f"[{job_id}] Run {run_id} completed in {wall_time_ms}ms, "
+            f"type={run_type.value}"
+        )
+
+        return {
+            "job_id": job_id,
+            "run_id": run_id,
+            "run_index": target_run.run_index,
+            "status": "success",
+            "run_type": run_type.value,
+            "wall_time_ms": wall_time_ms,
+            "outputs": outputs.model_dump() if outputs else None,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Run {run_id} timed out")
+        _mark_run_failed(job_id, run_id, runs, run_index, artifacts_dict, "Run timed out after 15 minutes")
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": "Run timed out"}
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Run {run_id} failed: {e}")
+        _mark_run_failed(job_id, run_id, runs, run_index, artifacts_dict, str(e)[:500])
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": str(e)}
+
+
+def _mark_run_failed(
+    job_id: str,
+    run_id: str,
+    runs: list,
+    run_index: int,
+    artifacts_dict: dict,
+    error_msg: str,
+) -> None:
+    """Mark a run as failed and update job."""
+    from datetime import datetime, timezone
+    from backend.models.job_record import Artifacts
+    from backend.models.run_models import RunStatus, RunError
+
+    if run_index is not None and run_index < len(runs):
+        runs[run_index].status = RunStatus.FAILED
+        runs[run_index].completed_at = datetime.now(timezone.utc)
+        runs[run_index].error = RunError(code="run_failed", message=error_msg)
+
+    update_job(
+        job_id,
+        iteration_status="failed",
+        iteration_id=run_id,
+        iteration_completed_at=datetime.now(timezone.utc),
+        iteration_error=error_msg,
+        artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+    )
+
+
+# =============================================================================
 # ITERATION TASK (Phase 9 - Append-Only Iteration Loop)
 # =============================================================================
 
@@ -1717,28 +1986,36 @@ def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> di
     """
     Run an iteration on a completed job.
 
-    APPEND-ONLY: Every iteration produces a new artifact bundle under
-    job.artifacts.iterations[]. Baseline doc_0/doc_1/doc_2 are NEVER modified.
+    Supports both V1 iterations (it_XXXX) and V2 runs (run_X).
+
+    V1 (Legacy): APPEND-ONLY iterations under job.artifacts.iterations[].
+    V2 (Run Abstraction): Run-based storage under job.artifacts.runs[].
 
     This task:
-    1. Loads baseline docs and existing extractions
-    2. Based on mode, either finds more sources or re-analyzes existing
-    3. Produces iteration-specific doc_0/doc_1/doc_2 outputs
-    4. Updates artifacts.iterations[iteration_index] with outputs and metrics
-    5. NEVER modifies baseline artifacts or job.status
+    1. Detects whether this is V1 or V2 based on iteration_id format
+    2. For V2: Uses new run mode executors (add_sources, regenerate, etc.)
+    3. For V1: Uses legacy iteration modes
+    4. NEVER modifies baseline artifacts or job.status
 
     Args:
         job_id: ID of the completed job
-        iteration_id: Iteration identifier (it_0001, it_0002, ...)
+        iteration_id: Iteration/run identifier (it_0001 for V1, run_1 for V2)
         user_id: ID of the user who triggered iteration
 
     Returns:
-        Dict with job_id, iteration_id, status, and summary
+        Dict with job_id, iteration_id/run_id, status, and summary
     """
     from datetime import datetime, timezone
     from backend.models.job_record import Artifacts, IterationOutputs, IterationMetrics, IterationError
 
-    logger.info(f"[{job_id}] Starting iteration {iteration_id}")
+    # Detect V2 run vs V1 iteration
+    is_v2_run = iteration_id.startswith("run_")
+
+    if is_v2_run:
+        return _run_v2_run_task(job_id, iteration_id, user_id)
+
+    # V1 Legacy iteration handling below
+    logger.info(f"[{job_id}] Starting V1 iteration {iteration_id}")
 
     job = get_job(job_id)
     if not job:

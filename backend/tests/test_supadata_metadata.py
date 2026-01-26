@@ -272,3 +272,195 @@ class TestMetadataPipelineIntegration:
         assert "https://youtube.com/watch?v=vid2" in video_metadata
         assert video_metadata["https://youtube.com/watch?v=vid1"]["media"]["duration"] == 100
         assert video_metadata["https://youtube.com/watch?v=vid2"]["media"]["duration"] == 200
+
+
+class TestMergeSupadataMetadata:
+    """Test _merge_supadata_metadata helper function."""
+
+    def test_merge_updates_empty_fields(self):
+        """Should merge metadata into package with empty fields."""
+        from backend.pipeline.stages.source_identity import (
+            _merge_supadata_metadata,
+            SourceIdentityPackage,
+        )
+        from backend.models.semantic_units import AnalysisMode
+
+        # Package with empty metadata fields
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="youtube",
+            url="https://youtube.com/watch?v=test123",
+            title="Untitled Video",  # Will be updated
+            creator=None,            # Will be updated
+            published=None,          # Will be updated
+            duration_seconds=None,   # Will be updated
+            analysis_mode=AnalysisMode.TRANSCRIPT_GROUNDED,
+        )
+
+        metadata = {
+            "title": "Rich Supadata Title",
+            "author": {"name": "Test Channel", "url": "https://youtube.com/@test"},
+            "createdAt": "2024-06-15T10:00:00Z",
+            "media": {"duration": 600, "thumbnailUrl": "https://example.com/thumb.jpg"},
+        }
+
+        _merge_supadata_metadata(package, metadata)
+
+        assert package.title == "Rich Supadata Title"
+        assert package.creator == "Test Channel"
+        assert package.published == "2024-06-15T10:00:00Z"
+        assert package.duration_seconds == 600
+        assert package.duration_minutes == 10.0
+
+    def test_merge_does_not_overwrite_existing_fields(self):
+        """Should NOT overwrite fields that already have values."""
+        from backend.pipeline.stages.source_identity import (
+            _merge_supadata_metadata,
+            SourceIdentityPackage,
+        )
+        from backend.models.semantic_units import AnalysisMode
+
+        # Package with existing metadata
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="youtube",
+            url="https://youtube.com/watch?v=test123",
+            title="Existing Title",           # Should NOT be overwritten
+            creator="Existing Creator",       # Should NOT be overwritten
+            published="2024-01-01",           # Should NOT be overwritten
+            duration_seconds=300,             # Should NOT be overwritten
+            analysis_mode=AnalysisMode.TRANSCRIPT_GROUNDED,
+        )
+
+        metadata = {
+            "title": "New Supadata Title",
+            "author": {"name": "New Channel"},
+            "createdAt": "2024-06-15T10:00:00Z",
+            "media": {"duration": 600},
+        }
+
+        _merge_supadata_metadata(package, metadata)
+
+        # All fields should remain unchanged
+        assert package.title == "Existing Title"
+        assert package.creator == "Existing Creator"
+        assert package.published == "2024-01-01"
+        assert package.duration_seconds == 300
+
+    def test_merge_handles_missing_metadata_fields(self):
+        """Should handle metadata with missing fields gracefully."""
+        from backend.pipeline.stages.source_identity import (
+            _merge_supadata_metadata,
+            SourceIdentityPackage,
+        )
+        from backend.models.semantic_units import AnalysisMode
+
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="youtube",
+            url="https://youtube.com/watch?v=test123",
+            title="Untitled Video",
+            analysis_mode=AnalysisMode.TRANSCRIPT_GROUNDED,
+        )
+
+        # Partial metadata - only title
+        metadata = {"title": "Just a Title"}
+
+        _merge_supadata_metadata(package, metadata)
+
+        assert package.title == "Just a Title"
+        assert package.creator is None  # Not in metadata
+        assert package.published is None  # Not in metadata
+
+    def test_merge_handles_none_metadata(self):
+        """Should handle None metadata gracefully."""
+        from backend.pipeline.stages.source_identity import (
+            _merge_supadata_metadata,
+            SourceIdentityPackage,
+        )
+        from backend.models.semantic_units import AnalysisMode
+
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="youtube",
+            url="https://youtube.com/watch?v=test123",
+            title="Original Title",
+            analysis_mode=AnalysisMode.TRANSCRIPT_GROUNDED,
+        )
+
+        _merge_supadata_metadata(package, None)
+
+        # Package unchanged
+        assert package.title == "Original Title"
+
+    def test_merge_handles_empty_metadata(self):
+        """Should handle empty dict metadata gracefully."""
+        from backend.pipeline.stages.source_identity import (
+            _merge_supadata_metadata,
+            SourceIdentityPackage,
+        )
+        from backend.models.semantic_units import AnalysisMode
+
+        package = SourceIdentityPackage(
+            source_id="SRC_1",
+            source_type="youtube",
+            url="https://youtube.com/watch?v=test123",
+            title="Original Title",
+            analysis_mode=AnalysisMode.TRANSCRIPT_GROUNDED,
+        )
+
+        _merge_supadata_metadata(package, {})
+
+        # Package unchanged
+        assert package.title == "Original Title"
+
+
+class TestMetadataMergedIntoPackage:
+    """Test that metadata is merged into package during stage execution."""
+
+    @patch("backend.pipeline.stages.source_identity.update_job")
+    @patch("backend.pipeline.stages.source_identity.acquire_transcript")
+    @patch("backend.pipeline.stages.source_identity.fetch_video_metadata")
+    def test_metadata_merged_into_package(self, mock_fetch_metadata, mock_acquire, mock_update_job):
+        """Should merge Supadata metadata into source_identity_packages for Doc 0."""
+        from backend.pipeline.stages.source_identity import stage_source_identity
+        from backend.pipeline.context import PipelineContext
+        from backend.pipeline.transcript_acquisition import TranscriptResult
+        from backend.models.semantic_units import AnalysisMode
+
+        ctx = PipelineContext(job_id="test-job", topic="Test")
+        ctx.youtube_videos = [
+            {"url": "https://youtube.com/watch?v=test123", "title": "Untitled Video"},
+        ]
+        ctx.web_sources = []
+        ctx.reddit_posts = []
+
+        # Mock transcript acquisition
+        mock_result = MagicMock(spec=TranscriptResult)
+        mock_result.text = "Transcript text"
+        mock_result.transcript_source = MagicMock()
+        mock_result.transcript_source.value = "supadata"
+        mock_result.analysis_mode = AnalysisMode.TRANSCRIPT_GROUNDED
+        mock_result.to_provenance.return_value = MagicMock()
+        mock_acquire.return_value = mock_result
+
+        # Mock metadata fetch with rich data
+        mock_fetch_metadata.return_value = {
+            "title": "Rich Video Title from Supadata",
+            "author": {"name": "Supadata Channel Name"},
+            "createdAt": "2024-06-15T10:00:00Z",
+            "media": {"duration": 1200},  # 20 minutes
+        }
+
+        with patch("backend.pipeline.stages.source_identity.is_transcript_available", return_value=True):
+            stage_source_identity(ctx)
+
+        # Verify the package was enriched with Supadata metadata
+        assert len(ctx.source_identity_packages) == 1
+        package = ctx.source_identity_packages[0]
+
+        assert package.title == "Rich Video Title from Supadata"
+        assert package.creator == "Supadata Channel Name"
+        assert package.published == "2024-06-15T10:00:00Z"
+        assert package.duration_seconds == 1200
+        assert package.duration_minutes == 20.0

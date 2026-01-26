@@ -4,9 +4,11 @@
  */
 import { useState, useCallback, useMemo } from 'react';
 import { ArtifactCard, type ArtifactState, type ArtifactType } from './ArtifactCard';
-import { IterationSelector } from './IterationSelector';
+import { RunSelector } from './RunSelector';
 import { DocumentViewerModal } from '../job-card/DocumentViewerModal';
 import type { Job, IterationBundle } from '../../store/jobs';
+import type { Run } from '../../types/run';
+import { isV2Run } from '../../types/run';
 import { API_URL } from '../../lib/constants';
 import { getAccessToken } from '../../lib/supabase';
 
@@ -22,10 +24,10 @@ interface DocModalState {
 export interface ArtifactCardGridProps {
   /** Job data */
   job: Job;
-  /** Handler to trigger booster */
-  onTriggerBooster: () => void;
-  /** Handler to trigger producer packet */
-  onTriggerProducer: () => void;
+  /** Handler to trigger booster (optional runId for V2 runs) */
+  onTriggerBooster: (runId?: string) => void;
+  /** Handler to trigger producer packet (optional runId for V2 runs) */
+  onTriggerProducer: (runId?: string) => void;
   /** Handler to open iteration dialog */
   onOpenIterationDialog: () => void;
   /** Whether actions are disabled (loading state) */
@@ -40,9 +42,21 @@ function getArtifactState(
 ): ArtifactState {
   const { status, artifacts, booster_status, producer_status, iteration_status } = job;
   const mainComplete = status === 'completed' || status === 'completed_with_warnings';
+  const isBaseline = selectedVersion === 'baseline' || selectedVersion === 'run_0';
 
-  // Viewing iteration version
-  if (selectedVersion !== 'baseline' && type !== 'booster' && type !== 'iteration') {
+  // Viewing V2 run version
+  if (!isBaseline && isV2Run(selectedVersion) && type !== 'booster' && type !== 'iteration') {
+    const runs = (artifacts?.runs || []) as Run[];
+    const run = runs.find((r) => r.run_id === selectedVersion);
+    if (!run) return 'not_available';
+    if (run.status === 'completed') return 'completed';
+    if (run.status === 'failed') return 'failed';
+    if (run.status === 'running') return 'running';
+    return 'queued';
+  }
+
+  // Viewing V1 iteration version
+  if (!isBaseline && type !== 'booster' && type !== 'iteration') {
     const iteration = artifacts?.iterations?.find(
       (it) => it.iteration_id === selectedVersion
     );
@@ -94,7 +108,10 @@ function getArtifactState(
       const hasCompletedIterations = artifacts?.iterations?.some(
         (it) => it.status === 'completed'
       );
-      if (hasCompletedIterations) return 'completed';
+      const hasCompletedRuns = ((artifacts?.runs || []) as Run[]).some(
+        (r) => r.status === 'completed' && r.run_type !== 'baseline'
+      );
+      if (hasCompletedIterations || hasCompletedRuns) return 'completed';
       if (!mainComplete) return 'not_available';
       return 'ready';
 
@@ -169,8 +186,9 @@ export function ArtifactCardGrid({
   // Loading state for document fetch
   const [isLoadingDoc, setIsLoadingDoc] = useState(false);
 
-  // Get iterations for selector (memoized to prevent useCallback deps change)
+  // Get iterations and runs for selector (memoized to prevent useCallback deps change)
   const iterations = useMemo(() => job.artifacts?.iterations || [], [job.artifacts?.iterations]);
+  const runs = useMemo(() => (job.artifacts?.runs || []) as Run[], [job.artifacts?.runs]);
 
   /** Open document viewer for a specific doc */
   const openDocViewer = useCallback(
@@ -181,8 +199,27 @@ export function ArtifactCardGrid({
         let data: Record<string, unknown> = {};
         let markdown: string | undefined;
 
-        // Check if viewing iteration version
-        if (selectedVersion !== 'baseline') {
+        // Check if viewing iteration or run version
+        const isBaseline = selectedVersion === 'baseline' || selectedVersion === 'run_0';
+
+        if (!isBaseline && isV2Run(selectedVersion)) {
+          // V2 Run - check run outputs
+          const run = runs.find((r) => r.run_id === selectedVersion);
+          if (run?.outputs) {
+            // V2 runs use doc_X_inline keys in outputs
+            const inlineKey = docNumber === 0 ? 'doc_0_inline' :
+                             docNumber === 1 ? 'doc_1_inline' :
+                             docNumber === 2 ? 'doc_2_inline' : null;
+
+            if (inlineKey && run.outputs[inlineKey as keyof typeof run.outputs]) {
+              const inlineData = run.outputs[inlineKey as keyof typeof run.outputs] as Record<string, unknown>;
+              const nestedData = inlineData.data as Record<string, unknown> | undefined;
+              data = nestedData || inlineData;
+              markdown = (inlineData as { markdown?: string }).markdown;
+            }
+          }
+        } else if (!isBaseline) {
+          // V1 Iteration
           const iteration = iterations.find((it) => it.iteration_id === selectedVersion);
           if (iteration?.outputs) {
             // Get inline data from iteration using correct positional keys
@@ -282,7 +319,7 @@ export function ArtifactCardGrid({
         setIsLoadingDoc(false);
       }
     },
-    [job, selectedVersion, iterations]
+    [job, selectedVersion, iterations, runs]
   );
 
   /** Handle card click based on type */
@@ -310,14 +347,22 @@ export function ArtifactCardGrid({
           if (state === 'completed') {
             openDocViewer(3, 'Producer Packet');
           } else if (state === 'ready' && !actionsDisabled) {
-            onTriggerProducer();
+            // Pass runId for V2 runs (except baseline run_0)
+            const producerRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
+              ? selectedVersion
+              : undefined;
+            onTriggerProducer(producerRunId);
           }
           break;
         case 'booster':
           if (state === 'completed') {
             openDocViewer('B', 'Deep Research');
           } else if (state === 'ready' && !actionsDisabled) {
-            onTriggerBooster();
+            // Pass runId for V2 runs (except baseline run_0)
+            const boosterRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
+              ? selectedVersion
+              : undefined;
+            onTriggerBooster(boosterRunId);
           }
           break;
         case 'iteration':
@@ -332,14 +377,17 @@ export function ArtifactCardGrid({
     [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, actionsDisabled]
   );
 
-  // Count completed iterations
+  // Count completed iterations and runs
   const completedIterationCount = iterations.filter((it) => it.status === 'completed').length;
+  const completedRunCount = runs.filter((r) => r.status === 'completed' && r.run_type !== 'baseline').length;
+  const totalCompletedCount = completedIterationCount + completedRunCount;
 
   return (
     <div className="space-y-6">
-      {/* Iteration selector - show if iterations exist */}
-      {iterations.length > 0 && (
-        <IterationSelector
+      {/* Run/Iteration selector - show if runs or iterations exist */}
+      {(runs.length > 0 || iterations.length > 0) && (
+        <RunSelector
+          runs={runs}
           iterations={iterations}
           selectedVersion={selectedVersion}
           onSelectVersion={setSelectedVersion}
@@ -389,12 +437,12 @@ export function ArtifactCardGrid({
           onRetry={onTriggerBooster}
         />
 
-        {/* Iterations */}
+        {/* Iterations / Runs */}
         <ArtifactCard
           type="iteration"
           state={getArtifactState(job, 'iteration', selectedVersion)}
           progressPercent={job.iteration_progress_percent}
-          iterationCount={completedIterationCount}
+          iterationCount={totalCompletedCount}
           iterationId={job.iteration_id}
           error={job.iteration_error}
           onClick={() => handleCardClick('iteration')}

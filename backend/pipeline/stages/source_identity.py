@@ -109,6 +109,47 @@ class SourceIdentityPackage:
         return ceilings.get(self.analysis_mode, ConfidenceLevel.LOW)
 
 
+def _merge_supadata_metadata(package: SourceIdentityPackage, metadata: dict) -> None:
+    """
+    Merge Supadata metadata into SourceIdentityPackage (in-place).
+
+    Supadata returns unified schema:
+    - title: str
+    - author: {name: str, url: str}
+    - media: {thumbnailUrl: str, duration: int (seconds)}
+    - createdAt: ISO date string
+    - stats: {views: int, likes: int}
+
+    Only updates fields that are currently empty/None to avoid overwriting
+    more authoritative data from other sources.
+    """
+    if not metadata:
+        return
+
+    # Update title if currently generic/empty
+    supadata_title = metadata.get("title")
+    if supadata_title and package.title in ("Untitled Video", "", None):
+        package.title = supadata_title
+
+    # Update creator from author.name
+    author = metadata.get("author", {})
+    supadata_creator = author.get("name") if isinstance(author, dict) else None
+    if supadata_creator and not package.creator:
+        package.creator = supadata_creator
+
+    # Update published from createdAt
+    supadata_published = metadata.get("createdAt")
+    if supadata_published and not package.published:
+        package.published = supadata_published
+
+    # Update duration from media.duration (in seconds)
+    media = metadata.get("media", {})
+    supadata_duration = media.get("duration") if isinstance(media, dict) else None
+    if supadata_duration and not package.duration_seconds:
+        package.duration_seconds = int(supadata_duration)
+        package.duration_minutes = supadata_duration / 60.0
+
+
 def build_source_identity_from_video(
     video_data: dict,
     source_index: int,
@@ -515,7 +556,9 @@ def stage_source_identity(ctx: PipelineContext) -> None:
                     metadata = fetch_video_metadata(url)
                     if metadata:
                         video_metadata[url] = metadata
-                        logger.info(f"  ✓ Metadata acquired for {package.source_id}")
+                        # Merge metadata into package to enrich Doc 0 source entries
+                        _merge_supadata_metadata(package, metadata)
+                        logger.info(f"  ✓ Metadata acquired and merged for {package.source_id}")
                 except Exception as e:
                     # Metadata fetch is non-blocking - log warning, continue
                     logger.warning(f"  ⚠ Metadata fetch failed for {package.source_id}: {e}")

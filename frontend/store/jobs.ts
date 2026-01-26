@@ -149,6 +149,9 @@ export interface JobArtifacts {
   // Iteration Loop (Phase 9)
   /** Iteration bundles - each iteration produces its own doc set */
   iterations?: IterationBundle[];
+  // V2 Run Abstraction (Phase 10)
+  /** V2 runs - unified model for baseline/iterations/regenerations */
+  runs?: unknown[];
 }
 
 /**
@@ -428,8 +431,8 @@ interface JobsState {
   createTextInputJob: (request: TextInputRequest) => Promise<TextInputResponse>;
   createScreenshotInputJob: (file: File, topic: string, platformHint?: string, contextNote?: string) => Promise<ScreenshotInputResponse>;
   createMixedInputJob: (request: MixedInputRequest) => Promise<MixedInputResponse>;
-  triggerBooster: (jobId: string) => Promise<BoosterResponse>;
-  triggerProducerPacket: (jobId: string) => Promise<ProducerPacketResponse>;
+  triggerBooster: (jobId: string, runId?: string) => Promise<BoosterResponse>;
+  triggerProducerPacket: (jobId: string, runId?: string) => Promise<ProducerPacketResponse>;
   triggerIteration: (jobId: string, request: IterationRequest) => Promise<IterationResponse>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
@@ -836,7 +839,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
-  triggerBooster: async (jobId: string): Promise<BoosterResponse> => {
+  triggerBooster: async (jobId: string, runId?: string): Promise<BoosterResponse> => {
     set({ actionInProgress: 'booster' });
     try {
       const token = await getAccessToken();
@@ -847,7 +850,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_URL}/jobs/${jobId}/booster`, {
+      // Use run-scoped endpoint if runId provided
+      const endpoint = runId
+        ? `${API_URL}/jobs/${jobId}/runs/${runId}/booster`
+        : `${API_URL}/jobs/${jobId}/booster`;
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers,
       });
@@ -875,7 +883,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
-  triggerProducerPacket: async (jobId: string): Promise<ProducerPacketResponse> => {
+  triggerProducerPacket: async (jobId: string, runId?: string): Promise<ProducerPacketResponse> => {
     set({ actionInProgress: 'producer' });
     try {
       const token = await getAccessToken();
@@ -886,7 +894,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_URL}/jobs/${jobId}/producer-packet`, {
+      // Use run-scoped endpoint if runId provided
+      const endpoint = runId
+        ? `${API_URL}/jobs/${jobId}/runs/${runId}/producer`
+        : `${API_URL}/jobs/${jobId}/producer-packet`;
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers,
       });

@@ -1,8 +1,11 @@
 """Job record model for storage."""
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from backend.models.run_models import Run
 
 
 # =============================================================================
@@ -75,10 +78,31 @@ class Iteration(BaseModel):
 class Artifacts(BaseModel):
     """Artifacts associated with a job.
 
-    Updated: 2026-01-21 - Removed all legacy/deprecated fields.
+    Updated: 2026-01-25 - Added runs[] for unified run abstraction.
+
+    V2 Architecture (runs):
+    - All outputs are organized under runs[]
+    - run_0 is always the baseline
+    - run_1+ are iterations/regenerations
+    - Producer/Booster are scoped to individual runs
+
+    V1 Architecture (legacy, deprecated):
+    - doc_*_path for baseline
+    - iterations[] for iterations
+    - Job-level producer_packet and booster_output
     """
     # =========================================================================
-    # SEMANTIC PIPELINE - Doc 0/1/2/3
+    # V2: RUN-BASED STORAGE (preferred)
+    # =========================================================================
+    # Import Run at runtime to avoid circular imports
+    runs: list[Any] = Field(
+        default_factory=list,
+        description="All runs (baseline + iterations). Type: list[Run]"
+    )
+
+    # =========================================================================
+    # V1 LEGACY: SEMANTIC PIPELINE - Doc 0/1/2/3
+    # DEPRECATED: Use runs[0].outputs instead for new code
     # =========================================================================
     # Inline document data (for backward compatibility with existing jobs)
     source_ledger: Optional[dict[str, Any]] = Field(None, description="Doc 0 - Source Ledger (inline)")
@@ -97,20 +121,62 @@ class Artifacts(BaseModel):
         None, description="Manifest of available artifacts with storage paths"
     )
 
-    # Booster (Doc 1 expansion)
+    # V1 LEGACY: Booster (Doc 1 expansion) - DEPRECATED: Use runs[n].booster_expansion
     booster_output: Optional[dict[str, Any]] = Field(None, description="Booster output for Doc 1 expansion")
     booster_expansion_md: Optional[str] = Field(None, description="Booster markdown for Doc 1")
 
-    # Producer Packet (Doc 3)
+    # V1 LEGACY: Producer Packet (Doc 3) - DEPRECATED: Use runs[n].producer_packet
     producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline)")
     producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
 
     # =========================================================================
-    # ITERATIONS (Append-only array of iteration bundles)
+    # V1 LEGACY: ITERATIONS - DEPRECATED: Use runs[1:] instead
     # =========================================================================
     # Each iteration produces new doc_0/doc_1/doc_2 WITHOUT modifying baseline.
     # IMPORTANT: Never overwrite baseline doc_*_path keys - iterations are ADDITIVE.
     iterations: list[Iteration] = Field(default_factory=list, description="Iteration history (append-only)")
+
+    # =========================================================================
+    # SHARED DATA (used across all runs)
+    # =========================================================================
+    video_metadata: Optional[dict[str, Any]] = Field(None, description="Video metadata from Supadata")
+    source_identity_packages: Optional[list[dict[str, Any]]] = Field(None, description="Source identity packages")
+
+    # =========================================================================
+    # V2 HELPER METHODS
+    # =========================================================================
+    def get_run(self, run_id: str) -> Optional[Any]:
+        """Get a run by ID."""
+        for run in self.runs:
+            if hasattr(run, 'run_id') and run.run_id == run_id:
+                return run
+            elif isinstance(run, dict) and run.get('run_id') == run_id:
+                return run
+        return None
+
+    def get_baseline_run(self) -> Optional[Any]:
+        """Get the baseline run (run_0)."""
+        return self.get_run("run_0")
+
+    def get_latest_completed_run(self) -> Optional[Any]:
+        """Get the most recent completed run."""
+        completed = []
+        for run in self.runs:
+            if hasattr(run, 'status'):
+                if run.status == "completed":
+                    completed.append(run)
+            elif isinstance(run, dict) and run.get('status') == "completed":
+                completed.append(run)
+
+        if not completed:
+            return None
+
+        # Sort by run_index and return highest
+        return max(completed, key=lambda r: r.run_index if hasattr(r, 'run_index') else r.get('run_index', 0))
+
+    def has_runs(self) -> bool:
+        """Check if job uses V2 run-based storage."""
+        return len(self.runs) > 0
 
 
 class Outputs(BaseModel):

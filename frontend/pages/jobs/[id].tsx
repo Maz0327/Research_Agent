@@ -263,14 +263,14 @@ function JobDetailContent() {
     router.push('/dashboard');
   }, [jobId, deleteJob, router]);
 
-  const handleTriggerBooster = useCallback(async () => {
+  const handleTriggerBooster = useCallback(async (runId?: string) => {
     if (!jobId) return;
-    await triggerBooster(jobId);
+    await triggerBooster(jobId, runId);
   }, [jobId, triggerBooster]);
 
-  const handleTriggerProducer = useCallback(async () => {
+  const handleTriggerProducer = useCallback(async (runId?: string) => {
     if (!jobId) return;
-    await triggerProducerPacket(jobId);
+    await triggerProducerPacket(jobId, runId);
   }, [jobId, triggerProducerPacket]);
 
   const handleTriggerIteration = useCallback(

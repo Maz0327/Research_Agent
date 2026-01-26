@@ -25,6 +25,59 @@ from backend.models.semantic_units import (
 )
 
 
+# -----------------------------------------------------------------------------
+# MARKDOWN RENDERING HELPERS
+# -----------------------------------------------------------------------------
+
+def _status_emoji(status: "SourceStatus") -> str:
+    """Return emoji for source status."""
+    return {
+        "ingested": "✅",
+        "partial": "⚠️",
+        "failed": "❌",
+    }.get(status.value if hasattr(status, "value") else status, "❓")
+
+
+def _confidence_badge(level: ConfidenceLevel) -> str:
+    """Return colored badge for confidence level."""
+    return {
+        ConfidenceLevel.HIGH: "🟢 HIGH",
+        ConfidenceLevel.MEDIUM: "🟡 MEDIUM",
+        ConfidenceLevel.LOW: "🔴 LOW",
+    }.get(level, "⚪ UNKNOWN")
+
+
+def _type_icon(source_type: str) -> str:
+    """Return icon for source type."""
+    return {
+        "youtube": "📺",
+        "article": "📄",
+        "reddit": "💬",
+        "text": "📝",
+        "screenshot": "🖼️",
+    }.get(source_type.lower() if source_type else "", "📎")
+
+
+def _format_duration(seconds: Optional[int]) -> str:
+    """Format duration in human-readable form."""
+    if not seconds:
+        return ""
+    mins, secs = divmod(seconds, 60)
+    hours, mins = divmod(mins, 60)
+    if hours:
+        return f"{hours}h {mins}m"
+    return f"{mins}m {secs}s"
+
+
+def _github_alert(alert_type: str, content: str) -> str:
+    """
+    Generate GitHub-style alert block.
+
+    Types: NOTE, TIP, IMPORTANT, WARNING, CAUTION
+    """
+    return f"> [!{alert_type.upper()}]\n> {content.replace(chr(10), chr(10) + '> ')}"
+
+
 class SourceStatus(str, Enum):
     """Status of a source in the ledger."""
     INGESTED = "ingested"
@@ -150,12 +203,9 @@ class SourceEntry:
 
     def to_markdown(self) -> str:
         """Render source entry as markdown section with visual hierarchy."""
-        # Status indicator
-        status_icon = {
-            SourceStatus.INGESTED: "**[INGESTED]**",
-            SourceStatus.PARTIAL: "**[PARTIAL]**",
-            SourceStatus.FAILED: "**[FAILED]**",
-        }.get(self.status, "**[UNKNOWN]**")
+        # Get emoji indicators
+        status_emoji = _status_emoji(self.status)
+        type_icon = _type_icon(self.source_type)
 
         # Type badge with Shorts indicator
         type_label = self.source_type.upper() if self.source_type else "SOURCE"
@@ -164,10 +214,8 @@ class SourceEntry:
         is_shorts = False
         if self.source_type == "youtube" and self.url:
             is_shorts = "/shorts/" in self.url
-        # Also detect by duration if under 60 seconds (Shorts are typically <60s)
         if self.source_type == "youtube" and self.duration:
             try:
-                # Parse duration like "0:45" or "1:23"
                 parts = self.duration.split(":")
                 if len(parts) == 2:
                     mins, secs = int(parts[0]), int(parts[1])
@@ -177,91 +225,97 @@ class SourceEntry:
                 pass
 
         if is_shorts:
-            type_label = "YOUTUBE SHORTS"
+            type_label = "SHORTS"
 
+        # Header with emoji badges
         lines = [
             f"### {self.source_id}: {self.title}",
             "",
-            f"> {type_label} {status_icon}",
+            f"> {type_icon} **{type_label}** | {status_emoji} {self.status.value.upper()}",
             "",
         ]
 
-        # Metadata block
-        lines.append("**Details:**")
+        # Metadata table (more scannable than list)
+        meta_rows = []
         if self.creator:
-            lines.append(f"- **Creator:** {self.creator}")
+            meta_rows.append(f"| Creator | {self.creator} |")
         if self.published:
-            lines.append(f"- **Published:** {self.published}")
+            meta_rows.append(f"| Published | {self.published} |")
         if self.duration:
-            lines.append(f"- **Duration:** {self.duration}")
+            meta_rows.append(f"| Duration | {self.duration} |")
         if self.word_count:
-            lines.append(f"- **Word Count:** {self.word_count:,}")
-        lines.append(f"- **URL:** {self.url}")
-        lines.append("")
+            meta_rows.append(f"| Words | {self.word_count:,} |")
+        meta_rows.append(f"| URL | [{self.url[:50]}...]({self.url}) |" if len(self.url) > 50 else f"| URL | {self.url} |")
 
-        # Skim summary with better visual
+        if meta_rows:
+            lines.extend([
+                "| Field | Value |",
+                "|-------|-------|",
+            ])
+            lines.extend(meta_rows)
+            lines.append("")
+
+        # Failure alert (prominent for failed sources)
+        if self.status == SourceStatus.FAILED and self.failure_reason:
+            lines.extend([
+                "",
+                _github_alert("CAUTION", f"**Failed:** {self.failure_reason}"),
+                "",
+            ])
+
+        # Skim summary
         if self.skim_summary:
             lines.extend([
                 "",
-                "#### Quick Summary",
+                "#### 📋 Quick Summary",
                 "",
             ])
             for bullet in self.skim_summary:
                 lines.append(f"- {bullet}")
             lines.append("")
 
-        # Extracted index (claims, entities, themes)
-        has_extracted_content = self.claim_ids or self.entity_names or self.theme_ids
-        if has_extracted_content:
-            lines.extend([
-                "",
-                "#### Extracted Content Index",
-                "",
-            ])
+        # Extracted index (compact)
+        has_extracted = self.claim_ids or self.entity_names or self.theme_ids
+        if has_extracted:
+            lines.extend(["", "#### 🏷️ Extracted Index", ""])
             if self.claim_ids:
-                lines.append(f"- **Claims:** {', '.join(self.claim_ids[:10])}" +
-                           (f" (+{len(self.claim_ids) - 10} more)" if len(self.claim_ids) > 10 else ""))
+                count = len(self.claim_ids)
+                preview = ", ".join(self.claim_ids[:5])
+                suffix = f" (+{count - 5} more)" if count > 5 else ""
+                lines.append(f"- **Claims ({count}):** {preview}{suffix}")
             if self.entity_names:
-                lines.append(f"- **Entities:** {', '.join(self.entity_names[:10])}" +
-                           (f" (+{len(self.entity_names) - 10} more)" if len(self.entity_names) > 10 else ""))
+                count = len(self.entity_names)
+                preview = ", ".join(self.entity_names[:5])
+                suffix = f" (+{count - 5} more)" if count > 5 else ""
+                lines.append(f"- **Entities ({count}):** {preview}{suffix}")
             if self.theme_ids:
                 lines.append(f"- **Themes:** {', '.join(self.theme_ids)}")
             lines.append("")
 
-        # Transcript provenance (for video sources) - show before full text
+        # Transcript provenance (for video sources)
         if self.transcript_provenance:
             tp = self.transcript_provenance
-            confidence_label = {
-                ConfidenceLevel.HIGH: "High",
-                ConfidenceLevel.MEDIUM: "Medium",
-                ConfidenceLevel.LOW: "Low",
-            }.get(tp.semantic_precision, "Unknown")
+            conf_badge = _confidence_badge(tp.semantic_precision)
 
             lines.extend([
                 "",
-                "#### Transcript Quality",
+                "#### 🎙️ Transcript Quality",
                 "",
                 f"| Attribute | Value |",
                 f"|-----------|-------|",
-                f"| Source | {tp.transcript_source.title()} |",
-                f"| Analysis Mode | {tp.gemini_analysis_mode.value} |",
-                f"| Quote Verification | {'Available' if tp.quote_verification else 'Limited'} |",
-                f"| Confidence | {confidence_label} |",
+                f"| Source | **{tp.transcript_source.title()}** |",
+                f"| Mode | {tp.gemini_analysis_mode.value} |",
+                f"| Quotes | {'✅ Verified' if tp.quote_verification else '⚠️ Limited'} |",
+                f"| Confidence | {conf_badge} |",
                 "",
             ])
 
-        # Failure reason for failed sources
-        if self.status == SourceStatus.FAILED and self.failure_reason:
-            lines.extend([
-                "> **Failed:** " + self.failure_reason,
-                "",
-            ])
-
-        # Full source text
+        # Full source text (collapsible)
         if self.full_text:
             lines.extend([
+                "",
                 "<details>",
-                "<summary><strong>Full Source Text</strong> (click to expand)</summary>",
+                "<summary>📄 <strong>Full Source Text</strong> (click to expand)</summary>",
                 "",
                 "```",
                 self.full_text[:5000] + ("..." if len(self.full_text) > 5000 else ""),
@@ -271,7 +325,8 @@ class SourceEntry:
             ])
         elif self.full_text_unavailable_reason:
             lines.extend([
-                "> **Text Unavailable:** " + self.full_text_unavailable_reason,
+                "",
+                _github_alert("WARNING", f"Text unavailable: {self.full_text_unavailable_reason}"),
                 "",
             ])
 
@@ -323,53 +378,75 @@ class SourceLedger:
         partial = sum(1 for s in self.sources if s.status == SourceStatus.PARTIAL)
         total = len(self.sources)
 
+        # Count by type
+        type_counts = {}
+        for s in self.sources:
+            t = s.source_type or "unknown"
+            type_counts[t] = type_counts.get(t, 0) + 1
+        type_summary = ", ".join(f"{_type_icon(k)} {v}" for k, v in type_counts.items())
+
         lines = [
-            "# SOURCE LEDGER",
-            "",
-            f"> **Research Topic:** {self.topic}",
-            "",
-            "---",
-            "",
-            "## Overview",
-            "",
-            f"| Metric | Count |",
-            f"|--------|-------|",
-            f"| Total Sources | {total} |",
-            f"| Successfully Ingested | {ingested} |",
-            f"| Partially Processed | {partial} |",
-            f"| Failed | {failed} |",
+            "# 📚 SOURCE LEDGER",
             "",
         ]
 
-        # Quality indicator
-        if failed == 0 and partial == 0:
-            lines.append("> **Status:** All sources successfully processed")
-        elif failed > 0:
-            lines.append(f"> **Warning:** {failed} source(s) failed to process")
+        # Executive summary card
+        lines.extend([
+            _github_alert(
+                "NOTE",
+                f"**Topic:** {self.topic}\n> \n> "
+                f"**Sources:** {total} total | {ingested} ✅ | {partial} ⚠️ | {failed} ❌\n> \n> "
+                f"**Types:** {type_summary}"
+            ),
+            "",
+        ])
+
+        # Status alert if issues
+        if failed > 0:
+            lines.extend([
+                _github_alert("WARNING", f"{failed} source(s) failed to process. Results may be incomplete."),
+                "",
+            ])
+        elif partial > 0:
+            lines.extend([
+                _github_alert("NOTE", f"{partial} source(s) partially processed."),
+                "",
+            ])
+
+        lines.append("---")
+        lines.append("")
+
+        # Table of Contents
+        lines.extend([
+            "## 📑 Contents",
+            "",
+            "1. [Source Manifest](#source-manifest)",
+            "2. [Detailed Analysis](#detailed-source-analysis)",
+        ])
+        for i, s in enumerate(self.sources, 1):
+            safe_anchor = s.source_id.lower().replace("_", "-")
+            lines.append(f"   - [{s.source_id}: {s.title[:30]}...](#{safe_anchor}-{s.title[:20].lower().replace(' ', '-')})")
         lines.extend(["", "---", ""])
 
-        # Source manifest with better formatting
+        # Source manifest with emoji badges
         lines.extend([
-            "## Source Manifest",
+            "## 📋 Source Manifest",
             "",
             "| # | ID | Type | Title | Status |",
-            "|---|-----|------|-------|--------|",
+            "|--:|-----|:----:|-------|:------:|",
         ])
 
         for i, s in enumerate(self.sources, 1):
-            status_badge = {
-                SourceStatus.INGESTED: "Ingested",
-                SourceStatus.PARTIAL: "Partial",
-                SourceStatus.FAILED: "Failed",
-            }.get(s.status, "Unknown")
-            title_truncated = s.title[:35] + "..." if len(s.title) > 35 else s.title
-            lines.append(f"| {i} | {s.source_id} | {s.source_type} | {title_truncated} | {status_badge} |")
+            status_emoji = _status_emoji(s.status)
+            type_icon = _type_icon(s.source_type)
+            title_truncated = s.title[:40] + "..." if len(s.title) > 40 else s.title
+            lines.append(f"| {i} | `{s.source_id}` | {type_icon} | {title_truncated} | {status_emoji} |")
 
         lines.extend(["", "---", ""])
 
         # Detailed sources section
         lines.extend([
-            "## Detailed Source Analysis",
+            "## 🔍 Detailed Source Analysis",
             "",
         ])
 
@@ -512,66 +589,145 @@ class JumpStartDirections:
         return result
 
     def to_markdown(self) -> str:
-        """Render Jump-Start as markdown."""
+        """Render Jump-Start as markdown with improved visual hierarchy."""
+        conf_badge = _confidence_badge(self.confidence)
+
         lines = [
-            "# JUMP-START RESEARCH BRIEF",
+            "# 🚀 JUMP-START RESEARCH BRIEF",
             "",
-            "## SCOPE LOCK",
-            "This research covers:",
         ]
 
-        for item in self.scope_in:
-            lines.append(f"- IN: {item}")
-        for item in self.scope_out:
-            lines.append(f"- OUT: {item}")
-
+        # Executive summary
         lines.extend([
+            _github_alert(
+                "NOTE",
+                f"**Sources:** {self.source_count} | "
+                f"**Key Points:** {len(self.key_points)} | "
+                f"**Gaps:** {len(self.gaps)} | "
+                f"**Confidence:** {conf_badge}"
+            ),
             "",
             "---",
             "",
-            "## CURRENT CORPUS OVERVIEW",
-            f"- Number of sources: {self.source_count}",
-            f"- Perspectives represented: {', '.join(self.perspectives_represented)}",
-            f"- Time span covered: {self.time_span_covered or 'Not specified'}",
-            "",
-            "---",
-            "",
-            "## WHAT WE KNOW (From Current Sources)",
         ])
 
-        for kp in self.key_points:
-            lines.append(f"- {kp.key_point_id}: {kp.statement}")
+        # Scope Lock (collapsible for less visual noise)
+        lines.extend([
+            "## 🎯 Scope Lock",
+            "",
+            "| Scope | Items |",
+            "|-------|-------|",
+        ])
+        scope_in_str = ", ".join(self.scope_in) if self.scope_in else "Not specified"
+        scope_out_str = ", ".join(self.scope_out) if self.scope_out else "Not specified"
+        lines.append(f"| ✅ **IN** | {scope_in_str} |")
+        lines.append(f"| ❌ **OUT** | {scope_out_str} |")
+        lines.extend(["", "---", ""])
 
-        lines.extend(["", "---", "", "## WHAT IS UNCLEAR OR DISPUTED"])
+        # Corpus Overview
+        lines.extend([
+            "## 📊 Current Corpus",
+            "",
+            f"| Metric | Value |",
+            f"|--------|-------|",
+            f"| Sources | {self.source_count} |",
+            f"| Perspectives | {', '.join(self.perspectives_represented) or 'N/A'} |",
+            f"| Time Span | {self.time_span_covered or 'Not specified'} |",
+            "",
+            "---",
+            "",
+        ])
 
-        for t in self.tensions:
-            lines.append(f"- {t.tension_id}: {t.description}")
+        # What We Know
+        lines.extend([
+            "## 💡 What We Know",
+            "",
+        ])
+        if self.key_points:
+            for kp in self.key_points[:10]:  # Limit display
+                conf = _confidence_badge(kp.confidence) if hasattr(kp, 'confidence') else ""
+                lines.append(f"- **{kp.key_point_id}:** {kp.statement}")
+            if len(self.key_points) > 10:
+                lines.append(f"- *...and {len(self.key_points) - 10} more key points*")
+        else:
+            lines.append("*No key points extracted yet.*")
+        lines.extend(["", "---", ""])
 
-        lines.extend(["", "---", "", "## GAPS (What's Missing)"])
+        # Tensions
+        lines.extend([
+            "## ⚡ Tensions & Disputes",
+            "",
+        ])
+        if self.tensions:
+            for t in self.tensions:
+                lines.append(f"- **{t.tension_id}:** {t.description}")
+        else:
+            lines.append("*No tensions identified.*")
+        lines.extend(["", "---", ""])
 
-        for g in self.gaps:
-            lines.append(f"- {g.gap_id}: {g.description}")
-            lines.append(f"  Why it matters: {g.why_expected}")
+        # Gaps (highlighted as important)
+        lines.extend([
+            "## 🕳️ Gaps (What's Missing)",
+            "",
+        ])
+        if self.gaps:
+            for g in self.gaps:
+                lines.extend([
+                    f"### {g.gap_id}: {g.description}",
+                    f"**Why it matters:** {g.why_expected}",
+                    "",
+                ])
+        else:
+            lines.append("*No gaps identified.*")
+        lines.append("---")
+        lines.append("")
 
-        lines.extend(["", "---", "", "## SUGGESTED RESEARCH DIRECTIONS"])
+        # Research Directions
+        lines.extend([
+            "## 🧭 Suggested Research Directions",
+            "",
+        ])
+        if self.research_directions:
+            for rd in self.research_directions:
+                lines.extend([
+                    f"### Priority {rd.priority}: {rd.what_to_look_for}",
+                    "",
+                    f"**Example queries:** `{', '.join(rd.example_queries)}`" if rd.example_queries else "",
+                    "",
+                    f"**Why:** {rd.why_it_matters}" if rd.why_it_matters else "",
+                    "",
+                ])
+        else:
+            lines.append("*No specific directions suggested.*")
+        lines.append("---")
+        lines.append("")
 
-        for rd in self.research_directions:
+        # Next Steps (prominent)
+        lines.extend([
+            "## ✅ TOP 3 NEXT STEPS",
+            "",
+        ])
+        if self.next_steps:
             lines.extend([
-                f"### Priority {rd.priority}",
-                f"- What to look for: {rd.what_to_look_for}",
-                f"- Example queries: {', '.join(rd.example_queries)}",
-                f"- Why this matters: {rd.why_it_matters}",
+                _github_alert("IMPORTANT", "Complete these steps to advance your research:"),
                 "",
             ])
+            for i, step in enumerate(self.next_steps[:3], 1):
+                lines.append(f"**{i}.** {step}")
+                lines.append("")
+        else:
+            lines.append("*No next steps defined.*")
 
-        lines.extend(["---", "", "## TOP 3 NEXT STEPS (MANDATORY)"])
-
-        for i, step in enumerate(self.next_steps[:3], 1):
-            lines.append(f"{i}. {step}")
-
-        # Append booster expansion if present (Phase 7)
+        # Booster expansion if present (Phase 7)
         if self.booster_expansion_md:
-            lines.append(self.booster_expansion_md)
+            lines.extend([
+                "",
+                "---",
+                "",
+                "## 🔬 Deep Research Booster",
+                "",
+                self.booster_expansion_md,
+            ])
 
         return "\n".join(lines)
 
@@ -657,90 +813,158 @@ class SemanticBrief:
         }
 
     def to_markdown(self) -> str:
-        """Render Semantic Brief as markdown."""
-        lines = ["# SEMANTIC RESEARCH BRIEF", ""]
+        """Render Semantic Brief as markdown with improved visual hierarchy."""
+        conf_badge = _confidence_badge(self.confidence.level)
+        triage_emoji = {
+            TriageLevel.READY: "🟢",
+            TriageLevel.USABLE: "🟡",
+            TriageLevel.THIN: "🟠",
+            TriageLevel.DEGRADED: "🔴",
+            TriageLevel.FAILED: "⛔",
+        }.get(self.triage, "❓")
+
+        lines = ["# 📊 SEMANTIC RESEARCH BRIEF", ""]
+
+        # Executive summary card
+        lines.extend([
+            _github_alert(
+                "NOTE",
+                f"**Themes:** {len(self.themes)} | "
+                f"**Key Points:** {len(self.key_points)} | "
+                f"**Tensions:** {len(self.tensions)} | "
+                f"**Gaps:** {len(self.gaps)}\n> \n> "
+                f"**Quality:** {triage_emoji} {self.triage.value.upper()} | "
+                f"**Confidence:** {conf_badge}"
+            ),
+            "",
+        ])
 
         # Warning banner for degraded output
         if self.triage in (TriageLevel.THIN, TriageLevel.DEGRADED):
             lines.extend([
-                "> **Warning:** This brief is based on limited or one-sided sources.",
+                _github_alert("WARNING", "This brief is based on limited or one-sided sources. Use with caution."),
                 "",
             ])
 
+        if self.warnings:
+            for w in self.warnings:
+                lines.extend([_github_alert("CAUTION", w), ""])
+
+        lines.extend(["---", ""])
+
+        # Semantic Core (prominent)
         lines.extend([
-            "## SEMANTIC CORE (What This Is Really About)",
-            self.semantic_core,
+            "## 🎯 Semantic Core",
+            "",
+            f"> {self.semantic_core}",
+            "",
+            f"*Based on: {', '.join(self.semantic_core_based_on)}*" if self.semantic_core_based_on else "",
             "",
             "---",
             "",
-            "## KEY THEMES",
         ])
 
-        for theme in self.themes:
-            lines.extend([
-                f"### {theme.theme_id}: {theme.label}",
-                f"Description: {theme.description}",
-                "",
-                "Supporting Key Points:",
-            ])
-            for kp_id in theme.related_key_points:
-                lines.append(f"- {kp_id}")
-            lines.append("")
-
-        lines.extend(["---", "", "## KEY POINTS"])
-
-        for kp in self.key_points:
-            lines.extend([
-                f"- {kp.key_point_id}: {kp.statement}",
-                f"  Sources: {', '.join(kp.source_ids)}",
-                "",
-            ])
-
-        if self.tensions:
-            lines.extend(["---", "", "## TENSIONS & CONTRADICTIONS"])
-            for t in self.tensions:
+        # Key Themes
+        lines.extend([
+            "## 🏷️ Key Themes",
+            "",
+        ])
+        if self.themes:
+            for theme in self.themes:
                 lines.extend([
-                    f"- {t.tension_id}:",
-                    f"  Description: {t.description}",
-                    f"  Involved Points: {', '.join(t.involved_key_points)}",
+                    f"### {theme.theme_id}: {theme.label}",
+                    "",
+                    f"{theme.description}",
+                    "",
+                    f"**Related Key Points:** `{', '.join(theme.related_key_points)}`",
                     "",
                 ])
+        else:
+            lines.append("*No themes identified.*")
+        lines.extend(["---", ""])
 
-        lines.extend(["---", "", "## GAPS & WEAKNESSES"])
+        # Key Points (tabular for scannability)
+        lines.extend([
+            "## 💡 Key Points",
+            "",
+            "| ID | Statement | Sources |",
+            "|-----|-----------|---------|",
+        ])
+        for kp in self.key_points[:15]:  # Limit for readability
+            stmt = kp.statement[:80] + "..." if len(kp.statement) > 80 else kp.statement
+            sources = ", ".join(kp.source_ids[:3])
+            if len(kp.source_ids) > 3:
+                sources += f" +{len(kp.source_ids) - 3}"
+            lines.append(f"| `{kp.key_point_id}` | {stmt} | {sources} |")
+        if len(self.key_points) > 15:
+            lines.append(f"| ... | *{len(self.key_points) - 15} more key points* | |")
+        lines.extend(["", "---", ""])
 
-        for g in self.gaps:
+        # Tensions
+        if self.tensions:
             lines.extend([
-                f"- {g.gap_id}:",
-                f"  Why it matters: {g.why_expected}",
-                f"  What would help: {g.suggested_research_direction or 'Not specified'}",
+                "## ⚡ Tensions & Contradictions",
                 "",
             ])
+            for t in self.tensions:
+                lines.extend([
+                    f"### {t.tension_id}",
+                    "",
+                    f"**Description:** {t.description}",
+                    "",
+                    f"**Involved:** `{', '.join(t.involved_key_points)}`",
+                    "",
+                ])
+            lines.append("---")
+            lines.append("")
 
+        # Gaps
         lines.extend([
-            "---",
+            "## 🕳️ Gaps & Weaknesses",
             "",
-            "## CONFIDENCE ASSESSMENT",
-            f"Overall Confidence: {self.confidence.level.value.title()}",
-            "",
-            "Reasoning:",
         ])
+        if self.gaps:
+            for g in self.gaps:
+                lines.extend([
+                    f"### {g.gap_id}",
+                    "",
+                    f"**Why it matters:** {g.why_expected}",
+                    "",
+                    f"**Suggested research:** {g.suggested_research_direction or 'Not specified'}",
+                    "",
+                ])
+        else:
+            lines.append("*No gaps identified.*")
+        lines.extend(["---", ""])
 
+        # Confidence Assessment (prominent card)
+        lines.extend([
+            "## 📈 Confidence Assessment",
+            "",
+            _github_alert(
+                "IMPORTANT",
+                f"**Overall Confidence: {conf_badge}**"
+            ),
+            "",
+            "**Reasoning:**",
+            "",
+        ])
         for reason in self.confidence.reasoning:
             lines.append(f"- {reason}")
+        lines.extend(["", "---", ""])
 
+        # Speculative Observations
         if self.speculative_observations:
             lines.extend([
+                "## 🔮 Speculative Observations",
                 "",
-                "---",
-                "",
-                "## SPECULATIVE OBSERVATIONS (OPTIONAL)",
-                "> These are hypotheses, not conclusions.",
+                _github_alert("CAUTION", "These are hypotheses, not conclusions. Treat as starting points for investigation."),
                 "",
             ])
             for so in self.speculative_observations:
                 lines.extend([
-                    f"- {so.text}",
-                    f"  Based on: {', '.join(so.based_on)}",
+                    f"- **{so.text}**",
+                    f"  - *Based on:* {', '.join(so.based_on)}",
                     "",
                 ])
 
