@@ -549,6 +549,96 @@ class GeminiClient:
             raise RuntimeError(f"Gemini vision failed: {sanitized}") from e
 
     @with_rate_limit("gemini")
+    def generate_json_with_image(
+        self,
+        prompt: str,
+        image_base64: str,
+        system_message: Optional[str] = None,
+        model: str = "gemini-2.5-flash",
+        temperature: float = 0.1,
+        mime_type: str = "image/png",
+    ) -> dict[str, Any]:
+        """Generate JSON output from an image with structured parsing.
+
+        Used for claim extraction from screenshots where we need
+        structured JSON output with vision capabilities.
+
+        Args:
+            prompt: The extraction prompt
+            image_base64: Base64-encoded image data
+            system_message: Optional system instruction/role
+            model: Model to use (default: gemini-2.5-flash)
+            temperature: Sampling temperature
+            mime_type: Image MIME type (default: image/png)
+
+        Returns:
+            Dict with 'data' (parsed JSON), 'cost', and optional 'error'
+        """
+        import base64
+
+        try:
+            logger.info(f"Gemini JSON vision ({model}): {prompt[:50]}...")
+
+            # Decode base64 image
+            image_data = base64.b64decode(image_base64)
+
+            # Create image part using SDK
+            image_part = types.Part.from_bytes(
+                data=image_data,
+                mime_type=mime_type,
+            )
+
+            # Build config with JSON output
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                max_output_tokens=16384,
+                system_instruction=system_message,
+                response_mime_type="application/json",
+            )
+
+            response = self._client.models.generate_content(
+                model=model,
+                contents=[prompt, image_part],
+                config=config,
+            )
+            text = response.text or ""
+
+            # Estimate cost (images count as ~258 tokens)
+            input_tokens = len(prompt.split()) * 1.3 + 258
+            output_tokens = len(text.split()) * 1.3
+            cost = self._estimate_cost(model, input_tokens, output_tokens)
+
+            # Parse JSON from response
+            try:
+                data = parse_json_from_llm_response(text)
+            except Exception as parse_error:
+                logger.warning(f"JSON parse error: {parse_error}, raw: {text[:200]}")
+                return {
+                    "data": {},
+                    "cost": cost,
+                    "error": f"Failed to parse JSON: {parse_error}",
+                    "model": model,
+                }
+
+            logger.info(f"Gemini JSON vision response: {len(text)} chars, ~${cost:.4f}")
+
+            return {
+                "data": data,
+                "cost": cost,
+                "model": model,
+            }
+
+        except Exception as e:
+            sanitized = sanitize_error_message(e, include_type=False)
+            logger.error(f"Gemini JSON vision failed: {sanitized}")
+            return {
+                "data": {},
+                "cost": 0,
+                "error": f"Gemini JSON vision failed: {sanitized}",
+                "model": model,
+            }
+
+    @with_rate_limit("gemini")
     def analyze_pdf(
         self,
         pdf_path: str,

@@ -7,15 +7,15 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../components/Layout';
 import { ProtectedRoute, useAuth } from '../components/AuthProvider';
-import { useJobsStore, JobPreview, VideoAnalysisResponse, TextInputRequest, TextInputResponse, ScreenshotInputResponse, MixedInputRequest, MixedInputResponse, MixedTextInput } from '../store/jobs';
+import { useJobsStore, JobPreview, TextInputRequest, TextInputResponse, ScreenshotInputResponse, MixedInputRequest, MixedInputResponse, MixedTextInput, ClaimExtractionRequest } from '../store/jobs';
 import { useUIPreferences } from '../store/ui-preferences';
 import { POLLING_INTERVALS, VALIDATION_LIMITS, PLATFORM_HINTS, SCREENSHOT_PLATFORM_HINTS } from '../lib/constants';
 import { UnifiedInputPanel } from '../components/unified-input';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import { DashboardJobCard } from '../components/dashboard/DashboardJobCard';
 
-// Job creation modes: 'research' (unified multi-source) or 'quick' (simple video)
-type JobMode = 'research' | 'quick';
+// Job creation modes: 'research' (unified multi-source) or 'claims' (claim extraction)
+type JobMode = 'research' | 'claims';
 
 // Research depth options (mode)
 const researchDepths = [
@@ -59,14 +59,17 @@ function JobSkeleton() {
 const availableSourceTypes = ['web', 'news', 'youtube', 'reddit'];
 
 function DashboardContent() {
-  // Job creation mode: 'research' (unified multi-source) or 'quick' (simple video)
+  // Job creation mode: 'research' (unified multi-source) or 'claims' (claim extraction)
   const [jobMode, setJobMode] = useState<JobMode>('research');
 
-  // Quick Video state (simple video analysis)
-  const [videoUrls, setVideoUrls] = useState('');
-  const [videoTitle, setVideoTitle] = useState('');
-  const [geminiModel, setGeminiModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
-  const [isVideoSubmitting, setIsVideoSubmitting] = useState(false);
+  // Claim Extractor state
+  const [claimTitle, setClaimTitle] = useState('');
+  const [claimVideoUrls, setClaimVideoUrls] = useState('');
+  const [claimArticleUrls, setClaimArticleUrls] = useState('');
+  const [claimTextContent, setClaimTextContent] = useState('');
+  const [claimTextTitle, setClaimTextTitle] = useState('');
+  const [claimModel, setClaimModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [isClaimSubmitting, setIsClaimSubmitting] = useState(false);
 
   // Unified input state
   const [isMixedSubmitting, setIsMixedSubmitting] = useState(false);
@@ -83,7 +86,7 @@ function DashboardContent() {
   const [editableSubreddits, setEditableSubreddits] = useState<string[]>([]);
   const [newSubreddit, setNewSubreddit] = useState('');
   const {
-    jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createVideoAnalysisJob, createMixedInputJob, refreshJob, clearPreview,
+    jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createClaimExtractionJob, createMixedInputJob, refreshJob, clearPreview,
   } = useJobsStore();
   const { user } = useAuth();
   const { createPanelCollapsed, toggleCreatePanel } = useUIPreferences();
@@ -206,45 +209,78 @@ function DashboardContent() {
     clearPreview();
   };
 
-  // Parse video URLs from textarea (one per line or comma-separated)
-  const parseVideoUrls = (text: string): string[] => {
+  // Parse URLs from textarea (one per line or comma-separated)
+  const parseUrls = (text: string): string[] => {
+    return text
+      .split(/[\n,]/)
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0 && url.startsWith('http'));
+  };
+
+  // Parse YouTube URLs specifically
+  const parseYouTubeUrls = (text: string): string[] => {
     return text
       .split(/[\n,]/)
       .map((url) => url.trim())
       .filter((url) => url.length > 0 && (url.includes('youtube.com') || url.includes('youtu.be')));
   };
 
-  // Video Analysis submission
-  const handleVideoAnalysisSubmit = async (e: React.FormEvent) => {
+  // Claim Extraction submission
+  const handleClaimExtractionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const urls = parseVideoUrls(videoUrls);
 
-    if (urls.length === 0) {
+    if (!claimTitle.trim()) {
+      setSubmitError('Please enter a title for your claim extraction');
       return;
     }
 
-    if (urls.length > 10) {
-      alert('Maximum 10 videos per job. Please reduce the number of URLs.');
+    const videoUrls = parseYouTubeUrls(claimVideoUrls);
+    const articleUrls = parseUrls(claimArticleUrls);
+    const hasText = claimTextContent.trim().length > 0;
+
+    // Check at least one source
+    if (videoUrls.length === 0 && articleUrls.length === 0 && !hasText) {
+      setSubmitError('Please provide at least one source (video URL, article URL, or text)');
       return;
     }
 
-    setIsVideoSubmitting(true);
+    setIsClaimSubmitting(true);
+    setSubmitError(null);
+
     try {
-      await createVideoAnalysisJob(urls, videoTitle || undefined, geminiModel);
+      const request: ClaimExtractionRequest = {
+        title: claimTitle,
+        video_urls: videoUrls.length > 0 ? videoUrls : undefined,
+        article_urls: articleUrls.length > 0 ? articleUrls : undefined,
+        text_inputs: hasText ? [{
+          title: claimTextTitle || 'User Input',
+          content: claimTextContent,
+        }] : undefined,
+        model: claimModel,
+      };
+
+      await createClaimExtractionJob(request);
+
       // Clear form on success
-      setVideoUrls('');
-      setVideoTitle('');
+      setClaimTitle('');
+      setClaimVideoUrls('');
+      setClaimArticleUrls('');
+      setClaimTextContent('');
+      setClaimTextTitle('');
     } catch (error) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to create video analysis job:', error);
-      }
+      setSubmitError(error instanceof Error ? error.message : 'Failed to create claim extraction job');
     } finally {
-      setIsVideoSubmitting(false);
+      setIsClaimSubmitting(false);
     }
   };
 
-  // Count valid URLs for display
-  const validUrlCount = parseVideoUrls(videoUrls).length;
+  // Count sources for display
+  const claimSourceCount = {
+    videos: parseYouTubeUrls(claimVideoUrls).length,
+    articles: parseUrls(claimArticleUrls).length,
+    hasText: claimTextContent.trim().length > 0,
+  };
+  const totalClaimSources = claimSourceCount.videos + claimSourceCount.articles + (claimSourceCount.hasText ? 1 : 0);
 
   // Mixed Input (Unified Panel) submission
   const handleMixedInputSubmit = async (data: {
@@ -369,14 +405,14 @@ function DashboardContent() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setJobMode('quick')}
+                        onClick={() => setJobMode('claims')}
                         className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
-                          jobMode === 'quick'
+                          jobMode === 'claims'
                             ? 'bg-purple-600 text-white shadow-lg'
                             : 'text-gray-400 hover:text-gray-300'
                         }`}
                       >
-                        Quick Video
+                        Claim Extractor
                       </button>
                     </div>
                   </div>
@@ -406,88 +442,155 @@ function DashboardContent() {
                   </div>
                 )}
               </motion.div>
-            ) : jobMode === 'quick' ? (
+            ) : jobMode === 'claims' ? (
               <motion.form
-                key="video-form"
+                key="claims-form"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onSubmit={handleVideoAnalysisSubmit}
+                onSubmit={handleClaimExtractionSubmit}
+                className="space-y-4"
               >
-                <div className="mb-4">
-                  <label htmlFor="videoUrls" className="mb-1.5 block text-sm font-medium text-gray-400">
-                    YouTube Video URLs
-                    {validUrlCount > 0 && (
-                      <span className="ml-2 text-purple-400">({validUrlCount} video{validUrlCount !== 1 ? 's' : ''})</span>
+                {/* Title - Required */}
+                <div>
+                  <label htmlFor="claimTitle" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    Extraction Title <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="claimTitle"
+                    value={claimTitle}
+                    onChange={(e) => setClaimTitle(e.target.value)}
+                    placeholder="e.g., Election Claims Analysis, Product Launch Claims"
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    disabled={isClaimSubmitting}
+                  />
+                </div>
+
+                {/* YouTube URLs */}
+                <div>
+                  <label htmlFor="claimVideoUrls" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    YouTube URLs
+                    {claimSourceCount.videos > 0 && (
+                      <span className="ml-2 text-purple-400">({claimSourceCount.videos} video{claimSourceCount.videos !== 1 ? 's' : ''})</span>
                     )}
                   </label>
                   <textarea
-                    id="videoUrls"
-                    value={videoUrls}
-                    onChange={(e) => setVideoUrls(e.target.value)}
-                    placeholder={`Paste YouTube URLs (one per line)\n\nhttps://youtube.com/watch?v=...\nhttps://youtu.be/...`}
-                    rows={5}
+                    id="claimVideoUrls"
+                    value={claimVideoUrls}
+                    onChange={(e) => setClaimVideoUrls(e.target.value)}
+                    placeholder="Paste YouTube URLs (one per line)"
+                    rows={3}
                     className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 font-mono text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    disabled={isVideoSubmitting}
+                    disabled={isClaimSubmitting}
                   />
-                  <p className="mt-2 text-xs text-gray-500">
-                    <strong>Max 10 videos.</strong> AI will extract key moments, quotes, and timestamps from each video.
+                </div>
+
+                {/* Article URLs */}
+                <div>
+                  <label htmlFor="claimArticleUrls" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    Article URLs
+                    {claimSourceCount.articles > 0 && (
+                      <span className="ml-2 text-blue-400">({claimSourceCount.articles} article{claimSourceCount.articles !== 1 ? 's' : ''})</span>
+                    )}
+                  </label>
+                  <textarea
+                    id="claimArticleUrls"
+                    value={claimArticleUrls}
+                    onChange={(e) => setClaimArticleUrls(e.target.value)}
+                    placeholder="Paste article URLs (one per line)"
+                    rows={2}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 font-mono text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    disabled={isClaimSubmitting}
+                  />
+                </div>
+
+                {/* Text Input */}
+                <div>
+                  <label htmlFor="claimTextContent" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    Paste Text
+                    {claimSourceCount.hasText && (
+                      <span className="ml-2 text-green-400">(1 text input)</span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    id="claimTextTitle"
+                    value={claimTextTitle}
+                    onChange={(e) => setClaimTextTitle(e.target.value)}
+                    placeholder="Text source title (optional)"
+                    className="w-full mb-2 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-gray-100 placeholder-gray-500 text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    disabled={isClaimSubmitting}
+                  />
+                  <textarea
+                    id="claimTextContent"
+                    value={claimTextContent}
+                    onChange={(e) => setClaimTextContent(e.target.value)}
+                    placeholder="Paste text content to extract claims from..."
+                    rows={4}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    disabled={isClaimSubmitting}
+                  />
+                </div>
+
+                {/* Model selector */}
+                <div>
+                  <label htmlFor="claimModel" className="mb-1.5 block text-sm font-medium text-gray-400">
+                    Extraction Model
+                  </label>
+                  <select
+                    id="claimModel"
+                    value={claimModel}
+                    onChange={(e) => setClaimModel(e.target.value as 'gemini-2.5-flash' | 'gemini-2.5-pro')}
+                    disabled={isClaimSubmitting}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                  >
+                    <option value="gemini-2.5-flash">Flash - Faster & Cheaper</option>
+                    <option value="gemini-2.5-pro">Pro - More Accurate</option>
+                  </select>
+                </div>
+
+                {/* Error display */}
+                {submitError && (
+                  <div className="rounded-lg border border-red-700 bg-red-900/30 p-3 flex items-center justify-between">
+                    <p className="text-sm text-red-300">{submitError}</p>
+                    <button
+                      type="button"
+                      onClick={() => setSubmitError(null)}
+                      className="text-red-400 hover:text-red-300 text-sm ml-4"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                {/* Info box */}
+                <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+                  <p className="text-xs text-gray-400">
+                    <strong className="text-gray-300">Claim Extractor</strong> analyzes your sources and extracts all claims (explicit and implied) with anchors showing where each claim was found. No verification is performed - this is extraction only.
                   </p>
                 </div>
 
-                {/* Optional title and model selector */}
-                <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="videoTitle" className="mb-1.5 block text-sm font-medium text-gray-400">
-                      Project Title (optional)
-                    </label>
-                    <input
-                      type="text"
-                      id="videoTitle"
-                      value={videoTitle}
-                      onChange={(e) => setVideoTitle(e.target.value)}
-                      placeholder="e.g., Joe Rogan UFO Episodes"
-                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                      disabled={isVideoSubmitting}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="geminiModel" className="mb-1.5 block text-sm font-medium text-gray-400">
-                      Analysis Model
-                    </label>
-                    <select
-                      id="geminiModel"
-                      value={geminiModel}
-                      onChange={(e) => setGeminiModel(e.target.value as 'gemini-2.5-flash' | 'gemini-2.5-pro')}
-                      disabled={isVideoSubmitting}
-                      className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
-                    >
-                      <option value="gemini-2.5-flash">Flash - Faster & Cheaper (~$0.15/hr)</option>
-                      <option value="gemini-2.5-pro">Pro - More Accurate (~$1.15/hr)</option>
-                    </select>
-                  </div>
-                </div>
-
+                {/* Submit button */}
                 <button
                   type="submit"
-                  disabled={isVideoSubmitting || validUrlCount === 0}
+                  disabled={isClaimSubmitting || totalClaimSources === 0 || !claimTitle.trim()}
                   className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-500 px-6 py-3 font-medium text-white shadow-lg shadow-purple-500/20 transition-all duration-200 hover:from-purple-500 hover:to-purple-400 hover:shadow-purple-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                 >
-                  {isVideoSubmitting ? (
+                  {isClaimSubmitting ? (
                     <>
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Processing...
+                      Extracting Claims...
                     </>
                   ) : (
                     <>
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                       </svg>
-                      Analyze {validUrlCount > 0 ? `${validUrlCount} Video${validUrlCount !== 1 ? 's' : ''}` : 'Videos'}
+                      Extract Claims {totalClaimSources > 0 ? `from ${totalClaimSources} Source${totalClaimSources !== 1 ? 's' : ''}` : ''}
                     </>
                   )}
                 </button>
