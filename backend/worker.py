@@ -2434,3 +2434,255 @@ def run_claim_extraction_job(job_id: str) -> dict:
             warnings=[f"Claim extraction failed: {str(e)}"],
         )
         return {"job_id": job_id, "status": "failed", "error": str(e)}
+
+
+# =============================================================================
+# Run-Scoped Claims Doc Task (V2 Claim Extractor)
+# =============================================================================
+
+@celery_app.task(
+    name="backend.worker.run_claims_doc_task",
+    time_limit=1800,  # 30 min hard limit
+    soft_time_limit=1500,  # 25 min soft limit
+)
+def run_claims_doc_task(job_id: str, user_id: str, run_id: str) -> dict:
+    """
+    Celery task for generating Claims Document from a completed run's Doc 0.
+
+    V2 Claim Extractor: This is a run-scoped artifact similar to producer/booster.
+    It extracts claims and entities from the run's source ledger content.
+
+    Features:
+    - Anchored claims (timestamps if available, else line ranges)
+    - Entity Index (people, orgs, places, unnamed)
+    - Warning codes for extraction issues
+    - Stored in same bucket as other docs
+
+    Args:
+        job_id: Job identifier
+        user_id: User who triggered the task
+        run_id: Run ID to generate claims from
+
+    Returns:
+        Dict with status, claim counts, and storage path
+    """
+    from backend.integrations.gemini_client import GeminiClient
+    from backend.integrations.supabase_storage import get_storage_client
+    from backend.pipeline.claim_extraction import run_claim_extraction_pipeline
+    from backend.models.run_models import ensure_runs_migrated, RunStatus, RunClaimsDoc
+    from datetime import datetime, timezone
+
+    logger.info(f"[{job_id}] Starting Claims Doc generation for run {run_id}")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Job not found")
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": "Job not found"}
+
+    # Update claims_doc status to running
+    update_job(
+        job_id,
+        claims_doc_status="running",
+        claims_doc_started_at=datetime.now(timezone.utc),
+        claims_doc_progress_percent=10,
+    )
+
+    try:
+        # Get artifacts and find the run
+        artifacts = job.artifacts if hasattr(job, "artifacts") else None
+        if not artifacts:
+            raise ValueError("Job has no artifacts")
+
+        # Migrate legacy artifacts to runs if needed
+        runs = ensure_runs_migrated(
+            artifacts,
+            job_created_at=job.created_at if hasattr(job, "created_at") else None,
+            job_completed_at=getattr(job, "completed_at", None),
+            user_id=job.user_id or "system",
+        )
+
+        # Find the requested run
+        target_run = None
+        for run in runs:
+            if run.run_id == run_id:
+                target_run = run
+                break
+
+        if not target_run:
+            raise ValueError(f"Run '{run_id}' not found")
+
+        if not target_run.outputs or not target_run.outputs.has_doc_0():
+            raise ValueError("Run has no Doc 0 content")
+
+        # Load Doc 0 content
+        storage = get_storage_client()
+        doc_0_content = None
+
+        if target_run.outputs.doc_0_path and storage:
+            try:
+                doc_0_content = storage.download_document(target_run.outputs.doc_0_path)
+            except Exception as e:
+                logger.warning(f"[{job_id}] Failed to download Doc 0: {e}")
+
+        if not doc_0_content and target_run.outputs.doc_0_inline:
+            doc_0_content = target_run.outputs.doc_0_inline
+
+        if not doc_0_content:
+            raise ValueError("Could not load Doc 0 content")
+
+        update_job(job_id, claims_doc_progress_percent=20)
+
+        # Extract source content from Doc 0
+        # Doc 0 is the Source Ledger with sources[] containing full_text, transcript, etc.
+        sources = doc_0_content.get("sources", [])
+        if not sources:
+            raise ValueError("Doc 0 has no sources")
+
+        # Build input lists for claim extraction
+        video_urls = []
+        article_urls = []
+        text_inputs = []
+
+        for source in sources:
+            source_type = source.get("source_type", "").lower()
+            url = source.get("url", "")
+
+            if source_type == "youtube" or "youtube" in url or "youtu.be" in url:
+                # For YouTube, we need the URL (transcript will be fetched)
+                video_urls.append(url)
+            elif source_type == "article" or source_type == "web":
+                # For articles, check if we have the content or need to fetch
+                if source.get("full_text") or source.get("article_text"):
+                    text_inputs.append({
+                        "title": source.get("title", url),
+                        "content": source.get("full_text") or source.get("article_text", ""),
+                    })
+                else:
+                    article_urls.append(url)
+            else:
+                # Text input - use any available text
+                content = (
+                    source.get("full_text") or
+                    source.get("transcript") or
+                    source.get("article_text") or
+                    source.get("ocr_text", "")
+                )
+                if content:
+                    text_inputs.append({
+                        "title": source.get("title", f"Source {source.get('source_id', 'unknown')}"),
+                        "content": content,
+                    })
+
+        total_sources = len(video_urls) + len(article_urls) + len(text_inputs)
+        if total_sources == 0:
+            raise ValueError("No extractable content found in Doc 0 sources")
+
+        logger.info(
+            f"[{job_id}] Processing {total_sources} sources: "
+            f"{len(video_urls)} videos, {len(article_urls)} articles, {len(text_inputs)} text inputs"
+        )
+
+        update_job(job_id, claims_doc_progress_percent=30)
+
+        # Progress callback
+        def progress_callback(current: int, total: int, status: str):
+            try:
+                progress = int(30 + (current / total) * 50)  # 30-80%
+                update_job(job_id, claims_doc_progress_percent=progress)
+                logger.info(f"[{job_id}] Claims doc: {status} ({current}/{total})")
+            except Exception as e:
+                logger.warning(f"[{job_id}] Progress update failed: {e}")
+
+        # Initialize Gemini client
+        client = GeminiClient()
+        model = job.config_json.get("model", "gemini-2.5-flash") if job.config_json else "gemini-2.5-flash"
+        title = job.title or job.config_json.get("title", "Research") if job.config_json else "Research"
+
+        # Run claim extraction pipeline
+        claims_doc = run_claim_extraction_pipeline(
+            gemini_client=client,
+            job_id=job_id,
+            title=f"{title} - Claims",
+            video_urls=video_urls,
+            article_urls=article_urls,
+            text_inputs=text_inputs,
+            screenshots=[],  # Screenshots from Doc 0 not supported yet
+            model=model,
+            progress_callback=progress_callback,
+            run_id=run_id,
+        )
+
+        update_job(job_id, claims_doc_progress_percent=85)
+
+        # Store claims document
+        claims_doc_path = None
+        if storage:
+            try:
+                claims_doc_path = storage.upload_document(
+                    job_id=job_id,
+                    doc_type=f"{run_id}_claims_doc",
+                    content=claims_doc.to_dict(),
+                )
+                logger.info(f"[{job_id}] Stored claims doc at {claims_doc_path}")
+            except Exception as storage_error:
+                logger.warning(f"[{job_id}] Failed to store claims doc: {storage_error}")
+
+        # Update run with claims_doc artifact
+        # Note: We'd need to update the run in artifacts.runs, but for simplicity
+        # we'll store the path in job-level fields for now
+        warnings = [w.message for w in claims_doc.warnings] if claims_doc.warnings else []
+
+        update_job(
+            job_id,
+            claims_doc_status="completed",
+            claims_doc_completed_at=datetime.now(timezone.utc),
+            claims_doc_progress_percent=100,
+            claims_doc_error=None,
+        )
+
+        logger.info(
+            f"[{job_id}] Claims doc completed: "
+            f"{claims_doc.metadata.total_claims} claims, "
+            f"{claims_doc.metadata.total_entities} entities "
+            f"({len(warnings)} warnings)"
+        )
+
+        return {
+            "job_id": job_id,
+            "run_id": run_id,
+            "status": "completed",
+            "total_claims": claims_doc.metadata.total_claims,
+            "total_entities": claims_doc.metadata.total_entities,
+            "claims_doc_path": claims_doc_path,
+            "warnings": warnings,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Claims doc timed out after 25 minutes")
+        update_job(
+            job_id,
+            claims_doc_status="failed",
+            claims_doc_error="Claims doc generation timed out. Try with fewer sources.",
+            claims_doc_completed_at=datetime.now(timezone.utc),
+        )
+        return {
+            "job_id": job_id,
+            "run_id": run_id,
+            "status": "failed",
+            "error": "Claims doc timed out after 25 minutes",
+        }
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Claims doc failed: {e}")
+        update_job(
+            job_id,
+            claims_doc_status="failed",
+            claims_doc_error=str(e),
+            claims_doc_completed_at=datetime.now(timezone.utc),
+        )
+        return {
+            "job_id": job_id,
+            "run_id": run_id,
+            "status": "failed",
+            "error": str(e),
+        }

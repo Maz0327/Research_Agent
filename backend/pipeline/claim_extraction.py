@@ -1,7 +1,7 @@
 """Claim Extraction Pipeline for the Claim Extractor feature.
 
 This module handles extracting claims from various source types:
-- YouTube videos (with timestamp anchors)
+- YouTube videos (with timestamp anchors if timing available, else line anchors)
 - Articles/URLs (with line range anchors)
 - User-provided text (with line range anchors)
 - Screenshots (with image index anchors)
@@ -11,6 +11,12 @@ Key Design Decisions:
 - NO source retrieval - only analyze provided inputs
 - Claims have anchors to locate them in source material
 - Output stored as ClaimsDocument in Supabase Storage
+
+Claim Extractor v2 Updates (2026-01-27):
+- NO GUESSED TIMESTAMPS: If transcript_segments lack timing, use line anchors
+- Entity extraction with excerpt+anchor evidence
+- Warning codes for anchor coercion
+- Run-scoped claims_doc generation support
 """
 from datetime import datetime, timezone
 from typing import Any, Optional, Callable
@@ -18,17 +24,26 @@ from typing import Any, Optional, Callable
 from loguru import logger
 
 from backend.models.claims import (
+    AnchorType,
     Claim,
     ClaimAnchor,
+    ClaimCluster,
+    ClaimInstance,
     ClaimType,
     ClaimsDocument,
     ClaimsDocumentMetadata,
     ConfidenceLevel,
+    ContextEvidence,
+    Entity,
+    EntityIndex,
+    EntityType,
+    ExtractionWarning,
     ImageAnchor,
     LineRangeAnchor,
     SourceSummary,
     SourceType,
     TimestampAnchor,
+    WarningCode,
 )
 
 
@@ -59,6 +74,114 @@ IMPORTANT RULES:
 - Include both major and minor claims
 - Be thorough - missing claims is worse than over-extracting"""
 
+# V2: YouTube extraction with timed segments (timestamps allowed)
+YOUTUBE_EXTRACTION_TIMED_PROMPT = """Analyze this YouTube video transcript and extract ALL claims AND entities.
+
+VIDEO TITLE: {title}
+VIDEO URL: {url}
+SOURCE_ID: {source_id}
+
+TIMED TRANSCRIPT SEGMENTS:
+{transcript_segments}
+
+EXTRACTION RULES:
+1. For each claim, provide a verbatim_excerpt from the transcript
+2. timestamp_start/end MUST be within the segment time bounds provided
+3. Extract ALL named entities (people, organizations, places)
+4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
+
+Return a JSON object with this structure:
+{{
+  "claims": [
+    {{
+      "claim_text": "string (paraphrased claim statement)",
+      "claim_type": "explicit" | "implied",
+      "confidence": "high" | "medium" | "low",
+      "timestamp_start": number (seconds, must match segment bounds),
+      "timestamp_end": number | null,
+      "verbatim_excerpt": "string (exact text from transcript)",
+      "context": "string (1-2 sentences)",
+      "entities_mentioned": ["entity_label", ...]
+    }}
+  ],
+  "entities": {{
+    "people": [
+      {{
+        "label": "string",
+        "context_summary": "string (1-2 sentences about who they are)",
+        "excerpt": "string (verbatim from transcript)",
+        "timestamp_start": number
+      }}
+    ],
+    "orgs": [...],
+    "places": [...],
+    "unnamed": [
+      {{
+        "label": "string (e.g., 'their founders', 'a senior official')",
+        "context_summary": "string",
+        "excerpt": "string",
+        "timestamp_start": number
+      }}
+    ]
+  }}
+}}"""
+
+# V2: YouTube extraction WITHOUT timing (use line anchors)
+YOUTUBE_EXTRACTION_LINES_PROMPT = """Analyze this YouTube video transcript and extract ALL claims AND entities.
+
+VIDEO TITLE: {title}
+VIDEO URL: {url}
+SOURCE_ID: {source_id}
+
+TRANSCRIPT (line-numbered):
+{numbered_transcript}
+
+IMPORTANT: This transcript does NOT have timing information.
+Use LINE NUMBERS (start_line, end_line) instead of timestamps.
+
+EXTRACTION RULES:
+1. For each claim, provide a verbatim_excerpt from the transcript
+2. Use start_line/end_line to reference where the claim appears
+3. Extract ALL named entities (people, organizations, places)
+4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
+
+Return a JSON object with this structure:
+{{
+  "claims": [
+    {{
+      "claim_text": "string (paraphrased claim statement)",
+      "claim_type": "explicit" | "implied",
+      "confidence": "high" | "medium" | "low",
+      "start_line": number (1-indexed),
+      "end_line": number,
+      "verbatim_excerpt": "string (exact text from transcript)",
+      "context": "string (1-2 sentences)",
+      "entities_mentioned": ["entity_label", ...]
+    }}
+  ],
+  "entities": {{
+    "people": [
+      {{
+        "label": "string",
+        "context_summary": "string (1-2 sentences about who they are)",
+        "excerpt": "string (verbatim from transcript)",
+        "start_line": number
+      }}
+    ],
+    "orgs": [...],
+    "places": [...],
+    "unnamed": [
+      {{
+        "label": "string (e.g., 'their founders', 'a senior official')",
+        "context_summary": "string",
+        "excerpt": "string",
+        "start_line": number
+      }}
+    ]
+  }}
+}}"""
+
+# Legacy prompt for backward compatibility
 YOUTUBE_EXTRACTION_PROMPT = """Analyze this YouTube video transcript and extract ALL claims made.
 
 VIDEO TITLE: {title}
@@ -74,6 +197,8 @@ For each claim found, provide:
 4. timestamp_start: Start time in seconds where claim appears
 5. timestamp_end: End time in seconds (optional, use same as start if point-in-time)
 6. context: Brief surrounding context (1-2 sentences)
+7. verbatim_excerpt: The exact text from the transcript (NEW in v2)
+8. entities_mentioned: List of entity labels mentioned (NEW in v2)
 
 Return a JSON object with this structure:
 {{
@@ -84,70 +209,117 @@ Return a JSON object with this structure:
       "confidence": "high" | "medium" | "low",
       "timestamp_start": number,
       "timestamp_end": number | null,
-      "context": "string"
+      "context": "string",
+      "verbatim_excerpt": "string",
+      "entities_mentioned": ["string", ...]
     }}
-  ]
+  ],
+  "entities": {{
+    "people": [{{"label": "string", "context_summary": "string", "excerpt": "string", "timestamp_start": number}}],
+    "orgs": [...],
+    "places": [...],
+    "unnamed": [...]
+  }}
 }}"""
 
-TEXT_EXTRACTION_PROMPT = """Analyze this text content and extract ALL claims made.
+TEXT_EXTRACTION_PROMPT = """Analyze this text content and extract ALL claims AND entities.
 
 SOURCE TITLE: {title}
 SOURCE TYPE: {source_type}
+SOURCE_ID: {source_id}
 
-CONTENT:
+CONTENT (line-numbered):
 {content}
 
-For each claim found, provide:
-1. claim_text: The claim statement (paraphrase if needed for clarity)
-2. claim_type: "explicit" or "implied"
-3. confidence: "high", "medium", or "low"
-4. start_line: Line number where claim starts (1-indexed)
-5. end_line: Line number where claim ends
-6. excerpt: The exact text that contains the claim (up to 200 chars)
-7. context: Brief surrounding context (1-2 sentences)
+EXTRACTION RULES:
+1. For each claim, provide a verbatim_excerpt from the content
+2. Use start_line/end_line to reference where the claim appears
+3. Extract ALL named entities (people, organizations, places)
+4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
 
 Return a JSON object with this structure:
 {{
   "claims": [
     {{
-      "claim_text": "string",
+      "claim_text": "string (paraphrased claim statement)",
       "claim_type": "explicit" | "implied",
       "confidence": "high" | "medium" | "low",
-      "start_line": number,
+      "start_line": number (1-indexed),
       "end_line": number,
-      "excerpt": "string",
-      "context": "string"
+      "verbatim_excerpt": "string (exact text from content, up to 200 chars)",
+      "context": "string (1-2 sentences)",
+      "entities_mentioned": ["entity_label", ...]
     }}
-  ]
+  ],
+  "entities": {{
+    "people": [
+      {{
+        "label": "string",
+        "context_summary": "string (1-2 sentences about who they are)",
+        "excerpt": "string (verbatim from content)",
+        "start_line": number
+      }}
+    ],
+    "orgs": [...],
+    "places": [...],
+    "unnamed": [
+      {{
+        "label": "string (e.g., 'their founders', 'a senior official')",
+        "context_summary": "string",
+        "excerpt": "string",
+        "start_line": number
+      }}
+    ]
+  }}
 }}"""
 
-SCREENSHOT_EXTRACTION_PROMPT = """Analyze this screenshot image and extract ALL claims visible in it.
+SCREENSHOT_EXTRACTION_PROMPT = """Analyze this screenshot image and extract ALL claims AND entities visible in it.
 
 IMAGE INDEX: {image_index}
+SOURCE_ID: {source_id}
 PLATFORM HINT: {platform_hint}
 OCR TEXT (if available):
 {ocr_text}
 
-For each claim found, provide:
-1. claim_text: The claim statement
-2. claim_type: "explicit" or "implied"
-3. confidence: "high", "medium", or "low"
-4. region: Where in the image the claim appears (e.g., "top", "center", "bottom-left")
-5. ocr_excerpt: The exact text containing the claim (if OCR available)
-6. context: Brief context about what the image shows
+EXTRACTION RULES:
+1. For each claim, provide the verbatim text from the image if visible
+2. Specify the region where the claim appears
+3. Extract ALL named entities (people, organizations, places) visible
+4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
 
 Return a JSON object with this structure:
 {{
   "claims": [
     {{
-      "claim_text": "string",
+      "claim_text": "string (paraphrased claim statement)",
       "claim_type": "explicit" | "implied",
       "confidence": "high" | "medium" | "low",
-      "region": "string",
-      "ocr_excerpt": "string" | null,
-      "context": "string"
+      "region": "string (e.g., 'top', 'center', 'bottom-left')",
+      "ocr_excerpt": "string (verbatim text if visible) | null",
+      "context": "string (brief context about what the image shows)",
+      "entities_mentioned": ["entity_label", ...]
     }}
-  ]
+  ],
+  "entities": {{
+    "people": [
+      {{
+        "label": "string",
+        "context_summary": "string (1-2 sentences about who they are)",
+        "excerpt": "string (verbatim text from image if visible)",
+        "region": "string"
+      }}
+    ],
+    "orgs": [...],
+    "places": [...],
+    "unnamed": [
+      {{
+        "label": "string (e.g., 'their founders', 'a senior official')",
+        "context_summary": "string",
+        "excerpt": "string",
+        "region": "string"
+      }}
+    ]
+  }}
 }}"""
 
 
@@ -162,6 +334,217 @@ def format_timestamp(seconds: int) -> str:
     return f"{minutes}:{secs:02d}"
 
 
+def number_lines(text: str) -> str:
+    """Add line numbers to text for line-based extraction."""
+    lines = text.split('\n')
+    numbered = []
+    for i, line in enumerate(lines, 1):
+        numbered.append(f"{i}: {line}")
+    return '\n'.join(numbered)
+
+
+def parse_transcript_segments(transcript_data: dict) -> tuple[list[dict], bool]:
+    """Parse transcript data and determine if timing is available.
+
+    Args:
+        transcript_data: Raw transcript response from Supadata
+
+    Returns:
+        Tuple of (segments, timing_available)
+        - segments: List of {text, start_ms, end_ms} if timed, else [{text}]
+        - timing_available: True if real timing exists
+    """
+    # Check for content with timing
+    content = transcript_data.get("content") or transcript_data.get("segments")
+
+    if isinstance(content, list) and len(content) > 0:
+        first = content[0]
+        if isinstance(first, dict) and ("start" in first or "start_ms" in first):
+            # Has timing - convert to standard format
+            segments = []
+            for seg in content:
+                if isinstance(seg, dict):
+                    segments.append({
+                        "text": seg.get("text", ""),
+                        "start_ms": seg.get("start_ms") or (seg.get("start", 0) * 1000),
+                        "end_ms": seg.get("end_ms") or (seg.get("end", 0) * 1000),
+                    })
+            if segments and any(s.get("start_ms", 0) > 0 or s.get("end_ms", 0) > 0 for s in segments):
+                return segments, True
+
+    # No timing available - return text only
+    text = transcript_data.get("text", "")
+    if not text and isinstance(content, list):
+        text = " ".join(
+            seg.get("text", "") if isinstance(seg, dict) else str(seg)
+            for seg in content
+        )
+
+    return [{"text": text}], False
+
+
+def format_timed_segments(segments: list[dict]) -> str:
+    """Format timed segments for LLM prompt."""
+    lines = []
+    for seg in segments:
+        start_sec = seg.get("start_ms", 0) / 1000
+        end_sec = seg.get("end_ms", 0) / 1000
+        text = seg.get("text", "")
+        lines.append(f"[{start_sec:.1f}s - {end_sec:.1f}s]: {text}")
+    return '\n'.join(lines)
+
+
+def validate_timestamp_bounds(
+    timestamp_start: int,
+    timestamp_end: Optional[int],
+    segments: list[dict],
+    source_id: str,
+) -> tuple[Optional[int], Optional[int], Optional[ExtractionWarning]]:
+    """Validate that timestamps fall within known segment bounds.
+
+    Args:
+        timestamp_start: Start time in seconds
+        timestamp_end: End time in seconds (optional)
+        segments: List of segments with timing
+        source_id: Source ID for warning
+
+    Returns:
+        Tuple of (validated_start, validated_end, warning_if_any)
+    """
+    if not segments:
+        return timestamp_start, timestamp_end, None
+
+    # Find bounds
+    min_time_ms = min(s.get("start_ms", 0) for s in segments)
+    max_time_ms = max(s.get("end_ms", 0) for s in segments)
+
+    min_sec = min_time_ms / 1000
+    max_sec = max_time_ms / 1000
+
+    warning = None
+
+    # Clamp start
+    if timestamp_start < min_sec:
+        timestamp_start = int(min_sec)
+        warning = ExtractionWarning(
+            code=WarningCode.TIMESTAMP_OUT_OF_BOUNDS,
+            message=f"Timestamp {timestamp_start}s clamped to segment bounds",
+            source_id=source_id,
+        )
+    elif timestamp_start > max_sec:
+        timestamp_start = int(max_sec)
+        warning = ExtractionWarning(
+            code=WarningCode.TIMESTAMP_OUT_OF_BOUNDS,
+            message=f"Timestamp {timestamp_start}s clamped to segment bounds",
+            source_id=source_id,
+        )
+
+    # Clamp end if provided
+    if timestamp_end is not None:
+        if timestamp_end > max_sec:
+            timestamp_end = int(max_sec)
+        if timestamp_end < timestamp_start:
+            timestamp_end = timestamp_start
+
+    return timestamp_start, timestamp_end, warning
+
+
+def extract_entities_from_response(
+    raw_entities: dict,
+    source_id: str,
+    timing_available: bool,
+) -> tuple[list[Entity], list[ExtractionWarning]]:
+    """Extract Entity objects from LLM response.
+
+    Args:
+        raw_entities: Raw entities dict from LLM
+        source_id: Source ID for anchors
+        timing_available: Whether to use timestamp or line anchors
+
+    Returns:
+        Tuple of (entities, warnings)
+    """
+    entities = []
+    warnings = []
+    entity_counter = 1
+
+    for entity_type, raw_list in raw_entities.items():
+        if not isinstance(raw_list, list):
+            continue
+
+        # Map string type to EntityType enum
+        if entity_type == "people":
+            etype = EntityType.PERSON
+        elif entity_type == "orgs":
+            etype = EntityType.ORG
+        elif entity_type == "places":
+            etype = EntityType.PLACE
+        elif entity_type == "unnamed":
+            etype = EntityType.UNNAMED
+        else:
+            continue
+
+        for raw in raw_list:
+            if not isinstance(raw, dict):
+                continue
+
+            label = raw.get("label", "").strip()
+            if not label:
+                continue
+
+            excerpt = raw.get("excerpt", "").strip()
+            if not excerpt:
+                warnings.append(ExtractionWarning(
+                    code=WarningCode.ENTITY_MISSING_EVIDENCE,
+                    message=f"Entity '{label}' has no verbatim excerpt",
+                    source_id=source_id,
+                ))
+                # Create minimal excerpt from context_summary
+                excerpt = raw.get("context_summary", label)[:100]
+
+            # Build anchor
+            if timing_available and "timestamp_start" in raw:
+                anchor = ClaimAnchor(
+                    timestamp=TimestampAnchor(
+                        start_seconds=raw.get("timestamp_start", 0),
+                        end_seconds=raw.get("timestamp_end"),
+                        formatted=format_timestamp(raw.get("timestamp_start", 0)),
+                        source_id=source_id,
+                    ),
+                    source_id=source_id,
+                )
+            else:
+                anchor = ClaimAnchor(
+                    line_range=LineRangeAnchor(
+                        start_line=raw.get("start_line", 1),
+                        end_line=raw.get("end_line", raw.get("start_line", 1)),
+                        excerpt=excerpt[:200],
+                        source_id=source_id,
+                    ),
+                    source_id=source_id,
+                )
+
+            entity = Entity(
+                entity_id=f"ENT_{source_id}_{entity_counter:03d}",
+                canonical_label=label,
+                entity_type=etype,
+                aliases=raw.get("aliases", []),
+                context_summary=raw.get("context_summary", f"Entity mentioned in source")[:500],
+                context_evidence=[
+                    ContextEvidence(
+                        excerpt=excerpt,
+                        anchor=anchor,
+                        source_id=source_id,
+                    )
+                ],
+                top_anchors=[anchor],
+            )
+            entities.append(entity)
+            entity_counter += 1
+
+    return entities, warnings
+
+
 def extract_claims_from_youtube(
     gemini_client: Any,
     video_url: str,
@@ -169,25 +552,58 @@ def extract_claims_from_youtube(
     transcript: str,
     source_id: str,
     model: str = "gemini-2.5-flash",
-) -> tuple[list[Claim], SourceSummary]:
-    """Extract claims from a YouTube video transcript.
+    transcript_data: Optional[dict] = None,
+) -> tuple[list[Claim], SourceSummary, list[Entity], list[ExtractionWarning]]:
+    """Extract claims and entities from a YouTube video transcript.
+
+    V2 Update: Returns entities and warnings. Uses line anchors if timing unavailable.
 
     Args:
         gemini_client: GeminiClient instance
         video_url: YouTube video URL
         title: Video title
-        transcript: Video transcript text
+        transcript: Video transcript text (used if transcript_data is None)
         source_id: Unique source identifier (SRC_001, ...)
         model: Gemini model to use
+        transcript_data: Optional raw transcript response with segments
 
     Returns:
-        Tuple of (list of Claims, SourceSummary)
+        Tuple of (claims, source_summary, entities, warnings)
     """
-    prompt = YOUTUBE_EXTRACTION_PROMPT.format(
-        title=title,
-        url=video_url,
-        transcript=transcript,
-    )
+    warnings: list[ExtractionWarning] = []
+    entities: list[Entity] = []
+
+    # Determine if timing is available
+    timing_available = False
+    segments: list[dict] = []
+
+    if transcript_data:
+        segments, timing_available = parse_transcript_segments(transcript_data)
+
+    # Choose prompt based on timing availability
+    if timing_available and segments:
+        prompt = YOUTUBE_EXTRACTION_TIMED_PROMPT.format(
+            title=title,
+            url=video_url,
+            source_id=source_id,
+            transcript_segments=format_timed_segments(segments),
+        )
+        anchor_type = AnchorType.YOUTUBE_TIMESTAMP
+    else:
+        # No timing - use line-numbered transcript
+        numbered = number_lines(transcript)
+        prompt = YOUTUBE_EXTRACTION_LINES_PROMPT.format(
+            title=title,
+            url=video_url,
+            source_id=source_id,
+            numbered_transcript=numbered,
+        )
+        anchor_type = AnchorType.TEXT_LINE_RANGE
+        warnings.append(ExtractionWarning(
+            code=WarningCode.TIMESTAMP_UNAVAILABLE_USED_LINE_ANCHORS,
+            message=f"Transcript timing unavailable for {video_url}; using line anchors",
+            source_id=source_id,
+        ))
 
     try:
         result = gemini_client.generate_json(
@@ -205,14 +621,18 @@ def extract_claims_from_youtube(
                 title=title,
                 url=video_url,
                 claim_count=0,
-            )
+                timing_available=timing_available,
+                anchor_type_used=anchor_type,
+            ), [], warnings
 
         data = result.get("data", {})
         # Handle both cases: Gemini may return {"claims": [...]} or just [...]
         if isinstance(data, list):
             raw_claims = data  # Gemini returned claims array directly
+            raw_entities = {}
         else:
             raw_claims = data.get("claims", [])
+            raw_entities = data.get("entities", {})
 
         claims: list[Claim] = []
         explicit_count = 0
@@ -222,22 +642,57 @@ def extract_claims_from_youtube(
             claim_type = ClaimType.EXPLICIT if raw.get("claim_type") == "explicit" else ClaimType.IMPLIED
             confidence = ConfidenceLevel(raw.get("confidence", "medium"))
 
-            # Build timestamp anchor
-            start_sec = raw.get("timestamp_start", 0)
-            end_sec = raw.get("timestamp_end")
-            if end_sec:
-                formatted = f"{format_timestamp(start_sec)}-{format_timestamp(end_sec)}"
-            else:
-                formatted = format_timestamp(start_sec)
-                end_sec = start_sec
+            # Build anchor based on timing availability
+            if timing_available and "timestamp_start" in raw:
+                start_sec = raw.get("timestamp_start", 0)
+                end_sec = raw.get("timestamp_end")
 
-            anchor = ClaimAnchor(
-                timestamp=TimestampAnchor(
-                    start_seconds=start_sec,
-                    end_seconds=end_sec,
-                    formatted=formatted,
+                # Validate timestamp bounds
+                start_sec, end_sec, bound_warning = validate_timestamp_bounds(
+                    start_sec, end_sec, segments, source_id
                 )
-            )
+                if bound_warning:
+                    warnings.append(bound_warning)
+
+                if end_sec:
+                    formatted = f"{format_timestamp(start_sec)}-{format_timestamp(end_sec)}"
+                else:
+                    formatted = format_timestamp(start_sec)
+                    end_sec = start_sec
+
+                anchor = ClaimAnchor(
+                    timestamp=TimestampAnchor(
+                        start_seconds=start_sec,
+                        end_seconds=end_sec,
+                        formatted=formatted,
+                        source_id=source_id,
+                    ),
+                    source_id=source_id,
+                )
+            else:
+                # Use line range anchor
+                start_line = raw.get("start_line", 1)
+                end_line = raw.get("end_line", start_line)
+                excerpt = raw.get("verbatim_excerpt", raw.get("excerpt", ""))[:200]
+
+                # If LLM returned timestamp when timing unavailable, coerce to line
+                if "timestamp_start" in raw and not timing_available:
+                    warnings.append(ExtractionWarning(
+                        code=WarningCode.TIMESTAMP_COERCED_TO_LINE,
+                        message=f"Timestamp coerced to line anchor (timing unavailable)",
+                        source_id=source_id,
+                        details={"original_timestamp": raw.get("timestamp_start")},
+                    ))
+
+                anchor = ClaimAnchor(
+                    line_range=LineRangeAnchor(
+                        start_line=start_line,
+                        end_line=end_line,
+                        excerpt=excerpt,
+                        source_id=source_id,
+                    ),
+                    source_id=source_id,
+                )
 
             claim = Claim(
                 claim_id=f"CLM_{source_id}_{i+1:03d}",
@@ -247,13 +702,32 @@ def extract_claims_from_youtube(
                 anchor=anchor,
                 source_id=source_id,
                 context=raw.get("context"),
+                verbatim_excerpt=raw.get("verbatim_excerpt"),
+                entities_involved=raw.get("entities_mentioned", []),
             )
+
+            # Validate claim has evidence
+            if not claim.has_evidence():
+                warnings.append(ExtractionWarning(
+                    code=WarningCode.CLAIM_MISSING_ANCHOR,
+                    message=f"Claim {claim.claim_id} has no verbatim evidence",
+                    source_id=source_id,
+                ))
+
             claims.append(claim)
 
             if claim_type == ClaimType.EXPLICIT:
                 explicit_count += 1
             else:
                 implied_count += 1
+
+        # Extract entities
+        if raw_entities:
+            extracted_entities, entity_warnings = extract_entities_from_response(
+                raw_entities, source_id, timing_available
+            )
+            entities.extend(extracted_entities)
+            warnings.extend(entity_warnings)
 
         source_summary = SourceSummary(
             source_id=source_id,
@@ -263,10 +737,16 @@ def extract_claims_from_youtube(
             claim_count=len(claims),
             explicit_count=explicit_count,
             implied_count=implied_count,
+            timing_available=timing_available,
+            anchor_type_used=anchor_type,
+            entity_count=len(entities),
         )
 
-        logger.info(f"Extracted {len(claims)} claims from YouTube video: {title}")
-        return claims, source_summary
+        logger.info(
+            f"Extracted {len(claims)} claims, {len(entities)} entities from YouTube: {title} "
+            f"(timing={'yes' if timing_available else 'no'})"
+        )
+        return claims, source_summary, entities, warnings
 
     except Exception as e:
         logger.error(f"Failed to extract claims from YouTube {video_url}: {e}")
@@ -276,7 +756,9 @@ def extract_claims_from_youtube(
             title=title,
             url=video_url,
             claim_count=0,
-        )
+            timing_available=timing_available,
+            anchor_type_used=anchor_type,
+        ), [], warnings
 
 
 def extract_claims_from_text(
@@ -287,8 +769,10 @@ def extract_claims_from_text(
     source_type: SourceType = SourceType.TEXT,
     url: Optional[str] = None,
     model: str = "gemini-2.5-flash",
-) -> tuple[list[Claim], SourceSummary]:
-    """Extract claims from text content.
+) -> tuple[list[Claim], SourceSummary, list[Entity], list[ExtractionWarning]]:
+    """Extract claims and entities from text content.
+
+    V2 Update: Returns entities and warnings.
 
     Args:
         gemini_client: GeminiClient instance
@@ -300,12 +784,19 @@ def extract_claims_from_text(
         model: Gemini model to use
 
     Returns:
-        Tuple of (list of Claims, SourceSummary)
+        Tuple of (claims, source_summary, entities, warnings)
     """
+    warnings: list[ExtractionWarning] = []
+    entities: list[Entity] = []
+
+    # Number lines for extraction
+    numbered_content = number_lines(content)
+
     prompt = TEXT_EXTRACTION_PROMPT.format(
         title=title,
         source_type=source_type.value,
-        content=content,
+        source_id=source_id,
+        content=numbered_content,
     )
 
     try:
@@ -324,14 +815,17 @@ def extract_claims_from_text(
                 title=title,
                 url=url,
                 claim_count=0,
-            )
+                anchor_type_used=AnchorType.TEXT_LINE_RANGE,
+            ), [], warnings
 
         data = result.get("data", {})
         # Handle both cases: Gemini may return {"claims": [...]} or just [...]
         if isinstance(data, list):
             raw_claims = data  # Gemini returned claims array directly
+            raw_entities = {}
         else:
             raw_claims = data.get("claims", [])
+            raw_entities = data.get("entities", {})
 
         claims: list[Claim] = []
         explicit_count = 0
@@ -342,12 +836,18 @@ def extract_claims_from_text(
             confidence = ConfidenceLevel(raw.get("confidence", "medium"))
 
             # Build line range anchor
+            start_line = raw.get("start_line", 1)
+            end_line = raw.get("end_line", start_line)
+            excerpt = raw.get("verbatim_excerpt", raw.get("excerpt", ""))[:200]
+
             anchor = ClaimAnchor(
                 line_range=LineRangeAnchor(
-                    start_line=raw.get("start_line", 1),
-                    end_line=raw.get("end_line", 1),
-                    excerpt=raw.get("excerpt"),
-                )
+                    start_line=start_line,
+                    end_line=end_line,
+                    excerpt=excerpt,
+                    source_id=source_id,
+                ),
+                source_id=source_id,
             )
 
             claim = Claim(
@@ -358,13 +858,32 @@ def extract_claims_from_text(
                 anchor=anchor,
                 source_id=source_id,
                 context=raw.get("context"),
+                verbatim_excerpt=raw.get("verbatim_excerpt"),
+                entities_involved=raw.get("entities_mentioned", []),
             )
+
+            # Validate claim has evidence
+            if not claim.has_evidence():
+                warnings.append(ExtractionWarning(
+                    code=WarningCode.CLAIM_MISSING_ANCHOR,
+                    message=f"Claim {claim.claim_id} has no verbatim evidence",
+                    source_id=source_id,
+                ))
+
             claims.append(claim)
 
             if claim_type == ClaimType.EXPLICIT:
                 explicit_count += 1
             else:
                 implied_count += 1
+
+        # Extract entities
+        if raw_entities:
+            extracted_entities, entity_warnings = extract_entities_from_response(
+                raw_entities, source_id, timing_available=False
+            )
+            entities.extend(extracted_entities)
+            warnings.extend(entity_warnings)
 
         source_summary = SourceSummary(
             source_id=source_id,
@@ -374,10 +893,13 @@ def extract_claims_from_text(
             claim_count=len(claims),
             explicit_count=explicit_count,
             implied_count=implied_count,
+            timing_available=False,
+            anchor_type_used=AnchorType.TEXT_LINE_RANGE,
+            entity_count=len(entities),
         )
 
-        logger.info(f"Extracted {len(claims)} claims from text: {title}")
-        return claims, source_summary
+        logger.info(f"Extracted {len(claims)} claims, {len(entities)} entities from text: {title}")
+        return claims, source_summary, entities, warnings
 
     except Exception as e:
         logger.error(f"Failed to extract claims from text {title}: {e}")
@@ -387,7 +909,8 @@ def extract_claims_from_text(
             title=title,
             url=url,
             claim_count=0,
-        )
+            anchor_type_used=AnchorType.TEXT_LINE_RANGE,
+        ), [], warnings
 
 
 def extract_claims_from_screenshot(
@@ -398,8 +921,10 @@ def extract_claims_from_screenshot(
     platform_hint: Optional[str] = None,
     ocr_text: Optional[str] = None,
     model: str = "gemini-2.5-flash",
-) -> tuple[list[Claim], SourceSummary]:
-    """Extract claims from a screenshot image.
+) -> tuple[list[Claim], SourceSummary, list[Entity], list[ExtractionWarning]]:
+    """Extract claims and entities from a screenshot image.
+
+    V2 Update: Returns entities and warnings.
 
     Args:
         gemini_client: GeminiClient instance
@@ -411,10 +936,14 @@ def extract_claims_from_screenshot(
         model: Gemini model to use
 
     Returns:
-        Tuple of (list of Claims, SourceSummary)
+        Tuple of (claims, source_summary, entities, warnings)
     """
+    warnings: list[ExtractionWarning] = []
+    entities: list[Entity] = []
+
     prompt = SCREENSHOT_EXTRACTION_PROMPT.format(
         image_index=image_index,
+        source_id=source_id,
         platform_hint=platform_hint or "unknown",
         ocr_text=ocr_text or "(No OCR text available)",
     )
@@ -440,14 +969,17 @@ def extract_claims_from_screenshot(
                 source_type=SourceType.SCREENSHOT,
                 title=title,
                 claim_count=0,
-            )
+                anchor_type_used=AnchorType.IMAGE_INDEX,
+            ), [], warnings
 
         data = result.get("data", {})
         # Handle both cases: Gemini may return {"claims": [...]} or just [...]
         if isinstance(data, list):
             raw_claims = data  # Gemini returned claims array directly
+            raw_entities = {}
         else:
             raw_claims = data.get("claims", [])
+            raw_entities = data.get("entities", {})
 
         claims: list[Claim] = []
         explicit_count = 0
@@ -463,7 +995,9 @@ def extract_claims_from_screenshot(
                     image_index=image_index,
                     region=raw.get("region"),
                     ocr_excerpt=raw.get("ocr_excerpt"),
-                )
+                    source_id=source_id,
+                ),
+                source_id=source_id,
             )
 
             claim = Claim(
@@ -474,13 +1008,32 @@ def extract_claims_from_screenshot(
                 anchor=anchor,
                 source_id=source_id,
                 context=raw.get("context"),
+                verbatim_excerpt=raw.get("ocr_excerpt"),
+                entities_involved=raw.get("entities_mentioned", []),
             )
+
+            # Validate claim has evidence
+            if not claim.has_evidence():
+                warnings.append(ExtractionWarning(
+                    code=WarningCode.CLAIM_MISSING_ANCHOR,
+                    message=f"Claim {claim.claim_id} has no verbatim evidence",
+                    source_id=source_id,
+                ))
+
             claims.append(claim)
 
             if claim_type == ClaimType.EXPLICIT:
                 explicit_count += 1
             else:
                 implied_count += 1
+
+        # Extract entities from screenshot
+        if raw_entities:
+            extracted_entities, entity_warnings = extract_entities_from_screenshot_response(
+                raw_entities, source_id, image_index
+            )
+            entities.extend(extracted_entities)
+            warnings.extend(entity_warnings)
 
         source_summary = SourceSummary(
             source_id=source_id,
@@ -489,10 +1042,13 @@ def extract_claims_from_screenshot(
             claim_count=len(claims),
             explicit_count=explicit_count,
             implied_count=implied_count,
+            timing_available=False,
+            anchor_type_used=AnchorType.IMAGE_INDEX,
+            entity_count=len(entities),
         )
 
-        logger.info(f"Extracted {len(claims)} claims from screenshot {image_index}")
-        return claims, source_summary
+        logger.info(f"Extracted {len(claims)} claims, {len(entities)} entities from screenshot {image_index}")
+        return claims, source_summary, entities, warnings
 
     except Exception as e:
         logger.error(f"Failed to extract claims from screenshot {image_index}: {e}")
@@ -501,7 +1057,92 @@ def extract_claims_from_screenshot(
             source_type=SourceType.SCREENSHOT,
             title=title,
             claim_count=0,
-        )
+            anchor_type_used=AnchorType.IMAGE_INDEX,
+        ), [], warnings
+
+
+def extract_entities_from_screenshot_response(
+    raw_entities: dict,
+    source_id: str,
+    image_index: int,
+) -> tuple[list[Entity], list[ExtractionWarning]]:
+    """Extract Entity objects from screenshot LLM response.
+
+    Args:
+        raw_entities: Raw entities dict from LLM
+        source_id: Source ID for anchors
+        image_index: Screenshot index
+
+    Returns:
+        Tuple of (entities, warnings)
+    """
+    entities = []
+    warnings = []
+    entity_counter = 1
+
+    for entity_type, raw_list in raw_entities.items():
+        if not isinstance(raw_list, list):
+            continue
+
+        # Map string type to EntityType enum
+        if entity_type == "people":
+            etype = EntityType.PERSON
+        elif entity_type == "orgs":
+            etype = EntityType.ORG
+        elif entity_type == "places":
+            etype = EntityType.PLACE
+        elif entity_type == "unnamed":
+            etype = EntityType.UNNAMED
+        else:
+            continue
+
+        for raw in raw_list:
+            if not isinstance(raw, dict):
+                continue
+
+            label = raw.get("label", "").strip()
+            if not label:
+                continue
+
+            excerpt = raw.get("excerpt", "").strip()
+            if not excerpt:
+                warnings.append(ExtractionWarning(
+                    code=WarningCode.ENTITY_MISSING_EVIDENCE,
+                    message=f"Entity '{label}' has no verbatim excerpt",
+                    source_id=source_id,
+                ))
+                excerpt = raw.get("context_summary", label)[:100]
+
+            # Build image anchor
+            anchor = ClaimAnchor(
+                image=ImageAnchor(
+                    image_index=image_index,
+                    region=raw.get("region"),
+                    ocr_excerpt=excerpt[:200],
+                    source_id=source_id,
+                ),
+                source_id=source_id,
+            )
+
+            entity = Entity(
+                entity_id=f"ENT_{source_id}_{entity_counter:03d}",
+                canonical_label=label,
+                entity_type=etype,
+                aliases=raw.get("aliases", []),
+                context_summary=raw.get("context_summary", f"Entity mentioned in source")[:500],
+                context_evidence=[
+                    ContextEvidence(
+                        excerpt=excerpt,
+                        anchor=anchor,
+                        source_id=source_id,
+                    )
+                ],
+                top_anchors=[anchor],
+            )
+            entities.append(entity)
+            entity_counter += 1
+
+    return entities, warnings
 
 
 def run_claim_extraction_pipeline(
@@ -514,8 +1155,11 @@ def run_claim_extraction_pipeline(
     screenshots: list[dict] = None,
     model: str = "gemini-2.5-flash",
     progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    run_id: Optional[str] = None,
 ) -> ClaimsDocument:
     """Run the complete claim extraction pipeline.
+
+    V2 Update: Extracts entities and handles timing availability for anchors.
 
     Args:
         gemini_client: GeminiClient instance
@@ -527,9 +1171,10 @@ def run_claim_extraction_pipeline(
         screenshots: List of dicts with {filename, base64, platform_hint}
         model: Gemini model to use
         progress_callback: Optional callback(current, total, status)
+        run_id: Optional run ID if triggered from a semantic run
 
     Returns:
-        ClaimsDocument with all extracted claims
+        ClaimsDocument with all extracted claims, entities, and warnings
     """
     from backend.integrations.supadata_client import SupadataClient
 
@@ -543,7 +1188,7 @@ def run_claim_extraction_pipeline(
     current_source = 0
 
     # Create claims document
-    doc = ClaimsDocument.create_empty(job_id, title)
+    doc = ClaimsDocument.create_empty(job_id, title, run_id=run_id)
     doc.metadata.extraction_model = model
 
     # Process YouTube videos
@@ -563,9 +1208,9 @@ def run_claim_extraction_pipeline(
             metadata = fetch_video_metadata(url)
             video_title = metadata.get("title", f"Video {i+1}") if metadata else f"Video {i+1}"
 
-            # Fetch transcript
+            # Fetch transcript with raw response for timing check
             transcript_result = supadata.get_transcript(url)
-            transcript = transcript_result.get("text", "")  # Note: key is "text", not "transcript"
+            transcript = transcript_result.get("text", "")
 
             if not transcript:
                 logger.warning(f"No transcript available for {url}")
@@ -575,15 +1220,28 @@ def run_claim_extraction_pipeline(
                     title=video_title,
                     url=url,
                     claim_count=0,
+                    timing_available=False,
+                    anchor_type_used=AnchorType.TEXT_LINE_RANGE,
                 ))
+                doc.add_warning(
+                    WarningCode.EMPTY_EXTRACTION,
+                    f"No transcript available for {video_title}",
+                    source_id=source_id,
+                )
                 continue
 
-            claims, summary = extract_claims_from_youtube(
-                gemini_client, url, video_title, transcript, source_id, model
+            # V2: Pass transcript_data for timing detection
+            claims, summary, entities, warnings = extract_claims_from_youtube(
+                gemini_client, url, video_title, transcript, source_id, model,
+                transcript_data=transcript_result,
             )
             doc.add_source(summary)
             for claim in claims:
                 doc.add_claim(claim)
+            for entity in entities:
+                doc.add_entity(entity)
+            for warning in warnings:
+                doc.warnings.append(warning)
 
         except Exception as e:
             logger.error(f"Failed to process YouTube video {url}: {e}")
@@ -593,6 +1251,7 @@ def run_claim_extraction_pipeline(
                 title=f"Video {i+1}",
                 url=url,
                 claim_count=0,
+                timing_available=False,
             ))
 
     # Process article URLs
@@ -619,16 +1278,26 @@ def run_claim_extraction_pipeline(
                     title=article_title,
                     url=url,
                     claim_count=0,
+                    anchor_type_used=AnchorType.TEXT_LINE_RANGE,
                 ))
+                doc.add_warning(
+                    WarningCode.EMPTY_EXTRACTION,
+                    f"No content fetched for {article_title}",
+                    source_id=source_id,
+                )
                 continue
 
-            claims, summary = extract_claims_from_text(
+            claims, summary, entities, warnings = extract_claims_from_text(
                 gemini_client, content, article_title, source_id,
                 source_type=SourceType.ARTICLE, url=url, model=model
             )
             doc.add_source(summary)
             for claim in claims:
                 doc.add_claim(claim)
+            for entity in entities:
+                doc.add_entity(entity)
+            for warning in warnings:
+                doc.warnings.append(warning)
 
         except Exception as e:
             logger.error(f"Failed to process article {url}: {e}")
@@ -656,16 +1325,26 @@ def run_claim_extraction_pipeline(
                 source_type=SourceType.TEXT,
                 title=text_title,
                 claim_count=0,
+                anchor_type_used=AnchorType.TEXT_LINE_RANGE,
             ))
+            doc.add_warning(
+                WarningCode.EMPTY_EXTRACTION,
+                f"No content provided for {text_title}",
+                source_id=source_id,
+            )
             continue
 
-        claims, summary = extract_claims_from_text(
+        claims, summary, entities, warnings = extract_claims_from_text(
             gemini_client, content, text_title, source_id,
             source_type=SourceType.TEXT, model=model
         )
         doc.add_source(summary)
         for claim in claims:
             doc.add_claim(claim)
+        for entity in entities:
+            doc.add_entity(entity)
+        for warning in warnings:
+            doc.warnings.append(warning)
 
     # Process screenshots
     for i, screenshot in enumerate(screenshots):
@@ -683,18 +1362,37 @@ def run_claim_extraction_pipeline(
                 source_type=SourceType.SCREENSHOT,
                 title=f"Screenshot {i+1}",
                 claim_count=0,
+                anchor_type_used=AnchorType.IMAGE_INDEX,
             ))
+            doc.add_warning(
+                WarningCode.EMPTY_EXTRACTION,
+                f"No image data for Screenshot {i+1}",
+                source_id=source_id,
+            )
             continue
 
-        claims, summary = extract_claims_from_screenshot(
+        claims, summary, entities, warnings = extract_claims_from_screenshot(
             gemini_client, image_base64, i, source_id,
             platform_hint=platform_hint, model=model
         )
         doc.add_source(summary)
         for claim in claims:
             doc.add_claim(claim)
+        for entity in entities:
+            doc.add_entity(entity)
+        for warning in warnings:
+            doc.warnings.append(warning)
+
+    # Check for empty extraction
+    if doc.metadata.total_claims == 0:
+        doc.add_warning(
+            WarningCode.EMPTY_EXTRACTION,
+            "No claims extracted from any source",
+        )
 
     logger.info(
-        f"Claim extraction complete: {doc.metadata.total_claims} claims from {doc.metadata.source_count} sources"
+        f"Claim extraction complete: {doc.metadata.total_claims} claims, "
+        f"{doc.metadata.total_entities} entities from {doc.metadata.source_count} sources "
+        f"({len(doc.warnings)} warnings)"
     )
     return doc
