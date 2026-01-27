@@ -152,6 +152,27 @@ class RunBoosterExpansion(BaseModel):
     error: Optional[str] = None
 
 
+class RunClaimsDoc(BaseModel):
+    """Claims document scoped to this run (Claim Extractor v2).
+
+    Generated from the run's Doc 0/source ledger content.
+    Similar to producer/booster - triggered after run completion.
+    """
+
+    status: RunStatus = Field(RunStatus.QUEUED)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    path: Optional[str] = Field(None, description="Storage path to claims_doc JSON")
+    inline: Optional[dict[str, Any]] = Field(None, description="Inline claims doc (fallback)")
+    markdown: Optional[str] = Field(None, description="Rendered markdown")
+    error: Optional[str] = None
+    warnings: list[str] = Field(default_factory=list, description="Extraction warnings")
+    # V2 Stats
+    total_claims: int = Field(default=0, description="Total claims extracted")
+    total_entities: int = Field(default=0, description="Total entities extracted")
+
+
 class Run(BaseModel):
     """
     A single research run producing Doc 0/1/2 outputs.
@@ -203,6 +224,7 @@ class Run(BaseModel):
     # Run-scoped enhancements (optional, triggered separately)
     producer_packet: Optional[RunProducerPacket] = None
     booster_expansion: Optional[RunBoosterExpansion] = None
+    claims_doc: Optional[RunClaimsDoc] = None  # V2: Claims extraction
 
     def is_baseline(self) -> bool:
         """Check if this is the baseline run."""
@@ -228,6 +250,13 @@ class Run(BaseModel):
         return (
             self.booster_expansion is not None
             and self.booster_expansion.status == RunStatus.COMPLETED
+        )
+
+    def has_claims_doc(self) -> bool:
+        """Check if claims document was generated."""
+        return (
+            self.claims_doc is not None
+            and self.claims_doc.status == RunStatus.COMPLETED
         )
 
 

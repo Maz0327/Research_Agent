@@ -277,6 +277,14 @@ class JobRecord(BaseModel):
     iteration_error: Optional[str] = Field(None, description="Current iteration error message if failed")
     iteration_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Current iteration progress (0-100)")
 
+    # Claims Doc tracking (V2 - run-scoped claims extraction)
+    # IMPORTANT: Claims doc must NEVER modify jobs.status - these fields track claims_doc independently
+    claims_doc_status: Optional[str] = Field(None, description="Claims doc status: queued, running, completed, failed")
+    claims_doc_started_at: Optional[datetime] = Field(None, description="When claims doc generation started")
+    claims_doc_completed_at: Optional[datetime] = Field(None, description="When claims doc generation completed/failed")
+    claims_doc_error: Optional[str] = Field(None, description="Claims doc error message if failed")
+    claims_doc_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Claims doc progress (0-100)")
+
     # Configuration
     config_json: dict[str, Any] = Field(default_factory=dict, description="Job configuration as JSON")
 

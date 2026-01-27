@@ -1574,6 +1574,147 @@ async def run_booster_for_run(
 
 
 # =============================================================================
+# CLAIMS DOC ENDPOINT (V2 - Claim Extractor)
+# =============================================================================
+
+@router.post("/{job_id}/runs/{run_id}/claims-doc")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def generate_claims_doc_for_run(
+    request: Request,
+    job_id: str,
+    run_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Trigger Claims Document generation for a specific run.
+
+    V2 Claim Extractor: Extracts claims and entities from the run's
+    Doc 0/source ledger content. Similar to producer/booster, this is
+    a run-scoped artifact generated after the semantic run completes.
+
+    Features:
+    - Anchored claims (timestamps if available, else line ranges)
+    - Entity Index (people, orgs, places, unnamed)
+    - Warning codes for extraction issues
+
+    Args:
+        job_id: Job ID
+        run_id: Run ID (e.g., 'run_0' for baseline, 'run_1' for first iteration)
+
+    Returns:
+        Status object with claims_doc_status
+    """
+    from backend.models.run_models import ensure_runs_migrated, RunStatus, RunClaimsDoc
+    from datetime import datetime, timezone as tz
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    # Validate run_id format
+    if not run_id.startswith("run_"):
+        raise HTTPException(status_code=400, detail="Invalid run ID format. Expected 'run_0', 'run_1', etc.")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to generate claims doc. Current status: '{job_status}'"
+        )
+
+    # Get artifacts and find the run
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if not artifacts:
+        raise HTTPException(status_code=400, detail="Job has no artifacts")
+
+    # Migrate legacy artifacts to runs if needed
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or "system",
+    )
+
+    # Find the requested run
+    target_run = None
+    for run in runs:
+        if run.run_id == run_id:
+            target_run = run
+            break
+
+    if not target_run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+
+    if target_run.status != RunStatus.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run must be completed to generate claims doc. Current status: '{target_run.status}'"
+        )
+
+    # Check if run has Doc 0 outputs
+    if not target_run.outputs or not target_run.outputs.has_doc_0():
+        raise HTTPException(
+            status_code=400,
+            detail="Run must have Doc 0 (Source Ledger) to generate claims doc"
+        )
+
+    # Check if claims_doc already running for this run
+    if target_run.claims_doc and target_run.claims_doc.status in (RunStatus.QUEUED, RunStatus.RUNNING):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Claims doc is already {target_run.claims_doc.status.value} for run {run_id}"
+        )
+
+    # Queue claims doc task with run_id
+    from backend.worker import run_claims_doc_task
+
+    # Update job status
+    update_job(
+        job_id,
+        claims_doc_status="queued",
+        claims_doc_started_at=datetime.now(tz.utc),
+        claims_doc_progress_percent=0,
+        claims_doc_error=None,
+    )
+
+    logger.info(f"Enqueuing claims doc task for job {job_id} run {run_id}")
+    run_claims_doc_task.apply_async(
+        (job_id, user.user_id, run_id),
+        task_id=f"{job_id}_{run_id}_claims_doc"
+    )
+
+    logger.info(
+        "Claims doc triggered",
+        extra={
+            "job_id": job_id,
+            "run_id": run_id,
+            "user_id": user.user_id,
+            "is_re_run": target_run.claims_doc is not None,
+            "event": "claims_doc_triggered",
+        }
+    )
+
+    return {
+        "job_id": job_id,
+        "run_id": run_id,
+        "status": "queued",
+        "claims_doc_status": "queued",
+        "message": f"Claims Document for run {run_id} started.",
+    }
+
+
+# =============================================================================
 # ITERATION LOOP ENDPOINT (Phase 9)
 # =============================================================================
 
