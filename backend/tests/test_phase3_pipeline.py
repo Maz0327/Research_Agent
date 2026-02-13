@@ -14,7 +14,7 @@ import json
 import pytest
 from dataclasses import asdict
 
-from backend.pipeline.dual_output import (
+from backend.models.video_analysis_models import (
     ContentBlueprint,
     GapAnalysis,
     ResearchStarter,

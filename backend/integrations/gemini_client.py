@@ -303,7 +303,7 @@ from backend.pipeline.prompts import (
 )
 
 # Import dataclasses for structured output
-from backend.pipeline.dual_output import (
+from backend.models.video_analysis_models import (
     ContentBlueprint,
     ActSection,
     OpenLoop,

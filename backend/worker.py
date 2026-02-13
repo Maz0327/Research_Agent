@@ -705,7 +705,7 @@ def run_gemini_video_job(job_id: str) -> dict:
             return {"job_id": job_id, "status": "failed", "error": result.get("error")}
 
         # Generate ProducerPacket with quality gate
-        from backend.pipeline.dual_output import create_producer_packet_from_gemini, TriageLevel
+        from backend.models.video_analysis_models import create_producer_packet_from_gemini, TriageLevel
         from backend.models.job_record import Artifacts
 
         title = job.config_json.get("title", f"Video Analysis {job_id[:8]}")

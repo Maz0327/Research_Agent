@@ -163,7 +163,13 @@ interview_suggestions needs:
         "people_to_contact": [...],
         "expert_perspectives_needed": [...]
     }},
-    "b_roll_suggestions": [...]
+    "b_roll_suggestions": [
+        {{
+            "description": "string describing the b-roll footage",
+            "purpose": "string explaining when/why to use this footage in the narrative",
+            "source_options": ["array of strings with potential sources (e.g., stock footage libraries, archives, locations)"]
+        }}
+    ]
 }}"""
 
 

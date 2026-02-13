@@ -13,8 +13,8 @@ from backend.pipeline.formats.chapter_export import ChapterExporter, ChapterMark
 from backend.pipeline.formats.clip_export import ClipExporter, ClipSuggestion
 from backend.pipeline.formats.social_export import SocialExporter, SocialContentKit
 from backend.pipeline.formats.brief_export import BriefExporter, ResearchBrief
-from backend.pipeline.dual_output import (
-    ProducerPacket,
+from backend.models.video_analysis_models import (
+    LegacyProducerPacket as ProducerPacket,
     create_producer_packet_from_gemini,
 )
 
