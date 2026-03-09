@@ -4,7 +4,8 @@ AI-powered documentary research assistant that makes long-form video content sca
 
 **Primary Mode (Jan 2026): Video Analysis**
 - User provides YouTube URLs → Gemini extracts timestamped clips and quotes
-- Output: ProducerPacket with verified clips, quotes, and quality gate status
+- **Visual Frame Analysis**: Kimi K2.5 Vision (primary) or Gemini 2.5 Flash (fallback) classifies video frames for content type, originality, and third-party usage
+- Output: ProducerPacket with verified clips, quotes, visual analysis, and quality gate status
 
 **Legacy Mode: Topic Research**
 - User enters topic → System discovers sources → Extraction pipeline
@@ -28,6 +29,9 @@ AI-powered documentary research assistant that makes long-form video content sca
 - **Quote Verification**: Fuzzy matching against source transcripts
 - **Provenance Tracking**: Every claim traces back to source with timestamp/quote
 - **Multi-Source Synthesis**: Cross-source themes, tensions, and gaps
+- **Visual Frame Analysis**: Frame-level video content classification (Kimi K2.5 primary, Gemini 2.5 Flash fallback)
+- **LLM Judge**: Confidence scoring via secondary LLM evaluation
+- **RAG Grounding**: Retrieval-augmented validation against source material
 
 ### Input Types
 - **YouTube Videos**: Full transcript or caption-based analysis
@@ -47,9 +51,10 @@ AI-powered documentary research assistant that makes long-form video content sca
 - **Cross-Reference Stage**: Identifies supports/contradicts between sources
 
 ### Quality Assurance
-- **948 Automated Tests**: Comprehensive test coverage
+- **1,188 Automated Tests**: Comprehensive test coverage across all pipeline stages
 - **Validation Stage**: Quote verification, ceiling enforcement, provenance check
 - **Rate Limiting**: 60 req/min with exponential backoff
+- **Cost Tracking**: Per-call cost tracking for all LLM/API usage (OpenAI, Gemini, Perplexity, Kimi)
 
 ### User Experience
 - **Dark Mode UI**: Modern dark-mode-first design with glow effects and animations
@@ -98,6 +103,8 @@ AI-powered documentary research assistant that makes long-form video content sca
 - Node.js 18+
 - Redis (for Celery broker/backend)
 - Supabase project (for database and auth)
+- ffmpeg (for video frame extraction)
+- yt-dlp (for video downloading)
 
 ## Project Structure
 
@@ -113,6 +120,8 @@ Research_Agent/
 │   │   └── admin.py             # Admin role management
 │   ├── integrations/
 │   │   ├── openai_client.py     # OpenAI API for planning/extraction
+│   │   ├── gemini_client.py     # Gemini 2.5 Pro/Flash for video analysis
+│   │   ├── kimi_vision_client.py # Kimi K2.5 Vision for frame-level analysis
 │   │   ├── perplexity_client.py # Perplexity for research/validation
 │   │   ├── youtube_client.py    # YouTube Data API
 │   │   ├── google_drive_docs.py # Google Drive/Docs integration
@@ -123,6 +132,11 @@ Research_Agent/
 │   │   ├── reddit_client.py     # Reddit API integration
 │   │   └── ...                  # Other integrations
 │   ├── pipeline/
+│   │   ├── stages/
+│   │   │   └── semantic_extraction.py # Semantic extraction with visual analysis
+│   │   ├── stage_runner.py      # Pipeline stage orchestration
+│   │   ├── cost_tracker.py      # Per-call API cost tracking
+│   │   ├── quality_gate.py      # Quality gate with URL dedup
 │   │   ├── extraction.py        # Claim extraction
 │   │   ├── validation.py        # Claim validation
 │   │   ├── timeline.py          # Timeline event extraction
@@ -142,6 +156,7 @@ Research_Agent/
 │   │   └── impl/                # Store implementations
 │   ├── services/
 │   │   ├── transcript_service.py # Transcript processing
+│   │   ├── frame_extraction.py  # ffmpeg-based video frame extraction
 │   │   └── error_logger.py      # Error logging service
 │   ├── migrations/              # SQL migrations (001-010)
 │   ├── config.py                # Settings with Pydantic
@@ -323,8 +338,47 @@ See `.env.example` for the complete list. Key variables:
 | `GOOGLE_API_KEY` | Google API key for Gemini 2.5 (video analysis) |
 | `OPENAI_API_KEY` | OpenAI API key |
 | `PERPLEXITY_API_KEY` | Perplexity API key |
+| `KIMI_API_KEY` | Moonshot API key for Kimi K2.5 visual analysis (optional — falls back to Gemini) |
+| `ANTHROPIC_API_KEY` | Anthropic API key for Claude LLM judge |
 | `GOOGLE_OAUTH_*` | Google OAuth credentials |
 | `FRONTEND_ORIGINS` | Allowed CORS origins |
+
+## Visual Frame Analysis (March 2026)
+
+Video sources now get frame-level visual analysis in addition to Gemini video observations. This provides content classification, originality detection, and third-party footage identification.
+
+### How It Works
+
+```
+YouTube URL → yt-dlp (720p, video-only) → ffmpeg (10s intervals, 15 frames max)
+                                                    ↓
+                                        ┌───────────────────────┐
+                                        │  Kimi K2.5 Vision     │ ← Primary
+                                        │  (Moonshot API)       │
+                                        └───────────┬───────────┘
+                                                    │ fails?
+                                        ┌───────────▼───────────┐
+                                        │  Gemini 2.5 Flash     │ ← Fallback
+                                        │  (Google AI)          │
+                                        └───────────┬───────────┘
+                                                    ↓
+                                        visual_analysis dict on
+                                        SemanticExtractionResult
+```
+
+### Per-Frame Output
+- **content_type**: interview, b-roll, infographic, screen_recording, movie_clip, news_clip, stock_footage, etc.
+- **is_original_content**: Whether the frame is the creator's own camera work
+- **is_third_party**: Whether the frame uses third-party footage
+- **confidence**: high / medium / low
+- **text_detected**: Any on-screen text (OCR)
+- **notable_elements**: People, logos, locations, etc.
+
+### Configuration
+- Set `KIMI_API_KEY` in `.env` for Kimi K2.5 Vision (recommended)
+- If not set, automatically uses Gemini 2.5 Flash as fallback
+- If both fail, pipeline continues without visual analysis (non-fatal)
+- Requires `ffmpeg` and `yt-dlp` installed on the system
 
 ## Deployment
 
@@ -337,6 +391,9 @@ See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for production deployment to Rail
 - **[CLAUDE.md](CLAUDE.md)** - Development guide for Claude Code
 - **[Architecture](docs/architecture.md)** - System architecture overview
 - **[Code Standards](docs/code-standards.md)** - Coding conventions
+- **[PROGRESS.md](PROGRESS.md)** - Implementation progress tracker
+- **[CHANGELOG.md](CHANGELOG.md)** - Version changelog
+- **[DECISIONS.md](DECISIONS.md)** - Architectural decision log
 
 ### Strategic Planning
 - `plans/strategic-pivot-jan-2026-v3-recalibrated.md` - Strategic decision rationale
