@@ -949,6 +949,6 @@ class TestDocumentAssemblyIntegration:
 
         markdown = doc_0.to_markdown()
 
-        assert "# SOURCE LEDGER" in markdown  # Actual format uses uppercase
+        assert "SOURCE LEDGER" in markdown  # Header may have emoji prefix
         assert "Research Topic" in markdown
         assert "Test Video Title" in markdown

@@ -258,7 +258,7 @@ class TestStageGapAnalysis:
     """Test stage_gap_analysis main function."""
 
     @patch("backend.pipeline.stages.gap_analysis.update_job")
-    @patch("backend.pipeline.stages.gap_analysis.GeminiClient")
+    @patch("backend.integrations.gemini_client.GeminiClient")
     def test_stage_gap_analysis_success(self, mock_gemini_class, mock_update_job, mock_context):
         """Should successfully run gap analysis stage."""
         from backend.pipeline.stages.gap_analysis import stage_gap_analysis

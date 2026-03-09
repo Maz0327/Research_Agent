@@ -27,6 +27,12 @@ CRITICAL RULES:
 - You generate research directions, NOT research findings
 - "Look for X" is correct. "X shows that Y" is forbidden.
 - Empty output is acceptable. Hallucinated output is not.
+
+ANTI-GENERIC RULES:
+1. Every search query must be specific enough to return useful results on the first try — no "search for more information about X"
+2. Always specify WHERE and WHAT — platform suggestions must be justified (why Reddit vs Google vs YouTube?)
+3. Never use generic phrases: "further research", "additional investigation", "more information" — be CONCRETE about what to look for
+4. Each direction must explain WHY it matters for the documentary, not just WHAT to find
 """
 
 # -----------------------------------------------------------------------------
@@ -116,6 +122,7 @@ Return ONLY valid JSON matching this structure:
         {{
             "description": "What voice/viewpoint is missing",
             "why_it_matters": "Why this perspective would help",
+            "impact_level": "critical | important | nice_to_have",
             "related_gaps": ["GAP_1"]
         }}
     ],
@@ -123,7 +130,9 @@ Return ONLY valid JSON matching this structure:
         {{
             "source_type": "court_filing | sec_filing | government_record | academic_paper | news_article | press_release | social_media_archive | interview_transcript | internal_document | dataset | financial_report | other",
             "description": "What type of source to look for",
+            "why_it_matters": "Why finding this source would strengthen the research",
             "search_suggestion": "How to search for it",
+            "impact_level": "critical | important | nice_to_have",
             "related_gap": "GAP_1 or null"
         }}
     ],
@@ -131,7 +140,9 @@ Return ONLY valid JSON matching this structure:
         {{
             "query": "Specific search query",
             "purpose": "What this query aims to find",
+            "why_it_matters": "How the results would change the documentary",
             "platform_suggestion": "google | reddit | twitter | news | youtube | archive",
+            "impact_level": "critical | important | nice_to_have",
             "related_gap": "GAP_1 or null",
             "related_theme": "THEME_1 or null"
         }}
@@ -140,12 +151,22 @@ Return ONLY valid JSON matching this structure:
         {{
             "question": "A question to investigate",
             "why_it_matters": "How answering it advances understanding",
+            "impact_level": "critical | important | nice_to_have",
             "related_theme": "THEME_1"
         }}
     ]
 }}
 
 ---
+
+## IMPACT LEVELS (R14)
+
+For each item, classify its impact:
+- **critical**: Documentary CANNOT proceed without this — a fundamental gap in evidence or perspective
+- **important**: Would SIGNIFICANTLY strengthen the story — worth dedicating research time
+- **nice_to_have**: Adds depth or polish but the documentary works without it
+
+Be honest about impact. Not everything is critical. Most items are "important". Reserve "critical" for true blockers.
 
 ## VALIDATION REQUIREMENTS
 
@@ -154,6 +175,7 @@ Your output will be validated for:
 - All theme_id references must exist in the Context Bundle
 - No factual claims about what sources contain
 - No resolution of tensions
+- All items must include impact_level (critical/important/nice_to_have)
 
 ---
 

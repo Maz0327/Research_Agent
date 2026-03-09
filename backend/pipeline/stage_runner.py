@@ -178,45 +178,4 @@ class StageGroup:
         }
 
 
-# Fallback implementations for common stages
-
-def fallback_extraction_simple(ctx: PipelineContext) -> None:
-    """Simple extraction fallback - just log warning."""
-    logger.warning(f"[{ctx.job_id}] Using simple extraction fallback - claims may be limited")
-    # Set empty claims to prevent downstream errors
-    if not ctx.claims:
-        ctx.claims = []
-
-
-def fallback_web_capture_skip(ctx: PipelineContext) -> None:
-    """Skip web capture fallback - continue without web sources."""
-    logger.warning(f"[{ctx.job_id}] Web capture unavailable - continuing without web sources")
-    if not ctx.web_sources:
-        ctx.web_sources = []
-
-
-def fallback_reddit_skip(ctx: PipelineContext) -> None:
-    """Skip Reddit fallback - continue without Reddit data."""
-    logger.warning(f"[{ctx.job_id}] Reddit unavailable - continuing without Reddit data")
-    if not ctx.reddit_posts:
-        ctx.reddit_posts = []
-
-
-def fallback_transcripts_skip(ctx: PipelineContext) -> None:
-    """Skip transcripts fallback - continue without transcripts."""
-    logger.warning(f"[{ctx.job_id}] Transcripts unavailable - continuing without transcripts")
-    if not ctx.transcripts:
-        ctx.transcripts = []
-
-
-def fallback_youtube_skip(ctx: PipelineContext) -> None:
-    """Skip YouTube fallback - continue without YouTube videos."""
-    logger.warning(f"[{ctx.job_id}] YouTube unavailable - continuing without videos")
-    if not ctx.youtube_videos:
-        ctx.youtube_videos = []
-
-
-def fallback_drive_upload_skip(ctx: PipelineContext) -> None:
-    """Skip Drive upload fallback - results will be in job record only."""
-    logger.warning(f"[{ctx.job_id}] Drive upload unavailable - results in job record only")
-    ctx.add_warning("Google Drive upload failed - results available via API only")
+# Legacy fallback functions removed (2026-03) — were dead code with zero callers.

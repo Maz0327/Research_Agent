@@ -25,8 +25,10 @@ from loguru import logger
 
 from backend.models.document_outputs import (
     ConfidenceAssessment,
+    CrossCuttingAnalysis,
     JumpStartDirections,
     ResearchDirection,
+    ResearchThread,
     SemanticBrief,
     SourceEntry,
     SourceLedger,
@@ -160,14 +162,20 @@ def build_jump_start(
     scope_lock: tuple[list[str], list[str]],
     extractions: list[SemanticExtractionResult],
     gaps: list[Gap],
+    source_coverage: dict | None = None,
 ) -> JumpStartDirections:
     """
     Build Doc 1: Jump-Start from extractions and identified gaps.
+
+    Groups key points by theme into ResearchThreads, attaches gaps and
+    research directions inline, and builds cross-cutting analysis from
+    Phase 5 source_coverage data.
 
     Args:
         scope_lock: Tuple of (scope_in, scope_out) lists
         extractions: List of SemanticExtractionResult objects
         gaps: List of identified Gaps
+        source_coverage: Optional Phase 5 map of key_point_id -> [source_ids]
 
     Returns:
         Assembled JumpStartDirections (Doc 1)
@@ -176,13 +184,15 @@ def build_jump_start(
 
     scope_in, scope_out = scope_lock
 
-    # Aggregate key points from all extractions
+    # Aggregate all semantic units from all extractions
     all_key_points = []
+    all_themes = []
     all_tensions = []
     perspectives = set()
 
     for extraction in extractions:
         all_key_points.extend(extraction.key_points)
+        all_themes.extend(extraction.themes)
         all_tensions.extend(extraction.tensions)
         perspectives.add(extraction.source_id)
 
@@ -207,6 +217,121 @@ def build_jump_start(
                     description=f"Verify: {claim.statement[:100]}...",
                     status="pending",
                 ))
+
+    # ---- THEMATIC GROUPING ----
+    # Build lookup maps
+    kp_map: dict[str, KeyPoint] = {kp.key_point_id: kp for kp in all_key_points}
+    gap_map: dict[str, Gap] = {g.gap_id: g for g in gaps}
+    # Map gap_id -> ResearchDirection (keyed by gap_id for uniqueness)
+    rd_map: dict[str, ResearchDirection] = {}
+    for gap_obj, rd in zip(gaps, research_directions):
+        rd_map[gap_obj.gap_id] = rd
+
+    # Track which KPs and gaps have been assigned to a thread
+    assigned_kp_ids: set[str] = set()
+    assigned_gap_ids: set[str] = set()
+
+    research_threads: list[ResearchThread] = []
+
+    for theme in all_themes:
+        # Find key points for this theme
+        thread_kps = []
+        for kp_id in theme.related_key_points:
+            if kp_id in kp_map:
+                thread_kps.append(kp_map[kp_id])
+                assigned_kp_ids.add(kp_id)
+
+        # Find gaps related to this theme
+        thread_gaps = []
+        for gap in gaps:
+            if gap.gap_id in assigned_gap_ids:
+                continue
+            # Match by related_themes or by overlapping key points
+            theme_match = theme.theme_id in (gap.related_themes or [])
+            kp_overlap = bool(
+                set(gap.related_key_points or []) & set(theme.related_key_points or [])
+            )
+            if theme_match or kp_overlap:
+                thread_gaps.append(gap)
+                assigned_gap_ids.add(gap.gap_id)
+
+        # Find research directions for these gaps
+        thread_rds = []
+        for gap in thread_gaps:
+            if gap.gap_id in rd_map:
+                thread_rds.append(rd_map[gap.gap_id])
+
+        # Enrich theme with Phase 5 data if available
+        if source_coverage and len(extractions) > 1:
+            theme_sources = set()
+            for kp_id in theme.related_key_points:
+                if kp_id in source_coverage:
+                    theme_sources.update(source_coverage[kp_id])
+            theme.sources_supporting = list(theme_sources)
+            theme.is_consensus = len(theme_sources) >= 2
+
+        research_threads.append(ResearchThread(
+            theme=theme,
+            key_points=thread_kps,
+            gaps=thread_gaps,
+            research_directions=thread_rds,
+        ))
+
+    # Handle orphan KPs (not assigned to any theme)
+    orphan_kps = [kp for kp in all_key_points if kp.key_point_id not in assigned_kp_ids]
+    orphan_gaps = [g for g in gaps if g.gap_id not in assigned_gap_ids]
+
+    if orphan_kps or orphan_gaps:
+        general_theme = Theme(
+            theme_id="THEME_GENERAL",
+            label="General Findings",
+            description="Key points and gaps not yet associated with a specific research thread.",
+            related_key_points=[kp.key_point_id for kp in orphan_kps],
+        )
+        orphan_rds = [
+            rd_map[g.gap_id] for g in orphan_gaps
+            if g.gap_id in rd_map
+        ]
+        research_threads.append(ResearchThread(
+            theme=general_theme,
+            key_points=orphan_kps,
+            gaps=orphan_gaps,
+            research_directions=orphan_rds,
+        ))
+
+    # ---- CROSS-CUTTING ANALYSIS ----
+    cross_cutting = None
+    if source_coverage and len(extractions) > 1:
+        confirmed = []
+        single_source = []
+
+        for kp in all_key_points:
+            sources = source_coverage.get(kp.key_point_id, kp.source_ids or [])
+            if len(sources) >= 2:
+                confirmed.append({
+                    "statement": kp.statement,
+                    "sources": list(sources),
+                })
+            elif len(sources) == 1:
+                single_source.append({
+                    "statement": kp.statement,
+                    "source": list(sources)[0],
+                })
+
+        conflicts = []
+        for tension in all_tensions:
+            if getattr(tension, "is_cross_source", False):
+                conflicts.append({
+                    "description": tension.description,
+                    "sources_a": getattr(tension, "sources_position_a", []),
+                    "sources_b": getattr(tension, "sources_position_b", []),
+                })
+
+        cross_cutting = CrossCuttingAnalysis(
+            confirmed=confirmed,
+            conflicts=conflicts,
+            single_source=single_source,
+        )
 
     # Generate next steps
     next_steps = []
@@ -234,14 +359,157 @@ def build_jump_start(
         key_points=all_key_points,
         tensions=all_tensions,
         gaps=gaps,
-        research_directions=research_directions[:5],  # Limit to top 5
-        verification_items=verification_items[:10],  # Limit to 10
-        next_steps=next_steps[:3],  # Always exactly 3
+        research_directions=research_directions[:5],
+        verification_items=verification_items[:10],
+        next_steps=next_steps[:3],
         confidence=confidence,
+        research_threads=research_threads,
+        cross_cutting=cross_cutting,
     )
 
-    logger.info(f"Jump-Start built: {len(all_key_points)} key points, {len(gaps)} gaps")
+    logger.info(
+        f"Jump-Start built: {len(all_key_points)} key points, "
+        f"{len(research_threads)} threads, {len(gaps)} gaps"
+    )
     return jump_start
+
+
+def merge_booster_into_threads_dict(
+    jump_start_dict: dict,
+    booster_output_dict: dict,
+) -> dict:
+    """
+    Map booster output items into their corresponding research threads by
+    matching gap_id and theme_id references.
+
+    Operates on dict representations (as stored in artifacts) so it can be
+    called from worker.py after booster completes without reconstructing
+    full dataclass objects.
+
+    Items that don't match any thread are collected into a synthetic
+    "General Research Directions" thread.
+
+    Args:
+        jump_start_dict: Doc 1 as dict (with research_threads key)
+        booster_output_dict: BoosterOutput as dict
+
+    Returns:
+        Updated jump_start_dict with booster items folded into threads
+    """
+    threads = jump_start_dict.get("research_threads", [])
+    if not threads:
+        logger.info("No research threads to merge booster into — skipping")
+        return jump_start_dict
+
+    # Build lookup maps: theme_id -> thread index, gap_id -> thread index
+    theme_to_idx: dict[str, int] = {}
+    gap_to_idx: dict[str, int] = {}
+
+    for idx, thread in enumerate(threads):
+        theme_data = thread.get("theme", {})
+        tid = theme_data.get("theme_id", "")
+        if tid:
+            theme_to_idx[tid] = idx
+        for gap in thread.get("gaps", []):
+            gid = gap.get("gap_id", "")
+            if gid:
+                gap_to_idx[gid] = idx
+
+    # Initialize booster lists on each thread if not present
+    for thread in threads:
+        thread.setdefault("booster_search_queries", [])
+        thread.setdefault("booster_research_questions", [])
+        thread.setdefault("booster_primary_sources", [])
+        thread.setdefault("booster_missing_perspectives", [])
+
+    unmatched_queries = []
+    unmatched_questions = []
+    unmatched_sources = []
+    unmatched_perspectives = []
+
+    # Map search queries
+    for sq in booster_output_dict.get("suggested_search_queries", []):
+        matched = False
+        rt = sq.get("related_theme")
+        rg = sq.get("related_gap")
+        if rt and rt in theme_to_idx:
+            threads[theme_to_idx[rt]]["booster_search_queries"].append(sq)
+            matched = True
+        elif rg and rg in gap_to_idx:
+            threads[gap_to_idx[rg]]["booster_search_queries"].append(sq)
+            matched = True
+        if not matched:
+            unmatched_queries.append(sq)
+
+    # Map research questions
+    for rq in booster_output_dict.get("research_questions", []):
+        matched = False
+        rt = rq.get("related_theme")
+        if rt and rt in theme_to_idx:
+            threads[theme_to_idx[rt]]["booster_research_questions"].append(rq)
+            matched = True
+        if not matched:
+            unmatched_questions.append(rq)
+
+    # Map primary source directions
+    for psd in booster_output_dict.get("primary_source_directions", []):
+        matched = False
+        rg = psd.get("related_gap")
+        if rg and rg in gap_to_idx:
+            threads[gap_to_idx[rg]]["booster_primary_sources"].append(psd)
+            matched = True
+        if not matched:
+            unmatched_sources.append(psd)
+
+    # Map missing perspectives
+    for mp in booster_output_dict.get("missing_perspectives", []):
+        matched = False
+        for rg in (mp.get("related_gaps") or []):
+            if rg in gap_to_idx:
+                threads[gap_to_idx[rg]]["booster_missing_perspectives"].append(mp)
+                matched = True
+                break
+        if not matched:
+            unmatched_perspectives.append(mp)
+
+    # Create General Research Directions thread for unmatched items
+    if unmatched_queries or unmatched_questions or unmatched_sources or unmatched_perspectives:
+        general_thread = {
+            "theme": {
+                "theme_id": "THEME_BOOSTER_GENERAL",
+                "label": "General Research Directions",
+                "description": "Research directions from the Deep Research Booster that apply broadly across the topic.",
+                "related_key_points": [],
+            },
+            "key_points": [],
+            "gaps": [],
+            "research_directions": [],
+            "booster_search_queries": unmatched_queries,
+            "booster_research_questions": unmatched_questions,
+            "booster_primary_sources": unmatched_sources,
+            "booster_missing_perspectives": unmatched_perspectives,
+        }
+        threads.append(general_thread)
+
+    jump_start_dict["research_threads"] = threads
+
+    total_merged = (
+        len(booster_output_dict.get("suggested_search_queries", []))
+        + len(booster_output_dict.get("research_questions", []))
+        + len(booster_output_dict.get("primary_source_directions", []))
+        + len(booster_output_dict.get("missing_perspectives", []))
+    )
+    total_unmatched = (
+        len(unmatched_queries) + len(unmatched_questions)
+        + len(unmatched_sources) + len(unmatched_perspectives)
+    )
+    logger.info(
+        f"Booster merge: {total_merged} items total, "
+        f"{total_merged - total_unmatched} matched to threads, "
+        f"{total_unmatched} in General"
+    )
+
+    return jump_start_dict
 
 
 def build_semantic_brief(
@@ -334,6 +602,34 @@ def build_semantic_brief(
     if degraded_sources > len(extractions) / 2:
         triage = TriageLevel.DEGRADED
 
+    # R6: Build SCQA programmatically from existing data
+    scqa = {}
+    scqa["situation"] = (
+        f"Research across {len(extractions)} source{'s' if len(extractions) != 1 else ''} "
+        f"on this topic."
+    )
+    # Complication: Most significant tension or gap
+    if all_tensions:
+        scqa["complication"] = all_tensions[0].description
+    elif gaps:
+        scqa["complication"] = f"{len(gaps)} areas remain unexplored."
+    else:
+        scqa["complication"] = "No significant tensions or gaps identified."
+    # Question: Derived from primary theme
+    if all_themes:
+        scqa["question"] = (
+            f"What does the evidence reveal about {all_themes[0].label.lower()}?"
+        )
+    # Answer: The semantic core itself
+    scqa["answer"] = semantic_core
+
+    # Build source_ids list for heatmap
+    source_id_list = list({
+        sid
+        for e in extractions
+        for sid in ([e.source_id] if hasattr(e, "source_id") and e.source_id else [])
+    })
+
     brief = SemanticBrief(
         semantic_core=semantic_core,
         semantic_core_based_on=based_on_kps[:3],
@@ -348,10 +644,111 @@ def build_semantic_brief(
         speculative_observations=[],  # Populated by synthesis if needed
         triage=triage,
         warnings=issues,
+        scqa=scqa,
+        source_ids=source_id_list,
+        source_coverage=source_coverage,
     )
 
     logger.info(f"Semantic Brief built: triage={triage.value}, confidence={overall_confidence.value}")
     return brief
+
+
+def generate_executive_summary(
+    jump_start: JumpStartDirections,
+    semantic_brief: SemanticBrief,
+    producer_packet: dict | None = None,
+) -> str:
+    """Generate a cross-document executive summary (R15).
+
+    This is 100% programmatic — no LLM call.
+    Computes summary from existing data structures.
+
+    Args:
+        jump_start: Doc 1 data
+        semantic_brief: Doc 2 data
+        producer_packet: Optional Doc 3 data (as dict)
+
+    Returns:
+        Markdown string for executive summary
+    """
+    parts: list[str] = []
+
+    # What was researched
+    thread_count = len(jump_start.research_threads)
+    kp_count = len(jump_start.key_points)
+    parts.append(
+        f"Researched using **{jump_start.source_count} sources** "
+        f"covering **{thread_count} themes** "
+        f"with **{kp_count} key findings**."
+    )
+
+    # Core insight
+    if semantic_brief.semantic_core:
+        parts.append(f"**Core insight:** {semantic_brief.semantic_core}")
+
+    # Consensus state
+    if jump_start.cross_cutting:
+        confirmed = len(jump_start.cross_cutting.confirmed)
+        conflicts = len(jump_start.cross_cutting.conflicts)
+        single = len(jump_start.cross_cutting.single_source)
+        if confirmed > 0 and conflicts == 0:
+            parts.append(
+                f"**{confirmed} claims confirmed** across sources with no active disputes."
+            )
+        elif confirmed > 0 and conflicts > 0:
+            parts.append(
+                f"**{confirmed} claims confirmed** across sources, "
+                f"**{conflicts} active tension{'s' if conflicts > 1 else ''}** "
+                f"where sources disagree."
+            )
+        elif single > 0:
+            parts.append(
+                f"Limited cross-source verification — "
+                f"**{single} claims** backed by a single source only."
+            )
+
+    # Recommended angle (if producer ran)
+    if producer_packet:
+        rec_angle_id = producer_packet.get("recommended_angle_id")
+        angles = producer_packet.get("narrative_angles", [])
+        reasoning = producer_packet.get("recommendation_reasoning", "")
+        if rec_angle_id and angles:
+            angle = next(
+                (a for a in angles if a.get("angle_id") == rec_angle_id),
+                None,
+            )
+            if angle:
+                conf = angle.get("confidence", "")
+                conf_str = f" ({conf} confidence)" if conf else ""
+                parts.append(
+                    f"**Recommended angle:** {angle.get('title', rec_angle_id)}{conf_str}."
+                )
+                if reasoning:
+                    parts.append(f"*{reasoning}*")
+
+    # Top priority next step
+    if jump_start.research_directions:
+        rd = jump_start.research_directions[0]
+        parts.append(f"**Next step:** {rd.what_to_look_for}")
+
+    # Gap count
+    gap_count = len(jump_start.gaps)
+    if gap_count > 0:
+        parts.append(
+            f"**{gap_count} gap{'s' if gap_count > 1 else ''}** identified "
+            f"where additional research would strengthen the analysis."
+        )
+
+    # Confidence
+    conf_map = {
+        "high": "🟢 High",
+        "medium": "🟡 Medium",
+        "low": "🔴 Low",
+    }
+    conf_badge = conf_map.get(jump_start.confidence.value, jump_start.confidence.value)
+    parts.append(f"Overall confidence: {conf_badge}.")
+
+    return "\n\n".join(parts)
 
 
 def validate_provenance_chain(ctx: PipelineContext) -> list[str]:
@@ -482,20 +879,26 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
         extractions=extractions,
     )
 
-    # Build Doc 1: Jump-Start
+    # Build Doc 1: Jump-Start (with thematic grouping)
+    source_coverage = getattr(ctx, "source_coverage", None)
     doc_1 = build_jump_start(
         scope_lock=(scope_in, scope_out),
         extractions=extractions,
         gaps=gaps,
+        source_coverage=source_coverage,
     )
 
     # Build Doc 2: Semantic Brief
-    # Generate semantic core (in production, this comes from synthesis)
-    semantic_core = (
-        f"This research examines {ctx.topic}. "
-        f"Analysis of {len(sources)} sources reveals "
-        f"{len(doc_1.key_points)} key points across {len(doc_1.tensions)} areas of tension."
-    )
+    # Use real semantic_core from synthesis stage if available
+    semantic_core = getattr(ctx, "semantic_core", "")
+    if not semantic_core:
+        # Fallback template only when synthesis didn't produce one
+        semantic_core = (
+            f"This research examines {ctx.topic}. "
+            f"Analysis of {len(sources)} sources reveals "
+            f"{len(doc_1.key_points)} key points across "
+            f"{len(doc_1.tensions)} areas of tension."
+        )
 
     # Calibrate confidence
     confidence_reasoning = []
@@ -533,6 +936,11 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
     ctx.outputs["source_ledger"] = doc_0.to_dict()
     ctx.outputs["jump_start"] = doc_1.to_dict()
     ctx.outputs["semantic_brief"] = doc_2.to_dict()
+
+    # R15: Generate cross-document executive summary (programmatic, no LLM)
+    producer_packet_data = getattr(ctx, "producer_packet", None)
+    executive_summary = generate_executive_summary(doc_1, doc_2, producer_packet_data)
+    ctx.outputs["executive_summary"] = executive_summary
 
     # Also store markdown versions
     ctx.outputs["source_ledger_md"] = doc_0.to_markdown()

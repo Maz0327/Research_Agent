@@ -7,13 +7,11 @@ from typing import Dict, Optional
 from loguru import logger
 
 
-# API cost estimates (per call or per unit)
+# API cost estimates (per call or per unit) — Prices validated: 2026-03
 API_COSTS = {
     # OpenAI (per 1K tokens, approximate)
     "openai_gpt4o_mini_input": 0.00015,  # $0.15 per 1M input tokens
     "openai_gpt4o_mini_output": 0.0006,  # $0.60 per 1M output tokens
-    "openai_gpt4_input": 0.03,  # $30 per 1M input tokens
-    "openai_gpt4_output": 0.06,  # $60 per 1M output tokens
 
     # Perplexity (per request)
     "perplexity_search": 0.005,  # ~$0.005 per search
@@ -34,6 +32,10 @@ API_COSTS = {
     "tavily_search": 0.001,  # ~$0.001 per search
     "exa_search": 0.001,  # ~$0.001 per search
     "reddit_api": 0.0,  # Free
+
+    # Visual frame analysis
+    "kimi_vision_frames": 0.003,   # ~$0.003 per frame batch (Moonshot API)
+    "gemini_vision_frames": 0.002, # ~$0.002 per frame batch (Gemini Flash fallback)
 }
 
 # Budget limits per mode (USD)

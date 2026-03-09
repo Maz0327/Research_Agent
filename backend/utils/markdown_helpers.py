@@ -269,6 +269,24 @@ def format_duration(seconds: Optional[int]) -> str:
     return f"{mins}m {secs}s"
 
 
+def escape_pipe(text: str) -> str:
+    """
+    Escape pipe characters in text for use inside markdown table cells.
+
+    Unescaped pipe characters break markdown table rendering by creating
+    extra columns. This replaces literal | with the escaped form \\|.
+
+    Args:
+        text: Text that may contain pipe characters
+
+    Returns:
+        Text with pipe characters escaped
+    """
+    if not text:
+        return text
+    return text.replace("|", "\\|")
+
+
 def truncate_text(text: str, max_length: int = 80, suffix: str = "...") -> str:
     """
     Truncate text to max length with suffix.

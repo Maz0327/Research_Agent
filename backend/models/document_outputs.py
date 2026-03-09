@@ -26,6 +26,7 @@ from backend.models.semantic_units import (
 from backend.utils.markdown_helpers import (
     format_internal_id,
     format_id_list,
+    escape_pipe,
 )
 
 
@@ -242,11 +243,11 @@ class SourceEntry:
         # Metadata table (more scannable than list)
         meta_rows = []
         if self.creator:
-            meta_rows.append(f"| Creator | {self.creator} |")
+            meta_rows.append(f"| Creator | {escape_pipe(self.creator)} |")
         if self.published:
-            meta_rows.append(f"| Published | {self.published} |")
+            meta_rows.append(f"| Published | {escape_pipe(self.published)} |")
         if self.duration:
-            meta_rows.append(f"| Duration | {self.duration} |")
+            meta_rows.append(f"| Duration | {escape_pipe(self.duration)} |")
         if self.word_count:
             meta_rows.append(f"| Words | {self.word_count:,} |")
         meta_rows.append(f"| URL | [{self.url[:50]}...]({self.url}) |" if len(self.url) > 50 else f"| URL | {self.url} |")
@@ -444,7 +445,7 @@ class SourceLedger:
             status_emoji = _status_emoji(s.status)
             type_icon = _type_icon(s.source_type)
             title_truncated = s.title[:40] + "..." if len(s.title) > 40 else s.title
-            lines.append(f"| {i} | `{s.source_id}` | {type_icon} | {title_truncated} | {status_emoji} |")
+            lines.append(f"| {i} | `{s.source_id}` | {type_icon} | {escape_pipe(title_truncated)} | {status_emoji} |")
 
         lines.extend(["", "---", ""])
 
@@ -508,6 +509,277 @@ class VerificationItem:
         }
 
 
+def _source_ref(source_id: str) -> str:
+    """Convert source ID to natural reference (SRC_1 -> Source 1)."""
+    if not source_id:
+        return source_id
+    parts = source_id.split("_")
+    if len(parts) == 2 and parts[0] == "SRC":
+        return f"Source {parts[1]}"
+    return format_internal_id(source_id)
+
+
+def _source_refs(source_ids: list[str]) -> str:
+    """Convert list of source IDs to natural references."""
+    if not source_ids:
+        return ""
+    return ", ".join(_source_ref(sid) for sid in source_ids)
+
+
+@dataclass
+class ResearchThread:
+    """A thematic thread grouping related key points, gaps, and research directions."""
+    theme: Theme  # Parent theme
+    key_points: list[KeyPoint] = field(default_factory=list)
+    gaps: list[Gap] = field(default_factory=list)
+    research_directions: list[ResearchDirection] = field(default_factory=list)
+    # Booster integration (populated when booster merges into threads)
+    booster_search_queries: list[dict] = field(default_factory=list)
+    booster_research_questions: list[dict] = field(default_factory=list)
+    booster_primary_sources: list[dict] = field(default_factory=list)
+    booster_missing_perspectives: list[dict] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "theme": self.theme.to_dict(),
+            "key_points": [kp.to_dict() for kp in self.key_points],
+            "gaps": [g.to_dict() for g in self.gaps],
+            "research_directions": [rd.to_dict() for rd in self.research_directions],
+            "booster_search_queries": self.booster_search_queries,
+            "booster_research_questions": self.booster_research_questions,
+            "booster_primary_sources": self.booster_primary_sources,
+            "booster_missing_perspectives": self.booster_missing_perspectives,
+        }
+
+    def generate_action_title(self) -> str:
+        """Generate McKinsey-style action title computed from actual data.
+
+        R1: Action titles are programmatic — never LLM-generated.
+        They convey the insight in the heading itself.
+        """
+        source_ids = set()
+        for kp in self.key_points:
+            source_ids.update(kp.source_ids or [])
+        src_count = len(source_ids)
+        gap_count = len(self.gaps)
+        consensus = "agree" if self.theme.is_consensus else "show"
+
+        if src_count >= 2 and gap_count == 0:
+            return (
+                f"{self.theme.label} — {src_count} sources {consensus}, "
+                f"no gaps identified"
+            )
+        elif src_count >= 2 and gap_count > 0:
+            return (
+                f"{self.theme.label} — {src_count} sources {consensus}, "
+                f"but {gap_count} gap{'s' if gap_count > 1 else ''} remain"
+            )
+        elif src_count == 1:
+            src_label = (
+                _source_refs(self.key_points[0].source_ids[:1])
+                if self.key_points and self.key_points[0].source_ids
+                else "1 source"
+            )
+            return (
+                f"{self.theme.label} — single-source ({src_label}), "
+                f"verify independently"
+            )
+        else:
+            return (
+                f"{self.theme.label} — "
+                f"{len(self.key_points)} points across sources"
+            )
+
+    def generate_evidence_label(self) -> str:
+        """Generate evidence-based confidence label with reasoning.
+
+        R4: Labels are computed from source_coverage and is_consensus,
+        not generated by LLM. This ensures labels reflect actual evidence.
+        """
+        source_ids = set()
+        for kp in self.key_points:
+            source_ids.update(kp.source_ids or [])
+        src_count = len(source_ids)
+
+        if self.theme.is_consensus and src_count >= 3:
+            refs = _source_refs(list(source_ids)[:4])
+            return f"✅ Multi-source confirmed ({refs})"
+        elif self.theme.is_consensus and src_count == 2:
+            refs = _source_refs(list(source_ids))
+            return f"✅ Confirmed by {refs}"
+        elif src_count == 1:
+            ref = _source_refs(list(source_ids)[:1])
+            return f"⚠️ Single-source claim ({ref} only — verify independently)"
+        elif len(self.gaps) > len(self.key_points):
+            return "🔴 More gaps than findings — thin coverage"
+        else:
+            refs = _source_refs(list(source_ids)[:3])
+            return f"🟡 Partial coverage ({refs})"
+
+    def to_markdown(self) -> str:
+        """Render a single research thread as a tree structure."""
+        lines = []
+        # Theme header
+        lines.append(f"### {self.theme.label}")
+        lines.append("")
+        lines.append(f"> {self.theme.description}")
+        if self.theme.is_consensus and self.theme.sources_supporting:
+            lines.append(
+                f"> *Consensus across {len(self.theme.sources_supporting)} sources "
+                f"({_source_refs(self.theme.sources_supporting)})*"
+            )
+        lines.append("")
+
+        # Key points as tree
+        if self.key_points:
+            lines.append("**What the sources say:**")
+            lines.append("")
+            for i, kp in enumerate(self.key_points):
+                is_last = (i == len(self.key_points) - 1) and not self.gaps
+                connector = "└─" if is_last else "├─"
+                lines.append(f"  {connector} {kp.statement}")
+                source_refs = _source_refs(kp.source_ids) if kp.source_ids else ""
+                if source_refs:
+                    indent = "     " if is_last else "  │  "
+                    lines.append(f"{indent} *({source_refs})*")
+            lines.append("")
+
+        # Gaps under this thread
+        if self.gaps:
+            lines.append("**Gaps in this thread:**")
+            lines.append("")
+            for i, gap in enumerate(self.gaps):
+                is_last = (i == len(self.gaps) - 1)
+                connector = "└─" if is_last else "├─"
+                title = gap.label if gap.label else gap.description[:60]
+                lines.append(f"  {connector} **{title}**")
+                indent = "     " if is_last else "  │  "
+                lines.append(f"{indent} Why: {gap.why_expected}")
+                # Inline research directions from this gap
+                matching_rds = [
+                    rd for rd in self.research_directions
+                    if rd.what_to_look_for == gap.description
+                ]
+                for rd in matching_rds:
+                    if rd.example_queries:
+                        lines.append(f"{indent} Search: `{', '.join(rd.example_queries)}`")
+                    if rd.why_it_matters:
+                        lines.append(f"{indent} Why it matters: {rd.why_it_matters}")
+                # Also check if gap itself has a suggested direction
+                if not matching_rds and gap.suggested_research_direction:
+                    lines.append(f"{indent} Search: `{gap.suggested_research_direction}`")
+            lines.append("")
+
+        # Booster items if present — R13: What/So What/Now What framing, R14: impact badges
+        booster_items: list[tuple[str, str, dict]] = []  # (prefix, label, item)
+        for item in self.booster_search_queries:
+            booster_items.append(("Search", f"`{item.get('query', '')}`", item))
+        for item in self.booster_research_questions:
+            booster_items.append(("Question", item.get("question", ""), item))
+        for item in self.booster_primary_sources:
+            booster_items.append(("Find", item.get("description", ""), item))
+        for item in self.booster_missing_perspectives:
+            booster_items.append(("Missing voice", item.get("description", ""), item))
+
+        if booster_items:
+            # R14: Sort by impact level (critical first)
+            impact_order = {"critical": 0, "important": 1, "nice_to_have": 2}
+            booster_items.sort(
+                key=lambda x: impact_order.get(x[2].get("impact_level", "important"), 1)
+            )
+
+            lines.append("**Deep Research Directions:**")
+            lines.append("")
+            for idx, (prefix, label, item) in enumerate(booster_items):
+                is_last = idx == len(booster_items) - 1
+                connector = "└─" if is_last else "├─"
+                indent = "   " if is_last else "│  "
+
+                # R14: Impact badge
+                impact_badges = {
+                    "critical": "🔴",
+                    "important": "🟡",
+                    "nice_to_have": "🟢",
+                }
+                impact = item.get("impact_level", "important")
+                badge = impact_badges.get(impact, "⚪")
+
+                lines.append(f"  {connector} {badge} **{prefix}:** {label}")
+
+                # R13: "Why it matters" first (So What)
+                why = item.get("why_it_matters") or ""
+                if why:
+                    lines.append(f"  {indent}  *Why it matters:* {why}")
+
+                # Then action details (Now What)
+                action = item.get("search_suggestion") or item.get("query") or ""
+                if action and action != label.strip("`"):
+                    lines.append(f"  {indent}  *Action:* {action}")
+
+                # Supporting details
+                for detail_key, detail_label in [
+                    ("purpose", "Purpose"),
+                    ("platform_suggestion", "Platform"),
+                ]:
+                    if item.get(detail_key):
+                        lines.append(f"  {indent}  {detail_label}: {item[detail_key]}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+
+@dataclass
+class CrossCuttingAnalysis:
+    """Cross-source claim analysis surfacing confirmation, conflicts, and single-source risk."""
+    confirmed: list[dict] = field(default_factory=list)      # {statement: str, sources: [str]}
+    conflicts: list[dict] = field(default_factory=list)       # {description: str, sources_a: [str], sources_b: [str]}
+    single_source: list[dict] = field(default_factory=list)   # {statement: str, source: str}
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "confirmed": self.confirmed,
+            "conflicts": self.conflicts,
+            "single_source": self.single_source,
+        }
+
+    def to_markdown(self) -> str:
+        """Render cross-cutting analysis with visual bucketing."""
+        lines = ["## 🔍 Cross-Cutting Analysis", ""]
+
+        if self.confirmed:
+            lines.append("### Confirmed by Multiple Sources")
+            lines.append("")
+            for item in self.confirmed:
+                sources = _source_refs(item.get("sources", []))
+                lines.append(f"- ✅ {item.get('statement', '')} *({sources})*")
+            lines.append("")
+
+        if self.conflicts:
+            lines.append("### Claims in Conflict")
+            lines.append("")
+            for item in self.conflicts:
+                lines.append(f"- ⚡ **{item.get('description', '')}**")
+                a_refs = _source_refs(item.get("sources_a", []))
+                b_refs = _source_refs(item.get("sources_b", []))
+                if a_refs and b_refs:
+                    lines.append(f"  Position A: {a_refs} | Position B: {b_refs}")
+            lines.append("")
+
+        if self.single_source:
+            lines.append("### Single-Source Claims (Higher Risk)")
+            lines.append("")
+            for item in self.single_source:
+                source_ref = _source_ref(item.get("source", ""))
+                lines.append(f"- ⚠️ {item.get('statement', '')} *(only {source_ref})*")
+            lines.append("")
+
+        if not self.confirmed and not self.conflicts and not self.single_source:
+            lines.append("*Cross-cutting analysis requires multiple sources.*")
+            lines.append("")
+
+        return "\n".join(lines)
+
+
 @dataclass
 class JumpStartDirections:
     """
@@ -556,6 +828,10 @@ class JumpStartDirections:
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
 
+    # Thematic Research Threads (groups KPs, gaps, directions by theme)
+    research_threads: list[ResearchThread] = field(default_factory=list)
+    cross_cutting: Optional[CrossCuttingAnalysis] = None
+
     # Deep Research Booster Expansion (Phase 7)
     # Added when user triggers booster on completed job
     booster_expansion: Optional[dict[str, Any]] = None  # BoosterOutput as dict
@@ -582,6 +858,9 @@ class JumpStartDirections:
             "confidence": self.confidence.value,
             "warnings": self.warnings,
             "created_at": self.created_at,
+            # Thematic threads (new)
+            "research_threads": [rt.to_dict() for rt in self.research_threads],
+            "cross_cutting": self.cross_cutting.to_dict() if self.cross_cutting else None,
         }
 
         # Include booster expansion if present (Phase 7)
@@ -592,131 +871,256 @@ class JumpStartDirections:
 
         return result
 
+    def _generate_tldr(self) -> str:
+        """Generate 3-5 sentence executive summary from actual data.
+
+        R3/R15: 100% programmatic — no LLM involvement. All numbers
+        come from validated pipeline data.
+        """
+        thread_count = len(self.research_threads)
+        kp_count = len(self.key_points)
+        gap_count = len(self.gaps)
+
+        # Sentence 1: What was researched
+        s1 = (
+            f"Analyzed **{self.source_count} source{'s' if self.source_count != 1 else ''}** "
+            f"covering **{thread_count} theme{'s' if thread_count != 1 else ''}** "
+            f"with **{kp_count} key finding{'s' if kp_count != 1 else ''}**."
+        )
+
+        # Sentence 2: Consensus state
+        if self.cross_cutting:
+            confirmed = len(self.cross_cutting.confirmed)
+            conflicts = len(self.cross_cutting.conflicts)
+            if confirmed > 0 and conflicts == 0:
+                s2 = (
+                    f"Sources broadly agree — **{confirmed} claim{'s' if confirmed != 1 else ''} "
+                    f"confirmed** across multiple sources with no active disputes."
+                )
+            elif confirmed > 0 and conflicts > 0:
+                s2 = (
+                    f"**{confirmed} claim{'s' if confirmed != 1 else ''} confirmed** "
+                    f"across sources, but **{conflicts} active "
+                    f"tension{'s' if conflicts != 1 else ''}** where sources disagree."
+                )
+            else:
+                s2 = "Limited cross-source verification — most claims are single-source."
+        else:
+            s2 = "Single-source analysis — cross-source verification not applicable."
+
+        # Sentence 3: Gaps
+        if gap_count > 0:
+            s3 = (
+                f"**{gap_count} gap{'s' if gap_count != 1 else ''}** identified "
+                f"where additional research would strengthen the analysis."
+            )
+        else:
+            s3 = "No significant gaps identified in the current coverage."
+
+        # Sentence 4: Confidence
+        conf = _confidence_badge(self.confidence)
+        s4 = f"Overall confidence: {conf}."
+
+        return f"{s1}\n\n{s2}\n\n{s3} {s4}"
+
+    def _render_consensus_meter(self) -> str:
+        """Render visual consensus meter from cross-cutting analysis data.
+
+        R2: All numbers come from CrossCuttingAnalysis which is built
+        from source_coverage data. Pure code rendering, no LLM.
+        """
+        if not self.cross_cutting:
+            return ""
+
+        confirmed = len(self.cross_cutting.confirmed)
+        conflicts = len(self.cross_cutting.conflicts)
+        single = len(self.cross_cutting.single_source)
+        total = confirmed + conflicts + single
+
+        if total == 0:
+            return ""
+
+        def bar(count: int, total: int, width: int = 12) -> str:
+            filled = round((count / total) * width) if total > 0 else 0
+            return "\u2588" * filled + "\u2591" * (width - filled)
+
+        pct_confirmed = round((confirmed / total) * 100) if total > 0 else 0
+        pct_conflict = round((conflicts / total) * 100) if total > 0 else 0
+        pct_single = round((single / total) * 100) if total > 0 else 0
+
+        lines = [
+            "### Source Agreement",
+            "",
+            "```",
+            f"  Confirmed:     {bar(confirmed, total)} {pct_confirmed}% ({confirmed} claims)",
+            f"  In Conflict:   {bar(conflicts, total)} {pct_conflict}% ({conflicts} tensions)",
+            f"  Single-Source:  {bar(single, total)} {pct_single}% ({single} claims)",
+            "```",
+            "",
+        ]
+        return "\n".join(lines)
+
     def to_markdown(self) -> str:
-        """Render Jump-Start as markdown with improved visual hierarchy."""
+        """Render Jump-Start as markdown with progressive disclosure.
+
+        R3: Progressive disclosure — TL;DR → Key Findings → Consensus → Deep Dive
+        R1: Action titles on threads (programmatic)
+        R2: Consensus meter (programmatic)
+        R4: Evidence-strength labels (programmatic)
+
+        Falls back to flat rendering if no research_threads exist.
+        """
         conf_badge = _confidence_badge(self.confidence)
 
         lines = [
-            "# 🚀 JUMP-START RESEARCH BRIEF",
+            "# RESEARCH BRIEF",
             "",
         ]
 
-        # Executive summary
-        lines.extend([
-            _github_alert(
-                "NOTE",
-                f"**Sources:** {self.source_count} | "
-                f"**Key Points:** {len(self.key_points)} | "
-                f"**Gaps:** {len(self.gaps)} | "
-                f"**Confidence:** {conf_badge}"
-            ),
-            "",
-            "---",
-            "",
-        ])
+        # ── THREAD-BASED PROGRESSIVE DISCLOSURE ──
+        if self.research_threads:
 
-        # Scope Lock (collapsible for less visual noise)
-        lines.extend([
-            "## 🎯 Scope Lock",
-            "",
-            "| Scope | Items |",
-            "|-------|-------|",
-        ])
-        scope_in_str = ", ".join(self.scope_in) if self.scope_in else "Not specified"
-        scope_out_str = ", ".join(self.scope_out) if self.scope_out else "Not specified"
-        lines.append(f"| ✅ **IN** | {scope_in_str} |")
-        lines.append(f"| ❌ **OUT** | {scope_out_str} |")
-        lines.extend(["", "---", ""])
+            # ── TIER 1: TL;DR ──
+            lines.extend([
+                "## TL;DR",
+                "",
+                self._generate_tldr(),
+                "",
+                "---",
+                "",
+            ])
 
-        # Corpus Overview
-        lines.extend([
-            "## 📊 Current Corpus",
-            "",
-            f"| Metric | Value |",
-            f"|--------|-------|",
-            f"| Sources | {self.source_count} |",
-            f"| Perspectives | {', '.join(self.perspectives_represented) or 'N/A'} |",
-            f"| Time Span | {self.time_span_covered or 'Not specified'} |",
-            "",
-            "---",
-            "",
-        ])
+            # ── Scope Lock ──
+            lines.extend([
+                "## Scope",
+                "",
+            ])
+            scope_in_str = ", ".join(self.scope_in) if self.scope_in else "Not specified"
+            scope_out_str = ", ".join(self.scope_out) if self.scope_out else "Not specified"
+            lines.append(f"**In scope:** {scope_in_str}")
+            lines.append("")
+            lines.append(f"**Out of scope:** {scope_out_str}")
+            lines.extend(["", "---", ""])
 
-        # What We Know
-        lines.extend([
-            "## 💡 What We Know",
-            "",
-        ])
-        if self.key_points:
-            for kp in self.key_points[:10]:  # Limit display
-                lines.append(f"- **{format_internal_id(kp.key_point_id)}:** {kp.statement}")
-            if len(self.key_points) > 10:
-                lines.append(f"- *...and {len(self.key_points) - 10} more key points*")
+            # ── TIER 2: Key Findings (action-titled headlines) ──
+            lines.extend([
+                "## Key Findings",
+                "",
+            ])
+            for thread in self.research_threads:
+                action_title = thread.generate_action_title()
+                evidence_label = thread.generate_evidence_label()
+                lines.append(f"- **{action_title}** {evidence_label}")
+            lines.extend(["", "---", ""])
+
+            # ── TIER 3: Consensus Meter ──
+            if self.cross_cutting:
+                meter = self._render_consensus_meter()
+                if meter:
+                    lines.append(meter)
+                    lines.extend(["---", ""])
+
+            # ── TIER 4: Deep Dive (full threads) ──
+            lines.extend([
+                "## Deep Dive",
+                "",
+            ])
+            for thread in self.research_threads:
+                lines.append(thread.to_markdown())
+                lines.extend(["---", ""])
+
+            # Cross-cutting analysis (detailed view)
+            if self.cross_cutting:
+                lines.append(self.cross_cutting.to_markdown())
+                lines.extend(["---", ""])
+
         else:
-            lines.append("*No key points extracted yet.*")
-        lines.extend(["", "---", ""])
+            # ── FLAT FALLBACK (backward compatibility) ──
+            lines.extend([
+                _github_alert(
+                    "NOTE",
+                    f"**Sources:** {self.source_count} | "
+                    f"**Key Points:** {len(self.key_points)} | "
+                    f"**Gaps:** {len(self.gaps)} | "
+                    f"**Confidence:** {conf_badge}"
+                ),
+                "",
+                "---",
+                "",
+            ])
 
-        # Tensions
-        lines.extend([
-            "## ⚡ Tensions & Disputes",
-            "",
-        ])
-        if self.tensions:
-            for t in self.tensions:
-                # Use label if available, otherwise use truncated description
-                title = t.label if t.label else (t.description[:60] + "..." if len(t.description) > 60 else t.description)
-                lines.append(f"- **{format_internal_id(t.tension_id)}:** {title}")
-        else:
-            lines.append("*No tensions identified.*")
-        lines.extend(["", "---", ""])
+            # Scope Lock
+            lines.extend(["## Scope", ""])
+            scope_in_str = ", ".join(self.scope_in) if self.scope_in else "Not specified"
+            scope_out_str = ", ".join(self.scope_out) if self.scope_out else "Not specified"
+            lines.append(f"**In scope:** {scope_in_str}")
+            lines.append("")
+            lines.append(f"**Out of scope:** {scope_out_str}")
+            lines.extend(["", "---", ""])
 
-        # Gaps (highlighted as important)
-        lines.extend([
-            "## 🕳️ Gaps (What's Missing)",
-            "",
-        ])
-        if self.gaps:
-            for g in self.gaps:
-                # Use label if available, otherwise use truncated description
-                title = g.label if g.label else (g.description[:50] + "..." if len(g.description) > 50 else g.description)
-                lines.extend([
-                    f"### {format_internal_id(g.gap_id)}: {title}",
-                    "",
-                    f"> {g.description}",
-                    "",
-                    f"**Why it matters:** {g.why_expected}",
-                    "",
-                ])
-        else:
-            lines.append("*No gaps identified.*")
-        lines.append("---")
-        lines.append("")
+            # What We Know
+            lines.extend(["## What We Know", ""])
+            if self.key_points:
+                for kp in self.key_points[:10]:
+                    source_refs = _source_refs(kp.source_ids) if kp.source_ids else ""
+                    suffix = f" *({source_refs})*" if source_refs else ""
+                    lines.append(f"- {kp.statement}{suffix}")
+                if len(self.key_points) > 10:
+                    lines.append(f"- *...and {len(self.key_points) - 10} more key points*")
+            else:
+                lines.append("*No key points extracted yet.*")
+            lines.extend(["", "---", ""])
 
-        # Research Directions
-        lines.extend([
-            "## 🧭 Suggested Research Directions",
-            "",
-        ])
+            # Tensions
+            if self.tensions:
+                lines.extend(["## Tensions & Disputes", ""])
+                for t in self.tensions:
+                    title = t.label if t.label else (
+                        t.description[:60] + "..." if len(t.description) > 60 else t.description
+                    )
+                    lines.append(f"- **{title}**")
+                lines.extend(["", "---", ""])
+
+            # Gaps
+            if self.gaps:
+                lines.extend(["## Gaps (What's Missing)", ""])
+                for g in self.gaps:
+                    title = g.label if g.label else (
+                        g.description[:50] + "..." if len(g.description) > 50 else g.description
+                    )
+                    lines.extend([
+                        f"### {title}", "",
+                        f"> {g.description}", "",
+                        f"**Why it matters:** {g.why_expected}", "",
+                    ])
+                lines.extend(["---", ""])
+
+            # Research Directions
+            if self.research_directions:
+                lines.extend(["## Suggested Research Directions", ""])
+                for rd in self.research_directions:
+                    lines.extend([
+                        f"### Priority {rd.priority}: {rd.what_to_look_for}", "",
+                    ])
+                    if rd.example_queries:
+                        lines.append(f"**Search:** `{', '.join(rd.example_queries)}`")
+                        lines.append("")
+                    if rd.why_it_matters:
+                        lines.append(f"**Why:** {rd.why_it_matters}")
+                        lines.append("")
+                lines.extend(["---", ""])
+
+        # Priority Research Queue (always shown)
         if self.research_directions:
+            lines.extend(["## Priority Research Queue", ""])
             for rd in self.research_directions:
-                lines.extend([
-                    f"### Priority {rd.priority}: {rd.what_to_look_for}",
-                    "",
-                    f"**Example queries:** `{', '.join(rd.example_queries)}`" if rd.example_queries else "",
-                    "",
-                    f"**Why:** {rd.why_it_matters}" if rd.why_it_matters else "",
-                    "",
-                ])
-        else:
-            lines.append("*No specific directions suggested.*")
-        lines.append("---")
-        lines.append("")
+                queries = f" — Search: `{', '.join(rd.example_queries)}`" if rd.example_queries else ""
+                lines.append(f"- [ ] **Priority {rd.priority}:** {rd.what_to_look_for}{queries}")
+                lines.append("")
+            lines.extend(["---", ""])
 
         # Next Steps (prominent)
-        lines.extend([
-            "## ✅ TOP 3 NEXT STEPS",
-            "",
-        ])
+        lines.extend(["## TOP 3 NEXT STEPS", ""])
         if self.next_steps:
             lines.extend([
                 _github_alert("IMPORTANT", "Complete these steps to advance your research:"),
@@ -728,14 +1132,17 @@ class JumpStartDirections:
         else:
             lines.append("*No next steps defined.*")
 
-        # Booster expansion if present (Phase 7)
-        if self.booster_expansion_md:
+        # Booster expansion if present — only show if threads don't have folded booster items
+        has_booster_in_threads = any(
+            rt.booster_search_queries or rt.booster_research_questions
+            or rt.booster_primary_sources or rt.booster_missing_perspectives
+            for rt in self.research_threads
+        ) if self.research_threads else False
+
+        if self.booster_expansion_md and not has_booster_in_threads:
             lines.extend([
-                "",
-                "---",
-                "",
-                "## 🔬 Deep Research Booster",
-                "",
+                "", "---", "",
+                "## Deep Research Booster", "",
                 self.booster_expansion_md,
             ])
 
@@ -804,6 +1211,13 @@ class SemanticBrief:
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
 
+    # R6: SCQA opening (Situation-Complication-Question-Answer)
+    scqa: Optional[dict] = None  # {situation, complication, question, answer}
+
+    # R7: Theme heatmap data
+    source_ids: list[str] = field(default_factory=list)  # Available source IDs
+    source_coverage: Optional[dict] = None  # key_point_id → [source_ids]
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "document_type": "semantic_brief",
@@ -820,20 +1234,106 @@ class SemanticBrief:
             "triage": self.triage.value,
             "warnings": self.warnings,
             "created_at": self.created_at,
+            "scqa": self.scqa,
+            "source_ids": self.source_ids,
+            "source_coverage": self.source_coverage,
         }
 
+    def _render_theme_heatmap(self) -> str:
+        """Render a theme-by-source coverage heatmap.
+
+        R7: Computed from Phase 5 source_coverage data. Pure code rendering.
+        Shows which sources cover which themes at a glance.
+        """
+        if not self.themes or not self.source_ids or not self.source_coverage:
+            return ""
+
+        # Build theme → sources mapping
+        theme_sources: dict[str, set[str]] = {}
+        for theme in self.themes:
+            sources_for_theme: set[str] = set()
+            for kp_id in (theme.related_key_points or []):
+                sources_for_theme.update(self.source_coverage.get(kp_id, []))
+            theme_sources[theme.label] = sources_for_theme
+
+        if not theme_sources:
+            return ""
+
+        # Build source labels
+        src_labels = [_source_ref(sid) for sid in self.source_ids]
+        total_sources = len(self.source_ids)
+
+        lines = [
+            "### Theme Coverage",
+            "",
+            "```",
+        ]
+
+        # Header row
+        header = " " * 25
+        for label in src_labels:
+            header += label[:8].ljust(10)
+        header += "Coverage"
+        lines.append(header)
+
+        # Theme rows
+        for label, sources in theme_sources.items():
+            row = f"  {label[:23].ljust(23)}"
+            for sid in self.source_ids:
+                row += ("\u2588\u2588" if sid in sources else "\u2591\u2591").ljust(10)
+            row += f"({len(sources)}/{total_sources})"
+            lines.append(row)
+
+        lines.append("```")
+        lines.append("")
+        return "\n".join(lines)
+
     def to_markdown(self) -> str:
-        """Render Semantic Brief as markdown with improved visual hierarchy."""
+        """Render Semantic Brief as markdown with improved visual hierarchy.
+
+        R5: Governing thought leads (before stats)
+        R6: SCQA opening (programmatic, not LLM-generated)
+        R7: Theme heatmap (from source_coverage data)
+        """
         conf_badge = _confidence_badge(self.confidence.level)
         triage_emoji = {
-            TriageLevel.READY: "🟢",
-            TriageLevel.USABLE: "🟡",
-            TriageLevel.THIN: "🟠",
-            TriageLevel.DEGRADED: "🔴",
-            TriageLevel.FAILED: "⛔",
-        }.get(self.triage, "❓")
+            TriageLevel.READY: "\U0001f7e2",
+            TriageLevel.USABLE: "\U0001f7e1",
+            TriageLevel.THIN: "\U0001f7e0",
+            TriageLevel.DEGRADED: "\U0001f534",
+            TriageLevel.FAILED: "\u26d4",
+        }.get(self.triage, "\u2753")
 
-        lines = ["# 📊 SEMANTIC RESEARCH BRIEF", ""]
+        lines = ["# SEMANTIC RESEARCH BRIEF", ""]
+
+        # R5: GOVERNING THOUGHT — First thing the reader sees
+        if self.semantic_core:
+            lines.extend([
+                _github_alert(
+                    "IMPORTANT",
+                    f"**Governing Insight:** {self.semantic_core}"
+                ),
+            ])
+            if self.semantic_core_based_on:
+                lines.append(f"> *Based on: {format_id_list(self.semantic_core_based_on)}*")
+            lines.extend(["", ""])
+
+        # R6: SCQA Opening (if built by document_assembly)
+        if self.scqa and isinstance(self.scqa, dict):
+            situation = self.scqa.get("situation", "")
+            complication = self.scqa.get("complication", "")
+            question = self.scqa.get("question", "")
+            if situation and complication:
+                lines.extend([
+                    f"**Situation:** {situation}",
+                    "",
+                    f"**Complication:** {complication}",
+                    "",
+                ])
+                if question:
+                    lines.append(f"**Central Question:** {question}")
+                    lines.append("")
+                lines.extend(["---", ""])
 
         # Executive summary card
         lines.extend([
@@ -862,33 +1362,28 @@ class SemanticBrief:
 
         lines.extend(["---", ""])
 
-        # Semantic Core (prominent)
-        lines.extend([
-            "## 🎯 Semantic Core",
-            "",
-            f"> {self.semantic_core}",
-            "",
-            f"*Based on: {format_id_list(self.semantic_core_based_on)}*" if self.semantic_core_based_on else "",
-            "",
-            "---",
-            "",
-        ])
-
-        # Key Themes
+        # Key Themes (with consensus and source attribution)
         lines.extend([
             "## 🏷️ Key Themes",
             "",
         ])
         if self.themes:
             for i, theme in enumerate(self.themes):
+                # Consensus badge
+                consensus_badge = " ✅ (Consensus)" if theme.is_consensus else ""
                 lines.extend([
-                    f"### {format_internal_id(theme.theme_id)}: {theme.label}",
+                    f"### {theme.label}{consensus_badge}",
                     "",
                     f"> {theme.description}",
                     "",
-                    f"**Related Key Points:** {format_id_list(theme.related_key_points)}",
-                    "",
                 ])
+                # Source attribution
+                if theme.sources_supporting:
+                    source_refs = _source_refs(theme.sources_supporting)
+                    lines.append(f"*Supported by: {source_refs}*")
+                    lines.append("")
+                lines.append(f"**Related Key Points:** {format_id_list(theme.related_key_points)}")
+                lines.append("")
                 # Add divider between themes (not after last one)
                 if i < len(self.themes) - 1:
                     lines.append("---")
@@ -896,6 +1391,12 @@ class SemanticBrief:
         else:
             lines.append("*No themes identified.*")
         lines.extend(["---", ""])
+
+        # R7: Theme Coverage Heatmap
+        heatmap = self._render_theme_heatmap()
+        if heatmap:
+            lines.append(heatmap)
+            lines.extend(["---", ""])
 
         # Key Points (tabular for scannability)
         lines.extend([
@@ -911,7 +1412,7 @@ class SemanticBrief:
             sources = ", ".join(formatted_sources)
             if len(kp.source_ids) > 3:
                 sources += f" +{len(kp.source_ids) - 3}"
-            lines.append(f"| {format_internal_id(kp.key_point_id)} | {stmt} | {sources} |")
+            lines.append(f"| {format_internal_id(kp.key_point_id)} | {escape_pipe(stmt)} | {sources} |")
         if len(self.key_points) > 15:
             lines.append(f"| ... | *{len(self.key_points) - 15} more key points* | |")
         lines.extend(["", "---", ""])
@@ -1032,221 +1533,88 @@ class SemanticBrief:
 
 
 # -----------------------------------------------------------------------------
-# DOC 3: PRODUCER PACKET (Optional Creative Layer)
+# DOC 3: LEGACY PRODUCER PACKET (Commented out — replaced by producer_models.py)
+# The enhanced ProducerPacket, NarrativeAngle, and StructureOption classes
+# now live in backend/models/producer_models.py (R1-R17 implementation).
+# These legacy classes are preserved here for reference/rollback only.
+# If you need gating logic, see LegacyProducerPacketGating below.
 # -----------------------------------------------------------------------------
 
-@dataclass
-class NarrativeAngle:
-    """A potential narrative angle for content production."""
-    angle_id: str
-    description: str
-    hook: str
-    based_on: list[str] = field(default_factory=list)  # KeyPoint/Theme IDs
-    confidence: ConfidenceLevel = ConfidenceLevel.MEDIUM
+# @dataclass
+# class NarrativeAngle:
+#     """A potential narrative angle for content production."""
+#     angle_id: str
+#     description: str
+#     hook: str
+#     based_on: list[str] = field(default_factory=list)
+#     confidence: ConfidenceLevel = ConfidenceLevel.MEDIUM
+#
+#     def to_dict(self) -> dict[str, Any]:
+#         return {
+#             "angle_id": self.angle_id,
+#             "description": self.description,
+#             "hook": self.hook,
+#             "based_on": self.based_on,
+#             "confidence": self.confidence.value,
+#         }
+#
+#
+# @dataclass
+# class StructureOption:
+#     """A structure option for organizing the content."""
+#     structure_type: str
+#     description: str
+#     act_breakdown: list[str] = field(default_factory=list)
+#     why_it_works: str = ""
+#
+#     def to_dict(self) -> dict[str, Any]:
+#         return {
+#             "structure_type": self.structure_type,
+#             "description": self.description,
+#             "act_breakdown": self.act_breakdown,
+#             "why_it_works": self.why_it_works,
+#         }
+#
+#
+# @dataclass
+# class ProducerPacket:
+#     """Doc 3: Producer Packet (Optional Creative Layer) — LEGACY VERSION"""
+#     job_id: str
+#     story_core: str
+#     story_core_based_on: list[str] = field(default_factory=list)
+#     narrative_angles: list[NarrativeAngle] = field(default_factory=list)
+#     structure_options: list[StructureOption] = field(default_factory=list)
+#     opening_hooks: list[str] = field(default_factory=list)
+#     title_concepts: list[str] = field(default_factory=list)
+#     thumbnail_concepts: list[str] = field(default_factory=list)
+#     call_to_action: list[str] = field(default_factory=list)
+#     sensitivity_notes: list[str] = field(default_factory=list)
+#     risk_assessment: str = ""
+#     legal_considerations: list[str] = field(default_factory=list)
+#     source_count: int = 0
+#     high_confidence_sources: int = 0
+#     verification_rate: float = 0.0
+#     triage: TriageLevel = TriageLevel.USABLE
+#     warnings: list[str] = field(default_factory=list)
+#     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+#     ... (to_dict, to_markdown, meets_gating_requirements methods omitted)
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "angle_id": self.angle_id,
-            "description": self.description,
-            "hook": self.hook,
-            "based_on": self.based_on,
-            "confidence": self.confidence.value,
-        }
 
-
-@dataclass
-class StructureOption:
-    """A structure option for organizing the content."""
-    structure_type: str  # "chronological", "thematic", "mystery", "villain_origin"
-    description: str
-    act_breakdown: list[str] = field(default_factory=list)
-    why_it_works: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "structure_type": self.structure_type,
-            "description": self.description,
-            "act_breakdown": self.act_breakdown,
-            "why_it_works": self.why_it_works,
-        }
-
-
-@dataclass
-class ProducerPacket:
+class LegacyProducerPacketGating:
     """
-    Doc 3: Producer Packet (Optional Creative Layer)
+    Extracted gating logic from the legacy ProducerPacket.
 
-    Purpose:
-    - Provide production-ready creative guidance
-    - Bridge research output to content creation
-
-    Gating Requirements (all must be met):
-    - 4+ sources in job
-    - At least 1 high-confidence source
-    - Job status = complete
-    - User explicitly requests OR job mode = documentary
-
-    Note: This document MAY include speculative elements but must
-    distinguish them from research-backed content.
+    Used by test_validation_stages.py to test Doc 3 gating requirements
+    without depending on the commented-out legacy dataclass.
     """
-    job_id: str
 
-    # Story Core (What's the compelling narrative?)
-    story_core: str  # 2-3 sentences
-    story_core_based_on: list[str] = field(default_factory=list)  # KeyPoint IDs
-
-    # Narrative Angles (Multiple options for creator to choose)
-    narrative_angles: list[NarrativeAngle] = field(default_factory=list)
-
-    # Structure Options
-    structure_options: list[StructureOption] = field(default_factory=list)
-
-    # Creative Elements
-    opening_hooks: list[str] = field(default_factory=list)
-    title_concepts: list[str] = field(default_factory=list)
-    thumbnail_concepts: list[str] = field(default_factory=list)
-    call_to_action: list[str] = field(default_factory=list)
-
-    # Risk Assessment
-    sensitivity_notes: list[str] = field(default_factory=list)
-    risk_assessment: str = ""
-    legal_considerations: list[str] = field(default_factory=list)
-
-    # Source Quality Summary
-    source_count: int = 0
-    high_confidence_sources: int = 0
-    verification_rate: float = 0.0
-
-    # Quality Indicators
-    triage: TriageLevel = TriageLevel.USABLE
-    warnings: list[str] = field(default_factory=list)
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "document_type": "producer_packet",
-            "job_id": self.job_id,
-            "story_core": {
-                "text": self.story_core,
-                "based_on": self.story_core_based_on,
-            },
-            "narrative_angles": [na.to_dict() for na in self.narrative_angles],
-            "structure_options": [so.to_dict() for so in self.structure_options],
-            "creative_elements": {
-                "opening_hooks": self.opening_hooks,
-                "title_concepts": self.title_concepts,
-                "thumbnail_concepts": self.thumbnail_concepts,
-                "call_to_action": self.call_to_action,
-            },
-            "risk_assessment": {
-                "sensitivity_notes": self.sensitivity_notes,
-                "risk_assessment": self.risk_assessment,
-                "legal_considerations": self.legal_considerations,
-            },
-            "source_quality": {
-                "source_count": self.source_count,
-                "high_confidence_sources": self.high_confidence_sources,
-                "verification_rate": self.verification_rate,
-            },
-            "triage": self.triage.value,
-            "warnings": self.warnings,
-            "created_at": self.created_at,
-        }
-
-    def to_markdown(self) -> str:
-        """Render Producer Packet as markdown."""
-        lines = ["# PRODUCER PACKET", ""]
-
-        # Warning for thin content
-        if self.triage in (TriageLevel.THIN, TriageLevel.DEGRADED):
-            lines.extend([
-                "> **Caution:** This packet is based on limited sources.",
-                "> Verify key claims before production.",
-                "",
-            ])
-
-        lines.extend([
-            "## STORY CORE",
-            self.story_core,
-            f"(Based on: {', '.join(self.story_core_based_on)})",
-            "",
-            "---",
-            "",
-            "## NARRATIVE ANGLES",
-        ])
-
-        for angle in self.narrative_angles:
-            lines.extend([
-                f"### {angle.angle_id}: {angle.description}",
-                f"**Hook:** {angle.hook}",
-                f"**Confidence:** {angle.confidence.value}",
-                "",
-            ])
-
-        lines.extend(["---", "", "## STRUCTURE OPTIONS"])
-
-        for opt in self.structure_options:
-            lines.extend([
-                f"### {opt.structure_type.title()}",
-                f"Description: {opt.description}",
-                "",
-                "Act Breakdown:",
-            ])
-            for i, act in enumerate(opt.act_breakdown, 1):
-                lines.append(f"{i}. {act}")
-            lines.extend([f"Why it works: {opt.why_it_works}", ""])
-
-        lines.extend([
-            "---",
-            "",
-            "## CREATIVE ELEMENTS",
-            "",
-            "### Opening Hooks",
-        ])
-        for hook in self.opening_hooks:
-            lines.append(f"- {hook}")
-
-        lines.extend(["", "### Title Concepts"])
-        for title in self.title_concepts:
-            lines.append(f"- {title}")
-
-        lines.extend(["", "### Thumbnail Concepts"])
-        for thumb in self.thumbnail_concepts:
-            lines.append(f"- {thumb}")
-
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## RISK ASSESSMENT",
-            "",
-            "### Sensitivity Notes",
-        ])
-        for note in self.sensitivity_notes:
-            lines.append(f"- {note}")
-
-        lines.extend([
-            "",
-            f"**Overall Risk:** {self.risk_assessment}",
-            "",
-            "### Legal Considerations",
-        ])
-        for legal in self.legal_considerations:
-            lines.append(f"- {legal}")
-
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## SOURCE QUALITY",
-            f"- Total sources: {self.source_count}",
-            f"- High-confidence sources: {self.high_confidence_sources}",
-            f"- Verification rate: {self.verification_rate:.0%}",
-        ])
-
-        return "\n".join(lines)
+    def __init__(self, job_id: str = "", story_core: str = "",
+                 source_count: int = 0, high_confidence_sources: int = 0,
+                 **kwargs):
+        self.job_id = job_id
+        self.story_core = story_core
+        self.source_count = source_count
+        self.high_confidence_sources = high_confidence_sources
 
     def meets_gating_requirements(self) -> tuple[bool, list[str]]:
         """

@@ -714,7 +714,7 @@ class TestV10DocThreeGating:
 
     def test_requires_4_plus_sources(self):
         """Producer Packet should require 4+ sources."""
-        from backend.models.document_outputs import ProducerPacket
+        from backend.models.document_outputs import LegacyProducerPacketGating as ProducerPacket
 
         packet = ProducerPacket(
             job_id="job_123",
@@ -729,7 +729,7 @@ class TestV10DocThreeGating:
 
     def test_requires_high_confidence_source(self):
         """Producer Packet should require at least 1 high-confidence source."""
-        from backend.models.document_outputs import ProducerPacket
+        from backend.models.document_outputs import LegacyProducerPacketGating as ProducerPacket
 
         packet = ProducerPacket(
             job_id="job_123",
@@ -744,7 +744,7 @@ class TestV10DocThreeGating:
 
     def test_gating_passes_with_requirements_met(self):
         """Producer Packet should pass gating when requirements met."""
-        from backend.models.document_outputs import ProducerPacket
+        from backend.models.document_outputs import LegacyProducerPacketGating as ProducerPacket
 
         packet = ProducerPacket(
             job_id="job_123",

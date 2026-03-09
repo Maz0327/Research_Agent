@@ -13,7 +13,8 @@ from typing import Any
 
 from loguru import logger
 
-from backend.integrations.gemini_client import GeminiClient
+# NOTE: GeminiClient imported lazily inside stage_gap_analysis() to break
+# circular import: gemini_client → pipeline → stages/__init__ → gap_analysis → gemini_client
 from backend.models.semantic_units import Gap
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.prompts.semantic_synthesis_prompt import build_gap_identification_prompt
@@ -164,6 +165,9 @@ def stage_gap_analysis(ctx: PipelineContext) -> None:
     )
 
     try:
+        # Lazy import to break circular import chain
+        from backend.integrations.gemini_client import GeminiClient
+
         # Initialize Gemini client
         gemini_client = GeminiClient()
 

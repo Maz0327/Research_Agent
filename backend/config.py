@@ -124,6 +124,12 @@ class Settings(BaseSettings):
         description="Anthropic API key for Claude Sonnet (complex synthesis)"
     )
 
+    # Kimi/Moonshot API (Visual analysis)
+    kimi_api_key: Optional[str] = Field(
+        default=None, alias="KIMI_API_KEY",
+        description="Moonshot API key for Kimi K2.5 Vision (frame analysis)"
+    )
+
     # PRD v4.3: Supadata API (PRIMARY transcription)
     supadata_api_key: Optional[str] = Field(
         default=None, alias="SUPADATA_API_KEY",
@@ -454,6 +460,24 @@ def require_anthropic() -> Settings:
     if not settings.anthropic_api_key:
         raise MissingRequiredSettingError(
             "ANTHROPIC_API_KEY is required for Claude synthesis. "
+            "Please set it in your .env file."
+        )
+    return settings
+
+
+def require_kimi() -> Settings:
+    """
+    Get settings and validate Kimi API key is present for visual analysis.
+
+    Kimi K2.5 Vision is used for frame-level video content classification.
+
+    Raises:
+        MissingRequiredSettingError: If Kimi API key is missing
+    """
+    settings = get_settings()
+    if not settings.kimi_api_key:
+        raise MissingRequiredSettingError(
+            "KIMI_API_KEY is required for Kimi K2.5 visual analysis. "
             "Please set it in your .env file."
         )
     return settings

@@ -26,20 +26,23 @@ def test_detect_blocked_content():
     # 401 status
     assert _detect_blocked_content("any content", 401) is True
     
-    # Paywall indicators
-    html_with_paywall = """
+    # Paywall indicators (content must be >500 chars to trigger pattern matching)
+    padding = "<p>" + "x " * 300 + "</p>"  # Padding to exceed 500 char minimum
+    html_with_paywall = f"""
     <html>
     <body>
     <h1>Subscribe to continue reading</h1>
+    {padding}
     </body>
     </html>
     """
     assert _detect_blocked_content(html_with_paywall, 200) is True
-    
-    html_with_signin = """
+
+    html_with_signin = f"""
     <html>
     <body>
     <h1>Please sign in to access this content</h1>
+    {padding}
     </body>
     </html>
     """

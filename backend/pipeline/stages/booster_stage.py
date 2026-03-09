@@ -7,6 +7,8 @@ CRITICAL: The booster produces DIRECTIONS, not FACTS.
 It tells you WHERE to look, not WHAT you'll find.
 """
 
+import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -16,6 +18,7 @@ from backend.integrations.gemini_client import GeminiClient
 from backend.models.booster_models import (
     BoosterOutput,
     ContextBundle,
+    ImpactLevel,
     MissingPerspective,
     PlatformSuggestion,
     PrimarySourceDirection,
@@ -29,6 +32,10 @@ from backend.pipeline.prompts.booster_prompt import (
     BOOSTER_PROMPT,
     BOOSTER_ROLE,
 )
+
+# Module-level constants for impact validation and sorting
+VALID_IMPACTS: frozenset[str] = frozenset(il.value for il in ImpactLevel)
+IMPACT_ORDER: dict[str, int] = {"critical": 0, "important": 1, "nice_to_have": 2}
 
 
 def build_booster_prompt(bundle: ContextBundle) -> str:
@@ -96,6 +103,11 @@ def parse_booster_response(data: dict[str, Any], bundle: ContextBundle) -> Boost
     Returns:
         Parsed BoosterOutput
     """
+    def _parse_impact(raw: str) -> str:
+        """Validate and normalize impact level."""
+        val = raw.lower().strip() if raw else "important"
+        return val if val in VALID_IMPACTS else "important"
+
     # Parse missing perspectives
     missing_perspectives = []
     for mp in data.get("missing_perspectives", []):
@@ -103,6 +115,7 @@ def parse_booster_response(data: dict[str, Any], bundle: ContextBundle) -> Boost
             description=mp.get("description", ""),
             why_it_matters=mp.get("why_it_matters", ""),
             related_gaps=mp.get("related_gaps", []),
+            impact_level=_parse_impact(mp.get("impact_level", "important")),
         ))
 
     # Parse primary source directions
@@ -119,6 +132,8 @@ def parse_booster_response(data: dict[str, Any], bundle: ContextBundle) -> Boost
             description=psd.get("description", ""),
             search_suggestion=psd.get("search_suggestion", ""),
             related_gap=psd.get("related_gap"),
+            why_it_matters=psd.get("why_it_matters", ""),
+            impact_level=_parse_impact(psd.get("impact_level", "important")),
         ))
 
     # Parse search queries
@@ -136,6 +151,8 @@ def parse_booster_response(data: dict[str, Any], bundle: ContextBundle) -> Boost
             platform_suggestion=platform,
             related_gap=sq.get("related_gap"),
             related_theme=sq.get("related_theme"),
+            why_it_matters=sq.get("why_it_matters", ""),
+            impact_level=_parse_impact(sq.get("impact_level", "important")),
         ))
 
     # Parse research questions
@@ -145,7 +162,14 @@ def parse_booster_response(data: dict[str, Any], bundle: ContextBundle) -> Boost
             question=rq.get("question", ""),
             why_it_matters=rq.get("why_it_matters", ""),
             related_theme=rq.get("related_theme", ""),
+            impact_level=_parse_impact(rq.get("impact_level", "important")),
         ))
+
+    # R14: Sort all categories by impact (critical first)
+    missing_perspectives.sort(key=lambda x: IMPACT_ORDER.get(x.impact_level, 1))
+    primary_source_directions.sort(key=lambda x: IMPACT_ORDER.get(x.impact_level, 1))
+    search_queries.sort(key=lambda x: IMPACT_ORDER.get(x.impact_level, 1))
+    research_questions.sort(key=lambda x: IMPACT_ORDER.get(x.impact_level, 1))
 
     return BoosterOutput(
         missing_perspectives=missing_perspectives,
@@ -201,6 +225,36 @@ def validate_booster_output(output: BoosterOutput, bundle: ContextBundle) -> lis
         if rq.related_theme and rq.related_theme not in valid_theme_ids:
             warnings.append(f"Invalid theme reference in research_questions: {rq.related_theme}")
 
+    # Anti-hallucination: Detect generic search queries
+    generic_query_patterns = [
+        re.compile(r'search for (?:more |additional |further )?information about', re.IGNORECASE),
+        re.compile(r'find (?:more |additional )?details about', re.IGNORECASE),
+        re.compile(r'look for (?:more |facts|details) about', re.IGNORECASE),
+        re.compile(r'research (?:more )?about', re.IGNORECASE),
+    ]
+    for sq in output.suggested_search_queries:
+        for pattern in generic_query_patterns:
+            if pattern.search(sq.query):
+                warnings.append(
+                    f"Generic search query detected (not actionable): '{sq.query[:60]}'"
+                )
+                break
+
+    # Anti-hallucination: Detect speculative language in source directions
+    speculation_patterns = [
+        re.compile(r'\b(?:might|could|would)\s+(?:reveal|show|contain|demonstrate|prove)', re.IGNORECASE),
+        re.compile(r'\blikely\s+(?:shows?|demonstrates?|contains?)', re.IGNORECASE),
+    ]
+    for psd in output.primary_source_directions:
+        text_to_check = f"{psd.description} {psd.why_it_matters}"
+        for pattern in speculation_patterns:
+            if pattern.search(text_to_check):
+                warnings.append(
+                    f"Speculative language in source direction: "
+                    f"'{psd.description[:50]}' — booster should suggest WHERE, not WHAT"
+                )
+                break
+
     return warnings
 
 
@@ -246,7 +300,6 @@ def run_booster(bundle: ContextBundle) -> tuple[BoosterOutput, float, list[str]]
 
     # Handle case where data is a string (shouldn't happen with JSON mode)
     if isinstance(data, str):
-        import json
         try:
             data = json.loads(data)
         except json.JSONDecodeError:

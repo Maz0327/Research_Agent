@@ -393,6 +393,9 @@ class SemanticExtractionResult:
     # For video_only mode
     approximate_observations: list[ApproximateObservation] = field(default_factory=list)
 
+    # Visual analysis (optional — populated when Kimi K2.5 is configured)
+    visual_analysis: Optional[dict] = None
+
     # Metadata
     analysis_limitations: list[str] = field(default_factory=list)
     transcript_source: Optional[str] = None  # "supadata", "whisper", "youtube_captions", "none"
@@ -408,6 +411,7 @@ class SemanticExtractionResult:
             "themes": [t.to_dict() for t in self.themes],
             "tensions": [t.to_dict() for t in self.tensions],
             "approximate_observations": [ao.to_dict() for ao in self.approximate_observations],
+            "visual_analysis": self.visual_analysis,
             "analysis_limitations": self.analysis_limitations,
             "transcript_source": self.transcript_source,
             "parse_error": self.parse_error,

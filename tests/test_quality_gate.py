@@ -25,7 +25,8 @@ def test_source_creation():
     )
 
     assert source.domain == "example.com"
-    assert source.canonical_url == "https://example.com/article"
+    # canonical_url preserves www. prefix (domain extraction strips it, canonicalization does not)
+    assert source.canonical_url == "https://www.example.com/article"
     assert source.source_type == "web"
 
 

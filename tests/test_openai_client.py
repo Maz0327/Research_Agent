@@ -123,8 +123,14 @@ def test_plan_job_candace_livestream(monkeypatch):
         monkeypatch.setattr(openai.OpenAI, "__init__", mock_init)
         
         slack_text = "Research @candaceowens latest livestreams about Charlie Kirk since September"
-        config = plan_job(slack_text)
-        
+        result = plan_job(slack_text)
+
+        # plan_job returns {"is_ambiguous": bool, "config": JobConfig}
+        assert isinstance(result, dict)
+        assert "is_ambiguous" in result
+        assert "config" in result
+        config = result["config"]
+
         assert isinstance(config, JobConfig)
         assert config.topic is not None
         assert len(config.topic) > 0
@@ -141,9 +147,11 @@ def test_plan_job_candace_livestream(monkeypatch):
     except (ImportError, AttributeError) as e:
         # If OpenAI is not installed or mocking fails, test safe defaults path
         pytest.skip(f"OpenAI mocking failed: {e}, testing safe defaults only")
-        
+
         slack_text = "Research @candaceowens latest livestreams about Charlie Kirk since September"
-        config = plan_job(slack_text)
+        result = plan_job(slack_text)
+        assert isinstance(result, dict)
+        config = result["config"]
         assert isinstance(config, JobConfig)
         assert config.topic is not None
         assert config.youtube.exclude_shorts is True
@@ -154,8 +162,13 @@ def test_plan_job_safe_defaults():
     """Test that safe defaults are returned when OpenAI fails."""
     # This will use safe defaults because OpenAI key won't be set in test env
     slack_text = "Research something"
-    config = plan_job(slack_text)
-    
+    result = plan_job(slack_text)
+
+    # plan_job returns {"is_ambiguous": bool, "config": JobConfig}
+    assert isinstance(result, dict)
+    assert result["is_ambiguous"] is False
+    config = result["config"]
+
     assert isinstance(config, JobConfig)
     assert config.topic == slack_text.strip()
     assert config.mode == ResearchMode.CLAIMS_EVIDENCE

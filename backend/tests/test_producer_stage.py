@@ -532,11 +532,12 @@ class TestRunProducerPipeline:
             mock_gemini_responses["structure"],
             mock_gemini_responses["creative"],
             mock_gemini_responses["risk"],
+            {"data": {"quality_score": 85, "issues": [], "generic_phrase_count": 0}, "cost": 0.005},  # R12 self-critique
         ]
 
         packet, cost, warnings = run_producer_pipeline("JOB_1", minimal_job_data)
 
-        expected_cost = 0.01 + 0.02 + 0.02 + 0.01  # sum of all stage costs
+        expected_cost = 0.01 + 0.02 + 0.02 + 0.01 + 0.005  # sum of all stage costs incl. R12
         assert cost == pytest.approx(expected_cost)
 
     @patch("backend.pipeline.stages.producer_stage.GeminiClient")
@@ -550,11 +551,13 @@ class TestRunProducerPipeline:
             mock_gemini_responses["structure"],
             mock_gemini_responses["creative"],
             mock_gemini_responses["risk"],
+            {"data": {"quality_score": 85, "issues": [], "generic_phrase_count": 0}, "cost": 0.005},  # R12 self-critique
         ]
 
         run_producer_pipeline("JOB_1", minimal_job_data)
 
-        assert mock_client.generate_json.call_count == 4
+        # R12 self-critique adds Stage 6, so now 5 calls (was 4 before R12)
+        assert mock_client.generate_json.call_count == 5
 
     @patch("backend.pipeline.stages.producer_stage.GeminiClient")
     def test_pipeline_temperature_settings(self, mock_client_class, minimal_job_data, mock_gemini_responses):
@@ -567,6 +570,7 @@ class TestRunProducerPipeline:
             mock_gemini_responses["structure"],
             mock_gemini_responses["creative"],
             mock_gemini_responses["risk"],
+            {"data": {"quality_score": 85, "issues": [], "generic_phrase_count": 0}, "cost": 0.005},  # R12 self-critique
         ]
 
         run_producer_pipeline("JOB_1", minimal_job_data)

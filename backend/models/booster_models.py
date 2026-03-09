@@ -29,6 +29,13 @@ class PrimarySourceType(str, Enum):
     OTHER = "other"
 
 
+class ImpactLevel(str, Enum):
+    """Impact level for booster items — R14."""
+    CRITICAL = "critical"       # Documentary can't proceed without this
+    IMPORTANT = "important"     # Would significantly strengthen
+    NICE_TO_HAVE = "nice_to_have"  # Adds depth but not essential
+
+
 class PlatformSuggestion(str, Enum):
     """Platforms to search."""
     GOOGLE = "google"
@@ -145,12 +152,14 @@ class MissingPerspective:
     description: str
     why_it_matters: str
     related_gaps: list[str] = field(default_factory=list)
+    impact_level: str = "important"  # R14: critical/important/nice_to_have
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "description": self.description,
             "why_it_matters": self.why_it_matters,
             "related_gaps": self.related_gaps,
+            "impact_level": self.impact_level,
         }
 
 
@@ -161,6 +170,8 @@ class PrimarySourceDirection:
     description: str
     search_suggestion: str
     related_gap: Optional[str] = None
+    why_it_matters: str = ""  # R13: Why finding this source strengthens the research
+    impact_level: str = "important"  # R14: critical/important/nice_to_have
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -168,6 +179,8 @@ class PrimarySourceDirection:
             "description": self.description,
             "search_suggestion": self.search_suggestion,
             "related_gap": self.related_gap,
+            "why_it_matters": self.why_it_matters,
+            "impact_level": self.impact_level,
         }
 
 
@@ -179,6 +192,8 @@ class SearchQuery:
     platform_suggestion: PlatformSuggestion
     related_gap: Optional[str] = None
     related_theme: Optional[str] = None
+    why_it_matters: str = ""  # R13: How results would change the documentary
+    impact_level: str = "important"  # R14: critical/important/nice_to_have
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -187,6 +202,8 @@ class SearchQuery:
             "platform_suggestion": self.platform_suggestion.value,
             "related_gap": self.related_gap,
             "related_theme": self.related_theme,
+            "why_it_matters": self.why_it_matters,
+            "impact_level": self.impact_level,
         }
 
 
@@ -196,12 +213,14 @@ class ResearchQuestion:
     question: str
     why_it_matters: str
     related_theme: str
+    impact_level: str = "important"  # R14: critical/important/nice_to_have
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "question": self.question,
             "why_it_matters": self.why_it_matters,
             "related_theme": self.related_theme,
+            "impact_level": self.impact_level,
         }
 
 

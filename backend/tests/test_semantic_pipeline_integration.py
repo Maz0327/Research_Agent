@@ -597,7 +597,7 @@ class TestProducerIntegration:
 
         # Verify creative interpretation notice
         markdown = packet.to_markdown()
-        assert "CREATIVE INTERPRETATION" in markdown
+        assert "Creative Interpretation" in markdown or "creative interpretation" in markdown.lower()
 
 
 # =============================================================================

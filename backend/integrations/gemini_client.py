@@ -15,7 +15,9 @@ Phase 3 (Jan 2026): Full Research Assistant Pipeline
 import gc
 import json
 import re
+import threading
 import time  # H-010: Rate limiting between API calls
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional, Any, Callable
 from urllib.parse import urlparse, parse_qs
@@ -25,7 +27,8 @@ from loguru import logger
 from backend.utils.error_handling import sanitize_error_message
 from backend.utils.rate_limiter import with_rate_limit
 from backend.utils.llm_temperature import get_temperature, TaskType, TEMP_FACTUAL
-from backend.pipeline.quote_verification import verify_extraction_results
+# NOTE: verify_extraction_results is imported lazily at call site (line ~1846)
+# to break circular import: gemini_client → pipeline → stages → gap_analysis → gemini_client
 
 # =============================================================================
 # Constants (L-002, L-007: Extract magic numbers)
@@ -1155,7 +1158,10 @@ YouTube Video URL: {chunk_url}"""
         model: str = "gemini-2.5-flash",
         progress_callback: Optional[callable] = None,
     ) -> dict[str, Any]:
-        """Analyze multiple YouTube videos with per-video error handling.
+        """Analyze multiple YouTube videos in parallel with per-video error handling.
+
+        Uses ThreadPoolExecutor for concurrent Gemini API calls (max 3 workers
+        to stay well within Gemini's 100 RPM rate limit).
 
         Phase 1.5: Per-video errors don't kill the batch.
 
@@ -1174,22 +1180,67 @@ YouTube Video URL: {chunk_url}"""
         total_cost = 0.0
 
         total = len(video_urls)
+        callback_lock = threading.Lock()
+        completed_count = 0
 
-        for i, url in enumerate(video_urls):
+        def _process_one(url: str) -> dict[str, Any]:
+            """Process a single video. Thread-safe — no shared mutable state."""
+            nonlocal completed_count
+
+            if progress_callback:
+                with callback_lock:
+                    progress_callback(completed_count + 1, total, url, "processing")
+
             try:
-                # Call progress callback if provided
-                if progress_callback:
-                    progress_callback(i + 1, total, url, "processing")
-
                 result = self.analyze_youtube_video(url, model=model)
 
-                if result.get("error"):
+                with callback_lock:
+                    completed_count += 1
+
+                if progress_callback:
+                    status = "failed" if result.get("error") else "completed"
+                    with callback_lock:
+                        progress_callback(completed_count, total, url, status)
+
+                return {"url": url, "result": result, "error": None}
+            except Exception as e:
+                with callback_lock:
+                    completed_count += 1
+
+                logger.error(f"Video analysis failed: {url} - {e}")
+
+                if progress_callback:
+                    with callback_lock:
+                        progress_callback(completed_count, total, url, "failed")
+
+                return {"url": url, "result": None, "error": str(e)}
+
+        # Run in parallel — cap at 3 concurrent to respect Gemini rate limits
+        max_workers = min(3, len(video_urls))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(_process_one, url): url
+                for url in video_urls
+            }
+
+            for future in as_completed(futures):
+                outcome = future.result()
+                url = outcome["url"]
+
+                if outcome["error"]:
                     errors.append({
                         "video_url": url,
-                        "error": result["error"],
+                        "error": outcome["error"],
+                        "status": "failed",
+                    })
+                elif outcome["result"].get("error"):
+                    errors.append({
+                        "video_url": url,
+                        "error": outcome["result"]["error"],
                         "status": "failed",
                     })
                 else:
+                    result = outcome["result"]
                     results.append(result)
                     # Enrich clips/quotes with parent video_url before aggregation
                     # Gemini LLM returns clips without video_url - it's at result top level
@@ -1203,19 +1254,6 @@ YouTube Video URL: {chunk_url}"""
                     all_clips.extend(enriched_clips)
                     all_quotes.extend(enriched_quotes)
                     total_cost += result.get("cost", 0)
-
-                if progress_callback:
-                    progress_callback(i + 1, total, url, "completed" if not result.get("error") else "failed")
-
-            except Exception as e:
-                logger.error(f"Video {i + 1}/{total} failed: {url} - {e}")
-                errors.append({
-                    "video_url": url,
-                    "error": str(e),
-                    "status": "failed",
-                })
-                if progress_callback:
-                    progress_callback(i + 1, total, url, "failed")
 
         # Determine overall status
         if not results and errors:
@@ -1837,6 +1875,9 @@ YouTube Video URL: {chunk_url}"""
         verification_warnings = []
         if transcripts:
             safe_progress(1, total_passes, "verifying", "Verifying quotes against transcripts...")
+            # Lazy import to break circular import chain
+            from backend.pipeline.quote_verification import verify_extraction_results
+
             verified_results = []
             for result in results:
                 video_url = result.get("video_url", "")

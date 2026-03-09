@@ -4,6 +4,7 @@ Provides functions to normalize URLs and detect duplicates, particularly
 for YouTube videos which have multiple URL formats.
 """
 import re
+from functools import lru_cache
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 # Tracking parameters to remove during canonicalization
@@ -58,6 +59,7 @@ def extract_youtube_video_id(url: str) -> str | None:
     return None
 
 
+@lru_cache(maxsize=1024)
 def canonicalize_url(url: str) -> str:
     """Normalize URL for deduplication.
 

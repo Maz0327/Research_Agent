@@ -1403,9 +1403,16 @@ def run_booster_task(self, job_id: str, user_id: str, run_id: str = None) -> dic
         expansion_md = build_booster_expansion_markdown(booster_output)
 
         # Update jump_start with booster expansion
+        booster_dict = booster_output_to_dict(booster_output)  # Cache to avoid redundant calls
         updated_jump_start = jump_start.copy() if isinstance(jump_start, dict) else {}
-        updated_jump_start["booster_expansion"] = booster_output_to_dict(booster_output)
+        updated_jump_start["booster_expansion"] = booster_dict
         updated_jump_start["booster_expansion_md"] = expansion_md
+
+        # Merge booster items into research threads (if threads exist)
+        from backend.pipeline.stages.document_assembly import merge_booster_into_threads_dict
+        updated_jump_start = merge_booster_into_threads_dict(
+            updated_jump_start, booster_dict
+        )
 
         # Summary for partial_outputs
         booster_summary = {
@@ -1426,9 +1433,8 @@ def run_booster_task(self, job_id: str, user_id: str, run_id: str = None) -> dic
                 ensure_runs_migrated, RunBoosterExpansion, RunStatus
             )
 
-            booster_output_dict = booster_output_to_dict(booster_output)
             output_path, md_path = store_run_booster(
-                job_id, run_id, booster_output_dict, expansion_md
+                job_id, run_id, booster_dict, expansion_md
             )
 
             # Update run in artifacts.runs with booster data
@@ -1445,21 +1451,22 @@ def run_booster_task(self, job_id: str, user_id: str, run_id: str = None) -> dic
                     run.booster_expansion = RunBoosterExpansion(
                         status=RunStatus.COMPLETED,
                         completed_at=datetime.now(timezone.utc),
-                        output=booster_output_dict,
+                        output=booster_dict,
                         markdown=expansion_md,
                     )
                     break
 
-            # Store runs back in artifacts
+            # Store runs back in artifacts + persist merged jump_start
             updated_artifacts = artifacts_dict.copy()
             updated_artifacts["runs"] = [r.model_dump() for r in runs]
+            updated_artifacts["jump_start"] = updated_jump_start
 
             logger.info(f"[{job_id}] Booster stored in run-scoped path: {output_path}")
         else:
             # V1: Store at job level (legacy)
             updated_artifacts = artifacts_dict.copy()
             updated_artifacts["jump_start"] = updated_jump_start
-            updated_artifacts["booster_output"] = booster_output_to_dict(booster_output)
+            updated_artifacts["booster_output"] = booster_dict
             updated_artifacts["booster_expansion_md"] = expansion_md
 
         # Store partial_outputs in config_json

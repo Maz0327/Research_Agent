@@ -21,6 +21,7 @@ Execution time target: <5 seconds
 """
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from datetime import datetime, timezone
 from math import log
 from typing import Dict, List, Optional, Set, Tuple, Any
@@ -166,6 +167,7 @@ class Source:
             return ""
 
     @staticmethod
+    @lru_cache(maxsize=512)
     def _canonicalize_url(url: str) -> str:
         """Canonicalize URL for deduplication."""
         try:

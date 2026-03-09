@@ -198,7 +198,7 @@ def extract_video_observations(
             f"{len(key_points)} key points, cost=${cost:.4f}"
         )
 
-        return SemanticExtractionResult(
+        result = SemanticExtractionResult(
             source_id=source_id,
             analysis_mode=AnalysisMode.VIDEO_ONLY,
             key_points=key_points,
@@ -208,7 +208,19 @@ def extract_video_observations(
                 "Confidence ceiling: LOW - no transcript verification possible",
                 "Quotes not included (spec requirement for video_only mode)",
             ],
-        ), cost, warnings
+        )
+
+        # Frame-level visual analysis (Kimi primary, Gemini fallback)
+        visual_warnings, visual_cost = _run_visual_frame_analysis(
+            source_id=source_id,
+            video_url=video_url,
+            extraction=result,
+            video_title=video_title,
+        )
+        warnings.extend(visual_warnings)
+        cost += visual_cost
+
+        return result, cost, warnings
 
     except Exception as e:
         logger.error(f"[{source_id}] Video extraction failed: {e}")
@@ -538,6 +550,463 @@ def extract_semantic_structure(
     ), ValidationReport(), total_cost
 
 
+# ---------------------------------------------------------------------------
+# Visual Frame Analysis (Kimi primary, Gemini fallback)
+# ---------------------------------------------------------------------------
+
+def _download_video_for_frames(
+    video_url: str,
+    source_id: str,
+) -> str:
+    """Download YouTube video for frame extraction using yt-dlp.
+
+    Downloads video-only (no audio) at max 720p for vision analysis.
+    Follows the same yt-dlp pattern as WhisperTranscriptionClient.download_audio().
+
+    Args:
+        video_url: YouTube video URL
+        source_id: Source identifier for logging
+
+    Returns:
+        Path to downloaded video file
+
+    Raises:
+        RuntimeError: If download fails or times out
+    """
+    import subprocess
+    import tempfile
+
+    from backend.pipeline.utils.url_dedup import extract_youtube_video_id
+
+    video_id = extract_youtube_video_id(video_url)
+    if not video_id:
+        raise RuntimeError(f"Cannot extract video ID from URL: {video_url}")
+
+    output_dir = tempfile.mkdtemp(prefix="ra_video_")
+    output_path = f"{output_dir}/{video_id}.mp4"
+
+    logger.info(f"[{source_id}] Downloading video for frame extraction: {video_id}")
+
+    cmd = [
+        "yt-dlp",
+        "-f", "bestvideo[height<=720][ext=mp4]/bestvideo[height<=720]/best[height<=720]",
+        "--no-audio",
+        "-o", output_path,
+        video_url,
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 min timeout (matches whisper_client)
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"yt-dlp failed: {result.stderr[:500]}")
+
+        logger.info(f"[{source_id}] Video downloaded: {output_path}")
+        return output_path
+
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Video download timed out after 300s")
+
+
+def _analyze_frames_with_fallback(
+    frame_paths: list,
+    video_title: str,
+    research_topic: str,
+    source_id: str,
+    interval_seconds: int,
+    kimi_api_key: Optional[str],
+) -> tuple[Optional[dict], float, list[str], str]:
+    """Analyze frames with Kimi K2.5, falling back to Gemini 2.5 Flash.
+
+    Args:
+        frame_paths: List of Path objects to frame images
+        video_title: Video title for prompt context
+        research_topic: Research topic for prompt context
+        source_id: Source identifier
+        interval_seconds: Seconds between frames (for timestamp calc)
+        kimi_api_key: Kimi API key (None = skip Kimi, use Gemini directly)
+
+    Returns:
+        Tuple of (visual_analysis_dict, cost, warnings, provider_used)
+        provider_used is "kimi", "gemini", or "none"
+    """
+    warnings: list[str] = []
+
+    # --- Try Kimi first (if configured) ---
+    if kimi_api_key:
+        try:
+            from backend.integrations.kimi_vision_client import (
+                KimiVisionClient,
+                KimiVisionError,
+            )
+
+            logger.info(f"[{source_id}] Analyzing {len(frame_paths)} frames with Kimi K2.5")
+            client = KimiVisionClient(api_key=kimi_api_key)
+            result = client.analyze_video_frames(
+                frame_paths=frame_paths,
+                video_title=video_title,
+                research_topic=research_topic,
+                source_id=source_id,
+                interval_seconds=interval_seconds,
+            )
+            logger.info(
+                f"[{source_id}] Kimi analysis complete: "
+                f"{len(result.frame_analyses)} frames, "
+                f"third-party ratio={result.third_party_ratio:.0%}"
+            )
+            return result.to_dict(), result.analysis_cost, [], "kimi"
+
+        except Exception as e:
+            kimi_error = str(e)
+            logger.warning(
+                f"[{source_id}] Kimi frame analysis failed, "
+                f"falling back to Gemini: {kimi_error}"
+            )
+            warnings.append(f"Kimi failed ({kimi_error}), used Gemini fallback")
+    else:
+        logger.info(f"[{source_id}] KIMI_API_KEY not configured, using Gemini for frame analysis")
+
+    # --- Fallback to Gemini 2.5 Flash ---
+    try:
+        import base64
+        from backend.integrations.gemini_client import GeminiClient
+        from backend.integrations.kimi_vision_client import FRAME_ANALYSIS_PROMPT
+
+        gemini_client = GeminiClient()
+
+        # Build prompt
+        prompt_text = FRAME_ANALYSIS_PROMPT.format(
+            video_title=video_title or "Unknown",
+            research_topic=research_topic or "general research",
+        )
+
+        # Base64-encode frames and build content parts
+        from google.genai import types as genai_types
+
+        content_parts = [prompt_text]
+        for frame_path in frame_paths:
+            with open(frame_path, "rb") as f:
+                image_data = f.read()
+            content_parts.append(
+                genai_types.Part.from_bytes(data=image_data, mime_type="image/jpeg")
+            )
+
+        # Call Gemini with multiple images
+        config = genai_types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=8192,
+            system_instruction="You analyze video frames for documentary research. Return structured JSON only.",
+            response_mime_type="application/json",
+        )
+
+        response = gemini_client._client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=content_parts,
+            config=config,
+        )
+        text = response.text or ""
+
+        # Estimate cost (each image ~258 tokens)
+        input_tokens = len(prompt_text.split()) * 1.3 + (258 * len(frame_paths))
+        output_tokens = len(text.split()) * 1.3
+        cost = gemini_client._estimate_cost("gemini-2.5-flash", input_tokens, output_tokens)
+
+        # Parse JSON
+        import json
+        data = json.loads(text)
+
+        # Build VideoVisualAnalysis-compatible dict
+        frame_analyses = []
+        for fa in data.get("frame_analyses", []):
+            idx = fa.get("frame_index", len(frame_analyses))
+            timestamp_secs = idx * interval_seconds
+            mins, secs = divmod(timestamp_secs, 60)
+            hours, mins_r = divmod(mins, 60)
+            frame_analyses.append({
+                "frame_index": idx,
+                "timestamp_approx": f"{hours}:{mins_r:02d}:{secs:02d}",
+                "content_type": fa.get("content_type", ""),
+                "is_original_content": fa.get("is_original_content", False),
+                "is_third_party": fa.get("is_third_party", False),
+                "confidence": fa.get("confidence", ""),
+                "text_detected": fa.get("text_detected", ""),
+                "notable_elements": fa.get("notable_elements", []),
+            })
+
+        # Calculate third-party ratio
+        if frame_analyses:
+            tp_count = sum(1 for fa in frame_analyses if fa["is_third_party"])
+            third_party_ratio = tp_count / len(frame_analyses)
+        else:
+            third_party_ratio = data.get("third_party_ratio", 0.0)
+
+        result_dict = {
+            "source_id": source_id,
+            "frame_analyses": frame_analyses,
+            "overall_content_mix": data.get("overall_content_mix", ""),
+            "third_party_ratio": third_party_ratio,
+            "analysis_cost": cost,
+        }
+
+        if not kimi_api_key:
+            warnings.append("Used Gemini Flash for frame analysis (KIMI_API_KEY not configured)")
+
+        logger.info(
+            f"[{source_id}] Gemini frame analysis complete: "
+            f"{len(frame_analyses)} frames, cost=${cost:.4f}"
+        )
+        return result_dict, cost, warnings, "gemini"
+
+    except Exception as e:
+        logger.warning(f"[{source_id}] Gemini frame analysis also failed: {e}")
+        warnings.append(f"Visual frame analysis failed (both Kimi and Gemini): {str(e)}")
+        return None, 0.0, warnings, "none"
+
+
+def _run_visual_frame_analysis(
+    source_id: str,
+    video_url: str,
+    extraction: "SemanticExtractionResult",
+    video_title: str = "",
+    research_topic: str = "",
+) -> tuple[list[str], float]:
+    """Run frame-level visual analysis on a YouTube video.
+
+    Tries Kimi K2.5 first, falls back to Gemini 2.5 Flash if Kimi
+    is unavailable or fails.
+
+    Modifies extraction.visual_analysis in-place.
+
+    Flow: download video (yt-dlp) → extract frames (ffmpeg) →
+          analyze with Kimi or Gemini fallback
+
+    Args:
+        source_id: Source identifier
+        video_url: YouTube video URL
+        extraction: Extraction result (visual_analysis populated in-place)
+        video_title: Video title for prompt context
+        research_topic: Research topic for prompt context
+
+    Returns:
+        Tuple of (warnings, cost)
+    """
+    warnings: list[str] = []
+    cost = 0.0
+    video_path = None
+    frame_result = None
+
+    try:
+        from backend.config import get_settings
+        settings = get_settings()
+
+        # Download video
+        video_path = _download_video_for_frames(video_url, source_id)
+
+        # Extract frames
+        from backend.services.frame_extraction import extract_keyframes
+
+        frame_result = extract_keyframes(
+            video_path=video_path,
+            source_id=source_id,
+            interval_seconds=10,  # 10s intervals to cover more of the video
+            max_frames=15,        # Leave headroom under Kimi's 20-frame limit
+        )
+
+        if not frame_result.frames:
+            warnings.append(f"[{source_id}] No frames extracted from video")
+            return warnings, cost
+
+        logger.info(
+            f"[{source_id}] Extracted {frame_result.frame_count} frames, "
+            f"sending for visual analysis"
+        )
+
+        # Analyze frames (Kimi primary, Gemini fallback)
+        visual_dict, analysis_cost, analysis_warnings, provider = (
+            _analyze_frames_with_fallback(
+                frame_paths=frame_result.frames,
+                video_title=video_title,
+                research_topic=research_topic,
+                source_id=source_id,
+                interval_seconds=10,
+                kimi_api_key=settings.kimi_api_key,
+            )
+        )
+
+        warnings.extend(analysis_warnings)
+        cost = analysis_cost
+
+        if visual_dict:
+            extraction.visual_analysis = visual_dict
+            logger.info(
+                f"[{source_id}] Visual analysis complete (provider={provider}), "
+                f"cost=${cost:.4f}"
+            )
+        else:
+            warnings.append(f"[{source_id}] Visual frame analysis produced no results")
+
+    except Exception as e:
+        logger.warning(f"[{source_id}] Visual frame analysis failed (non-fatal): {e}")
+        warnings.append(f"[{source_id}] Visual frame analysis skipped: {str(e)}")
+
+    finally:
+        # Cleanup temp files
+        if frame_result:
+            try:
+                frame_result.cleanup()
+            except Exception:
+                pass
+        if video_path:
+            try:
+                import os
+                video_dir = os.path.dirname(video_path)
+                if os.path.exists(video_path):
+                    os.remove(video_path)
+                if video_dir and os.path.exists(video_dir) and not os.listdir(video_dir):
+                    os.rmdir(video_dir)
+            except Exception:
+                pass
+
+    return warnings, cost
+
+
+def _run_llm_judge(
+    source_id: str,
+    content: str,
+    extraction: "SemanticExtractionResult",
+    job_config: Optional[Any],
+    validation_report: "ValidationReport",
+) -> tuple[list[str], dict[str, float]]:
+    """Run LLM Judge cross-model validation on extraction results.
+
+    Modifies extraction in-place (apply_judge_verdicts mutates claims).
+
+    Args:
+        source_id: Source identifier for logging
+        content: Source text content
+        extraction: Extraction result to validate (modified in-place)
+        job_config: Job configuration
+        validation_report: Validation report from extraction
+
+    Returns:
+        Tuple of (warnings, costs) accumulated during judge validation
+    """
+    warnings: list[str] = []
+    costs: dict[str, float] = {}
+
+    if not _should_run_llm_judge_for_source(
+        job_config=job_config,
+        extraction=extraction,
+        validation_report=validation_report,
+    ):
+        return warnings, costs
+
+    logger.info(f"[{source_id}] Running LLM Judge (GPT-4o) validation")
+    try:
+        from backend.pipeline.llm_judge import (
+            validate_extraction_with_judge,
+            apply_judge_verdicts,
+        )
+
+        judge_result = validate_extraction_with_judge(
+            source_text=content,
+            extraction_result=extraction.to_dict(),
+            source_id=source_id,
+        )
+
+        extraction, judge_warnings = apply_judge_verdicts(extraction, judge_result)
+
+        for warning in judge_warnings:
+            warnings.append(f"[{source_id}] LLM Judge: {warning}")
+
+        if judge_result.cost:
+            costs["openai_llm_judge"] = judge_result.cost
+
+        logger.info(
+            f"[{source_id}] LLM Judge: {judge_result.items_reviewed} items, "
+            f"{len(judge_result.hallucination_flags)} hallucinations flagged, "
+            f"quality={judge_result.overall_quality.value}"
+        )
+    except Exception as e:
+        logger.warning(f"[{source_id}] LLM Judge failed (non-fatal): {e}")
+        warnings.append(f"[{source_id}] LLM Judge skipped: {str(e)}")
+
+    return warnings, costs
+
+
+def _run_rag_grounding(
+    source_id: str,
+    content: str,
+    extraction: "SemanticExtractionResult",
+    job_config: Optional[Any],
+) -> list[str]:
+    """Run RAG grounding verification on extraction claims.
+
+    MUST run after _run_llm_judge — Judge modifies extraction.claims
+    in-place, and RAG reads the modified claims.
+
+    Modifies extraction.claims in-place (apply_grounding_adjustments).
+
+    Args:
+        source_id: Source identifier for logging
+        content: Source text content
+        extraction: Extraction result with claims to verify (modified in-place)
+        job_config: Job configuration
+
+    Returns:
+        List of warnings accumulated during grounding verification
+    """
+    warnings: list[str] = []
+
+    if not (_should_run_rag_grounding_for_source(job_config) and content):
+        return warnings
+
+    logger.info(f"[{source_id}] Running RAG grounding verification")
+    try:
+        from backend.pipeline.rag_grounding import (
+            verify_claims_grounding,
+            apply_grounding_adjustments,
+        )
+
+        rag_threshold = "high"
+        max_claims = 10
+        if job_config:
+            hall_config = getattr(job_config, "hallucination", None)
+            if hall_config:
+                rag_threshold = getattr(hall_config, "rag_confidence_threshold", "high")
+                max_claims = getattr(hall_config, "max_claims_to_rag_verify", 10)
+
+        grounding_results, grounding_warnings = verify_claims_grounding(
+            claims=extraction.claims,
+            source_text=content,
+            source_id=source_id,
+            confidence_threshold=rag_threshold,
+            max_claims=max_claims,
+        )
+
+        extraction.claims, adjustment_warnings = apply_grounding_adjustments(
+            claims=extraction.claims,
+            grounding_results=grounding_results,
+        )
+
+        for warning in grounding_warnings + adjustment_warnings:
+            warnings.append(f"[{source_id}] RAG Grounding: {warning}")
+
+        logger.info(
+            f"[{source_id}] RAG Grounding: verified {len(grounding_results)} claims"
+        )
+    except Exception as e:
+        logger.warning(f"[{source_id}] RAG Grounding failed (non-fatal): {e}")
+        warnings.append(f"[{source_id}] RAG Grounding skipped: {str(e)}")
+
+    return warnings
+
+
 def process_single_source(
     package: "SourceIdentityPackage",
     index: int,
@@ -670,80 +1139,26 @@ def process_single_source(
             result.warnings.extend(quote_warnings)
 
         # Step 6: LLM Judge cross-model validation (if enabled)
-        if _should_run_llm_judge_for_source(
-            job_config=job_config,
+        # NOTE: Judge MUST run before RAG — it modifies extraction.claims in-place
+        judge_warnings, judge_costs = _run_llm_judge(
+            source_id=source_id,
+            content=content,
             extraction=extraction,
+            job_config=job_config,
             validation_report=validation_report,
-        ):
-            logger.info(f"[{source_id}] Running LLM Judge (GPT-4o) validation")
-            try:
-                from backend.pipeline.llm_judge import (
-                    validate_extraction_with_judge,
-                    apply_judge_verdicts,
-                )
-
-                judge_result = validate_extraction_with_judge(
-                    source_text=content,
-                    extraction_result=extraction.to_dict(),
-                    source_id=source_id,
-                )
-
-                extraction, judge_warnings = apply_judge_verdicts(extraction, judge_result)
-
-                for warning in judge_warnings:
-                    result.warnings.append(f"[{source_id}] LLM Judge: {warning}")
-
-                if judge_result.cost:
-                    result.costs["openai_llm_judge"] = judge_result.cost
-
-                logger.info(
-                    f"[{source_id}] LLM Judge: {judge_result.items_reviewed} items, "
-                    f"{len(judge_result.hallucination_flags)} hallucinations flagged, "
-                    f"quality={judge_result.overall_quality.value}"
-                )
-            except Exception as e:
-                logger.warning(f"[{source_id}] LLM Judge failed (non-fatal): {e}")
-                result.warnings.append(f"[{source_id}] LLM Judge skipped: {str(e)}")
+        )
+        result.warnings.extend(judge_warnings)
+        result.costs.update(judge_costs)
 
         # Step 7: RAG Grounding verification (if enabled)
-        if _should_run_rag_grounding_for_source(job_config) and content:
-            logger.info(f"[{source_id}] Running RAG grounding verification")
-            try:
-                from backend.pipeline.rag_grounding import (
-                    verify_claims_grounding,
-                    apply_grounding_adjustments,
-                )
-
-                rag_threshold = "high"
-                max_claims = 10
-                if job_config:
-                    hall_config = getattr(job_config, "hallucination", None)
-                    if hall_config:
-                        rag_threshold = getattr(hall_config, "rag_confidence_threshold", "high")
-                        max_claims = getattr(hall_config, "max_claims_to_rag_verify", 10)
-
-                grounding_results, grounding_warnings = verify_claims_grounding(
-                    claims=extraction.claims,
-                    source_text=content,
-                    source_id=source_id,
-                    confidence_threshold=rag_threshold,
-                    max_claims=max_claims,
-                )
-
-                extraction.claims, adjustment_warnings = apply_grounding_adjustments(
-                    claims=extraction.claims,
-                    grounding_results=grounding_results,
-                )
-
-                for warning in grounding_warnings + adjustment_warnings:
-                    result.warnings.append(f"[{source_id}] RAG Grounding: {warning}")
-
-                logger.info(
-                    f"[{source_id}] RAG Grounding: verified {len(grounding_results)} claims"
-                )
-            except Exception as e:
-                logger.warning(f"[{source_id}] RAG Grounding failed (non-fatal): {e}")
-                result.warnings.append(f"[{source_id}] RAG Grounding skipped: {str(e)}")
+        # NOTE: Runs after Judge — reads the modified extraction.claims
+        rag_warnings = _run_rag_grounding(
+            source_id=source_id,
+            content=content,
+            extraction=extraction,
+            job_config=job_config,
+        )
+        result.warnings.extend(rag_warnings)
 
         result.extraction_result = extraction
         result.status = "processed"
