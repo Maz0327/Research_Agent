@@ -1946,10 +1946,22 @@ from typing import List
 
 
 class CreateRunRequest(PydanticBaseModel):
-    """Request to create a new run (V2 iteration)."""
+    """Request to create a new run (V2 iteration).
+
+    Run types:
+    - expand: Add new sources + append findings to Doc 0/1/2
+    - refine: Re-analyze existing sources from new angle, append to Doc 1/2
+    - regenerate: Full rewrite of Doc 1/2 from all sources
+
+    Legacy types are still accepted and mapped:
+    - add_sources → expand
+    - fix_weak → refine
+    - counter → expand
+    - angle → refine
+    """
     run_type: str = PydanticField(
         ...,
-        description="Run type: add_sources, fix_weak, counter, angle, regenerate"
+        description="Run type: expand, refine, regenerate (legacy: add_sources, fix_weak, counter, angle)"
     )
     parent_run_id: str = PydanticField(
         default="run_0",
@@ -1957,29 +1969,38 @@ class CreateRunRequest(PydanticBaseModel):
     )
     user_prompt: str = PydanticField(
         default="",
-        description="Optional user guidance for the run"
+        description="User guidance for the run (required for refine, optional for expand)"
     )
-    # Type-specific fields
+    # EXPAND type fields
     new_source_urls: List[str] = PydanticField(
         default_factory=list,
-        description="URLs to add (for add_sources type)"
+        description="URLs to add (for expand type with manual search)"
     )
     max_new_sources: int = PydanticField(
         default=4,
         ge=1, le=10,
-        description="Max sources to add (for add_sources type)"
+        description="Max sources for auto-search (for expand type)"
     )
+    search_mode: str = PydanticField(
+        default="manual",
+        description="'manual' for user-provided URLs, 'auto' for grounded search"
+    )
+    trust_mode: bool = PydanticField(
+        default=False,
+        description="Skip user review of search candidates (default: require review)"
+    )
+    # Legacy fields (kept for backward compatibility)
     gap_ids: List[str] = PydanticField(
         default_factory=list,
-        description="Gap IDs to address (for fix_weak type)"
+        description="[Legacy] Gap IDs to address"
     )
     claim_ids: List[str] = PydanticField(
         default_factory=list,
-        description="Claim IDs to find counters for (for counter type)"
+        description="[Legacy] Claim IDs to find counters for"
     )
     perspective: str = PydanticField(
         default="",
-        description="New angle to explore (for angle type)"
+        description="[Legacy] New angle to explore"
     )
 
 
@@ -2022,20 +2043,19 @@ async def create_run(
     """
     Create a new run (V2 iteration) on a completed job.
 
-    V2 Run Abstraction: Uses Run model instead of legacy Iteration.
-    Each run produces Doc 0/1/2 outputs scoped to the run.
-
     Run types:
-    - add_sources: Add more sources (Doc 0 append-only, Doc 1/2 regenerated)
-    - fix_weak: Address gaps/weaknesses identified in previous run
-    - counter: Find counterarguments to claims
-    - angle: Explore a different perspective
-    - regenerate: Re-run synthesis with same sources
+    - expand: Add new sources + append findings to Doc 0/1/2
+    - refine: Re-analyze existing sources from new angle, append to Doc 1/2
+    - regenerate: Full rewrite of Doc 1/2 from all sources
+
+    Legacy types are accepted and mapped automatically:
+    - add_sources → expand, fix_weak → refine, counter → expand, angle → refine
 
     CRITICAL:
     - jobs.status remains 'completed' after run starts
     - Run failure does NOT affect parent run documents
-    - For add_sources: Doc 0 is delta-only (new sources), merged on display
+    - EXPAND/REFINE runs produce APPEND-ONLY sections (originals untouched)
+    - Only REGENERATE replaces existing Doc 1/2
 
     Returns run_id and status. Poll job status for completion.
     """
@@ -2043,6 +2063,7 @@ async def create_run(
     from backend.models.run_models import (
         Run, RunType, RunStatus, RunRequest, RunOutputs,
         ensure_runs_migrated, create_iteration_run,
+        normalize_run_type,
     )
 
     # Validate job_id format
@@ -2051,23 +2072,16 @@ async def create_run(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid job ID format")
 
-    # Validate run_type
-    valid_run_types = ["add_sources", "fix_weak", "counter", "angle", "regenerate"]
+    # Validate and normalize run_type
+    valid_run_types = ["expand", "refine", "regenerate", "add_sources", "fix_weak", "counter", "angle"]
     if run_request.run_type not in valid_run_types:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid run_type. Must be one of: {', '.join(valid_run_types)}"
+            detail=f"Invalid run_type. Must be one of: expand, refine, regenerate"
         )
 
-    # Map string to RunType enum
-    run_type_map = {
-        "add_sources": RunType.ADD_SOURCES,
-        "fix_weak": RunType.FIX_WEAK_SPOTS,
-        "counter": RunType.COUNTERARGUMENT,
-        "angle": RunType.DIFFERENT_ANGLE,
-        "regenerate": RunType.REGENERATE,
-    }
-    run_type = run_type_map[run_request.run_type]
+    # Normalize to canonical type (handles legacy mappings)
+    run_type = normalize_run_type(run_request.run_type)
 
     job = get_job(job_id)
     if not job:
@@ -2087,7 +2101,7 @@ async def create_run(
 
     # Check if another run/iteration is in progress
     iteration_status = job.iteration_status if hasattr(job, "iteration_status") else None
-    if iteration_status in ("running", "queued"):
+    if iteration_status in ("running", "queued", "awaiting_review"):
         raise HTTPException(
             status_code=409,
             detail="Another run/iteration is already in progress for this job"
@@ -2139,12 +2153,23 @@ async def create_run(
     next_index = max(r.run_index for r in runs) + 1
     new_run_id = f"run_{next_index}"
 
+    # Validate REFINE requires user_prompt
+    if run_type == RunType.REFINE and not run_request.user_prompt:
+        raise HTTPException(
+            status_code=400,
+            detail="REFINE runs require a user_prompt describing the analysis angle"
+        )
+
     # Build run request
     now = datetime.now(timezone.utc)
     new_run_request = RunRequest(
         user_prompt=run_request.user_prompt or None,
+        # EXPAND fields
         new_source_urls=run_request.new_source_urls if run_request.new_source_urls else None,
-        max_new_sources=run_request.max_new_sources if run_type == RunType.ADD_SOURCES else None,
+        max_new_sources=run_request.max_new_sources if run_type == RunType.EXPAND else None,
+        search_mode=run_request.search_mode if run_type == RunType.EXPAND else None,
+        trust_mode=run_request.trust_mode if run_type == RunType.EXPAND else False,
+        # Legacy fields (kept for backward compat)
         gap_ids=run_request.gap_ids if run_request.gap_ids else None,
         claim_ids=run_request.claim_ids if run_request.claim_ids else None,
         perspective=run_request.perspective or None,
@@ -2306,6 +2331,211 @@ async def get_run_status(
         error=target_run.error.model_dump() if target_run.error and hasattr(target_run.error, "model_dump") else (target_run.error if isinstance(target_run.error, dict) else None),
         outputs=target_run.outputs.model_dump() if target_run.outputs and hasattr(target_run.outputs, "model_dump") else (target_run.outputs if isinstance(target_run.outputs, dict) else None),
         metrics=target_run.metrics.model_dump() if target_run.metrics and hasattr(target_run.metrics, "model_dump") else (target_run.metrics if isinstance(target_run.metrics, dict) else None),
+    )
+
+
+# =============================================================================
+# RUN: Source Review (for EXPAND with auto-search)
+# =============================================================================
+
+
+class SourceApprovalRequest(PydanticBaseModel):
+    """Request to approve/reject search candidates."""
+    approved_urls: List[str] = PydanticField(
+        ..., description="URLs the user approved for processing"
+    )
+    rejected_urls: List[str] = PydanticField(
+        default_factory=list, description="URLs the user rejected"
+    )
+
+
+class SourceApprovalResponse(PydanticBaseModel):
+    """Response after approving search sources."""
+    job_id: str
+    run_id: str
+    status: str
+    approved_count: int
+    message: str
+
+
+@router.post("/{job_id}/runs/{run_id}/approve-sources", response_model=SourceApprovalResponse)
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def approve_search_sources(
+    request: Request,
+    job_id: str,
+    run_id: str,
+    approval: SourceApprovalRequest,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Approve or reject search candidates for an EXPAND run.
+
+    Called after grounded search produces candidates and the run
+    enters AWAITING_REVIEW status. Approving resumes the run
+    to process the selected sources.
+    """
+    from backend.models.run_models import RunStatus, ensure_runs_migrated
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get runs and find the target
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or user.user_id,
+    )
+
+    target_run = None
+    for run in runs:
+        if run.run_id == run_id:
+            target_run = run
+            break
+
+    if not target_run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+
+    if target_run.status != RunStatus.AWAITING_REVIEW:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Run is not awaiting review. Current status: '{target_run.status.value}'"
+        )
+
+    if not approval.approved_urls:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one URL must be approved to continue the run"
+        )
+
+    # Queue resume task
+    from backend.worker import run_iteration_task
+    logger.info(f"Resuming expand run {run_id} for job {job_id} with {len(approval.approved_urls)} approved URLs")
+
+    # We re-use the iteration task which dispatches to _resume_expand_after_review
+    # by injecting approved URLs into the run request
+    from datetime import datetime, timezone
+    from backend.models.job_record import Artifacts
+
+    # Update the run's request with approved URLs
+    if target_run.request:
+        target_run.request.new_source_urls = approval.approved_urls
+        target_run.request.search_candidates = None  # Clear candidates
+
+    # Find run index
+    run_idx = None
+    for i, r in enumerate(runs):
+        if r.run_id == run_id:
+            run_idx = i
+            break
+
+    if run_idx is not None:
+        runs[run_idx] = target_run
+
+    artifacts_dict = artifacts.model_dump(exclude_none=True) if hasattr(artifacts, "model_dump") else (artifacts if isinstance(artifacts, dict) else {})
+
+    update_job(
+        job_id,
+        iteration_status="running",
+        iteration_id=run_id,
+        iteration_progress_percent=55,
+        artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+    )
+
+    # Re-queue the run task (it will pick up the approved URLs)
+    run_iteration_task.apply_async(
+        (job_id, run_id, user.user_id),
+        task_id=f"{job_id}_{run_id}_resume"
+    )
+
+    return SourceApprovalResponse(
+        job_id=job_id,
+        run_id=run_id,
+        status="running",
+        approved_count=len(approval.approved_urls),
+        message=f"Processing {len(approval.approved_urls)} approved sources. Run resumed.",
+    )
+
+
+class SearchCandidateResponse(PydanticBaseModel):
+    """Response containing search candidates awaiting review."""
+    job_id: str
+    run_id: str
+    status: str
+    candidates: List[dict]
+    total_count: int
+
+
+@router.get("/{job_id}/runs/{run_id}/search-candidates", response_model=SearchCandidateResponse)
+@limiter.limit(RATE_LIMITS["jobs_status"])
+async def get_search_candidates(
+    request: Request,
+    job_id: str,
+    run_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """
+    Get search candidates awaiting user review for an EXPAND run.
+
+    Returns the list of search results from grounded search that
+    the user needs to approve or reject before the run continues.
+    """
+    from backend.models.run_models import RunStatus, ensure_runs_migrated
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=job.user_id or user.user_id,
+    )
+
+    target_run = None
+    for run in runs:
+        if run.run_id == run_id:
+            target_run = run
+            break
+
+    if not target_run:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+
+    # Get candidates from run request
+    candidates = []
+    if target_run.request and target_run.request.search_candidates:
+        candidates = target_run.request.search_candidates
+
+    return SearchCandidateResponse(
+        job_id=job_id,
+        run_id=run_id,
+        status=target_run.status.value if hasattr(target_run.status, "value") else str(target_run.status),
+        candidates=candidates,
+        total_count=len(candidates),
     )
 
 

@@ -3,12 +3,23 @@
  *
  * Supports both V2 runs (run_0, run_1) and V1 iterations (it_0001).
  * Shows baseline and all completed runs for switching document views.
+ *
+ * Badge colors:
+ * - baseline: gray
+ * - expand: blue
+ * - refine: orange
+ * - regenerate: red
  */
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { IterationBundle } from '../../store/jobs';
 import type { Run, RunType } from '../../types/run';
-import { RUN_TYPE_LABELS, RUN_TYPE_ICONS, isV2Run } from '../../types/run';
+import {
+  RUN_TYPE_LABELS,
+  RUN_TYPE_ICONS,
+  normalizeRunType,
+  isV2Run,
+} from '../../types/run';
 
 /** Format relative time */
 function formatRelativeTime(dateString: string): string {
@@ -33,6 +44,18 @@ const MODE_LABELS: Record<string, string> = {
   different_angle: 'Different angle',
   custom: 'Custom',
 };
+
+/** Get badge CSS class for a run type */
+function getRunTypeBadgeClass(runType: RunType): string {
+  const canonical = normalizeRunType(runType);
+  const colors: Record<string, string> = {
+    baseline: 'bg-gray-600 text-gray-200',
+    expand: 'bg-blue-600 text-blue-100',
+    refine: 'bg-orange-600 text-orange-100',
+    regenerate: 'bg-red-600 text-red-100',
+  };
+  return colors[canonical] || 'bg-gray-600 text-gray-200';
+}
 
 export interface RunSelectorProps {
   /** V2 runs (preferred) */
@@ -95,19 +118,6 @@ export function RunSelector({
     return 'Baseline (original)';
   };
 
-  // Get run type badge color
-  const getRunTypeBadgeClass = (runType: RunType): string => {
-    const colors: Record<RunType, string> = {
-      baseline: 'bg-gray-600',
-      add_sources: 'bg-blue-600',
-      fix_weak: 'bg-yellow-600',
-      counter: 'bg-purple-600',
-      angle: 'bg-green-600',
-      regenerate: 'bg-orange-600',
-    };
-    return colors[runType] || 'bg-gray-600';
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Trigger button */}
@@ -118,9 +128,6 @@ export function RunSelector({
         <div className="flex items-center gap-2">
           <span className="text-gray-400 text-sm">Viewing:</span>
           <span className="text-white font-medium">{getSelectedLabel()}</span>
-          {hasV2Runs && (
-            <span className="px-1.5 py-0.5 text-xs bg-blue-600/20 text-blue-400 rounded">V2</span>
-          )}
         </div>
         <svg
           className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -172,44 +179,47 @@ export function RunSelector({
             {completedRuns.length > 0 && (
               <>
                 <div className="px-4 py-2 text-xs text-gray-500 bg-gray-900/50 border-t border-gray-700">
-                  V2 RUNS
+                  RUNS
                 </div>
-                {completedRuns.map(run => (
-                  <button
-                    key={run.run_id}
-                    onClick={() => {
-                      onSelectVersion(run.run_id);
-                      setIsOpen(false);
-                    }}
-                    className={`
-                      w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors border-t border-gray-700
-                      flex items-center justify-between
-                      ${selectedVersion === run.run_id ? 'bg-gray-700' : ''}
-                    `}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2 py-0.5 text-xs rounded ${getRunTypeBadgeClass(run.run_type)}`}>
-                        {RUN_TYPE_ICONS[run.run_type]}
-                      </span>
-                      <div>
-                        <p className="text-white font-medium">
-                          {run.run_id} - {RUN_TYPE_LABELS[run.run_type]}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          {formatRelativeTime(run.completed_at || run.created_at)}
-                          {run.request.user_prompt && (
-                            <span className="ml-2 text-gray-500">
-                              • &quot;{run.request.user_prompt.slice(0, 25)}{run.request.user_prompt.length > 25 ? '...' : ''}&quot;
-                            </span>
-                          )}
-                        </p>
+                {completedRuns.map(run => {
+                  const canonical = normalizeRunType(run.run_type);
+                  return (
+                    <button
+                      key={run.run_id}
+                      onClick={() => {
+                        onSelectVersion(run.run_id);
+                        setIsOpen(false);
+                      }}
+                      className={`
+                        w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors border-t border-gray-700
+                        flex items-center justify-between
+                        ${selectedVersion === run.run_id ? 'bg-gray-700' : ''}
+                      `}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 text-xs rounded ${getRunTypeBadgeClass(run.run_type)}`}>
+                          {RUN_TYPE_ICONS[run.run_type] || '○'}
+                        </span>
+                        <div>
+                          <p className="text-white font-medium">
+                            {run.run_id} - {RUN_TYPE_LABELS[run.run_type] || canonical}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            {formatRelativeTime(run.completed_at || run.created_at)}
+                            {run.request.user_prompt && (
+                              <span className="ml-2 text-gray-500">
+                                • &quot;{run.request.user_prompt.slice(0, 25)}{run.request.user_prompt.length > 25 ? '...' : ''}&quot;
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    {selectedVersion === run.run_id && (
-                      <span className="text-green-400">✓</span>
-                    )}
-                  </button>
-                ))}
+                      {selectedVersion === run.run_id && (
+                        <span className="text-green-400">✓</span>
+                      )}
+                    </button>
+                  );
+                })}
               </>
             )}
 
@@ -217,7 +227,7 @@ export function RunSelector({
             {completedIterations.length > 0 && (
               <>
                 <div className="px-4 py-2 text-xs text-gray-500 bg-gray-900/50 border-t border-gray-700">
-                  V1 ITERATIONS {hasV2Runs && '(legacy)'}
+                  LEGACY ITERATIONS
                 </div>
                 {completedIterations.map(iteration => (
                   <button

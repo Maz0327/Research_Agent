@@ -29,6 +29,8 @@ from backend.models.claims import (
     ClaimAnchor,
     ClaimCluster,
     ClaimInstance,
+    ClaimRelation,
+    ClaimRelationType,
     ClaimType,
     ClaimsDocument,
     ClaimsDocumentMetadata,
@@ -40,6 +42,7 @@ from backend.models.claims import (
     ExtractionWarning,
     ImageAnchor,
     LineRangeAnchor,
+    RhetoricalFraming,
     SourceSummary,
     SourceType,
     TimestampAnchor,
@@ -67,6 +70,18 @@ For each claim, you must:
 3. Assign a confidence level (high/medium/low) based on clarity
 4. Provide an anchor (location reference) in the source
 
+ENRICHMENT REQUIREMENTS (v3):
+- SPEAKER: Identify who is making each claim. Use the person's name if attributed ("Tim Cook said..."), "the author" for article claims with no attribution, "narrator" for video narration, or "unknown" if unclear. The speaker is the CLAIMANT, not just someone mentioned.
+- FRAMING: Classify how the claim is presented:
+  * stated_as_fact — presented as established truth with no hedging
+  * opinion — clearly an editorial opinion or judgment
+  * disputed — acknowledged as contested or controversial in the text
+  * speculative — forward-looking, uncertain ("may", "expected to", "could")
+  * attributed — explicitly cited from a named source ("according to X")
+  * hedged — qualified with caveats ("approximately", "sources say", "believed to be")
+- SIGNIFICANCE: One sentence on why the claim matters or what it implies. Focus on context, consequences, or scale.
+- TAGS: 1-3 topic categories (e.g., "financial", "technology", "political", "employment", "legal", "health", "environmental", "military", "social").
+
 IMPORTANT RULES:
 - Extract ALL claims, not just controversial ones
 - Do NOT verify claims - just extract them
@@ -85,10 +100,14 @@ TIMED TRANSCRIPT SEGMENTS:
 {transcript_segments}
 
 EXTRACTION RULES:
-1. For each claim, provide a verbatim_excerpt from the transcript
+1. For each claim, provide a verbatim_excerpt from the transcript (up to 500 chars)
 2. timestamp_start/end MUST be within the segment time bounds provided
 3. Extract ALL named entities (people, organizations, places)
 4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
+5. Identify the SPEAKER for each claim — who is making or asserting the claim
+6. Classify the rhetorical FRAMING of each claim
+7. Explain the SIGNIFICANCE of each claim in one sentence
+8. Assign 1-3 topic TAGS to categorize each claim
 
 Return a JSON object with this structure:
 {{
@@ -99,9 +118,13 @@ Return a JSON object with this structure:
       "confidence": "high" | "medium" | "low",
       "timestamp_start": number (seconds, must match segment bounds),
       "timestamp_end": number | null,
-      "verbatim_excerpt": "string (exact text from transcript)",
-      "context": "string (1-2 sentences)",
-      "entities_mentioned": ["entity_label", ...]
+      "verbatim_excerpt": "string (exact text from transcript, up to 500 chars)",
+      "context": "string (2-4 sentences of surrounding context)",
+      "entities_mentioned": ["entity_label", ...],
+      "speaker": "string (who is making this claim — speaker name if identifiable, 'narrator' if unknown)",
+      "framing": "stated_as_fact" | "opinion" | "disputed" | "speculative" | "attributed" | "hedged",
+      "significance": "string (one sentence explaining why this claim matters)",
+      "tags": ["string (1-3 topic tags like 'financial', 'technology', 'political')"]
     }}
   ],
   "entities": {{
@@ -140,10 +163,14 @@ IMPORTANT: This transcript does NOT have timing information.
 Use LINE NUMBERS (start_line, end_line) instead of timestamps.
 
 EXTRACTION RULES:
-1. For each claim, provide a verbatim_excerpt from the transcript
+1. For each claim, provide a verbatim_excerpt from the transcript (up to 500 chars)
 2. Use start_line/end_line to reference where the claim appears
 3. Extract ALL named entities (people, organizations, places)
 4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
+5. Identify the SPEAKER for each claim — who is making or asserting the claim
+6. Classify the rhetorical FRAMING of each claim
+7. Explain the SIGNIFICANCE of each claim in one sentence
+8. Assign 1-3 topic TAGS to categorize each claim
 
 Return a JSON object with this structure:
 {{
@@ -154,9 +181,13 @@ Return a JSON object with this structure:
       "confidence": "high" | "medium" | "low",
       "start_line": number (1-indexed),
       "end_line": number,
-      "verbatim_excerpt": "string (exact text from transcript)",
-      "context": "string (1-2 sentences)",
-      "entities_mentioned": ["entity_label", ...]
+      "verbatim_excerpt": "string (exact text from transcript, up to 500 chars)",
+      "context": "string (2-4 sentences of surrounding context)",
+      "entities_mentioned": ["entity_label", ...],
+      "speaker": "string (who is making this claim — speaker name if identifiable, 'narrator' if unknown)",
+      "framing": "stated_as_fact" | "opinion" | "disputed" | "speculative" | "attributed" | "hedged",
+      "significance": "string (one sentence explaining why this claim matters)",
+      "tags": ["string (1-3 topic tags like 'financial', 'technology', 'political')"]
     }}
   ],
   "entities": {{
@@ -232,10 +263,14 @@ CONTENT (line-numbered):
 {content}
 
 EXTRACTION RULES:
-1. For each claim, provide a verbatim_excerpt from the content
+1. For each claim, provide a verbatim_excerpt from the content (up to 500 chars)
 2. Use start_line/end_line to reference where the claim appears
 3. Extract ALL named entities (people, organizations, places)
 4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
+5. Identify the SPEAKER for each claim — who is making or asserting the claim
+6. Classify the rhetorical FRAMING of each claim
+7. Explain the SIGNIFICANCE of each claim in one sentence
+8. Assign 1-3 topic TAGS to categorize each claim
 
 Return a JSON object with this structure:
 {{
@@ -246,9 +281,13 @@ Return a JSON object with this structure:
       "confidence": "high" | "medium" | "low",
       "start_line": number (1-indexed),
       "end_line": number,
-      "verbatim_excerpt": "string (exact text from content, up to 200 chars)",
-      "context": "string (1-2 sentences)",
-      "entities_mentioned": ["entity_label", ...]
+      "verbatim_excerpt": "string (exact text from content, up to 500 chars)",
+      "context": "string (2-4 sentences of surrounding context)",
+      "entities_mentioned": ["entity_label", ...],
+      "speaker": "string (who is making this claim — person name if attributed, 'the author' if unattributed)",
+      "framing": "stated_as_fact" | "opinion" | "disputed" | "speculative" | "attributed" | "hedged",
+      "significance": "string (one sentence explaining why this claim matters)",
+      "tags": ["string (1-3 topic tags like 'financial', 'technology', 'political')"]
     }}
   ],
   "entities": {{
@@ -282,10 +321,14 @@ OCR TEXT (if available):
 {ocr_text}
 
 EXTRACTION RULES:
-1. For each claim, provide the verbatim text from the image if visible
+1. For each claim, provide the verbatim text from the image if visible (up to 500 chars)
 2. Specify the region where the claim appears
 3. Extract ALL named entities (people, organizations, places) visible
 4. For unnamed entities ("their founders", "a senior official"), create entries in unnamed_entities
+5. Identify the SPEAKER for each claim — who is making or asserting the claim (account name, author, or 'unknown')
+6. Classify the rhetorical FRAMING of each claim
+7. Explain the SIGNIFICANCE of each claim in one sentence
+8. Assign 1-3 topic TAGS to categorize each claim
 
 Return a JSON object with this structure:
 {{
@@ -295,9 +338,13 @@ Return a JSON object with this structure:
       "claim_type": "explicit" | "implied",
       "confidence": "high" | "medium" | "low",
       "region": "string (e.g., 'top', 'center', 'bottom-left')",
-      "ocr_excerpt": "string (verbatim text if visible) | null",
-      "context": "string (brief context about what the image shows)",
-      "entities_mentioned": ["entity_label", ...]
+      "ocr_excerpt": "string (verbatim text if visible, up to 500 chars) | null",
+      "context": "string (2-4 sentences about what the image shows and surrounding context)",
+      "entities_mentioned": ["entity_label", ...],
+      "speaker": "string (who is making this claim — account name, author, or 'unknown' if not visible)",
+      "framing": "stated_as_fact" | "opinion" | "disputed" | "speculative" | "attributed" | "hedged",
+      "significance": "string (one sentence explaining why this claim matters)",
+      "tags": ["string (1-3 topic tags like 'financial', 'technology', 'political')"]
     }}
   ],
   "entities": {{
@@ -321,6 +368,122 @@ Return a JSON object with this structure:
     ]
   }}
 }}"""
+
+# V3: Post-parse relationship detection prompt
+CLAIM_RELATIONSHIP_PROMPT = """Given these extracted claims, identify relationships between them.
+
+CLAIMS:
+{claims_list}
+
+For each pair of related claims, specify the relationship. Only include CLEAR relationships.
+
+Relationship types:
+- supports: This claim corroborates or reinforces the target claim
+- contradicts: This claim opposes or undermines the target claim
+- qualifies: This claim adds nuance, caveats, or conditions to the target claim
+- extends: This claim builds on or expands the target claim
+
+RULES:
+- Only identify relationships that are clearly supported by the claim content
+- Do NOT force relationships — many claims will be unrelated
+- A claim can have multiple relationships
+- Prefer quality over quantity — fewer confident links beat many weak ones
+
+Return a JSON object:
+{{
+  "relationships": [
+    {{
+      "source_claim_id": "CLM_SRC_001_001",
+      "target_claim_id": "CLM_SRC_001_003",
+      "relation_type": "supports" | "contradicts" | "qualifies" | "extends",
+      "explanation": "string (one sentence explaining the relationship)"
+    }}
+  ]
+}}"""
+
+
+def link_related_claims(
+    gemini_client: Any,
+    doc: "ClaimsDocument",
+    model: str = "gemini-2.5-flash",
+) -> "ClaimsDocument":
+    """Post-parse step: identify relationships between extracted claims.
+
+    Sends all claim IDs and texts to Gemini to identify supports/contradicts/
+    qualifies/extends relationships. Populates claim.related_claims on matching
+    claims.
+
+    Skips if fewer than 2 claims. Batches at 50 claims to manage token budget.
+    Wrapped in try/except so failure does not crash the pipeline.
+
+    Args:
+        gemini_client: GeminiClient instance
+        doc: ClaimsDocument with extracted claims
+        model: Gemini model to use
+
+    Returns:
+        Updated ClaimsDocument with related_claims populated
+    """
+    if len(doc.claims) < 2:
+        return doc
+
+    try:
+        # Build claims list for the prompt (batch at 50)
+        batch_size = 50
+        claim_map = {c.claim_id: c for c in doc.claims}
+
+        for batch_start in range(0, len(doc.claims), batch_size):
+            batch = doc.claims[batch_start:batch_start + batch_size]
+            claims_list = "\n".join(
+                f'{c.claim_id}: "{c.text}"' for c in batch
+            )
+
+            prompt = CLAIM_RELATIONSHIP_PROMPT.format(claims_list=claims_list)
+
+            response = gemini_client.generate_json(
+                prompt=prompt,
+                model=model,
+                temperature=0.1,
+            )
+
+            if not response or "error" in response:
+                logger.warning(f"Claim relationship detection returned error: {response}")
+                continue
+
+            # Gemini client wraps responses as {"data": {...}, "cost": ...}
+            response_data = response.get("data", response)
+            relationships = response_data.get("relationships", [])
+            _valid_rel_types = {e.value for e in ClaimRelationType}
+
+            for rel in relationships:
+                source_id = rel.get("source_claim_id")
+                target_id = rel.get("target_claim_id")
+                rel_type = rel.get("relation_type")
+
+                if (
+                    source_id in claim_map
+                    and target_id in claim_map
+                    and rel_type in _valid_rel_types
+                ):
+                    claim_map[source_id].related_claims.append(
+                        ClaimRelation(
+                            target_claim_id=target_id,
+                            relation_type=ClaimRelationType(rel_type),
+                            explanation=rel.get("explanation"),
+                        )
+                    )
+
+        linked_count = sum(1 for c in doc.claims if c.related_claims)
+        total_rels = sum(len(c.related_claims) for c in doc.claims)
+        logger.info(
+            f"Claim relationship linking complete: {total_rels} relationships "
+            f"across {linked_count}/{len(doc.claims)} claims"
+        )
+
+    except Exception as e:
+        logger.warning(f"Claim relationship linking failed (non-fatal): {e}")
+
+    return doc
 
 
 def format_timestamp(seconds: int) -> str:
@@ -694,6 +857,11 @@ def extract_claims_from_youtube(
                     source_id=source_id,
                 )
 
+            # V3: Parse rhetorical framing safely
+            _valid_framings = {e.value for e in RhetoricalFraming}
+            raw_framing = raw.get("framing")
+            parsed_framing = RhetoricalFraming(raw_framing) if raw_framing in _valid_framings else None
+
             claim = Claim(
                 claim_id=f"CLM_{source_id}_{i+1:03d}",
                 text=raw.get("claim_text", ""),
@@ -704,6 +872,11 @@ def extract_claims_from_youtube(
                 context=raw.get("context"),
                 verbatim_excerpt=raw.get("verbatim_excerpt"),
                 entities_involved=raw.get("entities_mentioned", []),
+                # V3 enrichment fields
+                speaker=raw.get("speaker"),
+                framing=parsed_framing,
+                significance=raw.get("significance"),
+                tags=raw.get("tags", []),
             )
 
             # Validate claim has evidence
@@ -850,6 +1023,11 @@ def extract_claims_from_text(
                 source_id=source_id,
             )
 
+            # V3: Parse rhetorical framing safely
+            _valid_framings = {e.value for e in RhetoricalFraming}
+            raw_framing = raw.get("framing")
+            parsed_framing = RhetoricalFraming(raw_framing) if raw_framing in _valid_framings else None
+
             claim = Claim(
                 claim_id=f"CLM_{source_id}_{i+1:03d}",
                 text=raw.get("claim_text", ""),
@@ -860,6 +1038,11 @@ def extract_claims_from_text(
                 context=raw.get("context"),
                 verbatim_excerpt=raw.get("verbatim_excerpt"),
                 entities_involved=raw.get("entities_mentioned", []),
+                # V3 enrichment fields
+                speaker=raw.get("speaker"),
+                framing=parsed_framing,
+                significance=raw.get("significance"),
+                tags=raw.get("tags", []),
             )
 
             # Validate claim has evidence
@@ -1000,6 +1183,11 @@ def extract_claims_from_screenshot(
                 source_id=source_id,
             )
 
+            # V3: Parse rhetorical framing safely
+            _valid_framings = {e.value for e in RhetoricalFraming}
+            raw_framing = raw.get("framing")
+            parsed_framing = RhetoricalFraming(raw_framing) if raw_framing in _valid_framings else None
+
             claim = Claim(
                 claim_id=f"CLM_{source_id}_{i+1:03d}",
                 text=raw.get("claim_text", ""),
@@ -1010,6 +1198,11 @@ def extract_claims_from_screenshot(
                 context=raw.get("context"),
                 verbatim_excerpt=raw.get("ocr_excerpt"),
                 entities_involved=raw.get("entities_mentioned", []),
+                # V3 enrichment fields
+                speaker=raw.get("speaker"),
+                framing=parsed_framing,
+                significance=raw.get("significance"),
+                tags=raw.get("tags", []),
             )
 
             # Validate claim has evidence
@@ -1382,6 +1575,10 @@ def run_claim_extraction_pipeline(
             doc.add_entity(entity)
         for warning in warnings:
             doc.warnings.append(warning)
+
+    # V3: Link related claims (post-parse step)
+    if doc.metadata.total_claims >= 2:
+        doc = link_related_claims(gemini_client, doc, model=model)
 
     # Check for empty extraction
     if doc.metadata.total_claims == 0:

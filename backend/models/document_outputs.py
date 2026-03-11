@@ -421,12 +421,28 @@ class SourceLedger:
         lines.append("---")
         lines.append("")
 
+        # Quick-Copy Source Links (first thing after summary for easy access)
+        lines.extend([
+            "## 🔗 Sources & Links",
+            "",
+        ])
+        for i, s in enumerate(self.sources, 1):
+            type_icon = _type_icon(s.source_type)
+            status_emoji = _status_emoji(s.status)
+            title_display = s.title[:60] + "..." if len(s.title) > 60 else s.title
+            lines.append(f"{i}. {type_icon} **{title_display}** {status_emoji}")
+            lines.append(f"   {s.url}")
+            lines.append("")
+
+        lines.extend(["---", ""])
+
         # Table of Contents
         lines.extend([
             "## 📑 Contents",
             "",
-            "1. [Source Manifest](#source-manifest)",
-            "2. [Detailed Analysis](#detailed-source-analysis)",
+            "1. [Sources & Links](#sources--links)",
+            "2. [Source Manifest](#source-manifest)",
+            "3. [Detailed Analysis](#detailed-source-analysis)",
         ])
         for i, s in enumerate(self.sources, 1):
             safe_anchor = s.source_id.lower().replace("_", "-")
@@ -437,15 +453,16 @@ class SourceLedger:
         lines.extend([
             "## 📋 Source Manifest",
             "",
-            "| # | ID | Type | Title | Status |",
-            "|--:|-----|:----:|-------|:------:|",
+            "| # | ID | Type | Title | URL | Status |",
+            "|--:|-----|:----:|-------|-----|:------:|",
         ])
 
         for i, s in enumerate(self.sources, 1):
             status_emoji = _status_emoji(s.status)
             type_icon = _type_icon(s.source_type)
             title_truncated = s.title[:40] + "..." if len(s.title) > 40 else s.title
-            lines.append(f"| {i} | `{s.source_id}` | {type_icon} | {escape_pipe(title_truncated)} | {status_emoji} |")
+            url_display = f"[Link]({s.url})" if s.url else "-"
+            lines.append(f"| {i} | `{s.source_id}` | {type_icon} | {escape_pipe(title_truncated)} | {url_display} | {status_emoji} |")
 
         lines.extend(["", "---", ""])
 

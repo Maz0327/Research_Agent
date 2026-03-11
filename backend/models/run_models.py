@@ -4,11 +4,9 @@ Run Models - Unified abstraction for research runs.
 A Run represents a single execution that produces Doc 0/1/2 outputs.
 Runs can be:
 - baseline: Initial research job
-- add_sources: Add more sources (Doc 0 append-only)
-- fix_weak: Address gaps/weaknesses
-- counter: Find opposing viewpoints
-- angle: Explore different perspective
-- regenerate: Re-run synthesis with same sources
+- expand: Add new sources + append findings to Doc 0/1/2
+- refine: Re-analyze existing sources from new angle, append to Doc 1/2
+- regenerate: Full rewrite of Doc 1/2 from all sources
 
 Runs are append-only. Once created, outputs are immutable.
 New iterations create new runs that may inherit from previous runs.
@@ -25,11 +23,15 @@ class RunType(str, Enum):
     """Type of research run."""
 
     BASELINE = "baseline"
+    EXPAND = "expand"          # Add new sources + append findings
+    REFINE = "refine"          # Re-analyze existing sources from new angle
+    REGENERATE = "regenerate"  # Full rewrite of synthesis
+
+    # Legacy aliases (for backward compatibility with stored data)
     ADD_SOURCES = "add_sources"
     FIX_WEAK_SPOTS = "fix_weak"
     COUNTERARGUMENT = "counter"
     DIFFERENT_ANGLE = "angle"
-    REGENERATE = "regenerate"
 
 
 class RunStatus(str, Enum):
@@ -37,6 +39,7 @@ class RunStatus(str, Enum):
 
     QUEUED = "queued"
     RUNNING = "running"
+    AWAITING_REVIEW = "awaiting_review"  # Search done, waiting for user to approve sources
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -52,21 +55,22 @@ class RunError(BaseModel):
 class RunRequest(BaseModel):
     """Request that triggered the run."""
 
-    # User guidance
-    user_prompt: Optional[str] = Field(None, max_length=2000, description="Optional guidance from user")
+    # User guidance (required for REFINE, optional for EXPAND)
+    user_prompt: Optional[str] = Field(None, max_length=2000, description="Guidance from user")
 
-    # For add_sources type
-    new_source_urls: Optional[list[str]] = Field(None, description="URLs to add")
-    max_new_sources: Optional[int] = Field(None, ge=1, le=10, description="Max sources to add")
+    # For EXPAND type
+    new_source_urls: Optional[list[str]] = Field(None, description="User-provided URLs to add")
+    max_new_sources: Optional[int] = Field(None, ge=1, le=10, description="Max sources for auto-search")
+    search_mode: Optional[str] = Field(None, description="'auto' for grounded search, 'manual' for user-provided URLs")
+    trust_mode: bool = Field(False, description="Skip user review of search candidates (default: require review)")
 
-    # For fix_weak type
-    gap_ids: Optional[list[str]] = Field(None, description="GAP IDs to address")
+    # Search candidates (populated by grounded search, awaiting review)
+    search_candidates: Optional[list[dict[str, Any]]] = Field(None, description="Search results awaiting user approval")
 
-    # For counterargument type
-    claim_ids: Optional[list[str]] = Field(None, description="CLM IDs to find counters for")
-
-    # For different_angle type
-    perspective: Optional[str] = Field(None, description="New angle/perspective to explore")
+    # Legacy fields (kept for backward compatibility with stored data)
+    gap_ids: Optional[list[str]] = Field(None, description="[Legacy] GAP IDs to address")
+    claim_ids: Optional[list[str]] = Field(None, description="[Legacy] CLM IDs to find counters for")
+    perspective: Optional[str] = Field(None, description="[Legacy] New angle/perspective to explore")
 
     # Common
     requested_by: str = Field(..., description="User ID who requested")
@@ -86,7 +90,7 @@ class RunOutputs(BaseModel):
     doc_1_inline: Optional[dict[str, Any]] = Field(None, description="Inline Jump-Start")
     doc_2_inline: Optional[dict[str, Any]] = Field(None, description="Inline Semantic Brief")
 
-    # Doc 0 append metadata (for add_sources runs)
+    # Doc 0 append metadata (for EXPAND runs)
     doc_0_is_delta: bool = Field(
         False,
         description="True if Doc 0 only contains new sources (needs merge with parent)"
@@ -98,6 +102,24 @@ class RunOutputs(BaseModel):
     new_source_ids: Optional[list[str]] = Field(
         None,
         description="Source IDs added in this run"
+    )
+
+    # Doc 1/2 append metadata (for EXPAND and REFINE runs)
+    doc_1_is_append: bool = Field(
+        False,
+        description="True if Doc 1 is an append section (not a full replacement)"
+    )
+    doc_2_is_append: bool = Field(
+        False,
+        description="True if Doc 2 is an append section (not a full replacement)"
+    )
+    doc_1_parent_path: Optional[str] = Field(
+        None,
+        description="Parent Doc 1 path to append to"
+    )
+    doc_2_parent_path: Optional[str] = Field(
+        None,
+        description="Parent Doc 2 path to append to"
     )
 
     def has_doc_0(self) -> bool:
@@ -184,14 +206,17 @@ class Run(BaseModel):
     - run_0: Always the baseline run (initial job completion)
     - run_1+: Iteration runs that reference a parent_run_id
 
-    For add_sources runs:
-    - Doc 0 is a delta (new sources only)
-    - Full Doc 0 is computed by merging parent + delta
-    - Doc 1/2 are regenerated with all sources
+    For EXPAND runs:
+    - Doc 0 is a delta (new sources only, merged on display)
+    - Doc 1/2 are APPEND sections (new findings only, merged on display)
 
-    For regenerate runs:
+    For REFINE runs:
     - Doc 0 is unchanged (inherit from parent)
-    - Doc 1/2 are regenerated
+    - Doc 1/2 are APPEND sections (new analysis angle, merged on display)
+
+    For REGENERATE runs:
+    - Doc 0 is unchanged (inherit from parent)
+    - Doc 1/2 are FULL REWRITES (replace everything before this run)
     """
 
     # Identity
@@ -262,10 +287,18 @@ class Run(BaseModel):
 
 # Mapping from legacy iteration modes to RunType
 ITERATION_MODE_TO_RUN_TYPE: dict[str, RunType] = {
-    "more_sources": RunType.ADD_SOURCES,
-    "deeper": RunType.FIX_WEAK_SPOTS,
+    "more_sources": RunType.EXPAND,
+    "deeper": RunType.REFINE,
     "custom": RunType.REGENERATE,
-    "different_angle": RunType.DIFFERENT_ANGLE,
+    "different_angle": RunType.REFINE,
+}
+
+# Mapping from legacy run type values to current RunType
+LEGACY_RUN_TYPE_MAP: dict[str, RunType] = {
+    "add_sources": RunType.EXPAND,
+    "fix_weak": RunType.REFINE,
+    "counter": RunType.EXPAND,
+    "angle": RunType.REFINE,
 }
 
 
@@ -282,14 +315,41 @@ def map_iteration_mode_to_run_type(mode: str) -> RunType:
     return ITERATION_MODE_TO_RUN_TYPE.get(mode, RunType.REGENERATE)
 
 
+def normalize_run_type(run_type_value: str) -> RunType:
+    """
+    Normalize a run type value, mapping legacy values to canonical types.
+
+    Args:
+        run_type_value: Run type string (e.g., 'expand', 'add_sources', 'fix_weak')
+
+    Returns:
+        Canonical RunType enum value (BASELINE, EXPAND, REFINE, or REGENERATE)
+    """
+    # Check legacy mapping first (maps old values to canonical types)
+    if run_type_value in LEGACY_RUN_TYPE_MAP:
+        return LEGACY_RUN_TYPE_MAP[run_type_value]
+
+    # Try direct enum match for canonical values
+    try:
+        return RunType(run_type_value)
+    except ValueError:
+        pass
+
+    # Fallback
+    return RunType.REGENERATE
+
+
 # Display labels for UI
 RUN_TYPE_LABELS: dict[RunType, str] = {
     RunType.BASELINE: "Baseline",
-    RunType.ADD_SOURCES: "Add Sources",
-    RunType.FIX_WEAK_SPOTS: "Fix Weak Spots",
-    RunType.COUNTERARGUMENT: "Counterargument",
-    RunType.DIFFERENT_ANGLE: "Different Angle",
+    RunType.EXPAND: "Expand",
+    RunType.REFINE: "Refine",
     RunType.REGENERATE: "Regenerate",
+    # Legacy labels for backward compatibility
+    RunType.ADD_SOURCES: "Expand",
+    RunType.FIX_WEAK_SPOTS: "Refine",
+    RunType.COUNTERARGUMENT: "Expand",
+    RunType.DIFFERENT_ANGLE: "Refine",
 }
 
 
@@ -322,12 +382,18 @@ def ensure_runs_migrated(artifacts: Any, job_created_at: Optional[datetime] = No
     """
     # If already has runs, return them
     if hasattr(artifacts, 'runs') and artifacts.runs:
-        # Ensure they're Run objects
+        # Ensure they're Run objects, normalizing legacy run_type values
         runs = []
         for r in artifacts.runs:
             if isinstance(r, Run):
                 runs.append(r)
             elif isinstance(r, dict):
+                # Normalize legacy run_type values before parsing
+                if 'run_type' in r:
+                    try:
+                        RunType(r['run_type'])
+                    except ValueError:
+                        r['run_type'] = normalize_run_type(r['run_type']).value
                 runs.append(Run(**r))
         return runs
 

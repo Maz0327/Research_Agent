@@ -1,10 +1,14 @@
 """
 Run mode: regenerate
 
-Re-run synthesis with same sources, potentially with different parameters.
-Produces:
+Re-run synthesis with ALL sources, producing:
 - Doc 0: Unchanged (inherits from parent)
-- Doc 1/2: Regenerated synthesis
+- Doc 1: FULL REWRITE (replaces all previous Doc 1 content)
+- Doc 2: FULL REWRITE (replaces all previous Doc 2 content)
+
+This is the "nuclear option" — uses the complete merged Doc 0
+(all sources from baseline + all expand deltas) and produces
+entirely new Doc 1/2 from scratch.
 
 Use case: When user wants fresh synthesis without adding sources.
 """
@@ -13,9 +17,9 @@ from typing import Any, Optional
 
 from loguru import logger
 
-from backend.models.run_models import Run, RunOutputs
+from backend.models.run_models import Run, RunOutputs, ensure_runs_migrated
 from backend.pipeline.runs.modes.base import RunModeExecutor
-from backend.pipeline.runs.storage import load_run_document
+from backend.pipeline.runs.storage import load_run_document, get_merged_doc_0
 
 
 def run_regenerate(
@@ -28,9 +32,12 @@ def run_regenerate(
     Execute regenerate run type.
 
     This mode:
-    1. Loads parent run's Doc 0 (sources unchanged)
+    1. Loads the MERGED Doc 0 (all sources from all runs in the chain)
     2. Re-runs synthesis with optional user guidance
-    3. Generates new Doc 1/2
+    3. Generates entirely new Doc 1/2 (NOT append — full replacement)
+
+    CRITICAL: Doc 1/2 from this run are full replacements, NOT append sections.
+    All previous Doc 1/2 content (including append sections) is superseded.
 
     Args:
         job_id: Job ID
@@ -44,34 +51,64 @@ def run_regenerate(
     executor = RunModeExecutor(job_id, run, user_id)
     request = run.request
 
-    executor.update_progress(5, "Loading parent documents")
+    executor.update_progress(5, "Loading all sources (merged Doc 0)")
 
     # Get parent run documents
     parent_run_id = run.parent_run_id
     if not parent_run_id:
         raise ValueError("regenerate requires a parent run")
 
-    # Load parent Doc 0
-    parent_doc_0_path = f"jobs/{job_id}/runs/{parent_run_id}/doc_0.json"
-    parent_doc_0 = load_run_document(parent_doc_0_path)
+    # Try to get the MERGED Doc 0 (includes all expand deltas)
+    # First, try using get_merged_doc_0 on the parent run
+    all_runs = ensure_runs_migrated(
+        type("Obj", (), {"runs": artifacts_dict.get("runs", []),
+                         "doc_0_path": artifacts_dict.get("doc_0_path"),
+                         "doc_1_path": artifacts_dict.get("doc_1_path"),
+                         "doc_2_path": artifacts_dict.get("doc_2_path"),
+                         "iterations": artifacts_dict.get("iterations", [])})(),
+        user_id=user_id,
+    )
 
-    if not parent_doc_0:
+    # Find parent run
+    parent_run = None
+    for r in all_runs:
+        if r.run_id == parent_run_id:
+            parent_run = r
+            break
+
+    merged_doc_0 = None
+    doc_0_path_ref = None
+
+    if parent_run:
+        # Use merged Doc 0 from parent (includes all deltas up to parent)
+        merged_doc_0 = get_merged_doc_0(parent_run)
+        if parent_run.outputs and parent_run.outputs.doc_0_path:
+            doc_0_path_ref = parent_run.outputs.doc_0_path
+
+    if not merged_doc_0:
+        # Fallback: try direct path
+        parent_doc_0_path = f"jobs/{job_id}/runs/{parent_run_id}/doc_0.json"
+        merged_doc_0 = load_run_document(parent_doc_0_path)
+        doc_0_path_ref = parent_doc_0_path
+
+    if not merged_doc_0:
         # Try legacy path
-        parent_doc_0_path = artifacts_dict.get("doc_0_path")
-        if parent_doc_0_path:
-            parent_doc_0 = load_run_document(parent_doc_0_path)
+        legacy_path = artifacts_dict.get("doc_0_path")
+        if legacy_path:
+            merged_doc_0 = load_run_document(legacy_path)
+            doc_0_path_ref = legacy_path
 
-    if not parent_doc_0:
-        raise ValueError("Could not load parent Doc 0")
+    if not merged_doc_0:
+        raise ValueError("Could not load Doc 0 for regeneration")
 
-    logger.info(f"[{job_id}] Regenerating synthesis for {len(parent_doc_0.get('sources', []))} sources")
+    logger.info(f"[{job_id}] Regenerating synthesis for {len(merged_doc_0.get('sources', []))} sources (merged)")
 
     executor.update_progress(20, "Preparing for synthesis")
 
-    # Get all extractions from parent
-    extractions = parent_doc_0.get("semantic_extractions", [])
+    # Get all extractions from merged Doc 0
+    extractions = merged_doc_0.get("semantic_extractions", [])
 
-    # Collect all key points and claims
+    # Collect all key points and claims across all sources
     all_key_points = []
     all_claims = []
     for ext in extractions:
@@ -93,16 +130,21 @@ def run_regenerate(
     executor.update_progress(90, "Storing run outputs")
 
     # Store outputs - Doc 0 is NOT stored (inherited from parent)
+    # Doc 1/2 are FULL REPLACEMENTS (not append sections)
     outputs = executor.store_outputs(
-        doc_0=None,  # Inherit parent Doc 0
+        doc_0=None,  # Inherit merged Doc 0
         doc_1=doc_1,
         doc_2=doc_2,
         is_doc_0_delta=False,
-        parent_doc_0_path=parent_doc_0_path,
+        parent_doc_0_path=doc_0_path_ref,
     )
 
     # Set doc_0_path to parent's for reference
-    outputs.doc_0_path = parent_doc_0_path
+    outputs.doc_0_path = doc_0_path_ref
+
+    # Explicitly mark as NOT append (full replacement)
+    outputs.doc_1_is_append = False
+    outputs.doc_2_is_append = False
 
     metrics = executor.get_metrics()
 

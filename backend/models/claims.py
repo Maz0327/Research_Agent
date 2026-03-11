@@ -32,6 +32,31 @@ class ConfidenceLevel(str, Enum):
     LOW = "low"        # Significant interpretation required
 
 
+class RhetoricalFraming(str, Enum):
+    """How the claim is rhetorically presented in the source."""
+    STATED_AS_FACT = "stated_as_fact"  # Presented as established truth
+    OPINION = "opinion"                # Clearly an editorial opinion or judgment
+    DISPUTED = "disputed"              # Acknowledged as contested or controversial
+    SPECULATIVE = "speculative"        # Forward-looking, uncertain ("may", "expected to")
+    ATTRIBUTED = "attributed"          # Explicitly cited from a named source
+    HEDGED = "hedged"                  # Qualified with caveats ("approximately", "sources say")
+
+
+class ClaimRelationType(str, Enum):
+    """How one claim relates to another."""
+    SUPPORTS = "supports"        # Corroborates another claim
+    CONTRADICTS = "contradicts"  # Opposes another claim
+    QUALIFIES = "qualifies"      # Adds nuance or caveats
+    EXTENDS = "extends"          # Builds on another claim
+
+
+class ClaimRelation(BaseModel):
+    """A directional relationship between two claims."""
+    target_claim_id: str = Field(..., description="The claim_id this claim relates to")
+    relation_type: ClaimRelationType = Field(..., description="How this claim relates to the target")
+    explanation: Optional[str] = Field(None, description="Brief explanation of the relationship")
+
+
 class SourceType(str, Enum):
     """Type of source being analyzed."""
     YOUTUBE = "youtube"
@@ -278,6 +303,11 @@ class Claim(BaseModel):
     # V2 fields
     verbatim_excerpt: Optional[str] = Field(None, description="Verbatim text from source backing the claim")
     entities_involved: list[str] = Field(default_factory=list, description="Entity IDs involved in this claim")
+    # V3 enrichment fields
+    speaker: Optional[str] = Field(None, description="Who is making this claim (the claimant, not just mentioned)")
+    framing: Optional[RhetoricalFraming] = Field(None, description="How the claim is rhetorically presented")
+    significance: Optional[str] = Field(None, description="Why this claim matters (1 sentence)")
+    related_claims: list[ClaimRelation] = Field(default_factory=list, description="Relationships to other claims")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -335,7 +365,7 @@ class ClaimsDocumentMetadata(BaseModel):
     # V2 fields
     total_entities: int = Field(default=0, description="Total entities extracted")
     total_clusters: int = Field(default=0, description="Total claim clusters")
-    version: str = Field(default="2.0", description="Claims document schema version")
+    version: str = Field(default="3.0", description="Claims document schema version")
 
 
 class ClaimsDocument(BaseModel):
@@ -461,9 +491,33 @@ class ClaimsDocument(BaseModel):
                 lines.append(f"> {claim.text}")
                 lines.append("")
 
-                # Verbatim excerpt if available
+                # V3: Speaker attribution
+                if claim.speaker:
+                    lines.append(f"**Speaker:** {claim.speaker}")
+
+                # V3: Rhetorical framing
+                if claim.framing:
+                    framing_labels = {
+                        "stated_as_fact": "Stated as fact",
+                        "opinion": "Opinion",
+                        "disputed": "Disputed",
+                        "speculative": "Speculative",
+                        "attributed": "Attributed to source",
+                        "hedged": "Hedged/qualified",
+                    }
+                    lines.append(f"**Framing:** {framing_labels.get(claim.framing.value, claim.framing.value)}")
+
+                # V3: Significance
+                if claim.significance:
+                    lines.append(f"**Significance:** {claim.significance}")
+
+                # V3: Topic tags (existing field, now populated)
+                if claim.tags:
+                    lines.append(f"**Topics:** {', '.join(claim.tags)}")
+
+                # Verbatim excerpt if available (increased truncation limit)
                 if claim.verbatim_excerpt:
-                    lines.append(f"*Excerpt: \"{claim.verbatim_excerpt[:150]}{'...' if len(claim.verbatim_excerpt) > 150 else ''}\"*")
+                    lines.append(f"*Excerpt: \"{claim.verbatim_excerpt[:300]}{'...' if len(claim.verbatim_excerpt) > 300 else ''}\"*")
 
                 # Entities involved
                 if claim.entities_involved:
@@ -476,11 +530,19 @@ class ClaimsDocument(BaseModel):
                 elif anchor.line_range:
                     lines.append(f"*Lines: {anchor.line_range.start_line}-{anchor.line_range.end_line}*")
                     if anchor.line_range.excerpt and not claim.verbatim_excerpt:
-                        lines.append(f"*Excerpt: \"{anchor.line_range.excerpt[:100]}...\"*")
+                        lines.append(f"*Excerpt: \"{anchor.line_range.excerpt[:200]}...\"*")
                 elif anchor.image:
                     lines.append(f"*Screenshot #{anchor.image.image_index + 1}*")
                     if anchor.image.region:
                         lines.append(f"*Region: {anchor.image.region}*")
+
+                # V3: Related claims
+                if claim.related_claims:
+                    rel_parts = []
+                    for rel in claim.related_claims:
+                        rel_label = rel.relation_type.value
+                        rel_parts.append(f"{rel_label} {rel.target_claim_id}")
+                    lines.append(f"*Related: {' | '.join(rel_parts)}*")
 
                 lines.append("")
 

@@ -37,31 +37,49 @@ interface IterationDialogProps {
   onClose: () => void;
   onSubmit: (request: CreateRunRequest) => void;
   isSubmitting: boolean;
+  latestRunId?: string;
 }
 
-/** V2 Run type for dropdown */
-type RunType = 'add_sources' | 'fix_weak' | 'counter' | 'angle' | 'regenerate';
+/** Canonical run type for new dialog */
+type DialogRunType = 'expand' | 'refine' | 'regenerate';
 
-function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationDialogProps) {
-  const [runType, setRunType] = useState<RunType>('add_sources');
+function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting, latestRunId }: IterationDialogProps) {
+  const [runType, setRunType] = useState<DialogRunType>('expand');
   const [userPrompt, setUserPrompt] = useState('');
   const [maxNewSources, setMaxNewSources] = useState(4);
-  const [perspective, setPerspective] = useState('');
+  const [searchMode, setSearchMode] = useState<'manual' | 'auto'>('manual');
+  const [sourceUrls, setSourceUrls] = useState('');
 
   const handleSubmit = () => {
+    const urls = sourceUrls
+      .split('\n')
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0);
+
     const request: CreateRunRequest = {
       run_type: runType,
-      parent_run_id: 'run_0', // Default to baseline
+      parent_run_id: latestRunId || 'run_0',
       user_prompt: userPrompt || undefined,
-      max_new_sources: runType === 'add_sources' ? maxNewSources : undefined,
-      perspective: runType === 'angle' ? perspective : undefined,
+      max_new_sources: runType === 'expand' ? maxNewSources : undefined,
+      search_mode: runType === 'expand' ? searchMode : undefined,
+      new_source_urls: runType === 'expand' && searchMode === 'manual' ? urls : undefined,
     };
     onSubmit(request);
     // Reset form
-    setRunType('add_sources');
+    setRunType('expand');
     setUserPrompt('');
     setMaxNewSources(4);
-    setPerspective('');
+    setSearchMode('manual');
+    setSourceUrls('');
+  };
+
+  const isValid = () => {
+    if (runType === 'refine' && !userPrompt.trim()) return false;
+    if (runType === 'expand' && searchMode === 'manual') {
+      const urls = sourceUrls.split('\n').filter((u) => u.trim().length > 0);
+      if (urls.length === 0) return false;
+    }
+    return true;
   };
 
   if (!isOpen) return null;
@@ -72,54 +90,119 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl"
+        className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-lg shadow-2xl"
       >
         <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
           <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Create New Run
+          Iterate on Research
         </h3>
 
-        {/* Run Type Selection */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Run Type</label>
-          <select
-            value={runType}
-            onChange={(e) => setRunType(e.target.value as RunType)}
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+        {/* Run Type — 3 clickable cards */}
+        <div className="mb-4 space-y-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">What do you want to do?</label>
+
+          {/* Expand */}
+          <button
+            onClick={() => setRunType('expand')}
+            className={`w-full text-left p-3 rounded-lg border transition ${
+              runType === 'expand'
+                ? 'border-blue-500 bg-blue-500/10'
+                : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+            }`}
           >
-            <option value="add_sources">Add More Sources</option>
-            <option value="fix_weak">Fix Weak Spots</option>
-            <option value="counter">Find Counterarguments</option>
-            <option value="angle">Different Angle</option>
-            <option value="regenerate">Regenerate Analysis</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            {runType === 'add_sources' && 'Search for additional sources to expand coverage'}
-            {runType === 'fix_weak' && 'Address gaps and weaknesses in the analysis'}
-            {runType === 'counter' && 'Find opposing viewpoints and counterarguments'}
-            {runType === 'angle' && 'Explore a different perspective on the topic'}
-            {runType === 'regenerate' && 'Re-run synthesis with current sources'}
-          </p>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-400 font-mono text-sm">+</span>
+              <span className="text-sm font-medium text-gray-100">Expand Sources</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1 ml-5">
+              Find and add new sources. Existing analysis stays intact.
+            </p>
+          </button>
+
+          {/* Refine */}
+          <button
+            onClick={() => setRunType('refine')}
+            className={`w-full text-left p-3 rounded-lg border transition ${
+              runType === 'refine'
+                ? 'border-orange-500 bg-orange-500/10'
+                : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-orange-400 text-sm">&#128269;</span>
+              <span className="text-sm font-medium text-gray-100">Refine Analysis</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1 ml-5">
+              Re-analyze existing sources from a new angle or perspective.
+            </p>
+          </button>
+
+          {/* Regenerate */}
+          <button
+            onClick={() => setRunType('regenerate')}
+            className={`w-full text-left p-3 rounded-lg border transition ${
+              runType === 'regenerate'
+                ? 'border-red-500 bg-red-500/10'
+                : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-red-400 text-sm">&#128260;</span>
+              <span className="text-sm font-medium text-gray-100">Regenerate</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1 ml-5">
+              Start analysis over from scratch with all sources. Replaces existing Doc 1/2.
+            </p>
+          </button>
         </div>
 
-        {/* Perspective input (for angle run type) */}
-        {runType === 'angle' && (
+        {/* EXPAND: Search mode toggle */}
+        {runType === 'expand' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Perspective to Explore</label>
-            <input
-              type="text"
-              value={perspective}
-              onChange={(e) => setPerspective(e.target.value)}
-              placeholder="e.g., economic impact, environmental concerns"
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            <label className="block text-sm font-medium text-gray-300 mb-2">Source Method</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSearchMode('manual')}
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition ${
+                  searchMode === 'manual'
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-300'
+                    : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                }`}
+              >
+                I&apos;ll provide URLs
+              </button>
+              <button
+                onClick={() => setSearchMode('auto')}
+                className={`flex-1 px-3 py-2 text-sm rounded-lg border transition ${
+                  searchMode === 'auto'
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-300'
+                    : 'border-gray-600 bg-gray-700/50 text-gray-400 hover:border-gray-500'
+                }`}
+              >
+                Search automatically
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* EXPAND + manual: URL input */}
+        {runType === 'expand' && searchMode === 'manual' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-300 mb-2">Source URLs (one per line)</label>
+            <textarea
+              value={sourceUrls}
+              onChange={(e) => setSourceUrls(e.target.value)}
+              rows={3}
+              placeholder="https://example.com/article-1&#10;https://example.com/article-2"
+              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono"
             />
           </div>
         )}
 
-        {/* Max new sources (for add_sources run type) */}
-        {runType === 'add_sources' && (
+        {/* EXPAND + auto: Max sources slider */}
+        {runType === 'expand' && searchMode === 'auto' && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Max New Sources: {maxNewSources}
@@ -130,7 +213,7 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
               max={10}
               value={maxNewSources}
               onChange={(e) => setMaxNewSources(Number(e.target.value))}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>1</span>
@@ -139,24 +222,44 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
           </div>
         )}
 
-        {/* User prompt */}
+        {/* User prompt (required for refine, optional for expand/regenerate) */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-300 mb-2">
-            Guidance (optional)
+            {runType === 'refine' ? 'Perspective / Angle (required)' : 'Guidance (optional)'}
           </label>
           <textarea
             value={userPrompt}
             onChange={(e) => setUserPrompt(e.target.value)}
             rows={3}
-            placeholder="Any specific guidance for this run..."
+            placeholder={
+              runType === 'refine'
+                ? 'e.g., "What are the counterarguments?" or "Analyze from an economic perspective"'
+                : runType === 'expand' && searchMode === 'auto'
+                  ? 'e.g., "Find sources that counter the main claims" or "Look for recent academic papers"'
+                  : 'Any specific guidance for this run...'
+            }
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
           />
         </div>
 
-        {/* Note about append-only */}
+        {/* Behavior note */}
         <div className="mb-6 p-3 bg-gray-700/50 rounded-lg border border-gray-600/50">
           <p className="text-xs text-gray-400">
-            <span className="text-emerald-400 font-medium">Append-only:</span> Runs create new document bundles without modifying your original research.
+            {runType === 'expand' && (
+              <>
+                <span className="text-blue-400 font-medium">Append-only:</span> New sources are added to your Source Ledger. Existing analysis stays untouched &mdash; new findings are appended as a new section.
+              </>
+            )}
+            {runType === 'refine' && (
+              <>
+                <span className="text-orange-400 font-medium">Same sources, new lens:</span> Re-analyzes your existing corpus from a different perspective. Original analysis stays intact &mdash; new insights are appended.
+              </>
+            )}
+            {runType === 'regenerate' && (
+              <>
+                <span className="text-red-400 font-medium">Full rewrite:</span> Rewrites Doc 1 &amp; 2 from scratch using all sources (including any added by previous Expand runs). This replaces all previous analysis.
+              </>
+            )}
           </p>
         </div>
 
@@ -171,10 +274,16 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting }: IterationD
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || (runType === 'angle' && !perspective.trim())}
-            className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed rounded-lg transition"
+            disabled={isSubmitting || !isValid()}
+            className={`flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${
+              runType === 'expand'
+                ? 'bg-blue-600 hover:bg-blue-500'
+                : runType === 'refine'
+                  ? 'bg-orange-600 hover:bg-orange-500'
+                  : 'bg-red-600 hover:bg-red-500'
+            }`}
           >
-            {isSubmitting ? 'Starting...' : 'Start Run'}
+            {isSubmitting ? 'Starting...' : runType === 'regenerate' ? 'Regenerate' : 'Start Run'}
           </button>
         </div>
       </motion.div>

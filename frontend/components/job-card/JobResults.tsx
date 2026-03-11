@@ -152,10 +152,9 @@ export function JobResults({
     setActionError(null);
     try {
       await createRun(jobId, {
-        run_type: runType as 'add_sources' | 'fix_weak' | 'counter' | 'angle' | 'regenerate',
+        run_type: runType as 'expand' | 'refine' | 'regenerate',
         user_prompt: userPrompt,
         max_new_sources: maxNewSources,
-        perspective,
       });
       onRefresh?.();
     } catch (err) {

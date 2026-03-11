@@ -1845,7 +1845,8 @@ def _run_v2_run_task(job_id: str, run_id: str, user_id: str) -> dict:
         Run, RunType, RunStatus, RunOutputs, RunMetrics,
         ensure_runs_migrated,
     )
-    from backend.pipeline.runs.modes import run_add_sources, run_regenerate
+    from backend.pipeline.runs.modes import run_expand, run_refine, run_regenerate
+    from backend.models.run_models import normalize_run_type
 
     logger.info(f"[{job_id}] Starting V2 run {run_id}")
 
@@ -1901,35 +1902,57 @@ def _run_v2_run_task(job_id: str, run_id: str, user_id: str) -> dict:
             artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
         )
 
-        run_type = target_run.run_type
-        logger.info(f"[{job_id}] Run {run_id} type={run_type.value}")
+        # Normalize run type (maps legacy types to canonical)
+        raw_run_type = target_run.run_type
+        canonical_type = normalize_run_type(raw_run_type.value)
+        logger.info(f"[{job_id}] Run {run_id} type={raw_run_type.value} → canonical={canonical_type.value}")
 
         # Execute the appropriate run mode
-        if run_type == RunType.ADD_SOURCES:
-            outputs, metrics_dict = run_add_sources(
+        if canonical_type == RunType.EXPAND:
+            outputs, metrics_dict = run_expand(
                 job_id=job_id,
                 run=target_run,
                 user_id=user_id,
                 artifacts_dict=artifacts_dict,
             )
-        elif run_type == RunType.REGENERATE:
+
+            # Handle AWAITING_REVIEW: expand with auto-search pauses for user approval
+            if target_run.status == RunStatus.AWAITING_REVIEW:
+                logger.info(f"[{job_id}] Run {run_id} awaiting user review of search candidates")
+                runs[run_index] = target_run
+                update_job(
+                    job_id,
+                    iteration_status="awaiting_review",
+                    iteration_id=run_id,
+                    iteration_progress_percent=50,
+                    artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+                )
+                return {
+                    "job_id": job_id,
+                    "run_id": run_id,
+                    "status": "awaiting_review",
+                    "run_type": canonical_type.value,
+                    "message": "Search candidates ready for user review",
+                }
+
+        elif canonical_type == RunType.REFINE:
+            outputs, metrics_dict = run_refine(
+                job_id=job_id,
+                run=target_run,
+                user_id=user_id,
+                artifacts_dict=artifacts_dict,
+            )
+
+        elif canonical_type == RunType.REGENERATE:
             outputs, metrics_dict = run_regenerate(
                 job_id=job_id,
                 run=target_run,
                 user_id=user_id,
                 artifacts_dict=artifacts_dict,
             )
-        elif run_type in (RunType.FIX_WEAK_SPOTS, RunType.COUNTERARGUMENT, RunType.DIFFERENT_ANGLE):
-            # These modes fall back to regenerate for now
-            logger.warning(f"[{job_id}] Run type {run_type.value} not fully implemented, using regenerate")
-            outputs, metrics_dict = run_regenerate(
-                job_id=job_id,
-                run=target_run,
-                user_id=user_id,
-                artifacts_dict=artifacts_dict,
-            )
+
         else:
-            raise ValueError(f"Unknown run type: {run_type}")
+            raise ValueError(f"Unknown run type: {raw_run_type.value} (canonical: {canonical_type.value})")
 
         end_time = datetime.now(timezone.utc)
 
@@ -1955,7 +1978,7 @@ def _run_v2_run_task(job_id: str, run_id: str, user_id: str) -> dict:
         wall_time_ms = int((end_time - start_time).total_seconds() * 1000)
         logger.info(
             f"[{job_id}] Run {run_id} completed in {wall_time_ms}ms, "
-            f"type={run_type.value}"
+            f"type={canonical_type.value}"
         )
 
         return {
@@ -1963,7 +1986,7 @@ def _run_v2_run_task(job_id: str, run_id: str, user_id: str) -> dict:
             "run_id": run_id,
             "run_index": target_run.run_index,
             "status": "success",
-            "run_type": run_type.value,
+            "run_type": canonical_type.value,
             "wall_time_ms": wall_time_ms,
             "outputs": outputs.model_dump() if outputs else None,
         }
@@ -1975,6 +1998,125 @@ def _run_v2_run_task(job_id: str, run_id: str, user_id: str) -> dict:
 
     except Exception as e:
         logger.exception(f"[{job_id}] Run {run_id} failed: {e}")
+        _mark_run_failed(job_id, run_id, runs, run_index, artifacts_dict, str(e)[:500])
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": str(e)}
+
+
+def _resume_expand_after_review(
+    job_id: str,
+    run_id: str,
+    user_id: str,
+    approved_urls: list[str],
+) -> dict:
+    """
+    Resume an EXPAND run after the user approves search candidates.
+
+    Called by the approve-sources API endpoint. Picks up where the expand
+    executor left off: processes approved URLs, creates Doc 0 delta and
+    Doc 1/2 append sections.
+
+    Args:
+        job_id: Job ID
+        run_id: Run ID (run_1, run_2, etc.)
+        user_id: User who approved
+        approved_urls: URLs the user approved for processing
+
+    Returns:
+        Dict with job_id, run_id, status
+    """
+    from datetime import datetime, timezone
+    from backend.models.job_record import Artifacts
+    from backend.models.run_models import (
+        Run, RunType, RunStatus, RunOutputs, RunMetrics,
+        ensure_runs_migrated,
+    )
+    from backend.pipeline.runs.modes import run_expand
+
+    logger.info(f"[{job_id}] Resuming expand run {run_id} with {len(approved_urls)} approved URLs")
+
+    job = get_job(job_id)
+    if not job:
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": "Job not found"}
+
+    artifacts = job.artifacts if hasattr(job, "artifacts") else None
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    runs = ensure_runs_migrated(
+        artifacts,
+        job_created_at=job.created_at if hasattr(job, "created_at") else None,
+        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
+        user_id=user_id,
+    )
+
+    target_run = None
+    run_index = None
+    for i, r in enumerate(runs):
+        if r.run_id == run_id:
+            target_run = r
+            run_index = i
+            break
+
+    if target_run is None:
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": "Run not found"}
+
+    if target_run.status != RunStatus.AWAITING_REVIEW:
+        return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": f"Run not awaiting review (status={target_run.status.value})"}
+
+    try:
+        # Update run: inject approved URLs and set back to RUNNING
+        target_run.status = RunStatus.RUNNING
+        if target_run.request:
+            target_run.request.new_source_urls = approved_urls
+
+        update_job(
+            job_id,
+            iteration_status="running",
+            iteration_id=run_id,
+            iteration_progress_percent=55,
+            artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+        )
+
+        # Re-execute expand with the approved URLs
+        outputs, metrics_dict = run_expand(
+            job_id=job_id,
+            run=target_run,
+            user_id=user_id,
+            artifacts_dict=artifacts_dict,
+        )
+
+        end_time = datetime.now(timezone.utc)
+
+        target_run.status = RunStatus.COMPLETED
+        target_run.completed_at = end_time
+        target_run.outputs = outputs
+        target_run.metrics = RunMetrics(**metrics_dict) if metrics_dict else None
+
+        runs[run_index] = target_run
+
+        update_job(
+            job_id,
+            iteration_status="completed",
+            iteration_id=run_id,
+            iteration_completed_at=end_time,
+            iteration_progress_percent=100,
+            artifacts=Artifacts(**{**artifacts_dict, "runs": [r.model_dump() for r in runs]}),
+        )
+
+        return {
+            "job_id": job_id,
+            "run_id": run_id,
+            "status": "success",
+            "run_type": "expand",
+            "sources_approved": len(approved_urls),
+        }
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Resume expand {run_id} failed: {e}")
         _mark_run_failed(job_id, run_id, runs, run_index, artifacts_dict, str(e)[:500])
         return {"job_id": job_id, "run_id": run_id, "status": "failed", "error": str(e)}
 

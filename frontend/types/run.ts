@@ -2,45 +2,101 @@
  * V2 Run Types - TypeScript definitions for Run Abstraction
  *
  * These types mirror the backend Run models for type-safe frontend usage.
+ *
+ * Run types:
+ * - baseline: Initial research run
+ * - expand: Add new sources + append findings to Doc 0/1/2
+ * - refine: Re-analyze existing sources from new angle, append to Doc 1/2
+ * - regenerate: Full rewrite of Doc 1/2 from all sources
  */
 
 /** Run execution status */
-export type RunStatus = 'queued' | 'running' | 'completed' | 'failed';
+export type RunStatus = 'queued' | 'running' | 'awaiting_review' | 'completed' | 'failed';
 
-/** Run types supported by the system */
+/** Canonical run types */
 export type RunType =
   | 'baseline'
+  | 'expand'
+  | 'refine'
+  | 'regenerate'
+  // Legacy aliases (for backward compatibility with stored data)
   | 'add_sources'
   | 'fix_weak'
   | 'counter'
-  | 'angle'
-  | 'regenerate';
+  | 'angle';
 
 /** Display labels for run types */
 export const RUN_TYPE_LABELS: Record<RunType, string> = {
   baseline: 'Baseline',
-  add_sources: 'Add Sources',
-  fix_weak: 'Fix Weak Spots',
-  counter: 'Counterargument',
-  angle: 'Different Angle',
+  expand: 'Expand Sources',
+  refine: 'Refine Analysis',
   regenerate: 'Regenerate',
+  // Legacy labels
+  add_sources: 'Expand Sources',
+  fix_weak: 'Refine Analysis',
+  counter: 'Expand Sources',
+  angle: 'Refine Analysis',
 };
 
 /** Run type icons/badges */
 export const RUN_TYPE_ICONS: Record<RunType, string> = {
   baseline: '●',
-  add_sources: '+',
-  fix_weak: '🔧',
-  counter: '⚖️',
-  angle: '↗️',
+  expand: '+',
+  refine: '🔍',
   regenerate: '🔄',
+  // Legacy icons
+  add_sources: '+',
+  fix_weak: '🔍',
+  counter: '+',
+  angle: '🔍',
 };
+
+/** Badge colors for run types */
+export const RUN_TYPE_COLORS: Record<string, string> = {
+  baseline: 'gray',
+  expand: 'blue',
+  refine: 'orange',
+  regenerate: 'red',
+  // Legacy mappings
+  add_sources: 'blue',
+  fix_weak: 'orange',
+  counter: 'blue',
+  angle: 'orange',
+};
+
+/** Normalize legacy run type to canonical type */
+export function normalizeRunType(runType: string): 'expand' | 'refine' | 'regenerate' | 'baseline' {
+  const legacyMap: Record<string, 'expand' | 'refine' | 'regenerate' | 'baseline'> = {
+    add_sources: 'expand',
+    fix_weak: 'refine',
+    counter: 'expand',
+    angle: 'refine',
+    baseline: 'baseline',
+    expand: 'expand',
+    refine: 'refine',
+    regenerate: 'regenerate',
+  };
+  return legacyMap[runType] || 'regenerate';
+}
+
+/** Search candidate from grounded search */
+export interface SearchCandidate {
+  url: string;
+  title: string;
+  snippet: string;
+  relevance_score: number;
+  provider: string;
+}
 
 /** Run request parameters */
 export interface RunRequest {
   user_prompt?: string;
   new_source_urls?: string[];
   max_new_sources?: number;
+  search_mode?: 'auto' | 'manual';
+  trust_mode?: boolean;
+  search_candidates?: SearchCandidate[];
+  // Legacy fields
   gap_ids?: string[];
   claim_ids?: string[];
   perspective?: string;
@@ -59,6 +115,11 @@ export interface RunOutputs {
   doc_0_is_delta: boolean;
   doc_0_parent_path?: string;
   new_source_ids?: string[];
+  // Append metadata
+  doc_1_is_append?: boolean;
+  doc_2_is_append?: boolean;
+  doc_1_parent_path?: string;
+  doc_2_parent_path?: string;
 }
 
 /** Run metrics */
@@ -129,8 +190,9 @@ export function isV2Run(versionId: string): boolean {
 
 /** Helper to get run display label */
 export function getRunLabel(run: Run): string {
-  const typeLabel = RUN_TYPE_LABELS[run.run_type] || run.run_type;
-  if (run.run_type === 'baseline') {
+  const canonical = normalizeRunType(run.run_type);
+  const typeLabel = RUN_TYPE_LABELS[canonical] || run.run_type;
+  if (canonical === 'baseline') {
     return 'Baseline (original)';
   }
   return `${run.run_id} - ${typeLabel}`;
@@ -139,4 +201,9 @@ export function getRunLabel(run: Run): string {
 /** Helper to get run icon */
 export function getRunIcon(runType: RunType): string {
   return RUN_TYPE_ICONS[runType] || '○';
+}
+
+/** Helper to get run badge color */
+export function getRunColor(runType: RunType): string {
+  return RUN_TYPE_COLORS[runType] || 'gray';
 }

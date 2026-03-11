@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
 import { API_URL } from '../lib/constants';
 import { formatApiError } from '../lib/error-utils';
+import type { SearchCandidate } from '../types/run';
 
 // Phase 3 types - import from job-card components
 import type { ContentBlueprint } from '../components/job-card/ContentBlueprintView';
@@ -432,22 +433,20 @@ export interface ProducerPacketResponse {
  * V2 Run request parameters (replaces IterationRequest)
  */
 export interface CreateRunRequest {
-  /** Run type: add_sources, fix_weak, counter, angle, regenerate */
-  run_type: 'add_sources' | 'fix_weak' | 'counter' | 'angle' | 'regenerate';
+  /** Run type: expand, refine, regenerate */
+  run_type: 'expand' | 'refine' | 'regenerate';
   /** Parent run ID to build on (default: run_0) */
   parent_run_id?: string;
-  /** User guidance for the run */
+  /** User guidance for the run (required for refine, optional for expand) */
   user_prompt?: string;
-  /** URLs to add (for add_sources type) */
+  /** URLs to add (for expand type with manual search) */
   new_source_urls?: string[];
-  /** Max sources to add (for add_sources type) */
+  /** Max sources for auto-search (for expand type) */
   max_new_sources?: number;
-  /** Gap IDs to address (for fix_weak type) */
-  gap_ids?: string[];
-  /** Claim IDs to find counters for (for counter type) */
-  claim_ids?: string[];
-  /** New angle to explore (for angle type) */
-  perspective?: string;
+  /** 'manual' for user-provided URLs, 'auto' for grounded search */
+  search_mode?: 'auto' | 'manual';
+  /** Skip user review of search candidates (default: false) */
+  trust_mode?: boolean;
 }
 
 /**
@@ -490,6 +489,8 @@ interface JobsState {
   triggerBooster: (jobId: string, runId?: string) => Promise<BoosterResponse>;
   triggerProducerPacket: (jobId: string, runId?: string) => Promise<ProducerPacketResponse>;
   createRun: (jobId: string, request: CreateRunRequest) => Promise<CreateRunResponse>;
+  approveSearchSources: (jobId: string, runId: string, approvedUrls: string[]) => Promise<void>;
+  getSearchCandidates: (jobId: string, runId: string) => Promise<SearchCandidate[]>;
   refreshJob: (jobId: string) => Promise<void>;
   cancelJob: (jobId: string) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
@@ -996,9 +997,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
           user_prompt: request.user_prompt || '',
           new_source_urls: request.new_source_urls || [],
           max_new_sources: request.max_new_sources || 4,
-          gap_ids: request.gap_ids || [],
-          claim_ids: request.claim_ids || [],
-          perspective: request.perspective || '',
+          search_mode: request.search_mode || 'manual',
+          trust_mode: request.trust_mode || false,
         }),
       });
 
@@ -1028,6 +1028,70 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       const message = error instanceof Error ? error.message : 'Failed to create run';
       set({ error: message, actionInProgress: null });
       throw error;
+    }
+  },
+
+  approveSearchSources: async (jobId: string, runId: string, approvedUrls: string[]) => {
+    set({ actionInProgress: 'iteration' });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/runs/${runId}/approve-sources`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          approved_urls: approvedUrls,
+          rejected_urls: [],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to approve sources'));
+      }
+
+      // Update local state: run is back to running
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId
+            ? { ...job, iteration_status: 'running' as const }
+            : job
+        ),
+        actionInProgress: null,
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to approve sources';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
+  },
+
+  getSearchCandidates: async (jobId: string, runId: string): Promise<SearchCandidate[]> => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/runs/${runId}/search-candidates`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = await response.json();
+      return data.candidates || [];
+    } catch {
+      return [];
     }
   },
 

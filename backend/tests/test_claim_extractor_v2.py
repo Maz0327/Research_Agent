@@ -14,6 +14,8 @@ from backend.models.claims import (
     AnchorType,
     Claim,
     ClaimAnchor,
+    ClaimRelation,
+    ClaimRelationType,
     ClaimType,
     ClaimsDocument,
     ClaimsDocumentMetadata,
@@ -25,6 +27,7 @@ from backend.models.claims import (
     ExtractionWarning,
     ImageAnchor,
     LineRangeAnchor,
+    RhetoricalFraming,
     SourceSummary,
     SourceType,
     TimestampAnchor,
@@ -267,7 +270,7 @@ class TestClaimsDocument:
         assert doc.metadata.job_id == "test-job-123"
         assert doc.metadata.run_id == "run_0"
         assert doc.metadata.title == "Test Research"
-        assert doc.metadata.version == "2.0"
+        assert doc.metadata.version == "3.0"
         assert doc.metadata.total_claims == 0
         assert doc.metadata.total_entities == 0
         assert len(doc.claims) == 0
@@ -528,3 +531,212 @@ class TestRunClaimsDoc:
         # Queued claims_doc should not count as "has"
         run.claims_doc.status = RunStatus.QUEUED
         assert run.has_claims_doc() is False
+
+
+# =============================================================================
+# V3 ENRICHMENT TESTS
+# =============================================================================
+
+
+class TestRhetoricalFramingEnum:
+    """Tests for the RhetoricalFraming enum."""
+
+    def test_all_values_exist(self):
+        """Test all expected framing values are defined."""
+        expected = ["stated_as_fact", "opinion", "disputed", "speculative", "attributed", "hedged"]
+        for val in expected:
+            assert val in [e.value for e in RhetoricalFraming]
+
+    def test_enum_string_values(self):
+        """Test enum values are strings."""
+        assert RhetoricalFraming.STATED_AS_FACT == "stated_as_fact"
+        assert RhetoricalFraming.DISPUTED == "disputed"
+        assert RhetoricalFraming.HEDGED == "hedged"
+
+
+class TestClaimRelationModels:
+    """Tests for ClaimRelationType and ClaimRelation."""
+
+    def test_relation_type_values(self):
+        """Test all relation type enum values exist."""
+        expected = ["supports", "contradicts", "qualifies", "extends"]
+        for val in expected:
+            assert val in [e.value for e in ClaimRelationType]
+
+    def test_claim_relation_creation(self):
+        """Test creating a ClaimRelation."""
+        rel = ClaimRelation(
+            target_claim_id="CLM_SRC_001_003",
+            relation_type=ClaimRelationType.CONTRADICTS,
+            explanation="This claim directly opposes the investment figure",
+        )
+        assert rel.target_claim_id == "CLM_SRC_001_003"
+        assert rel.relation_type == ClaimRelationType.CONTRADICTS
+        assert rel.explanation is not None
+
+    def test_claim_relation_optional_explanation(self):
+        """Test ClaimRelation with no explanation."""
+        rel = ClaimRelation(
+            target_claim_id="CLM_001",
+            relation_type=ClaimRelationType.SUPPORTS,
+        )
+        assert rel.explanation is None
+
+
+class TestClaimV3Enrichments:
+    """Tests for v3 enrichment fields on Claim model."""
+
+    def _make_claim(self, **kwargs):
+        """Helper to create a Claim with minimal required fields."""
+        defaults = dict(
+            claim_id="CLM_001",
+            text="Test claim",
+            claim_type=ClaimType.EXPLICIT,
+            confidence=ConfidenceLevel.HIGH,
+            anchor=ClaimAnchor(line_range=LineRangeAnchor(start_line=1, end_line=1)),
+            source_id="SRC_001",
+        )
+        defaults.update(kwargs)
+        return Claim(**defaults)
+
+    def test_claim_with_speaker(self):
+        """Test Claim with speaker field."""
+        claim = self._make_claim(speaker="Tim Cook")
+        assert claim.speaker == "Tim Cook"
+
+    def test_claim_with_framing(self):
+        """Test Claim with framing field."""
+        claim = self._make_claim(framing=RhetoricalFraming.SPECULATIVE)
+        assert claim.framing == RhetoricalFraming.SPECULATIVE
+
+    def test_claim_with_significance(self):
+        """Test Claim with significance field."""
+        claim = self._make_claim(
+            significance="This creates the largest tech company by market cap."
+        )
+        assert claim.significance is not None
+
+    def test_claim_with_tags(self):
+        """Test Claim tags are populated."""
+        claim = self._make_claim(tags=["financial", "technology"])
+        assert claim.tags == ["financial", "technology"]
+
+    def test_claim_with_related_claims(self):
+        """Test Claim with related_claims."""
+        claim = self._make_claim(
+            related_claims=[
+                ClaimRelation(
+                    target_claim_id="CLM_002",
+                    relation_type=ClaimRelationType.SUPPORTS,
+                    explanation="Revenue growth supports profitability claim",
+                )
+            ]
+        )
+        assert len(claim.related_claims) == 1
+        assert claim.related_claims[0].relation_type == ClaimRelationType.SUPPORTS
+
+    def test_new_fields_are_optional(self):
+        """Test backward compat: new fields default to None/empty."""
+        claim = self._make_claim()
+        assert claim.speaker is None
+        assert claim.framing is None
+        assert claim.significance is None
+        assert claim.related_claims == []
+        assert claim.tags == []
+
+    def test_claim_serialization_roundtrip(self):
+        """Test claim with v3 fields serializes and deserializes correctly."""
+        claim = self._make_claim(
+            speaker="Elizabeth Warren",
+            framing=RhetoricalFraming.DISPUTED,
+            significance="Challenges the official narrative on investment scale",
+            tags=["political", "financial"],
+            related_claims=[
+                ClaimRelation(
+                    target_claim_id="CLM_003",
+                    relation_type=ClaimRelationType.CONTRADICTS,
+                )
+            ],
+        )
+        data = claim.model_dump(mode="json")
+        restored = Claim(**data)
+        assert restored.speaker == "Elizabeth Warren"
+        assert restored.framing == RhetoricalFraming.DISPUTED
+        assert restored.significance == claim.significance
+        assert restored.tags == ["political", "financial"]
+        assert len(restored.related_claims) == 1
+        assert restored.related_claims[0].relation_type == ClaimRelationType.CONTRADICTS
+
+
+class TestClaimsDocumentMarkdownV3:
+    """Tests for enriched to_markdown() output."""
+
+    def _make_doc_with_claim(self, **claim_kwargs):
+        """Helper to create a ClaimsDocument with one claim."""
+        doc = ClaimsDocument.create_empty("job-1", "Test")
+        claim_defaults = dict(
+            claim_id="CLM_SRC_001_001",
+            text="Revenue grew 15%",
+            claim_type=ClaimType.EXPLICIT,
+            confidence=ConfidenceLevel.HIGH,
+            anchor=ClaimAnchor(line_range=LineRangeAnchor(start_line=1, end_line=1)),
+            source_id="SRC_001",
+        )
+        claim_defaults.update(claim_kwargs)
+        doc.add_claim(Claim(**claim_defaults))
+        doc.add_source(SourceSummary(
+            source_id="SRC_001",
+            source_type=SourceType.TEXT,
+            title="Test Source",
+            claim_count=1,
+        ))
+        return doc
+
+    def test_markdown_includes_speaker(self):
+        doc = self._make_doc_with_claim(speaker="Tim Cook")
+        md = doc.to_markdown()
+        assert "**Speaker:** Tim Cook" in md
+
+    def test_markdown_includes_framing(self):
+        doc = self._make_doc_with_claim(framing=RhetoricalFraming.STATED_AS_FACT)
+        md = doc.to_markdown()
+        assert "**Framing:** Stated as fact" in md
+
+    def test_markdown_includes_significance(self):
+        doc = self._make_doc_with_claim(significance="Record growth for the company")
+        md = doc.to_markdown()
+        assert "**Significance:** Record growth" in md
+
+    def test_markdown_includes_tags(self):
+        doc = self._make_doc_with_claim(tags=["financial", "technology"])
+        md = doc.to_markdown()
+        assert "**Topics:** financial, technology" in md
+
+    def test_markdown_includes_related_claims(self):
+        doc = self._make_doc_with_claim(
+            related_claims=[
+                ClaimRelation(
+                    target_claim_id="CLM_SRC_001_002",
+                    relation_type=ClaimRelationType.SUPPORTS,
+                )
+            ]
+        )
+        md = doc.to_markdown()
+        assert "*Related:" in md
+        assert "supports CLM_SRC_001_002" in md
+
+    def test_markdown_omits_empty_enrichments(self):
+        """Test that empty enrichment fields don't appear in markdown."""
+        doc = self._make_doc_with_claim()  # No enrichments
+        md = doc.to_markdown()
+        assert "**Speaker:**" not in md
+        assert "**Framing:**" not in md
+        assert "**Significance:**" not in md
+        assert "**Topics:**" not in md
+        assert "*Related:" not in md
+
+    def test_version_is_3_0(self):
+        doc = self._make_doc_with_claim()
+        assert doc.metadata.version == "3.0"
+        md = doc.to_markdown()
+        assert "3.0" in md

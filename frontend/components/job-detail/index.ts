@@ -18,3 +18,5 @@ export type { ArtifactCardGridProps } from './ArtifactCardGrid';
 
 export { RunSelector } from './RunSelector';
 export type { RunSelectorProps } from './RunSelector';
+
+export { SourceReviewPanel } from './SourceReviewPanel';
