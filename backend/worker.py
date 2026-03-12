@@ -37,6 +37,7 @@ celery_app.conf.update(
         "backend.worker.run_gemini_video_job": {"queue": "research"},
         "backend.worker.run_iteration_task": {"queue": "research"},
         "backend.worker.run_booster_task": {"queue": "research"},
+        "backend.worker.run_iterate_task": {"queue": "research"},
         "backend.worker.run_producer_task": {"queue": "research"},
         "backend.worker.run_claim_extraction_job": {"queue": "research"},
     },
@@ -1533,6 +1534,168 @@ def run_booster_task(self, job_id: str, user_id: str, run_id: str = None) -> dic
             "status": "failed",
             "error": str(e),
         }
+
+
+# =============================================================================
+# UNIFIED ITERATE TASK (Phase 3 — all 5 modes through one Celery task)
+# =============================================================================
+
+@celery_app.task(
+    name="backend.worker.run_iterate_task",
+    bind=True,
+    max_retries=1,
+    time_limit=1200,   # 20 min hard limit
+    soft_time_limit=1080,  # 18 min soft limit
+)
+def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: dict) -> dict:
+    """
+    Unified Iterate task — dispatches to mode handler and stores new document versions.
+
+    Supported modes:
+      deep_dive       — gap analysis + search directions; new Doc 1 version
+      expand_sources  — add sources, re-run pipeline; new Doc 0/1/2/3 versions
+      deeper          — re-extract with depth; new Doc 0/1/2/3 versions
+      different_angle — new perspective; new Doc 2/3 versions
+      custom          — user-defined; new Doc 2/3 versions
+
+    Args:
+        job_id: Completed job UUID
+        iterate_id: Unique iterate ID (iter_<timestamp>)
+        user_id: ID of the requesting user
+        params: Mode-specific params dict (mode, new_source_urls, angle, user_prompt, etc.)
+
+    Returns:
+        Dict with job_id, iterate_id, mode, status, versions_created
+    """
+    from datetime import datetime, timezone
+    from backend.pipeline.version_manager import store_document_version
+
+    mode = params.get("mode", "")
+    logger.info(f"[{job_id}] Iterate task start: mode={mode}, iterate_id={iterate_id}")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Iterate: job not found")
+        return {"job_id": job_id, "iterate_id": iterate_id, "status": "failed", "error": "Job not found"}
+
+    artifacts = job.artifacts
+    if artifacts and hasattr(artifacts, "model_dump"):
+        artifacts_dict = artifacts.model_dump(exclude_none=True)
+    elif isinstance(artifacts, dict):
+        artifacts_dict = artifacts
+    else:
+        artifacts_dict = {}
+
+    start_time = datetime.now(timezone.utc)
+    versions_created: list[str] = []
+
+    try:
+        # ── DEEP DIVE ────────────────────────────────────────────────────────
+        if mode == "deep_dive":
+            from backend.pipeline.context import PipelineContext
+            from backend.pipeline.iteration.metrics_tracker import MetricsTracker
+            from backend.pipeline.iteration.modes.deep_dive import run_deep_dive
+
+            ctx = PipelineContext(job_id=job_id, job_config=None)
+            metrics = MetricsTracker()
+            updated_doc1 = run_deep_dive(ctx, artifacts_dict, metrics)
+
+            version, _url = store_document_version(
+                job_id=job_id,
+                doc_type="doc_1",
+                content=updated_doc1,
+                trigger="deep_dive",
+                markdown=updated_doc1.get("markdown"),
+            )
+            versions_created.append(f"doc_1 v{version}")
+            logger.info(f"[{job_id}] deep_dive complete: doc_1 v{version}")
+
+        # ── OTHER MODES — delegate to existing iteration pipeline ────────────
+        else:
+            from backend.pipeline.iteration import (
+                load_baseline,
+                create_iteration_context,
+                store_iteration_docs,
+            )
+            from backend.pipeline.iteration.modes import run_iteration_mode
+            from backend.pipeline.iteration.metrics_tracker import MetricsTracker
+
+            baseline = load_baseline(job_id, artifacts_dict)
+            ctx = create_iteration_context(job_id, baseline, mode)
+            metrics = MetricsTracker()
+
+            doc_0, doc_1, doc_2 = run_iteration_mode(
+                mode=mode,
+                ctx=ctx,
+                baseline=baseline,
+                metrics=metrics,
+                user_prompt=params.get("user_prompt", ""),
+                max_new_sources=params.get("max_new_sources", 4),
+                angle=params.get("angle") or None,
+            )
+
+            # Determine which docs this mode affects, then store new versions
+            docs_affected = {
+                "expand_sources": ["doc_0", "doc_1", "doc_2"],
+                "deeper":         ["doc_0", "doc_1", "doc_2"],
+                "different_angle": ["doc_1", "doc_2"],
+                "custom":         ["doc_1", "doc_2"],
+            }.get(mode, ["doc_1", "doc_2"])
+
+            doc_map = {"doc_0": doc_0, "doc_1": doc_1, "doc_2": doc_2}
+            for doc_type in docs_affected:
+                doc_content = doc_map.get(doc_type)
+                if doc_content:
+                    version, _url = store_document_version(
+                        job_id=job_id,
+                        doc_type=doc_type,
+                        content=doc_content if isinstance(doc_content, dict)
+                                else {"data": doc_content},
+                        trigger=mode,
+                    )
+                    versions_created.append(f"{doc_type} v{version}")
+
+            # Also regenerate Creator Brief (Doc 3) for modes that touch Doc 2
+            if "doc_2" in docs_affected and doc_2:
+                try:
+                    from backend.pipeline.stages.creator_brief_stage import run_creator_brief_stage
+                    ctx.outputs["semantic_brief"] = doc_2 if isinstance(doc_2, dict) else {"data": doc_2}
+                    ctx = run_creator_brief_stage(ctx)
+                    cb = ctx.outputs.get("creator_brief")
+                    cb_md = ctx.outputs.get("creator_brief_md")
+                    if cb:
+                        version, _url = store_document_version(
+                            job_id=job_id,
+                            doc_type="doc_3",
+                            content={"data": cb, "markdown": cb_md},
+                            trigger=mode,
+                            markdown=cb_md,
+                        )
+                        versions_created.append(f"doc_3 v{version}")
+                except Exception as cb_err:
+                    logger.warning(f"[{job_id}] Creator Brief re-gen skipped after {mode}: {cb_err}")
+
+            logger.info(f"[{job_id}] {mode} complete: versions={versions_created}")
+
+        elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+        return {
+            "job_id": job_id,
+            "iterate_id": iterate_id,
+            "mode": mode,
+            "status": "success",
+            "versions_created": versions_created,
+            "elapsed_seconds": round(elapsed, 1),
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Iterate task timed out (mode={mode})")
+        return {"job_id": job_id, "iterate_id": iterate_id, "mode": mode, "status": "failed",
+                "error": "Iterate timed out"}
+
+    except Exception as exc:
+        logger.exception(f"[{job_id}] Iterate task failed (mode={mode}): {exc}")
+        return {"job_id": job_id, "iterate_id": iterate_id, "mode": mode, "status": "failed",
+                "error": str(exc)[:500]}
 
 
 # =============================================================================

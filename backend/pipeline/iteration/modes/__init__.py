@@ -76,5 +76,12 @@ def run_iteration_mode(
 
         return run_custom(ctx, baseline, user_prompt, metrics)
 
+    elif mode == "deep_dive":
+        # deep_dive needs full artifacts_dict — handled at the Celery task level.
+        raise ValueError(
+            "deep_dive mode must be dispatched via run_iterate_task, not run_iteration_mode directly. "
+            "Use POST /jobs/{job_id}/iterate with {'mode': 'deep_dive'}."
+        )
+
     else:
         raise ValueError(f"Unknown iteration mode: {mode}")

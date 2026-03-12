@@ -1578,31 +1578,135 @@ async def generate_claims_doc_for_run(
 
 
 # =============================================================================
-# ITERATION LOOP ENDPOINT (Phase 9)
+# UNIFIED ITERATE ENDPOINT — Phase 3 (replaces deprecated V1 iterate)
+# 5 modes: deep_dive, expand_sources, deeper, different_angle, custom
 # =============================================================================
 
-@router.post("/{job_id}/iterate", deprecated=True)
+from pydantic import BaseModel as _IterBaseModel, Field as _IterField
+from typing import List as _IterList
+
+
+class IterateRequest(_IterBaseModel):
+    """Request body for the unified Iterate endpoint.
+
+    Mode-specific parameters:
+      deep_dive       — no extra params required
+      expand_sources  — new_source_urls (list) or max_new_sources (int, 1-10)
+      deeper          — user_prompt (optional guidance)
+      different_angle — angle (str, required)
+      custom          — user_prompt (str, required)
+    """
+
+    mode: str = _IterField(
+        ...,
+        description="Iteration mode: deep_dive, expand_sources, deeper, different_angle, custom",
+    )
+    new_source_urls: _IterList[str] = _IterField(
+        default_factory=list,
+        description="URLs to add (expand_sources mode)",
+    )
+    max_new_sources: int = _IterField(
+        default=4, ge=1, le=10,
+        description="Max sources for auto-search (expand_sources mode)",
+    )
+    angle: str = _IterField(
+        default="",
+        description="New angle to explore (different_angle mode, required for that mode)",
+    )
+    user_prompt: str = _IterField(
+        default="",
+        description="User instructions (custom mode: required; deeper: optional)",
+    )
+
+
+@router.post("/{job_id}/iterate")
 @limiter.limit(RATE_LIMITS["jobs_create"])
-async def run_job_iteration(
+async def run_unified_iterate(
     request: Request,
     job_id: str,
+    iterate_request: IterateRequest,
     user: AuthUser = Depends(get_active_user),
 ):
-    """DEPRECATED: V1 iteration endpoint archived 2026-03-11.
-
-    Use POST /jobs/{job_id}/runs (V2 Run Abstraction) instead.
-    Full implementation archived to backend/archive/deprecated_route_handlers.py.
     """
-    raise HTTPException(
-        status_code=410,
-        detail={
-            "message": "V1 iteration endpoint is deprecated",
-            "deprecated_since": "2026-01-26",
-            "archived": "2026-03-11",
-            "alternative": "POST /jobs/{job_id}/runs",
-            "archive_location": "backend/archive/deprecated_route_handlers.py",
-        },
+    Unified Iterate endpoint — all 5 iteration modes through one API.
+
+    Modes:
+      deep_dive       — Research gap analysis + search directions (formerly Booster).
+                        Creates new version of Doc 1 only.
+      expand_sources  — Add sources, re-run full pipeline (formerly Addendum/more_sources).
+                        Creates new versions of Doc 0/1/2/3.
+      deeper          — Re-extract existing sources with more depth.
+                        Creates new versions of Doc 0/1/2/3.
+      different_angle — Same data, new perspective (requires 'angle' param).
+                        Creates new versions of Doc 2/3.
+      custom          — User-defined freeform (requires 'user_prompt' param).
+                        Creates new versions of Doc 2/3.
+
+    Returns iterate_id and queued status. Poll job status for completion.
+    """
+    import time
+    from backend.worker import celery_app
+
+    VALID_MODES = {"deep_dive", "expand_sources", "deeper", "different_angle", "custom"}
+    if iterate_request.mode not in VALID_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mode '{iterate_request.mode}'. Must be one of: {', '.join(sorted(VALID_MODES))}",
+        )
+
+    if iterate_request.mode == "different_angle" and not iterate_request.angle:
+        raise HTTPException(
+            status_code=400,
+            detail="different_angle mode requires 'angle' parameter",
+        )
+    if iterate_request.mode == "custom" and not iterate_request.user_prompt:
+        raise HTTPException(
+            status_code=400,
+            detail="custom mode requires 'user_prompt' parameter",
+        )
+
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if job.status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job must be completed before iterating. Current status: {job.status}",
+        )
+
+    iterate_id = f"iter_{int(time.time())}"
+
+    params = {
+        "mode": iterate_request.mode,
+        "new_source_urls": iterate_request.new_source_urls,
+        "max_new_sources": iterate_request.max_new_sources,
+        "angle": iterate_request.angle,
+        "user_prompt": iterate_request.user_prompt,
+    }
+
+    celery_app.send_task(
+        "backend.worker.run_iterate_task",
+        args=[job_id, iterate_id, user.user_id, params],
+        queue="research",
     )
+
+    logger.info(f"[{job_id}] Iterate dispatched: mode={iterate_request.mode}, iterate_id={iterate_id}")
+    return {
+        "job_id": job_id,
+        "iterate_id": iterate_id,
+        "mode": iterate_request.mode,
+        "status": "queued",
+        "message": f"Iteration '{iterate_request.mode}' queued as {iterate_id}",
+    }
 
 
 # =============================================================================
