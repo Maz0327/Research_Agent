@@ -368,7 +368,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
         run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
 
         # Stage F: Creator Brief assembly (Doc 3) — non-fatal
-        run_creator_brief_stage(ctx)
+        run_stage_with_recovery(run_creator_brief_stage, ctx, "creator_brief")
 
         # NOTE: Drive upload removed (2026-01-19 - outputs go to Supabase Storage)
 
@@ -1660,6 +1660,15 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
                 try:
                     from backend.pipeline.stages.creator_brief_stage import run_creator_brief_stage
                     ctx.outputs["semantic_brief"] = doc_2 if isinstance(doc_2, dict) else {"data": doc_2}
+
+                    # Populate source context so Creator Brief has proper provenance data
+                    if doc_0:
+                        ctx.source_ledger = doc_0 if isinstance(doc_0, dict) else {"sources": []}
+                    if not getattr(ctx, "semantic_extractions", None):
+                        # Pull from stored semantic_brief key_points as fallback
+                        brief = doc_2 if isinstance(doc_2, dict) else {}
+                        ctx.semantic_extractions = getattr(ctx, "semantic_extractions", [])
+
                     ctx = run_creator_brief_stage(ctx)
                     cb = ctx.outputs.get("creator_brief")
                     cb_md = ctx.outputs.get("creator_brief_md")
@@ -1701,11 +1710,13 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
 
     except SoftTimeLimitExceeded:
         logger.error(f"[{job_id}] Iterate task timed out (mode={mode})")
+        update_job(job_id, iteration_status="failed", iteration_error="Iterate timed out")
         return {"job_id": job_id, "iterate_id": iterate_id, "mode": mode, "status": "failed",
                 "error": "Iterate timed out"}
 
     except Exception as exc:
         logger.exception(f"[{job_id}] Iterate task failed (mode={mode}): {exc}")
+        update_job(job_id, iteration_status="failed", iteration_error=str(exc)[:500])
         return {"job_id": job_id, "iterate_id": iterate_id, "mode": mode, "status": "failed",
                 "error": str(exc)[:500]}
 
