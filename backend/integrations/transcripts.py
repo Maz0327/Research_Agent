@@ -146,30 +146,12 @@ def _fetch_with_whisper(
     video_url: str,
     api_key: Optional[str] = None,
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """DEPRECATED: Dead code. Whisper fallback is wired in fetch_transcript_v2 via
+    whisper_client.transcribe_with_whisper(). This stub is unused — only kept
+    to avoid breaking any external references. See fetch_transcript_v2 lines 290-311.
     """
-    Fetch transcript using OpenAI Whisper API (hook for future use).
-    
-    This is a placeholder implementation. Whisper API requires:
-    - Downloading the video (or providing audio URL)
-    - Calling OpenAI Whisper API
-    - Processing the response
-    
-    Args:
-        video_id: YouTube video ID
-        video_url: YouTube video URL
-        api_key: OpenAI API key (optional)
-        
-    Returns:
-        Tuple of (text, language, error_message)
-    """
-    # Placeholder - not implemented in MVP
-    # This would require:
-    # 1. Downloading video/audio (using yt-dlp or similar)
-    # 2. Calling OpenAI Whisper API
-    # 3. Processing response
-    
-    logger.debug(f"Whisper transcription not implemented for video {video_id}")
-    return None, None, "Whisper transcription not enabled in MVP"
+    logger.debug(f"DEPRECATED _fetch_with_whisper called for {video_id} — use fetch_transcript_v2")
+    return None, None, "Use fetch_transcript_v2 which has real Whisper fallback"
 
 
 def fetch_transcript(
