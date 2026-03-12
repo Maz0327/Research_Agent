@@ -250,7 +250,7 @@ These documents are **not interchangeable**.
 
 * Always produced, even if thin
 * Useful without any external APIs
-* May be augmented by Deep Research Booster
+* May be augmented by Iterate: deep_dive mode
 
 ---
 
@@ -289,12 +289,53 @@ These documents are **not interchangeable**.
 
 ---
 
-### DOC 3 — PRODUCER PACKET (Optional Creative Layer)
+### DOC 3 — CREATOR BRIEF (Core — Auto-Generated)
 
 **Purpose**
 
-* Provide creative interpretation and story angles
-* Reduce activation energy for narrative construction
+* Distill all research into a production-ready creative brief for the creator
+* The hero document — what the creator actually uses to make content
+* Bridge between raw research (Doc 2) and creative execution
+
+**Gating Requirements**
+
+* Automatically generated after Stage E (Assembly) completes
+* No user trigger required — always produced if pipeline succeeds
+
+**Allowed Content**
+
+* Hook options (2, each referencing a claim_id from Doc 2)
+* Setup: core theme/thesis from synthesis
+* Twist: contradiction or reversal from `framing: contradicts` claims
+* Core facts: 3–5 high-significance claims with plain-English phrasing and source links
+* Analogy: explanation of core concept for general audience
+* Personal stakes: why this matters to the viewer
+* Cliffhanger: open questions or `framing: speculative` claims
+* Sources for description box (formatted for copy-paste)
+* Disputed/speculative claims section (explicit flagging)
+
+**Forbidden Content**
+
+* Scripts or full narration
+* Presentation of speculative claims as confirmed
+* New facts not traceable to Doc 0
+* Modification of Docs 0/1/2
+
+**Guarantees**
+
+* Every hook_option references valid `claim_id` from Doc 2
+* Every core_fact references valid `claim_id` (Doc 2) and `source_id` (Doc 0)
+* Disputed claims match actual `framing` field from claim enrichments
+* Temperature: 0.3 (creative but grounded)
+
+---
+
+### DOC 4 — PRODUCER PACKET (Optional Creative Layer)
+
+**Purpose**
+
+* Provide creative interpretation and story angles for long-form narrative construction
+* Reduce activation energy for scripting
 * Serve as a "co-producer" collaborator
 
 **Gating Requirements (ALL must be met)**
@@ -302,7 +343,7 @@ These documents are **not interchangeable**.
 * 4+ sources in the job
 * At least 1 source with HIGH confidence ceiling
 * Job status is "complete"
-* User explicitly requests Doc 3
+* User explicitly requests Doc 4
 
 **Allowed Content**
 
@@ -316,7 +357,7 @@ These documents are **not interchangeable**.
 
 * Presentation as fact
 * Claims without explicit speculation label
-* Modification of Docs 0/1/2
+* Modification of Docs 0/1/2/3
 
 **Guarantees**
 
@@ -340,9 +381,10 @@ The Research Agent pipeline executes in the following order:
 2. **Semantic Extraction** — Extract per source, isolated
 3. **Validation** — Verify quotes, enforce ceilings
 4. **Synthesis** — Cross-source analysis
-5. **Assembly** — Build Doc 0/1/2
-6. **Optional: Booster** — Deep research directions
-7. **Optional: Producer Packet** — Creative interpretation
+5. **Assembly** — Build Doc 0/1/2 (Source Ledger, Jump-Start, Semantic Brief)
+6. **Creator Brief** — Auto-generate Doc 3 from Doc 2 + Doc 0 data
+7. **Optional: Iterate (deep_dive)** — Deep research directions (formerly Booster)
+8. **Optional: Producer Packet** — Creative interpretation (Doc 4)
 
 Stages may **degrade gracefully**, but **may not be skipped**.
 
@@ -548,48 +590,85 @@ All extraction prompts MUST include:
 
 ---
 
-### 4.7 Stage F — Optional Deep Research Booster
+### 4.7 Stage F — Creator Brief Assembly (Core — Auto-Runs After Stage E)
 
 **Purpose**
 
-* Expand research directions beyond the current corpus
-* Never contaminate canonical data
+* Generate Doc 3 (Creator Brief) automatically after Assembly completes
+* Distill Doc 2 claims and Doc 0 sources into a creator-ready production brief
 
 **Trigger**
 
-* User-initiated after job completion
-* Automatic if significant gaps detected (optional)
+* Automatic — runs after every successful Stage E
+* No user initiation required
 
 **Inputs**
 
-* Context Bundle (derived from DOC 0 + DOC 1)
+* Doc 2 — all claims with enrichments (framing, speaker, significance, source_ids)
+* Doc 0 — source metadata for citation formatting
 
-**4-Stage Booster Pipeline**
+**Pipeline**
 
-1. **Gap Analysis** — Deep analysis of missing information
-2. **Research Directions** — Prioritized next steps
-3. **Search Queries** — Concrete queries to run
-4. **Context Bundle** — Package for continued research
+1. **Claim Ranking** — Sort claims by significance, flag disputed/speculative
+2. **Hook Generation** — Select 2 highest-impact claims as hook options
+3. **Brief Assembly** — Build setup, twist, core facts, analogy, stakes, cliffhanger
+4. **Provenance Validation** — Every claim_id and source_id verified against Doc 2/Doc 0
+5. **Output Serialization** — Store as CreatorBriefDocument + render markdown
 
 **Outputs**
 
-* Augments DOC 1 only
-* Adds: new leads, missing perspectives, primary source directions
+* DOC 3 — Creator Brief
+* Stored as `doc_3_path` in job artifacts
 
-**Fallback Behavior**
+**Rules**
 
-* If booster fails:
-  * DOC 1 remains valid
-  * Job status = completed_with_warnings
+* Temperature: 0.3 (creative but grounded)
+* Every hook_option must reference a valid claim_id
+* Every core_fact must reference valid claim_id + source_id
+* If Creator Brief generation fails: pipeline completes with warning, Doc 3 absent
 
 ---
 
-### 4.8 Stage G — Optional Producer Packet
+### 4.8 Stage G — Iterate System (User-Triggered, Post-Completion)
+
+**Purpose**
+
+* Enable iterative improvement of research after initial pipeline completes
+* Create new document versions without destroying existing versions
+
+**Trigger**
+
+* User-initiated after job completion via `POST /jobs/{job_id}/iterate`
+
+**Five Iteration Modes**
+
+| Mode | What It Does | Docs Affected |
+|------|-------------|---------------|
+| `deep_dive` | Gap analysis, search directions (formerly Booster) | Doc 1 only |
+| `expand_sources` | Add new sources, re-run full pipeline (formerly Addendum/more_sources) | Doc 0/1/2/3 |
+| `deeper` | Re-extract all sources with more detail | Doc 0/1/2/3 |
+| `different_angle` | Re-synthesize with different framing | Doc 2/3 |
+| `custom` | User-defined instructions | Specified docs |
+
+**Versioning**
+
+* Each iteration creates a new version of affected documents
+* Rolling 4-version window (latest + 3 previous)
+* Iteration history stored at `jobs/{job_id}/iterations/{iteration_id}/`
+
+**Fallback Behavior**
+
+* If iteration fails: previous versions remain valid
+* Job status = completed_with_warnings (iteration failure does not break job)
+
+---
+
+### 4.9 Stage H — Optional Producer Packet (Doc 4)
 
 **Purpose**
 
 * Provide creative interpretation for narrative construction
-* Reduce activation energy for content creation
+* Reduce activation energy for scripting
 
 **Gating Requirements**
 
@@ -607,14 +686,14 @@ All extraction prompts MUST include:
 
 **Outputs**
 
-* DOC 3 — Producer Packet
+* DOC 4 — Producer Packet
 * Stored separately from canonical documents
 
 **Rules**
 
 * Higher temperature permitted (0.3-0.5)
 * Explicitly labeled as creative interpretation
-* Does not modify Docs 0/1/2
+* Does not modify Docs 0/1/2/3
 
 ---
 
@@ -683,11 +762,12 @@ This section defines **how models are allowed to behave**.
 * **Gemini 2.5 Pro**
   * Semantic extraction (per-source, isolated)
   * Synthesis (cross-source)
-  * Booster pipeline
-  * Producer Packet
+  * Creator Brief assembly (Doc 3)
+  * Iterate: deep_dive pipeline
+  * Producer Packet (Doc 4)
 
 * **OpenAI / Perplexity / Exa**
-  * Research expansion (Booster only)
+  * Research expansion (Iterate: expand_sources and deep_dive only)
   * NOT used for extraction
 
 No model performs extraction and synthesis in the same call.
@@ -817,6 +897,7 @@ Validation occurs **after model output**.
 | Doc 0 | 1+ source with content | Job fails |
 | Doc 1 | 5+ gaps, 3+ next steps | Warning |
 | Doc 2 | 8+ key points, 4+ themes | Warning |
+| Doc 3 | 2 hook_options, 3+ core_facts | Warning (Doc 3 absent, not job failure) |
 
 ---
 
