@@ -1,8 +1,9 @@
 /**
- * SourceReviewPanel - Shows search candidates awaiting user approval.
+ * SourceReviewPanel - Card-based UI for reviewing search candidates.
  *
  * Displayed when an EXPAND run with auto-search enters AWAITING_REVIEW status.
  * Users can approve or reject individual search candidates before processing continues.
+ * Each candidate is shown as a card with title, URL, quality score, and snippet.
  */
 
 import { useState, useEffect } from 'react';
@@ -14,6 +15,36 @@ interface SourceReviewPanelProps {
   jobId: string;
   runId: string;
   onComplete: () => void;
+}
+
+/** Quality score color based on relevance */
+function getScoreColor(score: number): string {
+  if (score >= 0.8) return 'text-green-400';
+  if (score >= 0.5) return 'text-yellow-400';
+  return 'text-gray-400';
+}
+
+/** Quality score bar width */
+function getScoreWidth(score: number): string {
+  return `${Math.round(score * 100)}%`;
+}
+
+/** Quality score bg color for bar */
+function getScoreBarColor(score: number): string {
+  if (score >= 0.8) return 'bg-green-500';
+  if (score >= 0.5) return 'bg-yellow-500';
+  return 'bg-gray-500';
+}
+
+/** Source type badge from provider */
+function getProviderBadge(provider: string): { label: string; color: string } {
+  const map: Record<string, { label: string; color: string }> = {
+    google: { label: 'Web', color: 'bg-blue-900/40 text-blue-300' },
+    news: { label: 'News', color: 'bg-purple-900/40 text-purple-300' },
+    youtube: { label: 'Video', color: 'bg-red-900/40 text-red-300' },
+    reddit: { label: 'Reddit', color: 'bg-orange-900/40 text-orange-300' },
+  };
+  return map[provider] || { label: provider, color: 'bg-gray-700 text-gray-300' };
 }
 
 export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPanelProps) {
@@ -76,13 +107,10 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
-        <div className="flex items-center gap-2 text-blue-300 text-sm">
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          Loading search candidates...
+      <div className="p-6 bg-blue-900/10 border border-blue-700/30 rounded-xl">
+        <div className="flex items-center gap-3 text-blue-300 text-sm">
+          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          Discovering sources…
         </div>
       </div>
     );
@@ -90,7 +118,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
 
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
+      <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-xl">
         <p className="text-red-300 text-sm">{error}</p>
       </div>
     );
@@ -98,7 +126,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
 
   if (candidates.length === 0) {
     return (
-      <div className="p-4 bg-gray-700/50 border border-gray-600/50 rounded-lg">
+      <div className="p-4 bg-gray-700/50 border border-gray-600/50 rounded-xl">
         <p className="text-gray-400 text-sm">No search candidates found.</p>
       </div>
     );
@@ -108,77 +136,142 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-blue-900/10 border border-blue-700/30 rounded-xl p-4"
+      className="bg-blue-900/10 border border-blue-700/30 rounded-xl overflow-hidden"
     >
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-blue-300 flex items-center gap-2">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Review Search Results ({candidates.length} found)
-        </h4>
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-blue-700/20">
+        <div>
+          <h4 className="text-sm font-semibold text-blue-300 flex items-center gap-2">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Review Sources
+          </h4>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {candidates.length} source{candidates.length !== 1 ? 's' : ''} found — select which ones to include
+          </p>
+        </div>
         <div className="flex gap-2 text-xs">
-          <button onClick={selectAll} className="text-blue-400 hover:text-blue-300 transition">
+          <button
+            onClick={selectAll}
+            className="px-2 py-1 rounded text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 transition"
+          >
             Select All
           </button>
-          <span className="text-gray-600">|</span>
-          <button onClick={deselectAll} className="text-blue-400 hover:text-blue-300 transition">
+          <button
+            onClick={deselectAll}
+            className="px-2 py-1 rounded text-gray-400 hover:text-gray-300 hover:bg-gray-800 transition"
+          >
             Deselect All
           </button>
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 mb-3">
-        Select the sources you want to add to your research. Unchecked sources will be skipped.
-      </p>
+      {/* Source cards */}
+      <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+        {candidates.map((candidate, index) => {
+          const isSelected = selectedUrls.has(candidate.url);
+          const badge = getProviderBadge(candidate.provider);
 
-      {/* Candidate list */}
-      <div className="space-y-2 max-h-[300px] overflow-y-auto mb-4">
-        {candidates.map((candidate) => (
-          <label
-            key={candidate.url}
-            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition ${
-              selectedUrls.has(candidate.url)
-                ? 'border-blue-500/50 bg-blue-500/5'
-                : 'border-gray-700 bg-gray-800/50 opacity-60'
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={selectedUrls.has(candidate.url)}
-              onChange={() => toggleCandidate(candidate.url)}
-              className="mt-1 h-4 w-4 rounded border-gray-600 text-blue-500 focus:ring-blue-500 bg-gray-700"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-200 truncate">
-                  {candidate.title || 'Untitled'}
-                </span>
-                {candidate.relevance_score >= 0.8 && (
-                  <span className="text-xs px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded">
-                    High match
-                  </span>
-                )}
+          return (
+            <motion.button
+              key={candidate.url}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.03 }}
+              onClick={() => toggleCandidate(candidate.url)}
+              className={`
+                w-full text-left rounded-xl border-2 p-4 transition-all duration-150
+                ${isSelected
+                  ? 'border-blue-500/50 bg-blue-500/5'
+                  : 'border-gray-700 bg-gray-800/30 opacity-50'
+                }
+              `}
+            >
+              <div className="flex items-start gap-3">
+                {/* Toggle indicator */}
+                <div className={`
+                  mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
+                  ${isSelected
+                    ? 'border-blue-500 bg-blue-500'
+                    : 'border-gray-600 bg-gray-800'
+                  }
+                `}>
+                  {isSelected && (
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-gray-200 truncate">
+                      {candidate.title || 'Untitled'}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge.color}`}>
+                      {badge.label}
+                    </span>
+                  </div>
+
+                  {/* Snippet */}
+                  <p className="text-xs text-gray-400 line-clamp-2 mb-2">{candidate.snippet}</p>
+
+                  {/* Bottom row: URL + quality score */}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] text-gray-500 truncate font-mono flex-1">
+                      {candidate.url}
+                    </span>
+
+                    {/* Quality score bar */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${getScoreBarColor(candidate.relevance_score)}`}
+                          style={{ width: getScoreWidth(candidate.relevance_score) }}
+                        />
+                      </div>
+                      <span className={`text-[11px] font-mono ${getScoreColor(candidate.relevance_score)}`}>
+                        {Math.round(candidate.relevance_score * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{candidate.snippet}</p>
-              <p className="text-xs text-gray-500 mt-1 truncate font-mono">{candidate.url}</p>
-            </div>
-          </label>
-        ))}
+            </motion.button>
+          );
+        })}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3">
+      {/* Footer actions */}
+      <div className="flex items-center justify-between px-5 py-4 border-t border-blue-700/20 bg-gray-900/50">
+        <span className="text-xs text-gray-400">
+          {selectedUrls.size} of {candidates.length} selected
+        </span>
         <button
           onClick={handleApprove}
           disabled={isSubmitting || selectedUrls.size === 0}
-          className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed rounded-lg transition"
+          className={`
+            px-5 py-2 rounded-lg text-sm font-medium transition-all
+            ${selectedUrls.size > 0 && !isSubmitting
+              ? 'bg-blue-600 hover:bg-blue-500 text-white'
+              : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+            }
+          `}
         >
-          {isSubmitting
-            ? 'Processing...'
-            : `Approve ${selectedUrls.size} Source${selectedUrls.size !== 1 ? 's' : ''}`}
+          {isSubmitting ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Processing…
+            </span>
+          ) : (
+            `Approve ${selectedUrls.size} Source${selectedUrls.size !== 1 ? 's' : ''}`
+          )}
         </button>
       </div>
     </motion.div>
   );
 }
+
+export default SourceReviewPanel;

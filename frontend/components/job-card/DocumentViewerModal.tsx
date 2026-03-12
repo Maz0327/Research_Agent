@@ -22,7 +22,7 @@ import { ShareButton } from './ShareButton';
 export interface DocumentViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  docNumber: 0 | 1 | 2 | 3 | 'B';
+  docNumber: 0 | 1 | 2 | 3 | 4 | 'B';
   title: string;
   markdown?: string;
   data: Record<string, unknown>;

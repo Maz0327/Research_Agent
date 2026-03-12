@@ -15,7 +15,7 @@ import { getAccessToken } from '../../lib/supabase';
 /** Props for document modal */
 interface DocModalState {
   isOpen: boolean;
-  docNumber: 0 | 1 | 2 | 3 | 'B';
+  docNumber: 0 | 1 | 2 | 3 | 4 | 'B';
   title: string;
   markdown?: string;
   data: Record<string, unknown>;
@@ -32,6 +32,10 @@ export interface ArtifactCardGridProps {
   onOpenIterationDialog: () => void;
   /** Whether actions are disabled (loading state) */
   actionsDisabled?: boolean;
+  /** Callback when Doc 3 card is clicked and hero is available — scroll to hero section */
+  onScrollToHero?: () => void;
+  /** Whether Creator Brief hero section is rendered on the page */
+  hasHeroSection?: boolean;
 }
 
 /** Determine artifact state from job data */
@@ -153,7 +157,7 @@ function getArtifactState(
 /** Fetch document content from API endpoint */
 async function fetchDocumentFromAPI(
   jobId: string,
-  docType: 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3'
+  docType: 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3' | 'doc_4'
 ): Promise<{ data: Record<string, unknown>; markdown?: string }> {
   const token = await getAccessToken();
   const headers: Record<string, string> = {
@@ -201,6 +205,8 @@ export function ArtifactCardGrid({
   onTriggerProducer,
   onOpenIterationDialog,
   actionsDisabled = false,
+  onScrollToHero,
+  hasHeroSection = false,
 }: ArtifactCardGridProps) {
   // Check if this is a claim extraction job
   const isClaimExtractionJob = job.pipeline === 'claim_extraction';
@@ -225,7 +231,7 @@ export function ArtifactCardGrid({
 
   /** Open document viewer for a specific doc */
   const openDocViewer = useCallback(
-    async (docNumber: 0 | 1 | 2 | 3 | 'B', title: string) => {
+    async (docNumber: 0 | 1 | 2 | 3 | 4 | 'B', title: string) => {
       setIsLoadingDoc(true);
 
       try {
@@ -400,7 +406,12 @@ export function ArtifactCardGrid({
           break;
         case 'doc_3':
           if (state === 'completed') {
-            openDocViewer(3, 'Creator Brief');
+            // If hero section is rendered, scroll to it instead of opening modal
+            if (hasHeroSection && onScrollToHero) {
+              onScrollToHero();
+            } else {
+              openDocViewer(3, 'Creator Brief');
+            }
           } else if (state === 'ready' && !actionsDisabled) {
             // Pass runId for V2 runs (except baseline run_0)
             const producerRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
@@ -429,7 +440,7 @@ export function ArtifactCardGrid({
           break;
       }
     },
-    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, actionsDisabled]
+    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, actionsDisabled, hasHeroSection, onScrollToHero]
   );
 
   // Count completed iterations and runs

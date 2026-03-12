@@ -14,6 +14,8 @@ import {
   JobDetailHeader,
   ArtifactCardGrid,
 } from '../../components/job-detail';
+import { CreatorBriefView } from '../../components/creator-brief/CreatorBriefView';
+import { IterateDialog } from '../../components/iterate/IterateDialog';
 
 /** Skeleton loader for job detail */
 function JobDetailSkeleton() {
@@ -318,7 +320,9 @@ function JobDetailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [iterationDialogOpen, setIterationDialogOpen] = useState(false);
+  const [newIterateDialogOpen, setNewIterateDialogOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   // Find job in store
   const job = jobs.find((j) => j.id === jobId);
@@ -457,7 +461,7 @@ function JobDetailContent() {
 
         {/* Active task loading states are now shown on individual artifact cards */}
 
-        {/* Main job running indicator */}
+        {/* Main job running indicator — narrated loading */}
         {(job.status === 'running' || job.status === 'queued') && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -469,14 +473,22 @@ function JobDetailContent() {
                 <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
                 <div>
                   <p className="font-medium text-blue-300">
-                    {job.status === 'queued' ? 'Waiting in queue...' : getStageLabel(job.stage)}
+                    {job.status === 'queued' ? 'Waiting in queue…' : getStageLabel(job.stage)}
                   </p>
                   <p className="text-sm text-gray-400">
-                    {job.pass_detail || getStageDescription(job.stage) || 'Processing your research...'}
+                    {job.pass_detail || getStageDescription(job.stage) || 'Processing your research…'}
                   </p>
                 </div>
               </div>
-              <span className="text-sm font-mono text-blue-300">{job.progress_percent}%</span>
+              <div className="flex items-center gap-3">
+                {/* Dynamic source count from extractions */}
+                {job.artifacts?.semantic_extractions && job.artifacts.semantic_extractions.length > 0 && (
+                  <span className="text-xs text-gray-500 hidden sm:inline">
+                    {job.artifacts.semantic_extractions.length} source{job.artifacts.semantic_extractions.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                <span className="text-sm font-mono text-blue-300">{job.progress_percent}%</span>
+              </div>
             </div>
             <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
               <motion.div
@@ -512,16 +524,51 @@ function JobDetailContent() {
           </div>
         )}
 
-        {/* Artifact Cards Grid */}
-        <ArtifactCardGrid
-          job={job}
-          onTriggerBooster={handleTriggerBooster}
-          onTriggerProducer={handleTriggerProducer}
-          onOpenIterationDialog={() => setIterationDialogOpen(true)}
-          actionsDisabled={actionsDisabled}
-        />
+        {/* Creator Brief Hero Section — shown when job completed and doc_3 exists */}
+        {(job.status === 'completed' || job.status === 'completed_with_warnings') &&
+          (job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md) && (
+          <div ref={heroRef} className="mb-8">
+            <CreatorBriefView
+              jobId={job.id}
+              onNavigateToDoc={(docType) => {
+                // Scroll to artifact card grid — user can click the relevant card
+                const grid = document.getElementById('artifact-grid');
+                grid?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            />
+          </div>
+        )}
 
-        {/* Iteration Dialog */}
+        {/* Improve Research button — uses new 5-mode IterateDialog */}
+        {(job.status === 'completed' || job.status === 'completed_with_warnings') && (
+          <div className="mb-6 flex justify-end">
+            <button
+              onClick={() => setNewIterateDialogOpen(true)}
+              disabled={actionsDisabled}
+              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-amber-600 hover:bg-amber-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Improve Research
+            </button>
+          </div>
+        )}
+
+        {/* Artifact Cards Grid */}
+        <div id="artifact-grid">
+          <ArtifactCardGrid
+            job={job}
+            onTriggerBooster={handleTriggerBooster}
+            onTriggerProducer={handleTriggerProducer}
+            onOpenIterationDialog={() => setIterationDialogOpen(true)}
+            actionsDisabled={actionsDisabled}
+            hasHeroSection={!!(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md)}
+            onScrollToHero={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          />
+        </div>
+
+        {/* Legacy Iteration Dialog (V2 Runs) */}
         <AnimatePresence>
           {iterationDialogOpen && (
             <IterationDialog
@@ -532,6 +579,18 @@ function JobDetailContent() {
             />
           )}
         </AnimatePresence>
+
+        {/* New 5-Mode Iterate Dialog */}
+        <IterateDialog
+          isOpen={newIterateDialogOpen}
+          onClose={() => setNewIterateDialogOpen(false)}
+          jobId={jobId}
+          onIterateStarted={() => {
+            setNewIterateDialogOpen(false);
+            // Refresh job to start polling
+            refreshJob(jobId);
+          }}
+        />
 
         {/* Delete Confirmation Modal */}
         <AnimatePresence>

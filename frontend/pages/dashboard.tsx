@@ -14,8 +14,8 @@ import { UnifiedInputPanel } from '../components/unified-input';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import { DashboardJobCard } from '../components/dashboard/DashboardJobCard';
 
-// Job creation modes: 'research' (unified multi-source) or 'claims' (claim extraction)
-type JobMode = 'research' | 'claims';
+// Job creation modes: 4 entry points
+type JobMode = 'none' | 'topic' | 'research' | 'claims' | 'transcripts';
 
 // Research depth options (mode)
 const researchDepths = [
@@ -59,8 +59,8 @@ function JobSkeleton() {
 const availableSourceTypes = ['web', 'news', 'youtube', 'reddit'];
 
 function DashboardContent() {
-  // Job creation mode: 'research' (unified multi-source) or 'claims' (claim extraction)
-  const [jobMode, setJobMode] = useState<JobMode>('research');
+  // Job creation mode: 4 entry points (none = show card grid)
+  const [jobMode, setJobMode] = useState<JobMode>('none');
 
   // Claim Extractor state
   const [claimTitle, setClaimTitle] = useState('');
@@ -388,38 +388,88 @@ function DashboardContent() {
                 className="overflow-hidden"
               >
                 <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-800">
-                  {/* Mode Toggle - responsive layout */}
-                  <div className="pt-4 sm:pt-5 mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    {/* Toggle buttons - full width on mobile */}
-                    <div className="flex rounded-lg bg-gray-800 p-1 w-full sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => setJobMode('research')}
-                        className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
-                          jobMode === 'research'
-                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                            : 'text-gray-400 hover:text-gray-300'
-                        }`}
-                      >
-                        Research
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setJobMode('claims')}
-                        className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 text-sm font-medium rounded-md transition-all touch-manipulation ${
-                          jobMode === 'claims'
-                            ? 'bg-purple-600 text-white shadow-lg'
-                            : 'text-gray-400 hover:text-gray-300'
-                        }`}
-                      >
-                        Claim Extractor
-                      </button>
-                    </div>
+                  {/* 4-Card Entry Point Grid */}
+                  <div className="pt-4 sm:pt-5 mb-5 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Entry Point 1: Topic Research (placeholder until Phase 5) */}
+                    <button
+                      onClick={() => setJobMode(jobMode === 'topic' ? 'none' : 'topic')}
+                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                        jobMode === 'topic'
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="text-xl">🔍</span>
+                        <span className="text-sm font-medium text-gray-100">What do you want to research?</span>
+                      </div>
+                      <p className="text-xs text-gray-500 ml-8">Enter a topic and we&apos;ll find sources for you</p>
+                    </button>
+
+                    {/* Entry Point 2: Own Sources */}
+                    <button
+                      onClick={() => setJobMode(jobMode === 'research' ? 'none' : 'research')}
+                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                        jobMode === 'research'
+                          ? 'border-green-500 bg-green-500/10'
+                          : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="text-xl">📎</span>
+                        <span className="text-sm font-medium text-gray-100">I have my own sources</span>
+                      </div>
+                      <p className="text-xs text-gray-500 ml-8">Paste URLs, text, or screenshots to analyze</p>
+                    </button>
+
+                    {/* Entry Point 3: Claim Extractor */}
+                    <button
+                      onClick={() => setJobMode(jobMode === 'claims' ? 'none' : 'claims')}
+                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                        jobMode === 'claims'
+                          ? 'border-purple-500 bg-purple-500/10'
+                          : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="text-xl">📋</span>
+                        <span className="text-sm font-medium text-gray-100">Extract claims from content</span>
+                      </div>
+                      <p className="text-xs text-gray-500 ml-8">Pull out claims with confidence scores</p>
+                    </button>
+
+                    {/* Entry Point 4: YouTube Transcripts */}
+                    <Link
+                      href="/transcripts"
+                      className="text-left p-4 rounded-xl border-2 border-gray-700 bg-gray-800/30 hover:border-gray-600 transition-all touch-manipulation"
+                    >
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <span className="text-xl">🎬</span>
+                        <span className="text-sm font-medium text-gray-100">Get YouTube transcripts</span>
+                      </div>
+                      <p className="text-xs text-gray-500 ml-8">Extract and download video transcripts</p>
+                    </Link>
                   </div>
 
           <AnimatePresence mode="wait">
-            {/* RESEARCH MODE (Unified Multi-Source) */}
-            {jobMode === 'research' ? (
+            {/* TOPIC MODE (placeholder — search flow comes in Phase 5) */}
+            {jobMode === 'topic' ? (
+              <motion.div
+                key="topic-form"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="rounded-lg border border-blue-700/30 bg-blue-900/10 p-4"
+              >
+                <p className="text-sm text-blue-300 mb-3">Topic-first search is coming soon. For now, use &ldquo;I have my own sources&rdquo; to paste URLs directly.</p>
+                <button
+                  onClick={() => setJobMode('research')}
+                  className="text-sm text-blue-400 hover:text-blue-300 underline transition"
+                >
+                  Switch to source input →
+                </button>
+              </motion.div>
+            ) : jobMode === 'research' ? (
               <motion.div
                 key="research-form"
                 initial={{ opacity: 0 }}

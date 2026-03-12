@@ -159,19 +159,27 @@ export function ArtifactCard({
   const config = ARTIFACT_CONFIG[type];
   const styles = STATE_STYLES[state];
 
-  // User-friendly status descriptions for running state
+  // Narrated status descriptions for running state
   const getRunningDescription = () => {
     switch (type) {
-      case 'booster':
-        return 'Expanding research directions...';
-      case 'iteration':
-        return 'Running additional analysis...';
+      case 'doc_0':
+        return 'Cataloging your sources…';
+      case 'doc_1':
+        return 'Finding research directions…';
+      case 'doc_2':
+        return 'Synthesizing themes and insights…';
       case 'doc_3':
-        return 'Assembling your Creator Brief...';
+        return 'Distilling hooks and core facts…';
       case 'doc_4':
-        return 'Generating Producer Packet...';
+        return 'Generating production notes…';
+      case 'booster':
+        return 'Exploring new directions…';
+      case 'iteration':
+        return 'Running additional analysis…';
+      case 'claims_doc':
+        return 'Extracting claims…';
       default:
-        return 'Processing...';
+        return 'Processing…';
     }
   };
 
