@@ -2226,7 +2226,7 @@ def run_iteration_task(self, job_id: str, iteration_id: str, user_id: str) -> di
 
     # Get iteration request details
     request_data = iteration_data.get("request", {})
-    mode = request_data.get("mode", "more_sources")
+    mode = request_data.get("mode", "expand_sources")  # expand_sources = formerly more_sources
     user_prompt = request_data.get("user_prompt", "")
     max_new_sources = request_data.get("max_new_sources", 4)
     angle = request_data.get("angle")

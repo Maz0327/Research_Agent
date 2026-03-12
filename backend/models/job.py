@@ -716,9 +716,9 @@ class IterateJobRequest(BaseModel):
 
     Iterations append new doc bundles WITHOUT overwriting baseline artifacts.
     """
-    mode: Literal["more_sources", "deeper", "different_angle", "custom"] = Field(
-        "more_sources",
-        description="Iteration mode: more_sources (find more), deeper (deeper analysis), different_angle (new perspective), custom (user-defined)"
+    mode: Literal["expand_sources", "deeper", "different_angle", "custom", "more_sources"] = Field(
+        "expand_sources",
+        description="Iteration mode: expand_sources (find more sources, formerly more_sources), deeper (deeper analysis), different_angle (new perspective), custom (user-defined). 'more_sources' accepted as alias for expand_sources."
     )
     user_prompt: str = Field(
         "",

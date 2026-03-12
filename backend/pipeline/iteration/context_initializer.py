@@ -57,8 +57,8 @@ def create_iteration_context(
         ctx.outputs["baseline_extractions"] = baseline["extractions"]
         ctx.outputs["baseline_doc_0"] = baseline["doc_0"]
 
-    elif mode == "more_sources":
-        # More sources mode will add to extractions
+    elif mode in ("expand_sources", "more_sources"):
+        # expand_sources (formerly more_sources): add new sources to extractions
         ctx.semantic_extractions = baseline["extractions"].copy()
         ctx.outputs["baseline_source_urls"] = baseline["source_urls"]
         logger.debug(

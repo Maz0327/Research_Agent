@@ -2,6 +2,13 @@
 Iteration mode dispatcher.
 
 Routes iteration requests to appropriate mode handlers.
+
+Mode naming (canonical as of 2026-03-12):
+  expand_sources — formerly more_sources (alias still accepted for backward compatibility)
+  deeper         — re-extract with more depth
+  different_angle — same data, new perspective
+  custom         — user-defined freeform
+  deep_dive      — formerly Booster; handled via unified Iterate system in Phase 3
 """
 
 from typing import Any
@@ -26,12 +33,13 @@ def run_iteration_mode(
     Dispatch to appropriate mode handler.
 
     Args:
-        mode: Iteration mode (more_sources, deeper, different_angle, custom)
+        mode: Iteration mode (expand_sources, deeper, different_angle, custom).
+              'more_sources' accepted as alias for expand_sources.
         ctx: Pipeline context
         baseline: Loaded baseline data
         metrics: Metrics tracker
         user_prompt: User-provided prompt (for custom mode)
-        max_new_sources: Maximum new sources (for more_sources mode)
+        max_new_sources: Maximum new sources (for expand_sources mode)
         angle: Specific angle (for different_angle mode)
 
     Returns:
@@ -43,7 +51,8 @@ def run_iteration_mode(
     job_id = ctx.job_id
     logger.info(f"[{job_id}] Running iteration mode: {mode}")
 
-    if mode == "more_sources":
+    # expand_sources: canonical name. more_sources: backward-compatible alias.
+    if mode in ("expand_sources", "more_sources"):
         from .more_sources import run_more_sources
 
         return run_more_sources(ctx, baseline, max_new_sources, metrics)

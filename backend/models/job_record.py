@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class IterationRequest(BaseModel):
     """Request parameters for an iteration."""
-    mode: str = Field(..., description="Iteration mode: more_sources, deeper, different_angle, custom")
+    mode: str = Field(..., description="Iteration mode: expand_sources (formerly more_sources), deeper, different_angle, custom, deep_dive")
     user_prompt: str = Field(default="", description="User prompt for iteration")
     target: str = Field(default="semantic_docs", description="Target for iteration (semantic_docs only for now)")
     max_new_sources: int = Field(default=4, ge=0, le=10, description="Max new sources to add")
