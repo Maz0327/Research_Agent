@@ -1,6 +1,6 @@
 # docs/authoritative/spec/Document_Output_Format.md
 
-**Purpose:** Defines the **exact** structures (schemas) for Doc 0–3. Code MUST match these shapes.
+**Purpose:** Defines the **exact** structures (schemas) for Doc 0–4. Code MUST match these shapes.
 
 **Rule hierarchy:**
 - This spec governs the *shape* and *required fields*.
@@ -20,7 +20,8 @@ Document types:
 - Doc 0: `source_ledger`
 - Doc 1: `jump_start`
 - Doc 2: `semantic_brief`
-- Doc 3: `producer_packet`
+- Doc 3: `creator_brief` (auto-generated core document)
+- Doc 4: `producer_packet` (optional, user-triggered)
 
 ---
 
@@ -279,18 +280,121 @@ Forbidden:
 
 ---
 
-## 4) Doc 3 — Producer Packet (optional)
+## 4) Doc 3 — Creator Brief (core, auto-generated)
 
-**Intent:** Creative layer. Must not modify Docs 0–2.
+**Intent:** Production-ready creative brief. The hero document. Auto-generated after Assembly stage.
 
 ### 4.1 Gating requirements
-Doc 3 may only be generated if ALL are true:
+Doc 3 is automatically generated when the pipeline completes Stage E (Assembly).
+No user trigger required.
+
+### 4.2 Doc 3 JSON schema (canonical)
+
+```json
+{
+  "document_type": "creator_brief",
+  "document_version": "1.0",
+  "job_id": "string",
+  "generated_at": "ISO-8601 datetime",
+  "topic": "string",
+  "source_count": 0,
+  "hook_options": [
+    {
+      "hook_id": "HOOK_A",
+      "text": "string",
+      "why_it_works": "string",
+      "claim_id": "CLM_1",
+      "source_id": "SRC_1"
+    },
+    {
+      "hook_id": "HOOK_B",
+      "text": "string",
+      "why_it_works": "string",
+      "claim_id": "CLM_2",
+      "source_id": "SRC_2"
+    }
+  ],
+  "setup": {
+    "text": "string",
+    "supporting_claim_ids": ["CLM_1"],
+    "supporting_source_ids": ["SRC_1"]
+  },
+  "twist": {
+    "text": "string",
+    "claim_id": "CLM_3",
+    "source_id": "SRC_2",
+    "framing": "contradicts | disputed"
+  },
+  "core_facts": [
+    {
+      "fact_id": "FACT_1",
+      "statement": "string",
+      "say_it_like": "string",
+      "significance": "high | medium | low",
+      "claim_id": "CLM_1",
+      "source_id": "SRC_1",
+      "speaker": "string | null"
+    }
+  ],
+  "analogy": {
+    "text": "string",
+    "supporting_claim_ids": ["CLM_1"]
+  },
+  "personal_stakes": {
+    "text": "string",
+    "supporting_claim_ids": ["CLM_1"]
+  },
+  "cliffhanger": {
+    "text": "string",
+    "claim_id": "CLM_5",
+    "framing": "speculative | open_question"
+  },
+  "description_sources": [
+    {
+      "source_id": "SRC_1",
+      "title": "string",
+      "url": "string | null",
+      "creator": "string | null"
+    }
+  ],
+  "disputed_claims": [
+    {
+      "claim_id": "CLM_3",
+      "statement": "string",
+      "framing": "disputed | speculative | contradicts",
+      "speaker": "string | null",
+      "source_id": "SRC_2"
+    }
+  ],
+  "guardrails": {
+    "no_new_facts_ack": true,
+    "all_facts_reference_doc2": true,
+    "all_facts_reference_doc0": true
+  }
+}
+```
+
+### 4.3 Creator Brief validation rules
+- `hook_options` must contain exactly 2 entries.
+- Every `claim_id` in hook_options, core_facts, twist, cliffhanger, and disputed_claims must exist in Doc 2.
+- Every `source_id` in hook_options, core_facts, description_sources, and disputed_claims must exist in Doc 0.
+- `core_facts` must contain 3–5 entries.
+- Disputed claims must match actual `framing` field from Doc 2 claim enrichments.
+
+---
+
+## 5) Doc 4 — Producer Packet (optional, user-triggered)
+
+**Intent:** Creative narrative layer. Must not modify Docs 0–3.
+
+### 5.1 Gating requirements
+Doc 4 may only be generated if ALL are true:
 - Job is `completed`.
-- User explicitly requests Doc 3.
+- User explicitly requests Doc 4.
 - Job has ≥ 4 sources.
 - Job has at least one `high` ceiling source.
 
-### 4.2 Doc 3 JSON schema (canonical)
+### 5.2 Doc 4 JSON schema (canonical)
 
 ```json
 {
@@ -328,12 +432,13 @@ Doc 3 may only be generated if ALL are true:
 
 ---
 
-## 5) Cross-document validation rules (authoritative)
+## 6) Cross-document validation rules (authoritative)
 
 1) Every referenced ID must exist.
 2) Doc 1 and Doc 2 must not introduce facts beyond Doc 0.
-3) Quotes forbidden in `video_only`.
-4) OCR low-quality demotes quotes to observations.
+3) Doc 3 claim_ids must reference Doc 2; source_ids must reference Doc 0.
+4) Quotes forbidden in `video_only`.
+5) OCR low-quality demotes quotes to observations.
 
 ---
 
