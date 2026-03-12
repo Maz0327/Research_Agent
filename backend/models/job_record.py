@@ -120,10 +120,19 @@ class Artifacts(BaseModel):
     semantic_extractions: Optional[list[dict[str, Any]]] = Field(None, description="Per-source extractions")
 
     # Storage paths (lazy loading - frontend fetches via API)
-    doc_0_path: Optional[str] = Field(None, description="Storage path for Source Ledger")
-    doc_1_path: Optional[str] = Field(None, description="Storage path for Jump-Start")
-    doc_2_path: Optional[str] = Field(None, description="Storage path for Semantic Brief")
-    doc_3_path: Optional[str] = Field(None, description="Storage path for Producer Packet")
+    doc_0_path: Optional[str] = Field(None, description="Storage path for Doc 0: Source Ledger")
+    doc_1_path: Optional[str] = Field(None, description="Storage path for Doc 1: Jump-Start")
+    doc_2_path: Optional[str] = Field(None, description="Storage path for Doc 2: Semantic Brief")
+    doc_3_path: Optional[str] = Field(None, description="Storage path for Doc 3: Creator Brief (auto-generated)")
+    doc_4_path: Optional[str] = Field(None, description="Storage path for Doc 4: Producer Packet (optional, user-triggered)")
+
+    # Doc 3: Creator Brief (inline JSON for small briefs / fallback)
+    creator_brief: Optional[dict[str, Any]] = Field(
+        None, description="Doc 3 - Creator Brief (inline JSON, auto-generated after assembly)"
+    )
+    creator_brief_md: Optional[str] = Field(
+        None, description="Doc 3 - Creator Brief rendered as markdown"
+    )
 
     # Artifact Manifest (Option B storage strategy)
     artifact_manifest: Optional[dict[str, Any]] = Field(
@@ -142,9 +151,10 @@ class Artifacts(BaseModel):
         json_schema_extra={"deprecated": True},
     )
 
-    # V1 LEGACY: Producer Packet (Doc 3) - DEPRECATED: Use runs[n].producer_packet
-    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline)")
-    producer_packet_md: Optional[str] = Field(None, description="Doc 3 markdown output")
+    # V1 LEGACY: Producer Packet (now Doc 4) - DEPRECATED: Use runs[n].producer_packet
+    # NOTE: Producer Packet was formerly Doc 3, now Doc 4 (Phase 1.3.3, 2026-03-12)
+    producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 4 - Producer Packet (inline, formerly Doc 3)")
+    producer_packet_md: Optional[str] = Field(None, description="Doc 4 markdown output")
 
     # =========================================================================
     # V1 LEGACY: ITERATIONS - DEPRECATED: Use runs[1:] instead
@@ -274,13 +284,21 @@ class JobRecord(BaseModel):
     error: Optional[str] = Field(None, description="Error message if job failed")
     warnings: list[str] = Field(default_factory=list, description="List of warnings encountered")
 
+    # Creator Brief tracking (part of main pipeline — runs after Assembly stage)
+    # Creator Brief failure is a WARNING, not a job failure
+    creator_brief_status: Optional[str] = Field(None, description="Creator Brief status: running, completed, failed")
+    creator_brief_started_at: Optional[datetime] = Field(None, description="When Creator Brief generation started")
+    creator_brief_completed_at: Optional[datetime] = Field(None, description="When Creator Brief generation completed/failed")
+    creator_brief_error: Optional[str] = Field(None, description="Creator Brief error message if failed (non-fatal)")
+
     # Booster tracking (separate from main pipeline status)
+    # DEPRECATED: Booster is now Iterate: deep_dive (Phase 1.3.1, 2026-03-12)
     # IMPORTANT: Booster must NEVER modify jobs.status - these fields track booster independently
-    booster_status: Optional[str] = Field(None, description="Booster status: queued, running, completed, failed")
-    booster_started_at: Optional[datetime] = Field(None, description="When booster started")
-    booster_completed_at: Optional[datetime] = Field(None, description="When booster completed/failed")
-    booster_error: Optional[str] = Field(None, description="Booster error message if failed")
-    booster_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="Booster progress (0-100)")
+    booster_status: Optional[str] = Field(None, description="DEPRECATED: Use iterate tracking. Booster status: queued, running, completed, failed")
+    booster_started_at: Optional[datetime] = Field(None, description="DEPRECATED. When booster started")
+    booster_completed_at: Optional[datetime] = Field(None, description="DEPRECATED. When booster completed/failed")
+    booster_error: Optional[str] = Field(None, description="DEPRECATED. Booster error message if failed")
+    booster_progress_percent: Optional[int] = Field(None, ge=0, le=100, description="DEPRECATED. Booster progress (0-100)")
 
     # Producer tracking (separate from main pipeline status)
     # IMPORTANT: Producer must NEVER modify jobs.status - these fields track producer independently
