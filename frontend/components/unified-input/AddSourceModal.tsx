@@ -1,7 +1,7 @@
 /**
  * AddSourceModal - Modal for selecting and adding source type.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { VideoSourceForm, TextSourceForm, ArticleSourceForm, ScreenshotSourceForm } from './source-forms';
 
 type SourceFormType = 'video' | 'text' | 'article' | 'screenshot' | null;
@@ -29,6 +29,15 @@ interface AddSourceModalProps {
 
 export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddArticles, onAddScreenshot }: AddSourceModalProps) {
   const [activeForm, setActiveForm] = useState<SourceFormType>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setActiveForm(null); onClose(); }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -58,11 +67,11 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="add-source-modal-title">
       <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-700 px-5 py-4">
-          <h3 className="text-lg font-semibold text-gray-100">
+          <h3 id="add-source-modal-title" className="text-lg font-semibold text-gray-100">
             {activeForm ? `Add ${activeForm.charAt(0).toUpperCase() + activeForm.slice(1)}` : 'Add Source'}
           </h3>
           <button

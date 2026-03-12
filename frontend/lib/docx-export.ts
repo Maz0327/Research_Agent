@@ -40,11 +40,9 @@ export async function exportToDocx(markdown: string, filename: string): Promise<
      * Parse inline markdown formatting into TextRun instances.
      * Must be inside exportToDocx so TextRun constructor is available.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const makeTextRuns = (text: string): any[] => {
       const stripped = stripHtmlTags(text);
       const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const runs: any[] = [];
       let lastIdx = 0;
       let match: RegExpExecArray | null;
@@ -82,7 +80,6 @@ export async function exportToDocx(markdown: string, filename: string): Promise<
     const displayMarkdown = transformMarkdownForDisplay(markdown);
 
     // Parse markdown into document elements
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const children: any[] = [];
     const lines = displayMarkdown.split('\n');
     let i = 0;

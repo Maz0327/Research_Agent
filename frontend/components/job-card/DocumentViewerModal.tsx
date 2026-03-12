@@ -189,6 +189,9 @@ export function DocumentViewerModal({
         <div
           className="fixed inset-0 z-50"
           onClick={handleBackdropClick}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Document viewer"
         >
           {/* Backdrop */}
           <motion.div

@@ -44,6 +44,13 @@ interface IterationDialogProps {
 type DialogRunType = 'expand' | 'refine' | 'regenerate';
 
 function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting, latestRunId }: IterationDialogProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
   const [runType, setRunType] = useState<DialogRunType>('expand');
   const [userPrompt, setUserPrompt] = useState('');
   const [maxNewSources, setMaxNewSources] = useState(4);
@@ -85,14 +92,14 @@ function IterationDialog({ isOpen, onClose, onSubmit, isSubmitting, latestRunId 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="iteration-dialog-title">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-lg shadow-2xl"
       >
-        <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
+        <h3 id="iteration-dialog-title" className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
           <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>

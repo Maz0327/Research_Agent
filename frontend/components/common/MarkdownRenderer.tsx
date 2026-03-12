@@ -141,7 +141,6 @@ function buildComponents(compact: boolean) {
         h4: 'text-base font-semibold text-gray-200 mt-5 mb-2',
       };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const components: Record<string, any> = {
     // ----- Headings with visual hierarchy -----
     h1: ({ children }: { children?: ReactNode }) => (

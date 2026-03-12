@@ -21,7 +21,7 @@ export function FloatingActionButton({ onClick, visible, label = 'Create new job
           transition={{ type: 'spring', stiffness: 260, damping: 20 }}
           onClick={onClick}
           aria-label={label}
-          className="fixed bottom-20 right-4 z-40 lg:hidden flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-95 transition-all touch-manipulation"
+          className="fixed bottom-20 right-4 z-[45] lg:hidden flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 active:scale-95 transition-all touch-manipulation"
           style={{
             // Account for safe area on iOS
             marginBottom: 'env(safe-area-inset-bottom, 0px)'
