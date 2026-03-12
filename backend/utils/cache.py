@@ -21,28 +21,49 @@ from backend.config import get_settings
 # Type variable for decorated functions
 F = TypeVar('F', bound=Callable[..., Any])
 
+# Module-level singleton for Redis client
+_redis_client: Optional["redis.Redis"] = None
+_redis_init_failed: bool = False
+
 
 def _get_redis_client() -> Optional["redis.Redis"]:
-    """Get Redis client for caching."""
-    if not REDIS_AVAILABLE:
+    """Get or create Redis client singleton for caching.
+
+    Reuses the same connection across all cache operations to avoid
+    creating a new connection (and ping test) on every get/set/delete.
+    Falls back gracefully if Redis is unavailable.
+    """
+    global _redis_client, _redis_init_failed
+
+    if not REDIS_AVAILABLE or _redis_init_failed:
         return None
+
+    # Return existing client if connected
+    if _redis_client is not None:
+        try:
+            _redis_client.ping()
+            return _redis_client
+        except Exception:
+            # Connection lost — reset and try to reconnect
+            _redis_client = None
 
     try:
         settings = get_settings()
         if not settings.redis_url:
+            _redis_init_failed = True
             return None
 
-        client = redis.from_url(
+        _redis_client = redis.from_url(
             settings.redis_url,
             decode_responses=True,
             socket_timeout=2.0,
             socket_connect_timeout=2.0,
         )
-        # Test connection
-        client.ping()
-        return client
+        _redis_client.ping()
+        return _redis_client
     except Exception as e:
         logger.debug(f"Redis connection failed, caching disabled: {e}")
+        _redis_client = None
         return None
 
 

@@ -14,12 +14,26 @@ from backend.auth import AuthUser, extract_token_from_header, verify_jwt, AuthEr
 from backend.config import get_settings
 
 
+# Module-level singleton for ban-check Supabase client
+_ban_check_client: Optional[Client] = None
+
+
 def get_supabase_client() -> Optional[Client]:
-    """Get Supabase client for ban checks."""
+    """Get or create Supabase client singleton for ban checks.
+
+    Reuses the same client across all ban check calls to avoid
+    creating a new connection on every request.
+    """
+    global _ban_check_client
+    if _ban_check_client is not None:
+        return _ban_check_client
+
     settings = get_settings()
     if not settings.supabase_url or not settings.supabase_service_role_key:
         return None
-    return create_client(settings.supabase_url, settings.supabase_service_role_key)
+
+    _ban_check_client = create_client(settings.supabase_url, settings.supabase_service_role_key)
+    return _ban_check_client
 
 
 async def check_user_banned(user_id: str) -> bool:
