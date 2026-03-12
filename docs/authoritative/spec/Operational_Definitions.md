@@ -197,7 +197,70 @@ Delete all job-linked storage objects, then delete the job row.
 - **Doc 0**: Source Ledger (canonical data, no synthesis)
 - **Doc 1**: Jump Start (gaps + next steps, no new facts)
 - **Doc 2**: Semantic Brief (themes/tensions, no new facts)
-- **Doc 3**: Producer Packet (optional creative layer; must not modify Doc 0/1/2)
+- **Doc 3**: Creator Brief (auto-generated core document; the hero — production-ready creative brief)
+- **Doc 4**: Producer Packet (optional creative layer; user-triggered; must not modify Doc 0/1/2/3)
+
+---
+
+## 9) Creator Brief
+
+### creator_brief
+Doc 3. The hero document automatically generated at the end of every successful pipeline run.
+
+**Purpose:** Distill all research into a creator-ready production brief. The bridge between raw research and content creation.
+
+**Key sections (canonical):**
+- `hook_options` — 2 hook options, each referencing a `claim_id` from Doc 2
+- `setup` — core theme/thesis derived from synthesis
+- `twist` — contradiction or disputed claim from Doc 2 framing
+- `core_facts` — 3–5 high-significance claims with plain-English phrasing ("say it like")
+- `analogy` — accessible explanation of the core concept
+- `personal_stakes` — why this matters to the viewer
+- `cliffhanger` — open question or speculative claim
+- `description_sources` — formatted for description box copy-paste
+- `disputed_claims` — explicit flag for speculative/disputed content
+
+**Provenance requirement:** Every claim_id must exist in Doc 2. Every source_id must exist in Doc 0.
+
+---
+
+## 10) Iterate System
+
+### iterate
+The unified system for iterating on a completed job. Replaces: Booster, Addendum, more_sources.
+
+All iterations go through `POST /jobs/{job_id}/iterate` with a `mode` field.
+
+**Iterate modes (canonical):**
+
+| Mode | Description | Formerly |
+|------|-------------|---------|
+| `deep_dive` | Gap analysis + search directions for current corpus | Booster |
+| `expand_sources` | Add new sources and re-run full pipeline | Addendum / more_sources |
+| `deeper` | Re-extract existing sources with more depth | (new) |
+| `different_angle` | Re-synthesize existing data from a different perspective | (new) |
+| `custom` | User-defined freeform instructions | (new) |
+
+**Document versioning:** Each iteration creates new versions of affected documents. Rolling 4-version window per document.
+
+---
+
+## 11) Document Versioning
+
+### document_version (in storage context)
+The version number of a document artifact (distinct from `document_version` schema field).
+
+**Format:** Integer, starting at 1. Increments on each iteration that produces a new version of that document.
+
+**Rolling window:** Maximum 4 versions stored per document (latest + 3 previous). On 5th version creation, oldest is deleted.
+
+**Version metadata fields (canonical):**
+- `version`: integer
+- `created_at`: ISO-8601 datetime
+- `trigger`: `initial_run | deep_dive | expand_sources | deeper | different_angle | custom`
+- `source_count`: integer
+- `claim_count`: integer
+- `diff_summary`: human-readable change description (e.g., "+3 sources, +12 claims")
 
 ---
 
