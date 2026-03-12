@@ -47,8 +47,8 @@ def get_openai_client() -> Optional[Any]:
 def get_youtube_client() -> Optional[Any]:
     """Lazy-load YouTube enumeration client."""
     try:
-        from backend.integrations.youtube_enumeration import enumerate_youtube_videos
-        return {"enumerate_youtube_videos": enumerate_youtube_videos}
+        from backend.integrations.youtube_client import search_youtube_videos
+        return {"search_youtube_videos": search_youtube_videos}
     except ImportError as e:
         logger.warning(f"YouTube integration not available: {e}")
         return None
@@ -60,8 +60,8 @@ def get_youtube_client() -> Optional[Any]:
 def get_transcript_client() -> Optional[Any]:
     """Lazy-load transcript extraction client."""
     try:
-        from backend.integrations.transcripts import extract_transcripts_batch
-        return {"extract_transcripts_batch": extract_transcripts_batch}
+        from backend.integrations.transcripts import fetch_transcripts_batch
+        return {"fetch_transcripts_batch": fetch_transcripts_batch}
     except ImportError as e:
         logger.warning(f"Transcript integration not available: {e}")
         return None
@@ -73,7 +73,7 @@ def get_transcript_client() -> Optional[Any]:
 def get_web_capture_client() -> Optional[Any]:
     """Lazy-load web capture client."""
     try:
-        from backend.integrations.jina_reader import capture_web_content
+        from backend.integrations.web_capture import capture_web_content
         return {"capture_web_content": capture_web_content}
     except ImportError as e:
         logger.warning(f"Web capture integration not available: {e}")
