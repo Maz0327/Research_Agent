@@ -9,63 +9,12 @@ import { motion } from 'framer-motion';
 import { statusConfig, pipelineLabels } from '../job-card/job-card-config';
 import type { Job } from '../../store/jobs';
 import { getStageLabel } from '../../lib/constants';
+import { formatRelativeTime, formatElapsedTime, estimateETA } from '../../lib/time-utils';
 
 interface DashboardJobCardProps {
   job: Job;
   /** Animation delay for staggered entrance */
   delay?: number;
-}
-
-/** Format elapsed time since job started */
-function formatElapsedTime(startTime?: string): string {
-  if (!startTime) return '-';
-  const start = new Date(startTime);
-  const now = new Date();
-  const diffMs = now.getTime() - start.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  
-  if (diffSec < 60) return `${diffSec}s`;
-  const mins = Math.floor(diffSec / 60);
-  const secs = diffSec % 60;
-  if (mins < 60) return `${mins}m ${secs}s`;
-  const hours = Math.floor(mins / 60);
-  const remainingMins = mins % 60;
-  return `${hours}h ${remainingMins}m`;
-}
-
-/** Estimate ETA based on progress and elapsed time */
-function estimateETA(progress: number, startTime?: string): string {
-  if (!startTime || progress <= 0 || progress >= 100) return '-';
-  
-  const start = new Date(startTime);
-  const now = new Date();
-  const elapsedMs = now.getTime() - start.getTime();
-  
-  // Estimate total time based on current progress
-  const estimatedTotalMs = (elapsedMs / progress) * 100;
-  const remainingMs = estimatedTotalMs - elapsedMs;
-  
-  if (remainingMs <= 0) return 'Soon';
-  
-  const remainingSec = Math.floor(remainingMs / 1000);
-  if (remainingSec < 60) return `~${remainingSec}s`;
-  const mins = Math.floor(remainingSec / 60);
-  if (mins < 60) return `~${mins}m`;
-  const hours = Math.floor(mins / 60);
-  return `~${hours}h ${mins % 60}m`;
-}
-
-/** Format relative time */
-function formatRelativeTime(dateString?: string): string {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 export function DashboardJobCard({ job, delay = 0 }: DashboardJobCardProps) {

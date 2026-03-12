@@ -20,22 +20,7 @@ import {
   normalizeRunType,
   isV2Run,
 } from '../../types/run';
-
-/** Format relative time */
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
+import { formatRelativeTime } from '../../lib/time-utils';
 
 /** V1 Mode labels for legacy iterations */
 const MODE_LABELS: Record<string, string> = {
