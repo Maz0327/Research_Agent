@@ -21,7 +21,7 @@ class TranscriptRequest(BaseModel):
     doc_title: Optional[str] = Field(
         None,
         max_length=200,
-        description="Custom title for the output Google Doc"
+        description="Custom title for the output transcript document"
     )
     preferred_languages: list[str] = Field(
         default=["en"],
@@ -78,10 +78,14 @@ class TranscriptResultItem(BaseModel):
 
 
 class TranscriptSyncResponse(BaseModel):
-    """Response for synchronous transcript extraction (≤5 URLs)."""
+    """Response for synchronous transcript extraction (≤5 URLs).
+
+    Updated 2026-03-12: Google Drive removed. doc_url/folder_url kept for backward
+    compatibility but are always empty. Transcripts are returned inline.
+    """
     success: bool
-    doc_url: str = Field(..., description="URL to the Google Doc with transcripts")
-    folder_url: str = Field(..., description="URL to the Google Drive folder")
+    doc_url: str = Field(default="", description="DEPRECATED: Was Google Doc URL. Always empty since Drive removal (2026-01-19).")
+    folder_url: str = Field(default="", description="DEPRECATED: Was Google Drive folder URL. Always empty since Drive removal (2026-01-19).")
     transcripts: list[TranscriptResultItem]
     warnings: list[str] = Field(default_factory=list)
     total_videos: int
@@ -98,14 +102,17 @@ class TranscriptAsyncResponse(BaseModel):
 
 
 class TranscriptJobStatusResponse(BaseModel):
-    """Response for transcript job status polling."""
+    """Response for transcript job status polling.
+
+    Updated 2026-03-12: doc_url now returns Supabase Storage signed URL
+    instead of Google Drive URL. folder_url removed.
+    """
     job_id: str
     status: Literal["queued", "running", "completed", "failed"]
     progress_percent: int = Field(..., ge=0, le=100)
     transcripts_completed: int
     transcripts_total: int
-    doc_url: Optional[str] = Field(None, description="Google Doc URL when complete")
-    folder_url: Optional[str] = Field(None, description="Google Drive folder URL when complete")
+    doc_url: Optional[str] = Field(None, description="Supabase Storage signed URL for transcript document")
     warnings: list[str] = Field(default_factory=list)
     error: Optional[str] = Field(None, description="Error message if job failed")
     created_at: Optional[datetime] = None

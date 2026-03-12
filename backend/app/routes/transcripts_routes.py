@@ -118,13 +118,19 @@ async def get_transcript_job_status(
     if job.status == "failed" and job.warnings:
         error = job.warnings[-1]
 
-    # Get artifact URLs
+    # Get artifact URL from Supabase Storage (Google Drive removed 2026-01-19)
     doc_url = None
-    folder_url = None
-    if job.artifacts:
-        folder_url = job.artifacts.drive_folder_url
-        if job.artifacts.doc_urls:
-            doc_url = job.artifacts.doc_urls[0] if isinstance(job.artifacts.doc_urls, list) else None
+    if job.artifacts and job.artifacts.artifact_manifest:
+        transcript_manifest = job.artifacts.artifact_manifest.get("transcripts", {})
+        storage_path = transcript_manifest.get("storage_path")
+        if storage_path:
+            try:
+                from backend.integrations.supabase_storage import get_storage_client
+                storage_client = get_storage_client()
+                if storage_client:
+                    doc_url = storage_client.get_signed_url(storage_path, expires_in=3600)
+            except Exception as e:
+                logger.warning(f"Failed to generate signed URL for transcript {job_id}: {e}")
 
     return TranscriptJobStatusResponse(
         job_id=job.job_id,
@@ -133,7 +139,6 @@ async def get_transcript_job_status(
         transcripts_completed=job.config_json.get("transcripts_completed", 0),
         transcripts_total=len(job.config_json.get("video_urls", [])),
         doc_url=doc_url,
-        folder_url=folder_url,
         warnings=job.warnings,
         error=error,
         created_at=job.created_at,
