@@ -8,10 +8,8 @@
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  DisputedClaimBadge,
   SignificanceIndicator,
   SourceCitation,
-  ConfidenceBadge,
 } from '../common/ClaimIndicators';
 
 // =============================================================================
@@ -52,15 +50,18 @@ export function ClaimDrillDown({
 }: ClaimDrillDownProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape
+  // Close on Escape + body scroll lock
   useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen, onClose]);
 
   // Focus trap

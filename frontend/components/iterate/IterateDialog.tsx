@@ -88,6 +88,18 @@ export function IterateDialog({
     if (isOpen) resetForm();
   }, [isOpen, resetForm]);
 
+  // Escape key + body scroll lock
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+
   // Build request based on selected mode
   const buildRequest = (): IterateRequest | null => {
     if (!selectedMode) return null;
@@ -159,7 +171,7 @@ export function IterateDialog({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/50 z-[55]"
             onClick={onClose}
           />
 
@@ -169,7 +181,7 @@ export function IterateDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-4 top-[10vh] sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-50 max-h-[80vh] overflow-y-auto"
+            className="fixed inset-x-4 top-[10vh] sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] max-h-[80vh] overflow-y-auto"
             role="dialog"
             aria-modal="true"
             aria-labelledby="iterate-dialog-title"

@@ -427,7 +427,7 @@ export function CreatorBriefView({
             {brief.disputed_claims.map((claim) => (
               <div
                 key={claim.claim_id}
-                className="rounded-lg bg-red-900/10 border border-red-800/30 p-4"
+                className="rounded-lg bg-red-900/10 border border-red-800/30 p-5"
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
@@ -456,7 +456,7 @@ export function CreatorBriefView({
             </h3>
             <CopyButton text={buildSourcesText()} label="Copy" copiedLabel="Copied!" size="sm" />
           </div>
-          <div className="rounded-xl bg-gray-800/50 border border-gray-700 p-4">
+          <div className="rounded-xl bg-gray-800/50 border border-gray-700 p-5">
             <ul className="space-y-2">
               {brief.description_sources.map((source) => (
                 <li key={source.source_id} className="flex items-start gap-2 text-sm">

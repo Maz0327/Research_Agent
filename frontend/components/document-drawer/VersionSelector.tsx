@@ -67,7 +67,7 @@ export function VersionSelector({
 
   const handleOpen = async () => {
     setIsOpen(true);
-    if (versions.length === 0 && !loading) {
+    if (!loading) {
       setLoading(true);
       try {
         const result = await fetchDocumentVersions(jobId, docType);

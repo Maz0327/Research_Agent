@@ -4,7 +4,7 @@
  * Split layout: Quick Brief preview (left/top) + source candidate cards (right/bottom).
  * User selects/deselects sources, then clicks "Run Full Research" to create a job.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/router';
 import QuickBriefPreview from './QuickBriefPreview';
@@ -72,6 +72,11 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
     new Set(candidates.map((c) => c.url))
   );
   const [isApproving, setIsApproving] = useState(false);
+
+  // Sync selected URLs when candidates change (e.g., re-search)
+  useEffect(() => {
+    setSelectedUrls(new Set(candidates.map((c) => c.url)));
+  }, [candidates]);
 
   const toggleCandidate = useCallback((url: string) => {
     setSelectedUrls((prev) => {
@@ -157,7 +162,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
         <div className="space-y-3">
           {quickBrief ? (
             <QuickBriefPreview brief={quickBrief.brief} />
-          ) : (
+          ) : !isLoadingQuickBrief ? (
             <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-5">
               <p className="text-sm text-gray-400 mb-3">
                 Generate a Quick Brief preview to see what your research will look like before committing.
@@ -180,7 +185,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                 )}
               </button>
             </div>
-          )}
+          ) : null}
 
           {isLoadingQuickBrief && !quickBrief && (
             <QuickBriefPreview brief={{}} isLoading />
@@ -224,6 +229,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                     onClick={() => toggleCandidate(candidate.url)}
+                    aria-label={`Toggle source: ${candidate.title || candidate.url}`}
                     className={`w-full text-left rounded-lg border p-3 transition-all ${
                       isSelected
                         ? 'border-blue-500/50 bg-blue-500/5'
