@@ -180,6 +180,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
         stage_document_assembly,
         stage_10_completion,
     )
+    from backend.pipeline.stages.creator_brief_stage import run_creator_brief_stage
     from backend.pipeline.stages.source_identity import (
         build_source_identity_from_video,
         build_source_identity_from_article,
@@ -364,6 +365,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
 
         update_job(job_id, stage="document_assembly", progress_percent=80)
         run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
+
+        # Stage F: Creator Brief assembly (Doc 3) — non-fatal
+        run_creator_brief_stage(ctx)
 
         # NOTE: Drive upload removed (2026-01-19 - outputs go to Supabase Storage)
 

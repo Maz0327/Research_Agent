@@ -58,13 +58,21 @@ def _try_upload_documents_to_storage(ctx: PipelineContext) -> Optional[dict]:
             }
             paths["doc_2_path"] = storage_client.upload_document(ctx.job_id, "doc_2", doc_data)
 
-        # Doc 3: Producer Packet (if present)
+        # Doc 3: Creator Brief (auto-generated core document)
+        if ctx.outputs.get("creator_brief"):
+            doc_data = {
+                "data": ctx.outputs["creator_brief"],
+                "markdown": ctx.outputs.get("creator_brief_md"),
+            }
+            paths["doc_3_path"] = storage_client.upload_document(ctx.job_id, "doc_3", doc_data)
+
+        # Doc 4: Producer Packet (optional, user-triggered — formerly Doc 3)
         if ctx.outputs.get("producer_packet"):
             doc_data = {
                 "data": ctx.outputs["producer_packet"],
                 "markdown": ctx.outputs.get("producer_packet_md"),
             }
-            paths["doc_3_path"] = storage_client.upload_document(ctx.job_id, "doc_3", doc_data)
+            paths["doc_4_path"] = storage_client.upload_document(ctx.job_id, "doc_4", doc_data)
 
         logger.info(f"[{ctx.job_id}] Uploaded {len(paths)} documents to storage")
         return paths
@@ -99,12 +107,19 @@ def _build_inline_artifacts(ctx: PipelineContext) -> dict:
             "markdown": ctx.outputs.get("semantic_brief_md"),
         }
 
+    # Doc 3: Creator Brief (inline fallback)
+    if ctx.outputs.get("creator_brief"):
+        artifacts_dict["creator_brief"] = {
+            "data": ctx.outputs["creator_brief"],
+            "markdown": ctx.outputs.get("creator_brief_md"),
+        }
+
     # Include booster output if present
     if ctx.outputs.get("booster_output"):
         artifacts_dict["booster_output"] = ctx.outputs["booster_output"]
         artifacts_dict["booster_expansion_md"] = ctx.outputs.get("booster_expansion_md")
 
-    # Include producer packet if present
+    # Doc 4: Producer Packet (inline fallback — formerly Doc 3)
     if ctx.outputs.get("producer_packet"):
         artifacts_dict["producer_packet"] = ctx.outputs["producer_packet"]
         artifacts_dict["producer_packet_md"] = ctx.outputs.get("producer_packet_md")
@@ -221,6 +236,10 @@ def _build_artifact_manifest(
                 "present": bool(ctx.outputs.get("semantic_brief_md") or storage_paths.get("doc_2_path")),
                 "title": "Semantic Brief",
             },
+            "23": {
+                "present": bool(ctx.outputs.get("creator_brief_md") or storage_paths.get("doc_3_path")),
+                "title": "Creator Brief",
+            },
         },
         "attachments": {
             "producer_packet": {
@@ -311,7 +330,7 @@ def stage_10_completion(ctx: PipelineContext) -> dict:
 
     # --- Build doc_paths from artifacts_dict (already computed above) ---
     doc_paths = {}
-    for k in ("doc_0", "doc_1", "doc_2", "doc_3"):
+    for k in ("doc_0", "doc_1", "doc_2", "doc_3", "doc_4"):
         path_key = f"{k}_path"
         if path_key in artifacts_dict:
             doc_paths[k] = artifacts_dict[path_key]
