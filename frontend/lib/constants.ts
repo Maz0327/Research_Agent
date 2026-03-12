@@ -125,14 +125,22 @@ export const STAGE_LABELS: Record<string, { label: string; description: string }
   timeout: { label: 'Timed Out', description: 'Process took too long' },
   no_pending_sources: { label: 'No Pending Sources', description: 'Nothing to process' },
 
+  // Creator Brief stage
+  creator_brief_assembly: { label: 'Assembling Creator Brief', description: 'Building your hero document from research insights' },
+
   // Booster stages
   booster_running: { label: 'Deep Research', description: 'Expanding research directions' },
 
-  // Producer stages
-  producer_running: { label: 'Creating Producer Packet', description: 'Generating creative content' },
+  // Producer stages (Doc 4 — optional)
+  producer_running: { label: 'Creating Producer Packet', description: 'Generating production-ready content package' },
 
-  // Iteration stages
+  // Iteration stages (5 modes via unified iterate endpoint)
   iteration_running: { label: 'Running Iteration', description: 'Processing research iteration' },
+  iterate_deep_dive: { label: 'Deep Dive', description: 'Finding gaps and search directions' },
+  iterate_expand_sources: { label: 'Expanding Sources', description: 'Adding new sources and re-running pipeline' },
+  iterate_deeper: { label: 'Going Deeper', description: 'Re-extracting with more detail' },
+  iterate_different_angle: { label: 'Different Angle', description: 'Analyzing from a new perspective' },
+  iterate_custom: { label: 'Custom Iteration', description: 'Running your custom instructions' },
 } as const;
 
 /**

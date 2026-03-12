@@ -354,9 +354,14 @@ export const DOCUMENT_META: Record<string, DocumentMeta> = {
     description: 'Cross-source analysis showing common themes, tensions, and verified claims.',
   },
   doc_3: {
+    title: 'Creator Brief',
+    subtitle: 'Your hero document',
+    description: 'Hook options, core facts, and narrative structure distilled from your research.',
+  },
+  doc_4: {
     title: 'Producer Packet',
-    subtitle: 'Creative layer output',
-    description: 'Story angles, hooks, and production suggestions for content creators.',
+    subtitle: 'Production-ready package',
+    description: 'Detailed production notes, B-roll suggestions, and script-ready content.',
   },
 };
 

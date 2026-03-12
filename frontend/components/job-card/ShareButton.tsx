@@ -24,7 +24,7 @@ const DOC_TYPE_NAMES: Record<string, string> = {
   doc_0: 'Source Ledger',
   doc_1: 'Jump-Start Directions',
   doc_2: 'Semantic Brief',
-  doc_3: 'Producer Packet',
+  doc_3: 'Creator Brief',
   all: 'All Documents',
 };
 

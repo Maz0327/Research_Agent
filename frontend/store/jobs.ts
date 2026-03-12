@@ -134,7 +134,7 @@ export interface JobArtifacts {
   doc_1_path?: string;
   /** Storage path for Doc 2 (Semantic Brief) */
   doc_2_path?: string;
-  /** Storage path for Doc 3 (Producer Packet) */
+  /** Storage path for Doc 3 (Creator Brief) */
   doc_3_path?: string;
   // Per-source extraction data
   /** Semantic extractions per source */
@@ -144,7 +144,10 @@ export interface JobArtifacts {
   booster_output?: Record<string, unknown>;
   /** Booster markdown for Doc 1 */
   booster_expansion_md?: string;
-  // Producer Packet markdown (Phase 8)
+  // Creator Brief markdown (Doc 3 — auto-generated hero document)
+  /** Creator Brief markdown output */
+  creator_brief_md?: string;
+  // Producer Packet markdown (Doc 4 — optional, user-triggered)
   /** Producer packet markdown output */
   producer_packet_md?: string;
   // Iteration Loop (Phase 9)

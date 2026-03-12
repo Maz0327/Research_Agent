@@ -33,7 +33,7 @@ export interface DocumentViewerModalProps {
 }
 
 // Document type styling
-const docStyles: Record<0 | 1 | 2 | 3 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string }> = {
+const docStyles: Record<0 | 1 | 2 | 3 | 4 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string }> = {
   0: {
     headerBg: 'bg-gray-800',
     headerBorder: 'border-gray-700',
@@ -58,6 +58,12 @@ const docStyles: Record<0 | 1 | 2 | 3 | 'B', { headerBg: string; headerBorder: s
     badge: 'bg-amber-900/50 text-amber-300',
     accent: 'text-amber-400',
   },
+  4: {
+    headerBg: 'bg-green-900/30',
+    headerBorder: 'border-green-800/50',
+    badge: 'bg-green-900/50 text-green-300',
+    accent: 'text-green-400',
+  },
   'B': {
     headerBg: 'bg-indigo-900/30',
     headerBorder: 'border-indigo-800/50',
@@ -67,11 +73,12 @@ const docStyles: Record<0 | 1 | 2 | 3 | 'B', { headerBg: string; headerBorder: s
 };
 
 // Document titles for breadcrumbs
-const docTitles: Record<0 | 1 | 2 | 3 | 'B', string> = {
+const docTitles: Record<0 | 1 | 2 | 3 | 4 | 'B', string> = {
   0: 'Source Ledger',
   1: 'Jump-Start Directions',
   2: 'Semantic Brief',
-  3: 'Producer Packet',
+  3: 'Creator Brief',
+  4: 'Producer Packet',
   'B': 'Deep Research',
 };
 

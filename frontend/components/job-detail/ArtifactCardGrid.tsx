@@ -50,7 +50,7 @@ function getArtifactState(
     const run = runs.find((r) => r.run_id === selectedVersion);
     if (!run) return 'not_available';
 
-    // Doc 3 (Producer Packet) - check run.producer_packet status
+    // Doc 3 (Creator Brief) - check run.producer_packet status (legacy field name)
     if (type === 'doc_3') {
       if (run.producer_packet?.status === 'completed') return 'completed';
       if (run.producer_packet?.status === 'failed') return 'failed';
@@ -239,7 +239,7 @@ export function ArtifactCardGrid({
           // V2 Run - check run outputs
           const run = runs.find((r) => r.run_id === selectedVersion);
 
-          // Handle Doc 3 (Producer Packet) - stored in run.producer_packet
+          // Handle Doc 3 (Creator Brief) - stored in run.producer_packet (legacy field name)
           if (docNumber === 3 && run?.producer_packet) {
             if (run.producer_packet.status === 'completed') {
               data = run.producer_packet.inline || {};
@@ -400,7 +400,7 @@ export function ArtifactCardGrid({
           break;
         case 'doc_3':
           if (state === 'completed') {
-            openDocViewer(3, 'Producer Packet');
+            openDocViewer(3, 'Creator Brief');
           } else if (state === 'ready' && !actionsDisabled) {
             // Pass runId for V2 runs (except baseline run_0)
             const producerRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
@@ -515,7 +515,7 @@ export function ArtifactCardGrid({
           onClick={() => handleCardClick('doc_2')}
         />
 
-        {/* Doc 3: Producer Packet */}
+        {/* Doc 3: Creator Brief */}
         <ArtifactCard
           type="doc_3"
           state={getArtifactState(job, 'doc_3', selectedVersion)}

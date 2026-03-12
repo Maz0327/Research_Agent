@@ -101,8 +101,8 @@ const boosterConfig: DocConfig = {
 const doc3Config: DocConfig = {
   key: 'doc_3',
   docNumber: 3,
-  title: 'Producer Packet',
-  subtitle: 'Creative layer output',
+  title: 'Creator Brief',
+  subtitle: 'Your hero document',
   icon: (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -439,7 +439,7 @@ export function DocumentCardGrid({
   // Check if we should show action card for Doc 1 (Deep Research)
   const showDoc1ActionCard = !hasBooster && canTriggerActions && onTriggerBooster;
 
-  // Check if we should show action card for Doc 3 (Producer Packet)
+  // Check if we should show action card for Doc 3 (Creator Brief)
   const showDoc3ActionCard = !hasDoc3 && canTriggerActions && onTriggerProducerPacket;
 
   if (availableDocs.length === 0) {
@@ -566,7 +566,7 @@ export function DocumentCardGrid({
             );
           })}
 
-          {/* Producer Packet action card - placeholder when Doc 3 doesn't exist */}
+          {/* Creator Brief action card - placeholder when Doc 3 doesn't exist */}
           {showDoc3ActionCard && (
             <motion.div
               whileHover={{ scale: 1.02 }}
@@ -606,9 +606,9 @@ export function DocumentCardGrid({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                   </svg>
                 </span>
-                <h4 className="font-medium text-amber-300/80 text-sm">Producer Packet</h4>
+                <h4 className="font-medium text-amber-300/80 text-sm">Creator Brief</h4>
               </div>
-              <p className="text-xs text-gray-500">Creative layer output</p>
+              <p className="text-xs text-gray-500">Your hero document</p>
 
               {/* Action indicator */}
               <div className="mt-auto pt-3 flex items-center justify-end">

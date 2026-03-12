@@ -79,6 +79,75 @@ export function normalizeRunType(runType: string): 'expand' | 'refine' | 'regene
   return legacyMap[runType] || 'regenerate';
 }
 
+// =============================================================================
+// Iterate System (unified 5-mode iteration via POST /jobs/{job_id}/iterate)
+// =============================================================================
+
+/** The 5 iterate modes supported by the unified iterate endpoint */
+export type IterateMode = 'deep_dive' | 'expand_sources' | 'deeper' | 'different_angle' | 'custom';
+
+/** Request body for POST /jobs/{job_id}/iterate */
+export interface IterateRequest {
+  mode: IterateMode;
+  /** URLs to add (expand_sources mode) */
+  new_source_urls?: string[];
+  /** Max sources to auto-discover (expand_sources mode, 1-10, default 4) */
+  max_new_sources?: number;
+  /** New perspective to explore (different_angle mode — required) */
+  angle?: string;
+  /** Custom instructions (custom mode — required; deeper mode — optional) */
+  user_prompt?: string;
+}
+
+/** Display configuration for iterate modes */
+export const ITERATE_MODE_CONFIG: Record<IterateMode, {
+  label: string;
+  description: string;
+  icon: string;
+  color: string;
+  docsAffected: string;
+}> = {
+  deep_dive: {
+    label: 'Deep Dive',
+    description: 'Find gaps and search directions',
+    icon: '🔬',
+    color: 'blue',
+    docsAffected: 'Doc 1',
+  },
+  expand_sources: {
+    label: 'Expand Sources',
+    description: 'Add more sources and re-run pipeline',
+    icon: '➕',
+    color: 'green',
+    docsAffected: 'Doc 0/1/2/3',
+  },
+  deeper: {
+    label: 'Go Deeper',
+    description: 'Re-extract with more detail',
+    icon: '🔍',
+    color: 'purple',
+    docsAffected: 'Doc 0/1/2/3',
+  },
+  different_angle: {
+    label: 'Different Angle',
+    description: 'Same data, new perspective',
+    icon: '🔄',
+    color: 'orange',
+    docsAffected: 'Doc 2/3',
+  },
+  custom: {
+    label: 'Custom',
+    description: 'Your own instructions',
+    icon: '✏️',
+    color: 'gray',
+    docsAffected: 'Varies',
+  },
+};
+
+// =============================================================================
+// Search Candidates
+// =============================================================================
+
 /** Search candidate from grounded search */
 export interface SearchCandidate {
   url: string;

@@ -20,6 +20,7 @@ export type ArtifactType =
   | 'doc_1'
   | 'doc_2'
   | 'doc_3'
+  | 'doc_4'
   | 'booster'
   | 'iteration'
   | 'claims_doc';
@@ -51,6 +52,12 @@ const ARTIFACT_CONFIG: Record<ArtifactType, {
   },
   doc_3: {
     title: 'Doc 3',
+    subtitle: 'Creator Brief',
+    icon: '✨',
+    readyLabel: 'View Brief'
+  },
+  doc_4: {
+    title: 'Doc 4',
     subtitle: 'Producer Packet',
     icon: '🎬',
     readyLabel: 'Generate'
@@ -160,7 +167,9 @@ export function ArtifactCard({
       case 'iteration':
         return 'Running additional analysis...';
       case 'doc_3':
-        return 'Generating creative output...';
+        return 'Assembling your Creator Brief...';
+      case 'doc_4':
+        return 'Generating Producer Packet...';
       default:
         return 'Processing...';
     }
