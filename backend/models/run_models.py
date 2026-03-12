@@ -81,14 +81,23 @@ class RunOutputs(BaseModel):
     """Output documents from a completed run."""
 
     # Storage paths (primary)
-    doc_0_path: Optional[str] = Field(None, description="GCS path to Source Ledger")
-    doc_1_path: Optional[str] = Field(None, description="GCS path to Jump-Start")
-    doc_2_path: Optional[str] = Field(None, description="GCS path to Semantic Brief")
+    doc_0_path: Optional[str] = Field(None, description="Storage path to Doc 0: Source Ledger")
+    doc_1_path: Optional[str] = Field(None, description="Storage path to Doc 1: Jump-Start")
+    doc_2_path: Optional[str] = Field(None, description="Storage path to Doc 2: Semantic Brief")
+    doc_3_path: Optional[str] = Field(None, description="Storage path to Doc 3: Creator Brief (auto-generated)")
+    doc_4_path: Optional[str] = Field(None, description="Storage path to Doc 4: Producer Packet (optional)")
 
     # Inline fallback (if storage failed)
     doc_0_inline: Optional[dict[str, Any]] = Field(None, description="Inline Source Ledger")
     doc_1_inline: Optional[dict[str, Any]] = Field(None, description="Inline Jump-Start")
     doc_2_inline: Optional[dict[str, Any]] = Field(None, description="Inline Semantic Brief")
+    doc_3_inline: Optional[dict[str, Any]] = Field(None, description="Inline Creator Brief")
+
+    # Document version numbers (set by version_manager in Phase 3)
+    doc_0_version: Optional[int] = Field(None, description="Version number of Doc 0 produced in this run")
+    doc_1_version: Optional[int] = Field(None, description="Version number of Doc 1 produced in this run")
+    doc_2_version: Optional[int] = Field(None, description="Version number of Doc 2 produced in this run")
+    doc_3_version: Optional[int] = Field(None, description="Version number of Doc 3 (Creator Brief) produced in this run")
 
     # Doc 0 append metadata (for EXPAND runs)
     doc_0_is_delta: bool = Field(
@@ -149,8 +158,21 @@ class RunMetrics(BaseModel):
     llm_tokens_output: int = Field(0, ge=0, description="Total output tokens")
 
 
+class RunCreatorBrief(BaseModel):
+    """Creator Brief (Doc 3) scoped to this run. Auto-generated after Assembly."""
+
+    status: RunStatus = Field(RunStatus.QUEUED)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    path: Optional[str] = Field(None, description="Storage path to Creator Brief JSON")
+    inline: Optional[dict[str, Any]] = Field(None, description="Inline Creator Brief data")
+    markdown: Optional[str] = Field(None, description="Rendered markdown")
+    error: Optional[str] = None
+
+
 class RunProducerPacket(BaseModel):
-    """Producer Packet (Doc 3) scoped to this run."""
+    """Producer Packet (Doc 4) scoped to this run. Formerly Doc 3 (renamed 2026-03-12)."""
 
     status: RunStatus = Field(RunStatus.QUEUED)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -247,8 +269,9 @@ class Run(BaseModel):
     metrics: Optional[RunMetrics] = None
 
     # Run-scoped enhancements (optional, triggered separately)
-    producer_packet: Optional[RunProducerPacket] = None
-    booster_expansion: Optional[RunBoosterExpansion] = None
+    creator_brief: Optional[RunCreatorBrief] = None  # Doc 3, auto-generated after assembly
+    producer_packet: Optional[RunProducerPacket] = None  # Doc 4, optional user-triggered
+    booster_expansion: Optional[RunBoosterExpansion] = None  # DEPRECATED: use Iterate deep_dive
     claims_doc: Optional[RunClaimsDoc] = None  # V2: Claims extraction
 
     def is_baseline(self) -> bool:
