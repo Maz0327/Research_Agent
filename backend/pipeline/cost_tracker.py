@@ -12,6 +12,8 @@ API_COSTS = {
     # OpenAI (per 1K tokens, approximate)
     "openai_gpt4o_mini_input": 0.00015,  # $0.15 per 1M input tokens
     "openai_gpt4o_mini_output": 0.0006,  # $0.60 per 1M output tokens
+    "openai_gpt4_input": 0.01,  # $10 per 1M input tokens (GPT-4)
+    "openai_gpt4_output": 0.03,  # $30 per 1M output tokens (GPT-4)
 
     # Perplexity (per request)
     "perplexity_search": 0.005,  # ~$0.005 per search

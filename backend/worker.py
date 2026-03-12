@@ -941,7 +941,7 @@ def process_evolving_job(self, job_id: str, user_id: str) -> dict:
         # Update status
         update_job(
             job_id,
-            status="processing",
+            status="running",
             stage="evolving_source_identity",
             progress_percent=10,
         )

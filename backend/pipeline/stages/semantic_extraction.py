@@ -18,7 +18,7 @@ Configure via SEMANTIC_EXTRACTION_MAX_WORKERS env var (default: 3).
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional, TYPE_CHECKING
 
 from loguru import logger
@@ -68,15 +68,9 @@ class SourceExtractionResult:
     source_id: str
     index: int  # Original index for deterministic ordering
     extraction_result: Optional[SemanticExtractionResult] = None
-    warnings: list[str] = None  # type: ignore
-    costs: dict[str, float] = None  # type: ignore
+    warnings: list[str] = field(default_factory=list)
+    costs: dict[str, float] = field(default_factory=dict)
     status: str = "pending"  # pending, processed, skipped, failed
-
-    def __post_init__(self):
-        if self.warnings is None:
-            self.warnings = []
-        if self.costs is None:
-            self.costs = {}
 
 
 def extract_video_observations(
