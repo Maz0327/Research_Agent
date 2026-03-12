@@ -157,6 +157,71 @@ class SupabaseStorageClient:
             return False
 
     # =========================================================================
+    # Generic File Storage Methods (used by version_manager)
+    # =========================================================================
+
+    def upload_file(
+        self,
+        path: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+        bucket: str | None = None,
+    ) -> str:
+        """Upload raw bytes to an arbitrary storage path.
+
+        Unlike upload_document() which builds paths from job_id/doc_type,
+        this method accepts a pre-built path. Used by version_manager for
+        versioned document storage.
+
+        Args:
+            path: Full storage path (e.g., "research-jobs/{job_id}/doc_3/v1.json").
+            content: Raw file bytes.
+            content_type: MIME content type.
+            bucket: Bucket name (defaults to documents bucket).
+
+        Returns:
+            The storage path that was written.
+
+        Raises:
+            Exception: If upload fails.
+        """
+        target_bucket = bucket or self._documents_bucket
+        try:
+            self._client.storage.from_(target_bucket).upload(
+                path=path,
+                file=content,
+                file_options={"content-type": content_type},
+            )
+            logger.info(f"Uploaded file: {path} to {target_bucket}")
+            return path
+        except Exception as e:
+            logger.error(f"Failed to upload file {path}: {e}")
+            raise
+
+    def delete_file(self, path: str, bucket: str | None = None) -> bool:
+        """Delete a file at an arbitrary storage path.
+
+        Unlike delete() which defaults to the screenshots bucket,
+        this method defaults to the documents bucket. Used by
+        version_manager for rolling window cleanup.
+
+        Args:
+            path: Full storage path to delete.
+            bucket: Bucket name (defaults to documents bucket).
+
+        Returns:
+            True if deleted successfully, False otherwise.
+        """
+        target_bucket = bucket or self._documents_bucket
+        try:
+            self._client.storage.from_(target_bucket).remove([path])
+            logger.info(f"Deleted file: {path} from {target_bucket}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete file {path}: {e}")
+            return False
+
+    # =========================================================================
     # Document Storage Methods (Doc 0/1/2/3)
     # =========================================================================
 

@@ -169,26 +169,23 @@ class TestCancelJobEndpoint:
 class TestIterateJobEndpoint:
     """Tests for POST /jobs/{job_id}/iterate endpoint.
 
-    DEPRECATED: V1 iteration endpoint archived 2026-03-11.
-    All requests now return 410 Gone. V2 uses POST /jobs/{job_id}/runs.
-    Original test suite archived to backend/archive/deprecated_route_handlers.py.
+    Updated: Phase 3.2 converted iterate to an active endpoint supporting
+    5 modes (deep_dive, expand_sources, deeper, different_angle, custom).
     """
 
-    def test_iterate_endpoint_returns_410(self, app_client):
-        """V1 iterate endpoint should return 410 Gone for all requests."""
+    def test_iterate_endpoint_rejects_invalid_mode(self, app_client):
+        """Iterate endpoint should reject invalid/legacy modes with 400."""
         response = app_client.post(
             "/jobs/550e8400-e29b-41d4-a716-446655440000/iterate",
             json={"mode": "more_sources"}
         )
-        assert response.status_code == 410
-        data = response.json()
-        assert "deprecated" in data["detail"]["message"].lower()
-        assert data["detail"]["alternative"] == "POST /jobs/{job_id}/runs"
+        # "more_sources" is not a valid iterate mode
+        assert response.status_code == 400
 
-    def test_iterate_endpoint_410_any_job_id(self, app_client):
-        """410 should be returned regardless of job_id validity."""
+    def test_iterate_endpoint_requires_mode(self, app_client):
+        """Iterate endpoint should require a mode field."""
         response = app_client.post(
-            "/jobs/not-a-valid-uuid/iterate",
-            json={"mode": "more_sources"}
+            "/jobs/550e8400-e29b-41d4-a716-446655440000/iterate",
+            json={}
         )
-        assert response.status_code == 410
+        assert response.status_code in (400, 422)

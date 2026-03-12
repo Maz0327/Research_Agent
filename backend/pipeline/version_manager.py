@@ -205,7 +205,7 @@ def _version_path(job_id: str, doc_type: str, version: int) -> str:
     Returns:
         Storage path string.
     """
-    return f"{job_id}/{doc_type}/v{version}.json"
+    return f"research-jobs/{job_id}/{doc_type}/v{version}.json"
 
 
 def _latest_pointer_path(job_id: str, doc_type: str) -> str:
@@ -218,7 +218,7 @@ def _latest_pointer_path(job_id: str, doc_type: str) -> str:
     Returns:
         Storage path string.
     """
-    return f"{job_id}/{doc_type}/latest.json"
+    return f"research-jobs/{job_id}/{doc_type}/latest.json"
 
 
 def _get_latest_version(storage: Any, job_id: str, doc_type: str) -> int:
