@@ -3,7 +3,7 @@ import re
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from loguru import logger
 
 from backend.app.rate_limiter import limiter, RATE_LIMITS
@@ -883,24 +883,81 @@ async def process_pending_sources(
 # Document Retrieval Endpoint (for lazy loading)
 # =============================================================================
 
-@router.get("/{job_id}/documents/{doc_type}")
+@router.get("/{job_id}/documents/{doc_type}/versions")
 @limiter.limit(RATE_LIMITS["jobs_get"])
-async def get_document(
+async def list_document_versions(
     request: Request,
     job_id: str,
     doc_type: str,
     user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """
+    List all available versions of a document with version metadata.
+
+    Returns a list of version metadata objects:
+      [{"version": 1, "created_at": "...", "trigger": "initial_run", "source_count": 5,
+        "claim_count": 23, "diff_summary": "+5 sources, +23 claims"}]
+
+    The list is ordered from oldest (v1) to newest (latest).
+    """
+    from backend.pipeline.version_manager import list_document_versions as _list_versions
+
+    # Validate doc_type
+    valid_doc_types = {"doc_0", "doc_1", "doc_2", "doc_3", "doc_4"}
+    if doc_type not in valid_doc_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid doc_type: {doc_type}. Versioning supported for: {', '.join(sorted(valid_doc_types))}"
+        )
+
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization check
+    if job.user_id is not None:
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required to view this job",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        if job.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    versions = _list_versions(job_id, doc_type)
+    return {"versions": versions, "count": len(versions)}
+
+
+@router.get("/{job_id}/documents/{doc_type}")
+@limiter.limit(RATE_LIMITS["jobs_get"])
+async def get_document(
+    request: Request,
+    job_id: str,
+    doc_type: str,
+    version: Optional[int] = Query(None, description="Version number to retrieve. Omit for latest."),
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
+):
+    """
     Get document content - returns signed URL for storage jobs, inline data for legacy.
+
+    When `version` is specified, retrieves that specific version from the version store.
+    When omitted, returns the latest version (or falls back to the artifact inline/path).
 
     Args:
         job_id: Job UUID
-        doc_type: Document type ("doc_0", "doc_1", "doc_2", "doc_3")
+        doc_type: Document type ("doc_0", "doc_1", "doc_2", "doc_3", "doc_4")
+        version: Optional version number (1-based). Omit for latest.
 
     Returns:
         Storage jobs: {"url": "signed_url", "expires_in": 3600}
-        Legacy jobs: {"data": {...}, "markdown": "..."}
+        Legacy jobs / versioned: {"data": {...}, "markdown": "..."}
     """
     from backend.integrations.supabase_storage import get_storage_client
 
@@ -935,6 +992,23 @@ async def get_document(
             )
         if job.user_id != user.user_id:
             raise HTTPException(status_code=403, detail="Access denied")
+
+    # Version-specific retrieval — if caller specified a version, serve from version store
+    if version is not None:
+        from backend.pipeline.version_manager import get_document_version
+        versioned = get_document_version(job_id, doc_type, version=version)
+        if versioned is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Version {version} of {doc_type} not found for job {job_id}",
+            )
+        logger.info(f"Returning version {version} of {doc_type} for job {job_id}")
+        content = versioned.get("content", {})
+        return {
+            "data": content.get("data", content),
+            "markdown": content.get("markdown"),
+            "version_metadata": versioned.get("metadata"),
+        }
 
     # Get artifacts
     artifacts = job.artifacts
