@@ -107,6 +107,23 @@ async def export_job(
             detail=f"Job not ready for export (status: {job.status})"
         )
 
+    # For "brief" format: serve Creator Brief (Doc 3) if available
+    if format == ExportFormat.BRIEF:
+        artifacts = job.artifacts or {}
+        creator_brief_md = _get_creator_brief_md(artifacts)
+        if creator_brief_md:
+            topic = job.config_json.get("topic", "research") if job.config_json else "research"
+            topic_slug = _slugify(topic)[:30]
+            headers = {}
+            if download:
+                headers["Content-Disposition"] = f'attachment; filename="{topic_slug}_creator_brief.md"'
+            return Response(
+                content=creator_brief_md,
+                media_type="text/markdown",
+                headers=headers,
+            )
+        # Fall through to generic brief export if no Creator Brief exists yet
+
     # Gather research data from job record
     export_manager = ExportManager()
     data = _extract_research_data(job)
@@ -183,6 +200,29 @@ async def export_all_formats(
         "topic": topic,
         "exports": exports,
     }
+
+
+def _get_creator_brief_md(artifacts: dict) -> str | None:
+    """Extract Creator Brief markdown from job artifacts.
+
+    Handles both inline storage (artifacts["creator_brief"]["markdown"])
+    and the flat markdown key (artifacts["creator_brief_md"]).
+
+    Args:
+        artifacts: Job artifacts dict.
+
+    Returns:
+        Creator Brief markdown string, or None if not available.
+    """
+    # Inline format: {"creator_brief": {"data": {...}, "markdown": "..."}}
+    cb = artifacts.get("creator_brief")
+    if isinstance(cb, dict):
+        md = cb.get("markdown") or cb.get("creator_brief_md")
+        if md:
+            return md
+
+    # Flat format (legacy/fallback)
+    return artifacts.get("creator_brief_md")
 
 
 def _extract_research_data(job: "JobRecord") -> dict:
