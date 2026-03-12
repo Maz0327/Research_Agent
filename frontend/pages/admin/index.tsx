@@ -30,10 +30,10 @@ function StatCard({
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
+          <p className="text-sm font-medium text-gray-400">{label}</p>
+          <p className="mt-1 text-3xl font-bold text-white">{value}</p>
         </div>
-        <div className="rounded-full bg-white/80 p-3 dark:bg-gray-800/80">{icon}</div>
+        <div className="rounded-full bg-gray-800/80 p-3">{icon}</div>
       </div>
     </motion.div>
   );
@@ -64,7 +64,7 @@ function AdminDashboardContent() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
-      color: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20',
+      color: 'border-blue-800 bg-blue-900/20',
       href: '/admin/users',
     },
     {
@@ -75,7 +75,7 @@ function AdminDashboardContent() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
-      color: 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20',
+      color: 'border-green-800 bg-green-900/20',
       href: '/admin/jobs',
     },
     {
@@ -86,7 +86,7 @@ function AdminDashboardContent() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       ),
-      color: 'border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-900/20',
+      color: 'border-purple-800 bg-purple-900/20',
     },
     {
       label: 'Running Now',
@@ -96,7 +96,7 @@ function AdminDashboardContent() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       ),
-      color: 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20',
+      color: 'border-yellow-800 bg-yellow-900/20',
     },
     {
       label: 'Failed Today',
@@ -106,7 +106,7 @@ function AdminDashboardContent() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      color: 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20',
+      color: 'border-red-800 bg-red-900/20',
     },
     {
       label: 'Unresolved Errors',
@@ -116,7 +116,7 @@ function AdminDashboardContent() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       ),
-      color: 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20',
+      color: 'border-orange-800 bg-orange-900/20',
       href: '/admin/errors',
     },
   ];
@@ -126,7 +126,7 @@ function AdminDashboardContent() {
       {isLoadingStats ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div key={i} className="rounded-lg border border-gray-700 bg-gray-800 p-6">
               <Skeleton height={16} width="40%" className="mb-2" />
               <Skeleton height={36} width="60%" />
             </div>
@@ -142,7 +142,7 @@ function AdminDashboardContent() {
 
       {/* Quick actions */}
       <div className="mt-8">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
+        <h2 className="mb-4 text-lg font-semibold text-white">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/jobs?status=running"
