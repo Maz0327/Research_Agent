@@ -302,6 +302,13 @@ def validate_extraction_schema(data: dict) -> list[ValidationResult]:
                 field="claims",
                 details=claim,
             ))
+        elif not claim.get("source_id"):
+            results.append(ValidationResult(
+                level=ValidationLevel.HARD_FAIL,
+                message=f"Claim {claim.get('claim_id')} has empty source_id",
+                field="claims",
+                details=claim,
+            ))
 
     for theme in data.get("themes", []):
         if not isinstance(theme, dict) or "theme_id" not in theme:

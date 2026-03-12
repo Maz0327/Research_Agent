@@ -151,12 +151,26 @@ class TestV1JsonSchema:
             "source_id": "SRC_1",
             "analysis_mode": "transcript_grounded",
             "key_points": [{"key_point_id": "KP_1", "statement": "Test"}],
-            "claims": [{"claim_id": "CLM_1", "statement": "Test"}],
+            "claims": [{"claim_id": "CLM_1", "statement": "Test", "source_id": "SRC_1"}],
             "themes": [{"theme_id": "THEME_1", "label": "Test"}],
         }
         results = validate_extraction_schema(data)
 
         assert len(results) == 0 or all(r.level != ValidationLevel.HARD_FAIL for r in results)
+
+    def test_claim_empty_source_id_fails(self):
+        """Claims with empty source_id should hard fail."""
+        data = {
+            "source_id": "SRC_1",
+            "analysis_mode": "transcript_grounded",
+            "key_points": [{"key_point_id": "KP_1", "statement": "Test"}],
+            "claims": [{"claim_id": "CLM_1", "statement": "Test", "source_id": ""}],
+            "themes": [{"theme_id": "THEME_1", "label": "Test"}],
+        }
+        results = validate_extraction_schema(data)
+        hard_fails = [r for r in results if r.level == ValidationLevel.HARD_FAIL]
+        assert len(hard_fails) >= 1
+        assert any("empty source_id" in r.message for r in hard_fails)
 
     def test_invalid_json_not_dict_fails(self):
         """Non-dict data should fail schema validation."""

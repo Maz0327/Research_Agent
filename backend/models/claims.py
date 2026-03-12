@@ -297,7 +297,7 @@ class Claim(BaseModel):
     claim_type: ClaimType = Field(..., description="Whether claim is explicit or implied")
     confidence: ConfidenceLevel = Field(..., description="Extraction confidence level")
     anchor: ClaimAnchor = Field(..., description="Location reference in source")
-    source_id: str = Field(..., description="Reference to source (SRC_001, ...)")
+    source_id: str = Field(..., min_length=1, description="Reference to source (SRC_001, ...)")
     context: Optional[str] = Field(None, description="Surrounding context for the claim")
     tags: list[str] = Field(default_factory=list, description="Optional categorization tags")
     # V2 fields
