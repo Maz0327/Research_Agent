@@ -92,6 +92,15 @@ class Artifacts(BaseModel):
     - Job-level producer_packet and booster_output
     """
     # =========================================================================
+    # SCHEMA VERSION: Disambiguates V1 vs V2 artifact storage
+    # =========================================================================
+    schema_version: int = Field(
+        default=1,
+        description="Artifact schema version. 1 = V1 (doc_*_path + iterations[]), 2 = V2 (runs[]). "
+        "New jobs should always set schema_version=2."
+    )
+
+    # =========================================================================
     # V2: RUN-BASED STORAGE (preferred)
     # =========================================================================
     # Import Run at runtime to avoid circular imports
@@ -121,9 +130,17 @@ class Artifacts(BaseModel):
         None, description="Manifest of available artifacts with storage paths"
     )
 
-    # V1 LEGACY: Booster (Doc 1 expansion) - DEPRECATED: Use runs[n].booster_expansion
-    booster_output: Optional[dict[str, Any]] = Field(None, description="Booster output for Doc 1 expansion")
-    booster_expansion_md: Optional[str] = Field(None, description="Booster markdown for Doc 1")
+    # V1 LEGACY: Booster (Doc 1 expansion) - DEPRECATED 2026-03-11
+    # V2 code MUST NOT read these fields. Use runs[n].booster_expansion instead.
+    # Will be renamed to Iterate: deep_dive in Phase 1.3.
+    booster_output: Optional[dict[str, Any]] = Field(
+        None, description="DEPRECATED: Booster output for Doc 1 expansion. V2 uses runs[n].booster_expansion.",
+        json_schema_extra={"deprecated": True},
+    )
+    booster_expansion_md: Optional[str] = Field(
+        None, description="DEPRECATED: Booster markdown for Doc 1. V2 uses runs[n].booster_expansion_md.",
+        json_schema_extra={"deprecated": True},
+    )
 
     # V1 LEGACY: Producer Packet (Doc 3) - DEPRECATED: Use runs[n].producer_packet
     producer_packet: Optional[dict[str, Any]] = Field(None, description="Doc 3 - Producer Packet (inline)")
@@ -176,7 +193,12 @@ class Artifacts(BaseModel):
 
     def has_runs(self) -> bool:
         """Check if job uses V2 run-based storage."""
-        return len(self.runs) > 0
+        return len(self.runs) > 0 or self.schema_version >= 2
+
+    @property
+    def is_v2(self) -> bool:
+        """Check if job uses V2 schema. V2 code should use this before accessing V1 fields."""
+        return self.schema_version >= 2
 
 
 class Outputs(BaseModel):
