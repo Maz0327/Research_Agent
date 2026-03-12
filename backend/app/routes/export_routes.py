@@ -1,6 +1,6 @@
 """Export API routes for downloading research data in various formats."""
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -109,8 +109,7 @@ async def export_job(
 
     # For "brief" format: serve Creator Brief (Doc 3) if available
     if format == ExportFormat.BRIEF:
-        artifacts = job.artifacts or {}
-        creator_brief_md = _get_creator_brief_md(artifacts)
+        creator_brief_md = _get_creator_brief_md(job.artifacts)
         if creator_brief_md:
             topic = job.config_json.get("topic", "research") if job.config_json else "research"
             topic_slug = _slugify(topic)[:30]
@@ -202,27 +201,40 @@ async def export_all_formats(
     }
 
 
-def _get_creator_brief_md(artifacts: dict) -> str | None:
+def _get_creator_brief_md(artifacts: Any) -> str | None:
     """Extract Creator Brief markdown from job artifacts.
 
-    Handles both inline storage (artifacts["creator_brief"]["markdown"])
-    and the flat markdown key (artifacts["creator_brief_md"]).
+    Handles both Artifacts Pydantic model and dict formats.
 
     Args:
-        artifacts: Job artifacts dict.
+        artifacts: Job artifacts (Artifacts model or dict).
 
     Returns:
         Creator Brief markdown string, or None if not available.
     """
-    # Inline format: {"creator_brief": {"data": {...}, "markdown": "..."}}
-    cb = artifacts.get("creator_brief")
-    if isinstance(cb, dict):
-        md = cb.get("markdown") or cb.get("creator_brief_md")
-        if md:
-            return md
+    if artifacts is None:
+        return None
 
-    # Flat format (legacy/fallback)
-    return artifacts.get("creator_brief_md")
+    # Pydantic model — access fields directly
+    if hasattr(artifacts, "creator_brief_md"):
+        if artifacts.creator_brief_md:
+            return artifacts.creator_brief_md
+        # Also check nested creator_brief dict
+        if hasattr(artifacts, "creator_brief") and isinstance(artifacts.creator_brief, dict):
+            return artifacts.creator_brief.get("markdown")
+        return None
+
+    # Dict format (storage path response or inline)
+    if isinstance(artifacts, dict):
+        # Flat markdown key
+        if artifacts.get("creator_brief_md"):
+            return artifacts["creator_brief_md"]
+        # Nested format: {"creator_brief": {"markdown": "..."}}
+        cb = artifacts.get("creator_brief")
+        if isinstance(cb, dict):
+            return cb.get("markdown") or cb.get("creator_brief_md")
+
+    return None
 
 
 def _extract_research_data(job: "JobRecord") -> dict:
