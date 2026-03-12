@@ -166,19 +166,46 @@ gap_id: GAP_1, GAP_2, ...
 
 ## Output Documents
 
-### Rule 12: Three Core Documents
+### Rule 12: Four Core Documents
 Every completed job produces:
 - **Doc 0:** Source Ledger
 - **Doc 1:** Jump-Start Directions
 - **Doc 2:** Semantic Brief
+- **Doc 3:** Creator Brief (auto-generated after synthesis — the hero document)
 
 ### Rule 13: Optional Documents
-- **Doc 3:** Producer Packet (user-triggered)
-- **Addendum:** When sources added to existing job
-- **Booster:** When deep research triggered
+- **Doc 4:** Producer Packet (user-triggered; requires 4+ sources, 1+ HIGH ceiling source)
+
+### Rule 13a: Iterate System
+Iterations modify existing documents and create new versions. Five modes:
+- `deep_dive` — gaps/search directions (formerly Booster); affects Doc 1 only
+- `expand_sources` — add sources and re-run pipeline (formerly Addendum/more_sources); affects Doc 0/1/2/3
+- `deeper` — re-extract with more depth; affects Doc 0/1/2/3
+- `different_angle` — same data, new perspective; affects Doc 2/3
+- `custom` — user-defined instructions; affects specified docs
+
+All iterations go through `POST /jobs/{job_id}/iterate` with `mode` field.
+
+### Rule 13b: Document Versioning
+Each document maintains a rolling window of **4 versions** (latest + 3 previous).
+- Version format: `v{N}` (e.g., v1, v2, v3)
+- Versions are per-document, independent (Doc 0 may be v5 while Doc 3 is v1)
+- When 5th version created, oldest is dropped automatically
+- Storage path: `research-jobs/{job_id}/doc_{N}/v{version}.json`
+- Version metadata: `version`, `created_at`, `trigger`, `source_count`, `claim_count`, `diff_summary`
 
 ### Rule 14: Document Independence
 Each document is self-contained. Reader should not need other docs to understand.
+
+### Rule 14a: Provenance Chain (Full Stack)
+```
+Doc 4 (Producer Packet) → references → Doc 3 (Creator Brief)
+Doc 3 (Creator Brief)   → references → Doc 2 (Semantic Brief) claim_ids
+Doc 3 (Creator Brief)   → references → Doc 0 (Source Ledger) source_ids
+Doc 2 (Semantic Brief)  → references → Doc 0 (Source Ledger) source_ids
+Doc 1 (Jump-Start)      → references → Doc 0 (Source Ledger) source_ids
+```
+Broken chain = validation failure. No document may contain a fact that doesn't trace through this chain.
 
 ---
 
@@ -195,11 +222,12 @@ generation_config={
 
 ### Rule 16: Temperature by Stage
 ```
-Extraction: 0.1 (deterministic)
-Validation: N/A (code, not LLM)
-Synthesis: 0.2 (slight flexibility)
-Booster: 0.4 (variety wanted)
-Producer: 0.3-0.5 (creative layer)
+Extraction:    0.1 (deterministic)
+Validation:    N/A (code, not LLM)
+Synthesis:     0.2 (slight flexibility)
+Creator Brief: 0.3 (creative but grounded — hook generation needs some flexibility)
+deep_dive:     0.4 (variety wanted for gap/search directions)
+Producer:      0.3-0.5 (creative layer)
 ```
 
 ---
