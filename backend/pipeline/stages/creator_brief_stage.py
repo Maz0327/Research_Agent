@@ -226,10 +226,11 @@ def _run_creator_brief(ctx: PipelineContext) -> None:
     cost = response.get("cost", 0.0)
     ctx.add_cost("creator_brief", cost)
 
-    # Store outputs
+    # Store outputs — use polished formatter for markdown
+    from backend.pipeline.formatters.creator_brief_formatter import format_creator_brief
     brief_dict = brief.model_dump(mode="json")
     ctx.outputs["creator_brief"] = brief_dict
-    ctx.outputs["creator_brief_md"] = _render_creator_brief_markdown(brief, ctx.topic)
+    ctx.outputs["creator_brief_md"] = format_creator_brief(brief)
 
     logger.info(
         f"[{ctx.job_id}] Creator Brief assembled: "
