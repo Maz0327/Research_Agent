@@ -454,3 +454,46 @@ def _compute_diff_summary(
         return mode_descriptions.get(trigger, "Updated")
 
     return ", ".join(parts)
+
+
+# =============================================================================
+# Iteration Record Storage (Task 3.2.6)
+# =============================================================================
+
+def store_iteration_record(
+    job_id: str,
+    iterate_id: str,
+    mode: str,
+    versions_created: list[str],
+    elapsed_seconds: float = 0.0,
+) -> None:
+    """Store a lightweight iteration record for the iteration history.
+
+    Stored at: research-jobs/{job_id}/iterations/{iterate_id}.json
+
+    Args:
+        job_id: Job identifier.
+        iterate_id: Unique iterate ID (iter_<timestamp>).
+        mode: Iteration mode (deep_dive, expand_sources, etc.)
+        versions_created: List of "doc_N vX" strings.
+        elapsed_seconds: How long the iteration took.
+    """
+    storage = get_storage_client()
+    if not storage:
+        logger.debug(f"[{job_id}] No storage client; skipping iteration record for {iterate_id}")
+        return
+
+    path = f"research-jobs/{job_id}/iterations/{iterate_id}.json"
+    record = {
+        "iterate_id": iterate_id,
+        "mode": mode,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "versions_created": versions_created,
+        "elapsed_seconds": elapsed_seconds,
+    }
+    try:
+        content = json.dumps(record, indent=2).encode("utf-8")
+        storage.upload_file(path, content, "application/json")
+        logger.debug(f"[{job_id}] Iteration record stored: {iterate_id}")
+    except Exception as e:
+        logger.warning(f"[{job_id}] Could not store iteration record {iterate_id}: {e}")

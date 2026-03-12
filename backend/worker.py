@@ -1678,13 +1678,25 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
             logger.info(f"[{job_id}] {mode} complete: versions={versions_created}")
 
         elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+        elapsed_r = round(elapsed, 1)
+
+        # Store iteration record for history (Task 3.2.6)
+        from backend.pipeline.version_manager import store_iteration_record
+        store_iteration_record(
+            job_id=job_id,
+            iterate_id=iterate_id,
+            mode=mode,
+            versions_created=versions_created,
+            elapsed_seconds=elapsed_r,
+        )
+
         return {
             "job_id": job_id,
             "iterate_id": iterate_id,
             "mode": mode,
             "status": "success",
             "versions_created": versions_created,
-            "elapsed_seconds": round(elapsed, 1),
+            "elapsed_seconds": elapsed_r,
         }
 
     except SoftTimeLimitExceeded:
