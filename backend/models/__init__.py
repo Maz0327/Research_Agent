@@ -2,7 +2,7 @@
 from backend.models.claim import (
     Citation,
     Claim,
-    ClaimType,
+    ClaimCategory,
     EvidenceRecord,
     EvidenceStatus,
 )
@@ -94,7 +94,7 @@ __all__ = [
     "SemanticExtractionSchema",
     # Claim models
     "Claim",
-    "ClaimType",
+    "ClaimCategory",
     "Citation",
     "EvidenceRecord",
     "EvidenceStatus",

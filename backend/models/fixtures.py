@@ -1,7 +1,7 @@
 """Test fixtures and example data for models."""
 from datetime import date, datetime
 
-from backend.models.claim import Claim, Citation, ClaimType, EvidenceRecord, EvidenceStatus
+from backend.models.claim import Claim, Citation, ClaimCategory, EvidenceRecord, EvidenceStatus
 from backend.models.job_config import (
     BudgetsConfig,
     JobConfig,
@@ -102,7 +102,7 @@ EXAMPLE_CLAIM = Claim(
             locator="Paragraph 3",
         )
     ],
-    claim_type=ClaimType.FACTUAL,
+    claim_type=ClaimCategory.FACTUAL,
     entities=["Entity 1", "Entity 2"],
     confidence=0.85,
 )

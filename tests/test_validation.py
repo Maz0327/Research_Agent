@@ -13,7 +13,7 @@ pytest.skip(
     allow_module_level=True,
 )
 
-from backend.models.claim import Claim, ClaimType, Citation, EvidenceRecord, EvidenceStatus
+from backend.models.claim import Claim, ClaimCategory, Citation, EvidenceRecord, EvidenceStatus
 from backend.models.job_config import JobConfig, ResearchMode, BudgetsConfig
 from backend.pipeline.validation import (
     validate_claims,
@@ -28,7 +28,7 @@ def test_validate_claims_structure():
             claim_id="claim1",
             canonical_claim="Test claim about topic",
             verbatim_quote="Test quote",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             confidence=0.8,
         )
     ]
@@ -60,7 +60,7 @@ def test_validate_claims_respects_budget():
             claim_id=f"claim{i}",
             canonical_claim=f"Claim {i}",
             verbatim_quote=f"Quote {i}",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             confidence=0.5 + (i * 0.01),  # Varying confidence
         )
         for i in range(50)
@@ -90,7 +90,7 @@ def test_generate_evidence_table_md():
             claim_id="claim1",
             canonical_claim="Test claim",
             verbatim_quote="Quote",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
         )
     ]
     
@@ -133,7 +133,7 @@ def test_validate_claims_handles_failures_gracefully():
             claim_id="claim1",
             canonical_claim="Test claim",
             verbatim_quote="Quote",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             confidence=0.9,
         )
     ]
@@ -167,19 +167,19 @@ def test_validate_claims_sorts_by_confidence():
         Claim(
             claim_id="low_confidence",
             canonical_claim="Low confidence claim",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             confidence=0.3,
         ),
         Claim(
             claim_id="high_confidence",
             canonical_claim="High confidence claim",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             confidence=0.9,
         ),
         Claim(
             claim_id="medium_confidence",
             canonical_claim="Medium confidence claim",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             confidence=0.6,
         ),
     ]

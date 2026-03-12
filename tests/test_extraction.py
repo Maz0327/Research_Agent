@@ -1,7 +1,7 @@
 """Unit tests for claim extraction pipeline."""
 import pytest
 
-from backend.models.claim import Claim, ClaimType, Citation
+from backend.models.claim import Claim, ClaimCategory, Citation
 from backend.models.source import SourceItem, SourceType
 from backend.integrations.transcripts import TranscriptItem, TranscriptStatus
 from backend.pipeline.extraction import (
@@ -87,7 +87,7 @@ def test_dedupe_claims_merges_citations():
         claim_id="claim1",
         canonical_claim="Candace Owens said that Charlie Kirk made serious allegations about funding",
         verbatim_quote="Candace said that Charlie Kirk made serious allegations about funding",
-        claim_type=ClaimType.ALLEGATION,
+        claim_type=ClaimCategory.ALLEGATION,
         citations=[
             Citation(url="https://video1.com", locator="10:00"),
         ],
@@ -99,7 +99,7 @@ def test_dedupe_claims_merges_citations():
         claim_id="claim2",
         canonical_claim="Candace Owens said that Charlie Kirk made serious allegations about funding",
         verbatim_quote="Candace said that Charlie Kirk made serious allegations about funding",
-        claim_type=ClaimType.ALLEGATION,
+        claim_type=ClaimCategory.ALLEGATION,
         citations=[
             Citation(url="https://video2.com", locator="15:00"),
         ],
@@ -180,7 +180,7 @@ def test_dedupe_claims_preserves_unique():
         claim_id="claim1",
         canonical_claim="Candace Owens said X",
         verbatim_quote="Candace said X",
-        claim_type=ClaimType.ALLEGATION,
+        claim_type=ClaimCategory.ALLEGATION,
         entities=["Candace Owens"],
     )
     
@@ -188,7 +188,7 @@ def test_dedupe_claims_preserves_unique():
         claim_id="claim2",
         canonical_claim="Charlie Kirk did Y",  # Completely different
         verbatim_quote="Charlie did Y",
-        claim_type=ClaimType.ALLEGATION,
+        claim_type=ClaimCategory.ALLEGATION,
         entities=["Charlie Kirk"],
     )
     
@@ -205,7 +205,7 @@ def test_quote_bank_md_format():
             claim_id="claim1",
             canonical_claim="Test claim",
             verbatim_quote="This is a test quote",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             citations=[
                 Citation(url="https://example.com", locator="10:00"),
             ],
@@ -229,7 +229,7 @@ def test_claims_ledger_md_format():
             claim_id="claim1",
             canonical_claim="Test claim",
             verbatim_quote="Quote",
-            claim_type=ClaimType.FACTUAL,
+            claim_type=ClaimCategory.FACTUAL,
             citations=[],
         )
     ]

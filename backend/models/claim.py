@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class ClaimType(str, Enum):
+class ClaimCategory(str, Enum):
     """Type of claim being made."""
     FACTUAL = "factual"
     OPINION = "opinion"
@@ -59,7 +59,7 @@ class Claim(BaseModel):
         default_factory=list,
         description="List of citations supporting this claim",
     )
-    claim_type: ClaimType = Field(..., description="Type of claim")
+    claim_type: ClaimCategory = Field(..., description="Type of claim")
     entities: list[str] = Field(
         default_factory=list,
         description="Entities mentioned in the claim (people, organizations, places)",
