@@ -1,7 +1,10 @@
 """Producer Packet gating validation (V10).
 
-Based on: docs/authoritative/spec/RASS.md Stage G
+Based on: docs/authoritative/spec/RASS.md Stage H
 Phase: 8
+
+Doc 4 — Producer Packet (formerly Doc 3, renamed 2026-03-12 Phase 1.3.3).
+Doc 3 is now the Creator Brief (auto-generated).
 
 Gating Requirements (ALL must be met):
 - 4+ sources in job
@@ -83,7 +86,7 @@ def _extract_sources_from_job(job: dict[str, Any]) -> list[dict]:
 
 
 def can_generate_producer_packet(job: dict[str, Any]) -> tuple[bool, str]:
-    """Check if job meets gating requirements for Doc 3.
+    """Check if job meets gating requirements for Doc 4 (Producer Packet).
 
     Requirements (ALL must be met):
     - 4+ sources in job

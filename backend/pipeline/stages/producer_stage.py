@@ -627,7 +627,7 @@ def run_producer_pipeline(
 def validate_producer_cardinality(packet: ProducerPacket) -> list[str]:
     """Validate cardinality targets from spec.
 
-    Based on: docs/authoritative/spec/Document_Output_Format.md (Doc 3)
+    Based on: docs/authoritative/spec/Document_Output_Format.md (Doc 4 — formerly Doc 3)
 
     Returns:
         List of warnings for cardinality violations.
