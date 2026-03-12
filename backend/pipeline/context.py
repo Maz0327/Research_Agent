@@ -38,39 +38,15 @@ class PipelineContext:
     # Default to empty dict to prevent NoneType errors in downstream stages
     niche_config: dict = field(default_factory=dict)
 
-    # Stage 2: Research mapping
-    angles: list = field(default_factory=list)
-    key_terms: list = field(default_factory=list)
-
-    # Stage 3: Source shortlist
+    # Legacy source collection fields (still referenced by source_identity.py, semantic_validation_stage.py)
     web_sources: list = field(default_factory=list)
-
-    # Stage 4: YouTube
     youtube_videos: list = field(default_factory=list)
-
-    # Stage 5: Transcripts
     transcripts: list = field(default_factory=list)
-
-    # Stage 6.5: Reddit
     reddit_posts: list = field(default_factory=list)
 
-    # Stage 7: Claims
-    claims: list = field(default_factory=list)
-
-    # Stage 7.5: Timeline
-    timeline_events: list = field(default_factory=list)
-
-    # Stage 7.6: Entities
-    entities: dict = field(default_factory=dict)
-
-    # Stage 8: Validation
-    evidence_records: list = field(default_factory=list)
-
-    # Stage 8.5: Angle discovery
-    discovered_angles: dict = field(default_factory=dict)
-
-    # Stage 8.6: Documentary analysis
-    documentary_analysis: dict = field(default_factory=dict)
+    # NOTE: Dead legacy fields removed (Audit Fix 9.1, 2026-03-12):
+    # angles, key_terms, claims, timeline_events, entities,
+    # evidence_records, discovered_angles, documentary_analysis
 
     # Semantic Pipeline (Phase 1)
     # Source Identity stage outputs
@@ -117,9 +93,7 @@ class PipelineContext:
     addendum_sections: Optional[object] = None  # AddendumSection with new content
     cross_reference_notes: Optional[object] = None  # CrossReferenceNotes comparing old/new
 
-    # Stage 9: Drive
-    folder_url: Optional[str] = None
-    doc_urls: dict = field(default_factory=dict)
+    # NOTE: folder_url, doc_urls removed (Audit Fix 9.1 — Google Drive integration removed)
 
     # Quality Gate stats (set after Stage 3)
     quality_gate_stats: Optional[dict] = None

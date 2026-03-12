@@ -249,7 +249,7 @@ class TestPipelineContext:
 
         assert ctx.job_id == "test-123"
         assert ctx.topic == "Test topic"
-        assert ctx.claims == []
+        assert ctx.web_sources == []
         assert ctx.warnings == []
         assert ctx.outputs == {}
 
