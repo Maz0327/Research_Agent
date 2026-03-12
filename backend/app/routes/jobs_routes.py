@@ -905,7 +905,10 @@ async def get_document(
     from backend.integrations.supabase_storage import get_storage_client
 
     # Validate doc_type
-    valid_doc_types = {"doc_0", "doc_1", "doc_2", "doc_3", "booster"}
+    # doc_3 = Creator Brief (auto-generated, new)
+    # doc_4 = Producer Packet (optional, formerly doc_3)
+    # booster = DEPRECATED: use Iterate deep_dive mode
+    valid_doc_types = {"doc_0", "doc_1", "doc_2", "doc_3", "doc_4", "booster"}
     if doc_type not in valid_doc_types:
         raise HTTPException(
             status_code=400,
@@ -946,11 +949,15 @@ async def get_document(
         artifacts_dict = {}
 
     # Map doc_type to path field, inline field, and optional markdown field
+    # doc_3 = Creator Brief (auto-generated core document)
+    # doc_4 = Producer Packet (optional, user-triggered; formerly doc_3)
+    # booster = DEPRECATED (deep_dive via Iterate)
     doc_mapping = {
         "doc_0": {"path_field": "doc_0_path", "inline_field": "source_ledger", "markdown_field": None},
         "doc_1": {"path_field": "doc_1_path", "inline_field": "jump_start", "markdown_field": None},
         "doc_2": {"path_field": "doc_2_path", "inline_field": "semantic_brief", "markdown_field": None},
-        "doc_3": {"path_field": "doc_3_path", "inline_field": "producer_packet", "markdown_field": "producer_packet_md"},
+        "doc_3": {"path_field": "doc_3_path", "inline_field": "creator_brief", "markdown_field": "creator_brief_md"},
+        "doc_4": {"path_field": "doc_4_path", "inline_field": "producer_packet", "markdown_field": "producer_packet_md"},
         "booster": {"path_field": None, "inline_field": None, "markdown_field": "booster_expansion_md"},
     }
 
@@ -999,7 +1006,10 @@ async def get_document(
 
 
 # =============================================================================
-# Deep Research Booster Endpoint (Phase 7)
+# DEPRECATED: Deep Research Booster Endpoint
+# ARCHIVED: 2026-03-12 — Phase 1.3.1
+# Migration: Use POST /jobs/{job_id}/iterate with {"mode": "deep_dive"} instead.
+# Handler logic archived at: backend/archive/booster_stage_archived.py
 # =============================================================================
 
 @router.post("/{job_id}/booster")
@@ -1009,156 +1019,23 @@ async def run_job_booster(
     job_id: str,
     user: AuthUser = Depends(get_active_user),
 ):
+    """DEPRECATED: This endpoint is no longer active.
+
+    Use POST /jobs/{job_id}/iterate with body {"mode": "deep_dive"} instead.
+    The deep_dive mode replaces the Booster — same output, unified API.
     """
-    Trigger Deep Research Booster for a completed job.
-
-    Prerequisites:
-    - Job must be in 'completed' or 'completed_with_warnings' status
-    - Doc 1 (JumpStartDirections) and Doc 2 (SemanticBrief) must exist
-
-    The booster expands Doc 1 with additional research directions,
-    search queries, and perspectives to investigate.
-
-    CRITICAL: The booster produces DIRECTIONS, not FACTS.
-    Booster failure does NOT affect existing documents.
-
-    Returns status and message. Poll job status for completion.
-    """
-    # Validate job_id format
-    try:
-        uuid.UUID(job_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid job ID format")
-
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    # Authorization: owner only
-    if job.user_id != user.user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Job must be completed (main pipeline)
-    job_status = job.status if hasattr(job, "status") else job.get("status")
-    if job_status not in ("completed", "completed_with_warnings"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job must be completed to run booster. Current status: '{job_status}'"
-        )
-
-    # Check booster status (separate from job.status)
-    booster_status = job.booster_status if hasattr(job, "booster_status") else None
-    if booster_status == "running":
-        raise HTTPException(
-            status_code=409,
-            detail="Booster is already running for this job"
-        )
-    if booster_status == "queued":
-        raise HTTPException(
-            status_code=409,
-            detail="Booster is already queued for this job"
-        )
-
-    # Verify required docs exist
-    artifacts = job.artifacts if hasattr(job, "artifacts") else None
-    if artifacts and hasattr(artifacts, "model_dump"):
-        artifacts_dict = artifacts.model_dump(exclude_none=True)
-    elif isinstance(artifacts, dict):
-        artifacts_dict = artifacts
-    else:
-        artifacts_dict = {}
-
-    jump_start = artifacts_dict.get("jump_start")
-    semantic_brief = artifacts_dict.get("semantic_brief")
-
-    # Check for storage paths if inline data missing
-    doc_1_path = artifacts_dict.get("doc_1_path")
-    doc_2_path = artifacts_dict.get("doc_2_path")
-
-    if not jump_start and doc_1_path:
-        try:
-            from backend.integrations.supabase_storage import get_storage_client
-            storage = get_storage_client()
-            if storage:
-                jump_start_raw = storage.download_document(doc_1_path)
-                # Storage wraps docs in {"data": {...}, "markdown": "..."} - unwrap if needed
-                if isinstance(jump_start_raw, dict) and "data" in jump_start_raw:
-                    jump_start = jump_start_raw["data"]
-                    logger.info(f"[{job_id}] Unwrapped jump_start from storage wrapper")
-                else:
-                    jump_start = jump_start_raw
-                artifacts_dict["jump_start"] = jump_start
-                logger.info(f"[{job_id}] Fetched jump_start from storage")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Failed to fetch jump_start: {e}")
-
-    if not semantic_brief and doc_2_path:
-        try:
-            from backend.integrations.supabase_storage import get_storage_client
-            storage = get_storage_client()
-            if storage:
-                semantic_brief_raw = storage.download_document(doc_2_path)
-                # Storage wraps docs in {"data": {...}, "markdown": "..."} - unwrap if needed
-                if isinstance(semantic_brief_raw, dict) and "data" in semantic_brief_raw:
-                    semantic_brief = semantic_brief_raw["data"]
-                    logger.info(f"[{job_id}] Unwrapped semantic_brief from storage wrapper")
-                else:
-                    semantic_brief = semantic_brief_raw
-                artifacts_dict["semantic_brief"] = semantic_brief
-                logger.info(f"[{job_id}] Fetched semantic_brief from storage")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Failed to fetch semantic_brief: {e}")
-
-    if not jump_start or not semantic_brief:
-        raise HTTPException(
-            status_code=400,
-            detail="Doc 1 (JumpStartDirections) and Doc 2 (SemanticBrief) must exist to run booster"
-        )
-
-    # Check if booster already ran (warn but allow)
-    booster_output = artifacts_dict.get("booster_output")
-    if booster_output:
-        logger.warning(f"[{job_id}] Booster re-run requested (previous output exists)")
-
-    # Update booster status (DO NOT modify job.status - it must stay "completed")
-    from datetime import datetime, timezone
-    update_job(
-        job_id,
-        booster_status="queued",
-        booster_started_at=datetime.now(timezone.utc),
-        booster_progress_percent=0,
-        booster_error=None,  # Clear any previous error
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "POST /jobs/{job_id}/booster is deprecated. "
+            "Use POST /jobs/{job_id}/iterate with {\"mode\": \"deep_dive\"} instead. "
+            "The deep_dive mode provides the same research directions output through the unified Iterate system."
+        ),
     )
-
-    # Queue booster task
-    from backend.worker import run_booster_task
-    logger.info(f"Enqueuing booster task for job {job_id}")
-    run_booster_task.apply_async(
-        (job_id, user.user_id),
-        task_id=f"{job_id}_booster"
-    )
-
-    # Audit log
-    logger.info(
-        "Booster triggered",
-        extra={
-            "job_id": job_id,
-            "user_id": user.user_id,
-            "is_re_run": booster_output is not None,
-            "event": "booster_triggered",
-        }
-    )
-
-    return {
-        "job_id": job_id,
-        "status": "queued",  # Return booster status, not job status
-        "booster_status": "queued",
-        "message": "Deep Research Booster started. Results will append to Doc 1 (Jump-Start Directions).",
-    }
 
 
 # =============================================================================
-# PRODUCER PACKET ENDPOINT (Phase 8 - Doc 3)
+# PRODUCER PACKET ENDPOINT (Doc 4 — formerly Doc 3, renamed 2026-03-12)
 # =============================================================================
 
 @router.post("/{job_id}/producer-packet")
@@ -1471,106 +1348,18 @@ async def run_booster_for_run(
     run_id: str,
     user: AuthUser = Depends(get_active_user),
 ):
+    """DEPRECATED: This endpoint is no longer active.
+
+    Use POST /jobs/{job_id}/iterate with body {"mode": "deep_dive"} instead.
+    Archived: 2026-03-12 — Phase 1.3.1
     """
-    Trigger Deep Research Booster for a specific run.
-
-    V2 Run Abstraction: Booster outputs are scoped to individual runs.
-    This allows different iterations to have their own booster expansions.
-
-    Args:
-        job_id: Job ID
-        run_id: Run ID (e.g., 'run_0' for baseline, 'run_1' for first iteration)
-    """
-    from backend.models.run_models import ensure_runs_migrated, RunStatus
-
-    # Validate job_id format
-    try:
-        uuid.UUID(job_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid job ID format")
-
-    # Validate run_id format
-    if not run_id.startswith("run_"):
-        raise HTTPException(status_code=400, detail="Invalid run ID format. Expected 'run_0', 'run_1', etc.")
-
-    job = get_job(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    # Authorization: owner only
-    if job.user_id != user.user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Job must be completed
-    job_status = job.status if hasattr(job, "status") else job.get("status")
-    if job_status not in ("completed", "completed_with_warnings"):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Job must be completed to run booster. Current status: '{job_status}'"
-        )
-
-    # Get artifacts and find the run
-    artifacts = job.artifacts if hasattr(job, "artifacts") else None
-    if not artifacts:
-        raise HTTPException(status_code=400, detail="Job has no artifacts")
-
-    # Migrate legacy artifacts to runs if needed
-    runs = ensure_runs_migrated(
-        artifacts,
-        job_created_at=job.created_at if hasattr(job, "created_at") else None,
-        job_completed_at=job.completed_at if hasattr(job, "completed_at") else None,
-        user_id=job.user_id or "system",
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "POST /jobs/{job_id}/runs/{run_id}/booster is deprecated. "
+            "Use POST /jobs/{job_id}/iterate with {\"mode\": \"deep_dive\"} instead."
+        ),
     )
-
-    # Find the requested run
-    target_run = None
-    for run in runs:
-        if run.run_id == run_id:
-            target_run = run
-            break
-
-    if not target_run:
-        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
-
-    if target_run.status != RunStatus.COMPLETED:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Run must be completed to run booster. Current status: '{target_run.status}'"
-        )
-
-    # Check if booster already running for this run
-    if target_run.booster_expansion and target_run.booster_expansion.status in (RunStatus.QUEUED, RunStatus.RUNNING):
-        raise HTTPException(
-            status_code=409,
-            detail=f"Booster is already {target_run.booster_expansion.status.value} for run {run_id}"
-        )
-
-    # Queue booster task with run_id
-    from backend.worker import run_booster_task
-    from datetime import datetime, timezone
-
-    # Update job status
-    update_job(
-        job_id,
-        booster_status="queued",
-        booster_started_at=datetime.now(timezone.utc),
-        booster_progress_percent=0,
-        booster_error=None,
-    )
-
-    logger.info(f"Enqueuing booster task for job {job_id} run {run_id}")
-    run_booster_task.apply_async(
-        (job_id, user.user_id, run_id),  # Pass run_id to worker
-        task_id=f"{job_id}_{run_id}_booster"
-    )
-
-    return {
-        "job_id": job_id,
-        "run_id": run_id,
-        "status": "queued",
-        "booster_status": "queued",
-        "message": f"Deep Research Booster for run {run_id} started.",
-    }
 
 
 # =============================================================================
