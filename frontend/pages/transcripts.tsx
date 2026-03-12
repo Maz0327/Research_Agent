@@ -19,8 +19,8 @@ interface TranscriptResult {
 
 interface SyncResponse {
   success: boolean;
-  doc_url: string;
-  folder_url: string;
+  doc_url: string; // DEPRECATED: always empty since Drive removal (2026-01-19)
+  folder_url: string; // DEPRECATED: always empty since Drive removal (2026-01-19)
   transcripts: TranscriptResult[];
   warnings: string[];
   total_videos: number;
@@ -41,8 +41,7 @@ interface JobStatus {
   progress_percent: number;
   transcripts_completed: number;
   transcripts_total: number;
-  doc_url?: string;
-  folder_url?: string;
+  doc_url?: string; // Supabase Storage signed URL (async jobs only)
   warnings: string[];
   error?: string;
 }
@@ -158,8 +157,10 @@ export default function TranscriptsPage() {
   };
 
   const isComplete = syncResult?.success || jobStatus?.status === 'completed';
-  const docUrl = syncResult?.doc_url || jobStatus?.doc_url;
-  const folderUrl = syncResult?.folder_url || jobStatus?.folder_url;
+  // Sync responses return transcripts inline (doc_url is always empty since Drive removal).
+  // Async responses may have a Supabase Storage signed URL in doc_url.
+  const docUrl = jobStatus?.doc_url || '';
+  const hasTranscripts = syncResult?.transcripts?.some(t => t.status === 'available');
 
   return (
     <>
@@ -312,7 +313,7 @@ export default function TranscriptsPage() {
           )}
 
           {/* Success Result */}
-          {isComplete && docUrl && (
+          {isComplete && (hasTranscripts || docUrl) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -327,32 +328,25 @@ export default function TranscriptsPage() {
                   </div>
                   <div>
                     <p className="font-medium text-green-300">Transcripts Ready!</p>
-                    <p className="text-sm text-green-400/70">Your documents are ready in Google Drive</p>
+                    <p className="text-sm text-green-400/70">
+                      {syncResult ? 'Transcripts extracted successfully' : 'Your transcript document is ready'}
+                    </p>
                   </div>
                 </div>
-                <a
-                  href={docUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-500"
-                >
-                  Open Doc
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+                {docUrl && (
+                  <a
+                    href={docUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-500"
+                  >
+                    Download Transcript
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </a>
+                )}
               </div>
-
-              {folderUrl && (
-                <a
-                  href={folderUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block mt-3 text-sm text-blue-400 hover:text-blue-300 transition"
-                >
-                  Open Drive Folder
-                </a>
-              )}
 
               {syncResult && (
                 <div className="mt-4 pt-4 border-t border-green-500/30">
@@ -364,6 +358,28 @@ export default function TranscriptsPage() {
                       Failed/Missing: {syncResult.failed_count}
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Inline transcript display for sync results */}
+              {syncResult?.transcripts && syncResult.transcripts.filter(t => t.text).length > 0 && (
+                <div className="mt-4 space-y-4">
+                  {syncResult.transcripts.filter(t => t.text).map((t, idx) => (
+                    <div key={idx} className="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-gray-300 truncate">{t.video_url}</p>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(t.text || '')}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition shrink-0 ml-2"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <pre className="text-sm text-gray-400 whitespace-pre-wrap max-h-60 overflow-y-auto">
+                        {t.text}
+                      </pre>
+                    </div>
+                  ))}
                 </div>
               )}
             </motion.div>
