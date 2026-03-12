@@ -407,6 +407,16 @@ def validate_grounding(
                 field="themes",
             ))
 
+    # Validate Tensions have source_ids (provenance chain)
+    for tension in data.get("tensions", []):
+        tension_source_ids = tension.get("source_ids", [])
+        if not tension_source_ids:
+            results.append(ValidationResult(
+                level=ValidationLevel.WARNING,
+                message=f"Tension {tension.get('tension_id')} has no source_ids — provenance chain incomplete",
+                field="tensions",
+            ))
+
     return results
 
 

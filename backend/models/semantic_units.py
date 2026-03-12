@@ -239,6 +239,7 @@ class Tension:
     description: str
     label: str = ""  # Short title (3-6 words, e.g., "Timeline Conflict")
     involved_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
+    source_ids: list[str] = field(default_factory=list)  # All source_ids involved in this tension
 
     # Phase 5: Cross-Source Attribution
     sources_position_a: list[str] = field(default_factory=list)  # source_ids supporting one side
@@ -251,6 +252,7 @@ class Tension:
             "label": self.label,
             "description": self.description,
             "involved_key_points": self.involved_key_points,
+            "source_ids": self.source_ids,
         }
         # Include Phase 5 fields if populated
         if self.is_cross_source:

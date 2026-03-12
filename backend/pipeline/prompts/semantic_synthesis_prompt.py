@@ -193,7 +193,8 @@ Speculation must:
       "tension_id": "TEN_1",
       "label": "Short title (3-6 words describing the conflict)",
       "description": "...",
-      "involved_key_points": ["KP_3", "KP_6"]
+      "involved_key_points": ["KP_3", "KP_6"],
+      "source_ids": ["SRC_1", "SRC_2"]
     }}
   ],
   "gaps": [
@@ -289,7 +290,8 @@ not QUANTITY.
       "tension_id": "TEN_1",
       "label": "Technology Readiness Contradiction",
       "description": "Leadership's public statements about technology readiness contradict technician accounts of workarounds required for every patient sample. This tension remains unresolved because no primary documentation of internal testing protocols has been made public.",
-      "involved_key_points": ["KP_1", "KP_2"]
+      "involved_key_points": ["KP_1", "KP_2"],
+      "source_ids": ["SRC_1", "SRC_2"]
     }}
   ],
   "gaps": [
