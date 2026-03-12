@@ -1,14 +1,18 @@
 # Sandcastles.ai — Competitive Analysis + Research Agent Source Discovery Plan
 **Date:** 2026-03-11
-**Last Updated:** 2026-03-11 (added validated research pipeline architecture)
+**Last Updated:** 2026-03-12 (added validation notes from independent fact-check)
 **Source:** Network tab reverse-engineering + 10-claim fact-check + independent web research on search APIs
 **Purpose:** Understand Sandcastles, define Research Agent's position, and plan the source discovery build
+
+> **Validation Notes (2026-03-12):** Claims in this document were cross-referenced against
+> independent sources. Validated claims are marked ✅, corrections are marked ⚠️, and
+> unverifiable claims (from network tab observation) are marked 🔍. See inline notes throughout.
 
 ---
 
 ## 1. What Sandcastles.ai Is
 
-A content creation tool for video creators. Their workflow:
+A content creation tool for video creators. ⚠️ **Correction:** Sandcastles positions itself specifically for **short-form video** (Reels, TikTok, YouTube Shorts), not general video creation. Their tagline is "Create viral short-form videos in seconds." Plans range $39-149/month (annual billing). Their workflow:
 
 ```
 User writes notes/prompt
@@ -25,6 +29,10 @@ Their core entity is a **"story"** (UUID-based) — equivalent to Research Agent
 ---
 
 ## 2. Their Tech Stack (Confirmed from Network Tab + Public Site)
+
+> 🔍 **Validation note:** Tech stack claims below are from direct network tab observation during
+> a live session. These cannot be independently verified from public sources but are consistent
+> with the observed XHR payloads and JS bundles.
 
 | Layer | Technology |
 |-------|------------|
@@ -146,6 +154,11 @@ Most believe [X], the twist is [Y]
 
 ### Fact-check results (10 claims, Jurassic Park topic)
 
+> 🔍 **Validation note:** The fact-check below was performed during the original analysis session
+> by comparing Sandcastles' output against known facts. The methodology (checking specific numerical
+> claims against reliable sources) is sound, but the "actual figures" column is itself unverified
+> against primary sources and should be treated as best-effort cross-referencing, not definitive.
+
 A full fact-check of 10 specific claims from their output against real sources:
 
 | Claim | Their output | Actual figure | Verdict | Source type |
@@ -168,6 +181,10 @@ The errors are all inflated in the direction of "more impressive/shocking" — c
 ### The smoking gun: the deleted YouTube video
 
 Their `images` field listed `https://www.youtube.com/watch?v=9S_vE28nBfQ` as a source. That video **no longer exists — deleted**. If they had actually fetched it, their pipeline would have errored. They listed it anyway.
+
+> 🔍 **Validation note:** The deleted video claim was verified during original analysis.
+> This is strong evidence that Sandcastles does not deeply fetch/process sources.
+> However, this could also mean they cache results and the video was deleted after caching.
 
 **Conclusion:** They find URLs via a light search but never read the content. The `images` field is populated with search result URLs as a plausibility signal, not actually-processed sources.
 
@@ -227,6 +244,12 @@ The "polish" is a formatting template, not deeper research. Their research quali
 
 ## 9. The 2026 Market Reality
 
+⚠️ **Validation note:** The market thesis below is strategic opinion, not independently verified market data.
+The named creators (Johnny Harris, etc.) are real long-form YouTube creators, but Sandcastles explicitly
+targets **short-form** content (Reels, TikTok, Shorts), which is a different segment than what these
+creators primarily produce. The competitive positioning is valid, but the market overlap may be smaller
+than implied.
+
 The line between creator and journalist is gone. YouTube creators are doing independent investigative journalism. Journalists are making YouTube videos. Serious creators (Johnny Harris, Patrick Boyle, Legal Eagle, Wendover Productions) have brand reputations entirely dependent on being factually correct. Sandcastles' wrong facts would destroy their credibility in their comment sections.
 
 **Sandcastles serves:** entertainment creators who need fast inspiration, don't fact-check, and are optimizing for views.
@@ -280,7 +303,7 @@ Four competing clients + complex orchestration = too many things that could fail
 
 ### Why two phases?
 
-**OpenAI Deep Research** uses this exact pattern in production (December 2025 release): clarify/discover first → deep process second. An academic study (HLER, arXiv:2603.07444) showed a human review gate between phases improved output feasibility from **41% → 87%**. This is not theoretical — it is a documented production pattern.
+**OpenAI Deep Research** uses this exact pattern in production (⚠️ **Corrected:** February 2025 release, not December 2025): clarify/discover first → deep process second. ✅ An academic study (HLER, arXiv:2603.07444, March 2026) showed a human review gate between phases improved research question feasibility from **41% → 87%** (⚠️ **Clarification:** this metric is specifically about *research question feasibility in economics*, not general "output feasibility" — the study is "Human-in-the-Loop Economic Research via Multi-Agent Pipelines for Empirical Discovery"). This is not theoretical — it is a documented production pattern.
 
 LangGraph's `interrupt()` function is the standard open-source implementation. The pattern is called "Human-in-the-Loop (HITL)" in the agentic workflow literature.
 
@@ -339,29 +362,35 @@ Doc 0 (Source Ledger) + Doc 1 (Jump-Start) + Doc 2 (Semantic Brief)
 
 ### Why Exa, not Tavily (data-backed)
 
-This recommendation is based on independent benchmarks, not Exa marketing:
+⚠️ **Validation note:** These benchmarks are widely cited but primarily originate from Exa's own
+comparison page (exa.ai/versus/tavily) and a "Fortune 100 enterprise evaluation" cited by Exa.
+The DEV Community article and Humai Blog articles also reference these numbers but do not appear
+to have run independent benchmarks. Treat as Exa-sourced marketing data, not independent third-party validation.
 
 | | Tavily Advanced | Exa (auto mode) |
 |---|---|---|
 | Complex retrieval accuracy | 71% | **81%** |
 | SimpleQA accuracy | 93.3% | **94.9%** |
-| Response time | 1.9–4.5s | **1.2–1.7s** |
+| Response time | 1.9–4.5s | **1.2–1.7s** | ⚠️ Exa's own "Fortune 100" benchmark reports p95 of 1.4-1.7s (not 1.2s) for Exa, 3.8-4.5s for Tavily |
 | Cost per call (10 results) | $0.016 | **$0.007** |
-| Query length limit | **400 characters** | None documented |
+| Query length limit | **400 characters** ✅ | None documented ✅ |
 | Content returned | 500-char chunks (default) | Highlights + Contents API |
 | Disambiguation | Neural only | `auto` picks neural OR keyword |
 | Full page content | Extra flag required | Separate Contents API ($0.001/page) |
 
 Exa is cheaper, faster, more accurate, AND has no query length limit (critical for the disambiguation fix). The `auto` mode is specifically useful for entity queries — it will switch to keyword mode for highly specific named-entity searches where semantic search underperforms.
 
-Sources: DEV Community SERP API comparison, Exa internal benchmarks, Humai Blog API comparison 2025.
+Sources: DEV Community SERP API comparison (dev.to/ritza), Exa internal benchmarks (exa.ai/versus/tavily),
+Humai Blog API comparison 2025 (humai.blog). ⚠️ All three sources cite similar numbers likely originating
+from Exa's own benchmarks. ✅ Tavily 400-char limit independently confirmed via Tavily Community forums
+and API docs. ✅ Exa pricing ($0.007/search with 10 results) confirmed via exa.ai/pricing.
 
 ### Why binary relevance filter, not 0-10 LLM score
 
-Research finding (Voyage AI, October 2025; ZeroEntropy analysis):
+✅ Research finding (Voyage AI, October 22, 2025 blog post "The Case Against LLMs as Rerankers"; ZeroEntropy analysis "Should You Use LLMs for Reranking?"):
 - LLM pointwise scores are "uncalibrated and noisy" — the same document can score 7 in one call and 5 in another
 - Positional bias: LLMs score results higher when they appear earlier in the prompt
-- Cross-encoder rerankers are 60x cheaper and 48x faster than LLM scoring
+- ✅ Cross-encoder rerankers are 60x cheaper and 48x faster than LLM scoring (confirmed via Voyage AI X post)
 - However: cost of LLM scoring is $0.0006 per call — essentially free — so cost is not the issue
 
 **Recommendation:** Use binary LLM classification ("relevant / not relevant") to discard obvious mismatches. Trust Exa's own ranking order for the kept results. Do not use numeric scores. A dedicated cross-encoder reranker (e.g., Cohere Rerank, Voyage Rerank) could replace this at even lower cost and higher reliability if needed later.
@@ -396,6 +425,11 @@ This is a **new output template** layered over existing semantic units — not a
 ---
 
 ## 14. Validated Cost Structure
+
+> ✅ **Validation note (2026-03-12):** Cost figures checked against current API pricing.
+> Gemini 2.5 Pro: $10/M output tokens, $1.25/M input tokens → 8K output ≈ $0.08 + input costs ≈ $0.088. Confirmed.
+> Exa search with 10 results + contents: $0.007/call. Confirmed via exa.ai/pricing.
+> Gemini 2.5 Flash costs not independently verified but order-of-magnitude reasonable.
 
 Costs per full two-phase pipeline run:
 
@@ -475,7 +509,9 @@ Do not start frontend until backend endpoints are tested and stable.
 
 ---
 
-*Last updated: 2026-03-11*
+*Last updated: 2026-03-12*
 *Analysis based on: network tab observation, response payload inspection, 10-claim fact-check,*
 *independent web research on Tavily/Exa/Perplexity benchmarks, RAG pipeline failure mode literature,*
 *query disambiguation research, two-phase pipeline production examples (OpenAI Deep Research, HLER study)*
+*Validation pass (2026-03-12): cross-referenced against arXiv, Voyage AI blog, Exa/Tavily pricing pages,*
+*OpenAI release announcements, Sandcastles public marketing. Corrections applied inline.*
