@@ -36,8 +36,8 @@ def get_share_url(token: str) -> str:
     # Use frontend URL from FRONTEND_ORIGINS or default
     frontend_origins = settings.frontend_origins
     if frontend_origins:
-        # Get first origin as base URL
-        base_url = frontend_origins[0].rstrip("/")
+        # Get first origin as base URL (frontend_origins is a comma-separated string)
+        base_url = frontend_origins.split(",")[0].strip().rstrip("/")
     else:
         base_url = "http://localhost:3000"
     return f"{base_url}/shared/{token}"
