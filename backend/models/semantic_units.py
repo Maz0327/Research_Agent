@@ -197,6 +197,7 @@ class Theme:
     label: str
     description: str
     related_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
+    confidence: Optional[str] = None  # ConfidenceLevel string, subject to ceiling enforcement
 
     # Phase 5: Multi-Source Attribution
     sources_supporting: list[str] = field(default_factory=list)  # source_ids that support this theme
@@ -240,6 +241,7 @@ class Tension:
     label: str = ""  # Short title (3-6 words, e.g., "Timeline Conflict")
     involved_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
     source_ids: list[str] = field(default_factory=list)  # All source_ids involved in this tension
+    confidence: Optional[str] = None  # ConfidenceLevel string, subject to ceiling enforcement
 
     # Phase 5: Cross-Source Attribution
     sources_position_a: list[str] = field(default_factory=list)  # source_ids supporting one side

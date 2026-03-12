@@ -249,6 +249,40 @@ def get_confidence_penalty_summary(
 # Level 1: Schema Validation (Hard Fail)
 # -----------------------------------------------------------------------------
 
+def validate_source_identity_lock(
+    data: dict,
+    expected_source_id: str,
+) -> list[ValidationResult]:
+    """
+    Validate that the LLM returned the same source_id it was given.
+
+    Hard failure if the returned source_id doesn't match the expected one.
+    This catches LLM hallucination of source identity.
+
+    Args:
+        data: Extraction output dict
+        expected_source_id: The source_id that was passed to the LLM in the prompt
+    """
+    results = []
+    returned_source_id = data.get("source_id", "")
+
+    if returned_source_id and returned_source_id != expected_source_id:
+        results.append(ValidationResult(
+            level=ValidationLevel.HARD_FAIL,
+            message=(
+                f"Source Identity Lock violation: LLM returned source_id='{returned_source_id}' "
+                f"but expected='{expected_source_id}'. The LLM hallucinated a different source identity."
+            ),
+            field="source_id",
+            details={
+                "expected": expected_source_id,
+                "returned": returned_source_id,
+            },
+        ))
+
+    return results
+
+
 def validate_schema(data: dict, required_keys: list[str]) -> list[ValidationResult]:
     """
     Validate that required keys exist and have correct types.
@@ -719,6 +753,48 @@ def validate_confidence_ceiling(
         except ValueError:
             pass
 
+    # Enforce ceiling on themes (if they have confidence)
+    for theme in data.get("themes", []):
+        theme_confidence = theme.get("confidence")
+        if theme_confidence:
+            try:
+                theme_level = ConfidenceLevel(theme_confidence)
+                theme_idx = confidence_order.index(theme_level)
+                if theme_idx > ceiling_idx:
+                    theme["confidence"] = ceiling.value
+                    theme["_confidence_downgraded"] = True
+                    results.append(ValidationResult(
+                        level=ValidationLevel.WARNING,
+                        message=(
+                            f"Theme {theme.get('theme_id')} confidence downgraded "
+                            f"from {theme_confidence} to {ceiling.value} (mode ceiling)"
+                        ),
+                        field="themes",
+                    ))
+            except ValueError:
+                pass
+
+    # Enforce ceiling on tensions (if they have confidence)
+    for tension in data.get("tensions", []):
+        tension_confidence = tension.get("confidence")
+        if tension_confidence:
+            try:
+                tension_level = ConfidenceLevel(tension_confidence)
+                tension_idx = confidence_order.index(tension_level)
+                if tension_idx > ceiling_idx:
+                    tension["confidence"] = ceiling.value
+                    tension["_confidence_downgraded"] = True
+                    results.append(ValidationResult(
+                        level=ValidationLevel.WARNING,
+                        message=(
+                            f"Tension {tension.get('tension_id')} confidence downgraded "
+                            f"from {tension_confidence} to {ceiling.value} (mode ceiling)"
+                        ),
+                        field="tensions",
+                    ))
+            except ValueError:
+                pass
+
     return results
 
 
@@ -834,6 +910,8 @@ def validate_clip_timestamps(
 
 # -----------------------------------------------------------------------------
 # Hallucination Prevention: Citation Validation (CV-001)
+# DEPRECATED 2026-03-11: based_on field does not exist in current models.
+# Kept for backward compatibility with existing tests. Will be removed in Phase 1.
 # -----------------------------------------------------------------------------
 
 def validate_based_on_references(
@@ -954,6 +1032,7 @@ def validate_semantic_extraction(
     source_duration_minutes: Optional[float] = None,
     has_source_metadata: bool = False,
     verification_rate: Optional[float] = None,
+    expected_source_id: Optional[str] = None,
 ) -> ValidationReport:
     """
     Run all validation levels on semantic extraction output.
@@ -967,11 +1046,22 @@ def validate_semantic_extraction(
                              Used for quote warning messages in text_provided mode
         verification_rate: Quote verification rate (0.0 to 1.0). If None, defaults to 0.5.
                           Calculated by stage_semantic_validation from actual quote checks.
+        expected_source_id: If provided, validates the returned source_id matches (Source Identity Lock).
 
     Returns:
         ValidationReport with all results and overall status
     """
     report = ValidationReport()
+
+    # Level 0: Source Identity Lock (if expected_source_id provided)
+    if expected_source_id:
+        logger.debug("Running Source Identity Lock validation...")
+        lock_results = validate_source_identity_lock(data, expected_source_id)
+        for result in lock_results:
+            report.add_result(result)
+        if report.has_hard_failures:
+            logger.error("Source Identity Lock violation — LLM hallucinated source identity")
+            return report
 
     # Level 1: Schema
     logger.debug("Running schema validation...")

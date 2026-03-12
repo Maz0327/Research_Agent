@@ -152,23 +152,32 @@ def verify_quote(quote_text: str, source_text: str) -> str:
 - Action: Remove quotes, convert to observations if possible, log error
 
 **Modes That Allow Quotes:**
-- `transcript_grounded` ✅
-- `caption_grounded` ✅
-- `article_fetched` ✅
+- `transcript_grounded` ✅ (verbatim)
+- `caption_grounded` ✅ (approximate)
+- `article_fetched` ✅ (verbatim)
+- `text_provided` ✅ (unverified) — *Owner Decision 2026-01-15*
+- `ocr_extracted` ✅ (unverified) — *Owner Decision 2026-01-15*
 
 **Modes That Forbid Quotes:**
-- `video_only` ❌
-- `text_provided` ❌
-- `ocr_extracted` ❌
+- `video_only` ❌ (use approximate_observations instead)
+
+> **Owner Decision (2026-01-15):** `text_provided` and `ocr_extracted` allow quotes but all
+> must be marked `unverified: true`. The system cannot verify authenticity of user-provided
+> content, but extracting quotes provides better UX than omitting them entirely.
 
 **Implementation:**
 ```python
-QUOTE_ALLOWED_MODES = {"transcript_grounded", "caption_grounded", "article_fetched"}
+NO_QUOTE_MODES = {AnalysisMode.VIDEO_ONLY}
+DEGRADED_QUOTE_MODES = {AnalysisMode.TEXT_PROVIDED, AnalysisMode.OCR_EXTRACTED}
 
-if source.analysis_mode not in QUOTE_ALLOWED_MODES:
+if source.analysis_mode in NO_QUOTE_MODES:
     if len(extraction.quotes) > 0:
-        # HARD FAIL - quotes not allowed
+        # HARD FAIL - quotes not allowed in video_only
         # Convert to observations or remove
+elif source.analysis_mode in DEGRADED_QUOTE_MODES:
+    # Quotes allowed but mark as unverified
+    for quote in extraction.quotes:
+        quote.unverified = True
 ```
 
 ---
