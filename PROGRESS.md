@@ -1,9 +1,9 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-01-24 12:00
-**Current Phase:** MAINTENANCE — Bug Fixes & UI Polish
-**Current Task:** Backend/Frontend Stability
-**Branch:** feature/vision-alignment-v1
+**Last Updated:** 2026-03-12
+**Current Phase:** Phase 5 — Search/Discovery Flow
+**Current Task:** Pre-push audit complete, ready for live testing
+**Branch:** phase/5-search-discovery
 
 ---
 
@@ -24,7 +24,43 @@ Phase 9:   ✅ COMPLETE — Comprehensive Test Suite (960 tests)
 Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 POST:      ✅ COMPLETE — Constitution Finalization & Legacy Cleanup
 MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
+Phase 4*:  ✅ COMPLETE — Frontend Document Layer Model & UI Overhaul (17 commits)
+Phase 5*:  🔄 IN PROGRESS — Search/Discovery Flow (backend + frontend + audit)
 ```
+
+---
+
+## Phase 5: Search/Discovery Flow (2026-03-12)
+
+**Status:** 🔄 Audit complete, pushed for live testing
+**Branch:** `phase/5-search-discovery`
+**Goal:** Topic-first search flow with Quick Brief previews
+
+### Session 2026-03-12: Phase 5 Backend + Frontend + Pre-Push Audit
+
+**Backend (5 new files):**
+- `backend/app/routes/search_routes.py` — Search discovery + approve endpoints
+- `backend/pipeline/search/relevance_validator.py` — Candidate scoring/filtering
+- `backend/pipeline/stages/quick_brief_stage.py` — Quick Brief via Gemini Flash
+- `backend/models/creator_brief.py` — Added `is_preview`, `brief_type` fields
+
+**Frontend (2 new files, 3 modified):**
+- `frontend/components/search/QuickBriefPreview.tsx` — Preview mode Creator Brief
+- `frontend/components/search/SearchApprovalView.tsx` — Source approval + Quick Brief
+- `frontend/pages/dashboard.tsx` — Wired Entry Point 1 (topic search)
+- `frontend/store/jobs.ts` — Added search actions + state
+- `frontend/types/run.ts` — Added search/approve types
+
+**Pre-Push Audit (12 bugs fixed):**
+- 3 CRITICAL: `generate_json_async` → `asyncio.to_thread`, `_create_mixed_input_job` → `create_job`, `user.get()` → `user.user_id`
+- 4 HIGH: error leakage, state mutation in render, form reset timing, isLoading collision
+- 5 MEDIUM: z-index, touch targets, dropdown width, score thresholds, stale search state
+
+**Verification:** TypeScript clean, build clean, lint clean, 1147 backend tests pass
+
+**Commits:**
+- `ca489dd Phase 5: Search/Discovery flow — topic-first source discovery with Quick Brief`
+- `587085a Phase 5.1: Fix 12 bugs found in pre-push audit`
 
 ---
 
