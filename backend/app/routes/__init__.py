@@ -8,6 +8,7 @@ from .transcripts_routes import router as transcripts_router
 from .admin_routes import router as admin_router
 from .export_routes import router as export_router
 from .share_routes import router as share_router
+from .search_routes import router as search_router
 
 __all__ = [
     "settings_router",
@@ -16,4 +17,5 @@ __all__ = [
     "admin_router",
     "export_router",
     "share_router",
+    "search_router",
 ]

@@ -155,6 +155,48 @@ export interface SearchCandidate {
   snippet: string;
   relevance_score: number;
   provider: string;
+  source_type?: string;
+}
+
+// =============================================================================
+// Search Discovery (Phase 5 — topic-first search flow)
+// =============================================================================
+
+/** Request body for POST /jobs/search */
+export interface SearchDiscoveryRequest {
+  topic: string;
+  depth?: string;
+  category?: string;
+}
+
+/** Response from POST /jobs/search */
+export interface SearchDiscoveryResponse {
+  search_id: string;
+  topic: string;
+  candidates: SearchCandidate[];
+  total_found: number;
+  expires_in_seconds: number;
+}
+
+/** Response from POST /jobs/search/{search_id}/quick-brief */
+export interface QuickBriefResponse {
+  search_id: string;
+  brief: Record<string, unknown>;
+  is_preview: boolean;
+  brief_type: string;
+}
+
+/** Request body for POST /jobs/search/{search_id}/approve */
+export interface SearchApproveRequest {
+  selected_urls: string[];
+  depth?: string;
+}
+
+/** Response from POST /jobs/search/{search_id}/approve */
+export interface SearchApproveResponse {
+  job_id: string;
+  status: string;
+  source_count: number;
 }
 
 /** Run request parameters */

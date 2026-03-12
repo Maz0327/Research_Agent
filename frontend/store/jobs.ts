@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
 import { API_URL } from '../lib/constants';
 import { formatApiError } from '../lib/error-utils';
-import type { SearchCandidate, IterateRequest } from '../types/run';
+import type { SearchCandidate, IterateRequest, SearchDiscoveryResponse, QuickBriefResponse, SearchApproveResponse } from '../types/run';
 
 // Phase 3 types - import from job-card components
 import type { ContentBlueprint } from '../components/job-card/ContentBlueprintView';
@@ -546,6 +546,15 @@ interface JobsState {
   fetchDocumentByVersion: (jobId: string, docType: string, version?: number) => Promise<{ data?: Record<string, unknown>; markdown?: string; version_metadata?: DocumentVersion }>;
   // Unified iterate endpoint
   iterateJob: (jobId: string, request: IterateRequest) => Promise<IterateResponse>;
+  // Search discovery (Phase 5)
+  searchResults: SearchDiscoveryResponse | null;
+  isSearching: boolean;
+  quickBrief: QuickBriefResponse | null;
+  isLoadingQuickBrief: boolean;
+  searchTopic: (topic: string, depth?: string, category?: string) => Promise<SearchDiscoveryResponse>;
+  fetchQuickBrief: (searchId: string) => Promise<QuickBriefResponse>;
+  approveSearchSources_v2: (searchId: string, selectedUrls: string[], depth?: string) => Promise<SearchApproveResponse>;
+  clearSearchResults: () => void;
 }
 
 export const useJobsStore = create<JobsState>((set, get) => ({
@@ -565,6 +574,11 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   bulkErrors: [],
   // Document versioning state
   documentVersions: {},
+  // Search discovery state (Phase 5)
+  searchResults: null,
+  isSearching: false,
+  quickBrief: null,
+  isLoadingQuickBrief: false,
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -1579,5 +1593,132 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       set({ error: message, actionInProgress: null });
       throw error;
     }
+  },
+
+  // =========================================================================
+  // Search Discovery (Phase 5)
+  // =========================================================================
+
+  searchTopic: async (topic: string, depth?: string, category?: string): Promise<SearchDiscoveryResponse> => {
+    set({ isSearching: true, searchResults: null, quickBrief: null, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const body: Record<string, unknown> = { topic };
+      if (depth) body.depth = depth;
+      if (category) body.category = category;
+
+      const response = await fetch(`${API_URL}/jobs/search`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Search discovery failed'));
+      }
+
+      const data: SearchDiscoveryResponse = await response.json();
+      set({ searchResults: data, isSearching: false });
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Search discovery failed';
+      set({ error: message, isSearching: false });
+      throw error;
+    }
+  },
+
+  fetchQuickBrief: async (searchId: string): Promise<QuickBriefResponse> => {
+    set({ isLoadingQuickBrief: true });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/search/${searchId}/quick-brief`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Quick brief generation failed'));
+      }
+
+      const data: QuickBriefResponse = await response.json();
+      set({ quickBrief: data, isLoadingQuickBrief: false });
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Quick brief generation failed';
+      set({ error: message, isLoadingQuickBrief: false });
+      throw error;
+    }
+  },
+
+  approveSearchSources_v2: async (searchId: string, selectedUrls: string[], depth?: string): Promise<SearchApproveResponse> => {
+    set({ isLoading: true, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const body: Record<string, unknown> = { selected_urls: selectedUrls };
+      if (depth) body.depth = depth;
+
+      const response = await fetch(`${API_URL}/jobs/search/${searchId}/approve`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to approve search sources'));
+      }
+
+      const data: SearchApproveResponse = await response.json();
+
+      // Add job to local state
+      const newJob: Job = {
+        id: data.job_id,
+        prompt: get().searchResults?.topic || 'Research Job',
+        pipeline: 'full',
+        status: 'queued',
+        progress_percent: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        jobs: [newJob, ...state.jobs],
+        isLoading: false,
+        searchResults: null,
+        quickBrief: null,
+      }));
+
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to approve sources';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  clearSearchResults: () => {
+    set({ searchResults: null, quickBrief: null, isSearching: false, isLoadingQuickBrief: false });
   },
 }));

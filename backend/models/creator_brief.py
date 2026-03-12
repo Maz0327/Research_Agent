@@ -151,6 +151,8 @@ class CreatorBriefDocument(BaseModel):
     generated_at: datetime = Field(default_factory=datetime.utcnow)
     topic: str = Field(..., description="The research topic")
     source_count: int = Field(..., ge=1, description="Number of sources in the job")
+    is_preview: bool = Field(default=False, description="True if this is a Quick Brief preview, not a full pipeline result")
+    brief_type: Literal["full", "quick"] = Field(default="full", description="'full' for pipeline-generated, 'quick' for single-call preview")
 
     hook_options: list[HookOption] = Field(
         ...,

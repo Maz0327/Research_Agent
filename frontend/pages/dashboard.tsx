@@ -12,6 +12,7 @@ import { useUIPreferences } from '../store/ui-preferences';
 import { POLLING_INTERVALS, VALIDATION_LIMITS, PLATFORM_HINTS, SCREENSHOT_PLATFORM_HINTS } from '../lib/constants';
 import { UnifiedInputPanel } from '../components/unified-input';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
+import SearchApprovalView from '../components/search/SearchApprovalView';
 import { DashboardJobCard } from '../components/dashboard/DashboardJobCard';
 
 // Job creation modes: 4 entry points
@@ -75,6 +76,11 @@ function DashboardContent() {
   const [isMixedSubmitting, setIsMixedSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Topic Search state (Phase 5)
+  const [topicInput, setTopicInput] = useState('');
+  const [topicCategory, setTopicCategory] = useState('');
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   // Topic Research state (LEGACY - kept for backward compatibility)
   const [prompt, setPrompt] = useState('');
   const [researchDepth, setResearchDepth] = useState('investigation');
@@ -87,6 +93,7 @@ function DashboardContent() {
   const [newSubreddit, setNewSubreddit] = useState('');
   const {
     jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createClaimExtractionJob, createMixedInputJob, refreshJob, clearPreview,
+    searchResults, isSearching, searchTopic: searchTopicAction, clearSearchResults,
   } = useJobsStore();
   const { user } = useAuth();
   const { createPanelCollapsed, toggleCreatePanel } = useUIPreferences();
@@ -207,6 +214,18 @@ function DashboardContent() {
   const handleCancelPreview = () => {
     setShowPreview(false);
     clearPreview();
+  };
+
+  // Handle topic search (Phase 5)
+  const handleTopicSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topicInput.trim()) return;
+    setSearchError(null);
+    try {
+      await searchTopicAction(topicInput, 'full', topicCategory || undefined);
+    } catch (err) {
+      setSearchError(err instanceof Error ? err.message : 'Search failed');
+    }
   };
 
   // Parse URLs from textarea (one per line or comma-separated)
@@ -452,22 +471,81 @@ function DashboardContent() {
                   </div>
 
           <AnimatePresence mode="wait">
-            {/* TOPIC MODE (placeholder — search flow comes in Phase 5) */}
+            {/* TOPIC MODE — search discovery flow (Phase 5) */}
             {jobMode === 'topic' ? (
               <motion.div
                 key="topic-form"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="rounded-lg border border-blue-700/30 bg-blue-900/10 p-4"
               >
-                <p className="text-sm text-blue-300 mb-3">Topic-first search is coming soon. For now, use &ldquo;I have my own sources&rdquo; to paste URLs directly.</p>
-                <button
-                  onClick={() => setJobMode('research')}
-                  className="text-sm text-blue-400 hover:text-blue-300 underline transition"
-                >
-                  Switch to source input →
-                </button>
+                {searchResults ? (
+                  <SearchApprovalView onBack={() => clearSearchResults()} />
+                ) : (
+                  <form onSubmit={handleTopicSearch} className="space-y-4">
+                    <div>
+                      <label htmlFor="topicInput" className="mb-1.5 block text-sm font-medium text-gray-400">
+                        What do you want to research?
+                      </label>
+                      <input
+                        type="text"
+                        id="topicInput"
+                        value={topicInput}
+                        onChange={(e) => setTopicInput(e.target.value)}
+                        placeholder="e.g., The rise of AI agents in 2026"
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        disabled={isSearching}
+                        autoFocus
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="topicCategory" className="mb-1.5 block text-sm font-medium text-gray-400">
+                        Category (optional)
+                      </label>
+                      <select
+                        id="topicCategory"
+                        value={topicCategory}
+                        onChange={(e) => setTopicCategory(e.target.value)}
+                        disabled={isSearching}
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                      >
+                        {categories.map((cat) => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {searchError && (
+                      <div className="rounded-lg border border-red-700 bg-red-900/30 p-3">
+                        <p className="text-sm text-red-300">{searchError}</p>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSearching || !topicInput.trim()}
+                      className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                    >
+                      {isSearching ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Searching…
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                          Find Sources
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
               </motion.div>
             ) : jobMode === 'research' ? (
               <motion.div
