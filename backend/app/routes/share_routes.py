@@ -346,6 +346,10 @@ async def get_shared_document(
             raise HTTPException(status_code=410, detail="This share link has reached its view limit")
         
         # Increment view count
+        # TODO(audit-H8): This is a non-atomic read-modify-write. Under concurrent
+        # requests, the same view_count can be read by two requests before either
+        # writes, allowing views beyond max_views. A proper fix requires a Supabase
+        # RPC with: UPDATE ... SET view_count = view_count + 1 WHERE view_count < max_views
         client.table("share_tokens").update({
             "view_count": view_count + 1
         }).eq("id", share["id"]).execute()

@@ -29,6 +29,7 @@ TRANSCRIPT_SYNC_THRESHOLD = 5
 async def extract_transcripts(
     request: Request,
     transcript_request: TranscriptRequest,
+    user: Optional[AuthUser] = Depends(get_optional_active_user),
 ):
     """
     Extract transcripts from YouTube videos.

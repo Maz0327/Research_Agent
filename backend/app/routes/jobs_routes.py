@@ -620,7 +620,7 @@ async def add_sources_to_job(
     New content is appended in a clearly marked addendum section.
     Cross-references link new content to original analysis.
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     # Validate job_id format
     try:
@@ -685,7 +685,7 @@ async def add_sources_to_job(
             url=url,
             title=None,  # Will be resolved in pipeline
             status=SourceStateEnum.PENDING,
-            added_at=datetime.utcnow(),
+            added_at=datetime.now(timezone.utc),
             is_original=False,  # Mark as addendum source
         ))
         source_counter += 1
@@ -697,7 +697,7 @@ async def add_sources_to_job(
             url=url,
             title=None,
             status=SourceStateEnum.PENDING,
-            added_at=datetime.utcnow(),
+            added_at=datetime.now(timezone.utc),
             is_original=False,
         ))
         source_counter += 1
@@ -709,7 +709,7 @@ async def add_sources_to_job(
             url=None,
             title=text_input.title,
             status=SourceStateEnum.PENDING,
-            added_at=datetime.utcnow(),
+            added_at=datetime.now(timezone.utc),
             is_original=False,
         ))
         source_counter += 1
@@ -3111,12 +3111,11 @@ async def download_job_pdf(
 
     except Exception as e:
         logger.error(f"PDF generation failed for job {job_id}: {e}")
-        # Return JSON error instead of failing
-        return {
-            "error": "PDF generation failed",
-            "message": str(e),
-            "job_id": job_id,
-        }
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={"error": "PDF generation failed", "job_id": job_id},
+        )
 
 
 def _generate_job_pdf(job) -> bytes:
