@@ -182,7 +182,7 @@ export default function TranscriptsPage() {
               YouTube Transcript Extractor
             </h1>
             <p className="mt-2 text-gray-400">
-              Extract transcripts from YouTube videos and save them to Google Drive
+              Extract transcripts from YouTube videos
             </p>
           </motion.div>
 
