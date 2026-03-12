@@ -2324,7 +2324,8 @@ async def get_job_status(
             "doc_0": {"path_field": "doc_0_path", "inline_field": "source_ledger"},
             "doc_1": {"path_field": "doc_1_path", "inline_field": "jump_start"},
             "doc_2": {"path_field": "doc_2_path", "inline_field": "semantic_brief"},
-            "doc_3": {"path_field": "doc_3_path", "inline_field": "producer_packet"},
+            "doc_3": {"path_field": "doc_3_path", "inline_field": "creator_brief"},
+            "doc_4": {"path_field": "doc_4_path", "inline_field": "producer_packet"},
         }
         documents_ready = {}
         for key, mapping in doc_mapping.items():
