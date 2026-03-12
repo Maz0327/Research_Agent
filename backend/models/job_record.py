@@ -275,7 +275,11 @@ class JobRecord(BaseModel):
 
     # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Job creation timestamp")
+    completed_at: Optional[datetime] = Field(None, description="When job completed or failed")
     stage_started_at: Optional[datetime] = Field(None, description="When current stage started")
+
+    # Disambiguation
+    interpretations: Optional[list[dict[str, Any]]] = Field(None, description="Disambiguation interpretations for ambiguous topics")
 
     # Status and progress (main pipeline)
     status: str = Field(default="queued", description="Job status (queued, running, disambiguating, completed, failed, cancelled)")
