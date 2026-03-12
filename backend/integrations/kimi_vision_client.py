@@ -197,7 +197,9 @@ class KimiVisionClient:
         Raises:
             KimiVisionConfigError: If no API key is configured.
         """
-        self.api_key = api_key or os.getenv("KIMI_API_KEY")
+        from backend.config import get_settings
+        settings = get_settings()
+        self.api_key = api_key or settings.kimi_api_key
         if not self.api_key:
             raise KimiVisionConfigError(
                 "KIMI_API_KEY not configured. "

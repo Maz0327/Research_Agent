@@ -1,5 +1,4 @@
 """Admin role utilities for the Research Agent."""
-import os
 from typing import Optional, Set
 
 from loguru import logger
@@ -12,12 +11,14 @@ _admin_emails: Optional[Set[str]] = None
 
 
 def _load_admin_emails() -> Set[str]:
-    """Load admin emails from environment variable."""
+    """Load admin emails from Settings (ADMIN_EMAILS env var)."""
     global _admin_emails
     if _admin_emails is not None:
         return _admin_emails
 
-    admin_str = os.getenv("ADMIN_EMAILS", "")
+    from backend.config import get_settings
+    settings = get_settings()
+    admin_str = settings.admin_emails or ""
     _admin_emails = {
         email.strip().lower()
         for email in admin_str.split(",")

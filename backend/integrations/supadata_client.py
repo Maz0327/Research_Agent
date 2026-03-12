@@ -58,10 +58,12 @@ class SupadataClient:
     BASE_URL = "https://api.supadata.ai/v1"
 
     def __init__(self):
-        """Initialize Supadata HTTP client."""
-        self.api_key = os.getenv("SUPADATA_API_KEY")
+        """Initialize Supadata HTTP client using Settings for API key."""
+        from backend.config import get_settings
+        settings = get_settings()
+        self.api_key = settings.supadata_api_key
         if not self.api_key:
-            raise ValueError("SUPADATA_API_KEY environment variable is required")
+            raise ValueError("SUPADATA_API_KEY is required for transcription")
 
         self.http = httpx.Client(
             base_url=self.BASE_URL,

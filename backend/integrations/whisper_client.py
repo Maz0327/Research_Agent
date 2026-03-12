@@ -28,8 +28,10 @@ class WhisperTranscriptionClient:
     MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024
 
     def __init__(self):
-        """Initialize Whisper client."""
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        """Initialize Whisper client using Settings for API key."""
+        from backend.config import get_settings
+        settings = get_settings()
+        self.api_key = settings.openai_api_key
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY required for Whisper transcription")
         self.client = openai.OpenAI(api_key=self.api_key)

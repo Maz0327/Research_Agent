@@ -60,11 +60,12 @@ class Settings(BaseSettings):
         description="Expected JWT audience claim (default: 'authenticated' for Supabase)"
     )
     
-    # Slack integration - DEPRECATED (2026-01-19)
-    # These fields are kept for backward compatibility but are no longer used
-    slack_signing_secret: Optional[str] = Field(default=None, alias="SLACK_SIGNING_SECRET")
-    slack_bot_token: Optional[str] = Field(default=None, alias="SLACK_BOT_TOKEN")
-    
+    # Admin configuration
+    admin_emails: Optional[str] = Field(
+        default=None, alias="ADMIN_EMAILS",
+        description="Comma-separated list of admin email addresses for role-based access"
+    )
+
     # OpenAI API (for LLM operations)
     openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
     
@@ -181,11 +182,15 @@ class Settings(BaseSettings):
         """Get list of default subreddits from config."""
         return [s.strip() for s in self.default_subreddits.split(",") if s.strip()]
 
-    # Jina Reader configuration (FREE - no API key required)
+    # Jina Reader configuration
     jina_api_url: str = Field(
         default="https://r.jina.ai/",
         alias="JINA_API_URL",
-        description="Jina Reader API URL (FREE, no key required)"
+        description="Jina Reader API URL"
+    )
+    jina_api_key: Optional[str] = Field(
+        default=None, alias="JINA_AI_READER_API_KEY",
+        description="Jina AI Reader API key (optional, enables higher rate limits)"
     )
 
     # === TIMEOUT CONFIGURATION ===

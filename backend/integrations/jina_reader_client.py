@@ -22,9 +22,11 @@ class JinaReaderClient:
     BASE_URL = "https://r.jina.ai/"
 
     def __init__(self):
-        """Initialize Jina client."""
+        """Initialize Jina client using Settings for API key."""
+        from backend.config import get_settings
+        settings = get_settings()
         # API key is optional - improves rate limits
-        self.api_key = os.getenv("JINA_AI_READER_API_KEY") or os.getenv("JINA_API_KEY")
+        self.api_key = settings.jina_api_key
         self.timeout = 30.0
         self.cost_per_extraction = 0.0  # Free tier
 
