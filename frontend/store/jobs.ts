@@ -568,43 +568,12 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
-  previewJob: async (prompt: string, pipeline: string, niche?: string) => {
-    set({ isPreviewLoading: true, error: null, preview: null });
-    try {
-      const token = await getAccessToken();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const body: Record<string, string> = { prompt, pipeline };
-      if (niche) {
-        body.niche = niche;
-      }
-
-      const response = await fetch(`${API_URL}/jobs/preview`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(formatApiError(errorData, 'Failed to preview job'));
-      }
-
-      const preview: JobPreview = await response.json();
-      set({ preview, isPreviewLoading: false });
-      return preview;
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to preview job',
-        isPreviewLoading: false,
-      });
-      throw error;
-    }
+  previewJob: async (_prompt: string, _pipeline: string, _niche?: string) => {
+    // DEPRECATED: POST /jobs/preview returns 410 Gone since 2026-01-26.
+    // Kept for interface compatibility. Will be replaced by Quick Brief (Phase 5).
+    // Original implementation archived to backend/archive/deprecated_route_handlers.py
+    set({ isPreviewLoading: false, error: 'Preview endpoint is deprecated. Use mixed-input or search instead.', preview: null });
+    throw new Error('Preview endpoint is deprecated (410 Gone). Use mixed-input or search entry points instead.');
   },
 
   clearPreview: () => {
