@@ -171,9 +171,15 @@ def detect_cross_source_conflicts(
             # Flag significant confidence mismatches on related topics
             # (Full semantic similarity would require LLM, so we use heuristics)
             if conf_a == "high" and conf_b == "low" or conf_a == "low" and conf_b == "high":
-                # This is a weak signal - could be conflict or just different aspects
-                # We track it but don't resolve it
-                pass
+                # Weak signal — could be conflict or different aspects.
+                # Track for downstream review but don't resolve automatically.
+                conflicts.append({
+                    "key_point_a": kp_a.get("statement", kp_a.get("key_point_id", "")),
+                    "key_point_b": kp_b.get("statement", kp_b.get("key_point_id", "")),
+                    "sources_a": list(sources_a),
+                    "sources_b": list(sources_b),
+                    "conflict_type": "confidence_mismatch",
+                })
 
     return conflicts
 
@@ -279,8 +285,10 @@ def stage_semantic_synthesis(ctx: PipelineContext) -> None:
         ctx.add_warning("Semantic synthesis skipped: no extractions available")
         return
 
-    # Aggregate inputs
-    key_points, themes, tensions, gaps = aggregate_for_synthesis(ctx)
+    # Aggregate inputs with Phase 5 source attribution tracking
+    key_points, themes, tensions, gaps, _source_coverage, _conflicts = (
+        aggregate_for_synthesis_with_attribution(ctx)
+    )
 
     # Build scope lock
     scope_lock = f"Research topic: {ctx.topic}"
