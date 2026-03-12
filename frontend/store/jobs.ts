@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { getAccessToken } from '../lib/supabase';
 import { API_URL } from '../lib/constants';
 import { formatApiError } from '../lib/error-utils';
-import type { SearchCandidate } from '../types/run';
+import type { SearchCandidate, IterateRequest } from '../types/run';
 
 // Phase 3 types - import from job-card components
 import type { ContentBlueprint } from '../components/job-card/ContentBlueprintView';
@@ -465,6 +465,35 @@ export interface CreateRunResponse {
   message: string;
 }
 
+/**
+ * Document version metadata from the versioning system.
+ */
+export interface DocumentVersion {
+  /** Version number (1-based) */
+  version: number;
+  /** When this version was created */
+  created_at: string;
+  /** What triggered this version (initial_run, deep_dive, expand_sources, etc.) */
+  trigger: string;
+  /** Number of sources in the job at this version */
+  source_count: number;
+  /** Number of claims extracted at this version */
+  claim_count: number;
+  /** Human-readable summary of changes from previous version */
+  diff_summary: string;
+}
+
+/**
+ * Iterate response from POST /jobs/{job_id}/iterate
+ */
+export interface IterateResponse {
+  job_id: string;
+  iterate_id: string;
+  mode: string;
+  status: string;
+  message: string;
+}
+
 interface JobsState {
   jobs: Job[];
   archivedJobs: Job[];
@@ -511,6 +540,12 @@ interface JobsState {
   bulkDelete: () => Promise<void>;
   bulkArchive: () => Promise<void>;
   clearBulkErrors: () => void;
+  // Document versioning
+  documentVersions: Record<string, DocumentVersion[]>;
+  fetchDocumentVersions: (jobId: string, docType: string) => Promise<DocumentVersion[]>;
+  fetchDocumentByVersion: (jobId: string, docType: string, version?: number) => Promise<{ data?: Record<string, unknown>; markdown?: string; version_metadata?: DocumentVersion }>;
+  // Unified iterate endpoint
+  iterateJob: (jobId: string, request: IterateRequest) => Promise<IterateResponse>;
 }
 
 export const useJobsStore = create<JobsState>((set, get) => ({
@@ -528,6 +563,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   selectedJobIds: new Set<string>(),
   isEditMode: false,
   bulkErrors: [],
+  // Document versioning state
+  documentVersions: {},
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -1421,5 +1458,126 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
   clearBulkErrors: () => {
     set({ bulkErrors: [] });
+  },
+
+  // =========================================================================
+  // Document Versioning
+  // =========================================================================
+
+  fetchDocumentVersions: async (jobId: string, docType: string): Promise<DocumentVersion[]> => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/documents/${docType}/versions`, {
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to fetch document versions'));
+      }
+
+      const data = await response.json();
+      const versions: DocumentVersion[] = data.versions || [];
+
+      // Cache in store
+      set((state) => ({
+        documentVersions: {
+          ...state.documentVersions,
+          [`${jobId}_${docType}`]: versions,
+        },
+      }));
+
+      return versions;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch versions';
+      console.error(`[Store] fetchDocumentVersions error: ${message}`);
+      throw error;
+    }
+  },
+
+  fetchDocumentByVersion: async (
+    jobId: string,
+    docType: string,
+    version?: number
+  ): Promise<{ data?: Record<string, unknown>; markdown?: string; version_metadata?: DocumentVersion }> => {
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const url = version
+        ? `${API_URL}/jobs/${jobId}/documents/${docType}?version=${version}`
+        : `${API_URL}/jobs/${jobId}/documents/${docType}`;
+
+      const response = await fetch(url, { headers });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to fetch document'));
+      }
+
+      return await response.json();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch document';
+      console.error(`[Store] fetchDocumentByVersion error: ${message}`);
+      throw error;
+    }
+  },
+
+  // =========================================================================
+  // Unified Iterate Endpoint
+  // =========================================================================
+
+  iterateJob: async (jobId: string, request: IterateRequest): Promise<IterateResponse> => {
+    set({ actionInProgress: 'iteration' });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/iterate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to start iteration'));
+      }
+
+      const data: IterateResponse = await response.json();
+
+      // Update job iteration status in local state
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId
+            ? {
+                ...job,
+                iteration_status: 'queued' as const,
+                iteration_id: data.iterate_id,
+              }
+            : job
+        ),
+        actionInProgress: null,
+      }));
+
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start iteration';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
   },
 }));
