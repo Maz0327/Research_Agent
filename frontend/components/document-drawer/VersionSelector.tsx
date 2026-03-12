@@ -138,7 +138,7 @@ export function VersionSelector({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-1 w-72 rounded-lg bg-gray-800 border border-gray-700 shadow-xl z-50 overflow-hidden"
+            className="absolute right-0 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-gray-800 border border-gray-700 shadow-xl z-[60] overflow-hidden"
           >
             {/* Header */}
             <div className="px-3 py-2 border-b border-gray-700">
@@ -159,7 +159,7 @@ export function VersionSelector({
                   <p className="text-xs text-gray-500">No version history available</p>
                 </div>
               ) : (
-                versions
+                [...versions]
                   .sort((a, b) => b.version - a.version)
                   .map((version) => {
                     const isSelected = version.version === currentVersion;

@@ -1667,7 +1667,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   },
 
   approveSearchSources_v2: async (searchId: string, selectedUrls: string[], depth?: string): Promise<SearchApproveResponse> => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const token = await getAccessToken();
       const headers: Record<string, string> = {
@@ -1705,7 +1705,6 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
       set((state) => ({
         jobs: [newJob, ...state.jobs],
-        isLoading: false,
         searchResults: null,
         quickBrief: null,
       }));
@@ -1713,7 +1712,7 @@ export const useJobsStore = create<JobsState>((set, get) => ({
       return data;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to approve sources';
-      set({ error: message, isLoading: false });
+      set({ error: message });
       throw error;
     }
   },

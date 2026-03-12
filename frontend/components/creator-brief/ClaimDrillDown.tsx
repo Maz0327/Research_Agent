@@ -105,7 +105,7 @@ export function ClaimDrillDown({
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-2.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
                   aria-label="Close panel"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

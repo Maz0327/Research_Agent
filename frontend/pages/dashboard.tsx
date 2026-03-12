@@ -61,7 +61,7 @@ const availableSourceTypes = ['web', 'news', 'youtube', 'reddit'];
 
 function DashboardContent() {
   // Job creation mode: 4 entry points (none = show card grid)
-  const [jobMode, setJobMode] = useState<JobMode>('none');
+  const [jobMode, setJobModeRaw] = useState<JobMode>('none');
 
   // Claim Extractor state
   const [claimTitle, setClaimTitle] = useState('');
@@ -97,6 +97,12 @@ function DashboardContent() {
   } = useJobsStore();
   const { user } = useAuth();
   const { createPanelCollapsed, toggleCreatePanel } = useUIPreferences();
+
+  // Wrap setJobMode to clear stale search results when switching away from topic mode
+  const setJobMode = useCallback((mode: JobMode) => {
+    setJobModeRaw(mode);
+    if (mode !== 'topic') clearSearchResults();
+  }, [clearSearchResults]);
 
   // Get current depth config for placeholder example
   const currentDepth = researchDepths.find(d => d.value === researchDepth) || researchDepths[3];

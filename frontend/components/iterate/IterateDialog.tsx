@@ -10,7 +10,7 @@
  *
  * Submits to POST /jobs/{job_id}/iterate via store.iterateJob().
  */
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { IterateMode, IterateRequest } from '../../types/run';
 import { ITERATE_MODE_CONFIG } from '../../types/run';
@@ -74,14 +74,19 @@ export function IterateDialog({
   const iterateJob = useJobsStore((s) => s.iterateJob);
 
   // Reset form when dialog opens
-  const handleOpen = () => {
+  const resetForm = useCallback(() => {
     if (!defaultMode) setSelectedMode(null);
     setUserPrompt('');
     setAngle('');
     setSourceUrls('');
     setMaxNewSources(4);
     setError(null);
-  };
+  }, [defaultMode]);
+
+  // Reset when dialog opens (not on exit)
+  useEffect(() => {
+    if (isOpen) resetForm();
+  }, [isOpen, resetForm]);
 
   // Build request based on selected mode
   const buildRequest = (): IterateRequest | null => {
@@ -146,7 +151,7 @@ export function IterateDialog({
   };
 
   return (
-    <AnimatePresence onExitComplete={handleOpen}>
+    <AnimatePresence>
       {isOpen && (
         <>
           {/* Backdrop */}
@@ -177,7 +182,7 @@ export function IterateDialog({
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-2.5 -mr-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
                   aria-label="Close"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,7 +337,7 @@ export function IterateDialog({
             )}
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-gray-900 border-t border-gray-800 px-6 py-4 rounded-b-2xl">
+            <div className="sticky bottom-0 z-10 bg-gray-900 border-t border-gray-800 px-6 py-4 rounded-b-2xl">
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={onClose}

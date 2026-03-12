@@ -61,7 +61,6 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
     searchResults,
     quickBrief,
     isLoadingQuickBrief,
-    isLoading,
     error,
     fetchQuickBrief,
     approveSearchSources_v2,
@@ -295,7 +294,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
       <div className="flex items-center gap-3 pt-2">
         <button
           onClick={handleApprove}
-          disabled={isApproving || isLoading || selectedUrls.size === 0}
+          disabled={isApproving || selectedUrls.size === 0}
           className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {isApproving ? (

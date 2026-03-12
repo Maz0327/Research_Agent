@@ -102,14 +102,19 @@ IMPORTANT:
 """
 
     try:
+        import asyncio
         from backend.integrations.gemini_client import GeminiClient
 
         client = GeminiClient()
-        result = await client.generate_json_async(
+        # generate_json is synchronous — run in executor to avoid blocking
+        raw = await asyncio.to_thread(
+            client.generate_json,
             prompt=prompt,
             model="gemini-2.0-flash",  # Fast model for preview
             temperature=0.3,
         )
+        # generate_json returns {"data": {...}, "cost": ...}
+        result = raw.get("data", raw) if isinstance(raw, dict) else raw
 
         # Ensure preview flags are set
         if isinstance(result, dict):
@@ -144,5 +149,4 @@ IMPORTANT:
             "core_facts": [],
             "source_count": len(top_candidates),
             "preview_note": "Quick preview unavailable. Run full research for complete analysis.",
-            "error": str(e),
         }

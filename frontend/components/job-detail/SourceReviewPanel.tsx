@@ -19,7 +19,7 @@ interface SourceReviewPanelProps {
 
 /** Quality score color based on relevance */
 function getScoreColor(score: number): string {
-  if (score >= 0.8) return 'text-green-400';
+  if (score >= 0.7) return 'text-green-400';
   if (score >= 0.5) return 'text-yellow-400';
   return 'text-gray-400';
 }
@@ -31,7 +31,7 @@ function getScoreWidth(score: number): string {
 
 /** Quality score bg color for bar */
 function getScoreBarColor(score: number): string {
-  if (score >= 0.8) return 'bg-green-500';
+  if (score >= 0.7) return 'bg-green-500';
   if (score >= 0.5) return 'bg-yellow-500';
   return 'bg-gray-500';
 }

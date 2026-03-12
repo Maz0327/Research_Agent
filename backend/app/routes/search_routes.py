@@ -141,7 +141,7 @@ async def search_topic(
             "depth": request.depth,
             "category": request.category,
             "candidates": scored,
-            "user_id": user.get("sub", "anonymous"),
+            "user_id": user.user_id if user else "anonymous",
             "created_at": datetime.utcnow(),
             "expires_at": datetime.utcnow() + timedelta(minutes=30),
         }
@@ -223,7 +223,8 @@ async def approve_search_sources(
         raise HTTPException(status_code=404, detail="Search session not found or expired")
 
     try:
-        from backend.app.routes.jobs_routes import _create_mixed_input_job
+        from backend.state import create_job
+        from backend.worker import run_research_job
 
         # Build article URLs from selected candidates
         selected_urls = [
@@ -237,19 +238,39 @@ async def approve_search_sources(
                 detail="No valid URLs selected from search candidates"
             )
 
-        # Create job via existing mixed-input flow
-        job_id = await _create_mixed_input_job(
-            topic=session["topic"],
-            article_urls=selected_urls,
-            user_id=session["user_id"],
-            search_id=search_id,
+        # Build config for the job (matches mixed-input format)
+        config_json = {
+            "topic": session["topic"],
+            "job_type": "mixed_input",
+            "input_mode": "mixed",
+            "video_urls": [],
+            "article_urls": selected_urls,
+            "text_inputs": [],
+            "screenshots": [],
+            "source_count": len(selected_urls),
+            "search_id": search_id,
+            "depth": request.depth or session.get("depth", "full"),
+        }
+
+        # Create job via state store
+        job = create_job(config_json=config_json, user_id=session["user_id"])
+
+        # Enqueue Celery task
+        run_research_job.apply_async(
+            (job.job_id, session["topic"]),
+            task_id=job.job_id,
+        )
+
+        logger.info(
+            f"[{search_id}] Search approved -> job {job.job_id} "
+            f"({len(selected_urls)} sources)"
         )
 
         # Clean up session
         del _search_sessions[search_id]
 
         return ApproveResponse(
-            job_id=job_id,
+            job_id=job.job_id,
             status="queued",
             source_count=len(selected_urls),
         )

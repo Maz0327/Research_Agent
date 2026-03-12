@@ -75,18 +75,9 @@ class Settings(BaseSettings):
     # YouTube Data API v3
     youtube_api_key: Optional[str] = Field(default=None, alias="YOUTUBE_API_KEY")
     
-    # Google OAuth (for Drive and Docs access)
-    google_oauth_client_id: Optional[str] = Field(default=None, alias="GOOGLE_OAUTH_CLIENT_ID")
-    google_oauth_client_secret: Optional[str] = Field(
-        default=None, alias="GOOGLE_OAUTH_CLIENT_SECRET"
-    )
-    google_oauth_refresh_token: Optional[str] = Field(
-        default=None, alias="GOOGLE_OAUTH_REFRESH_TOKEN"
-    )
-    google_drive_root_folder_id: Optional[str] = Field(
-        default=None, alias="GOOGLE_DRIVE_ROOT_FOLDER_ID"
-    )
-    
+    # NOTE: Google OAuth fields removed (Audit Fix 9.1) — Drive integration
+    # was deprecated 2026-01-19. See docs/_archive_do_not_read/ for history.
+
     # Optional login credentials (for future phases)
     reddit_username: Optional[str] = Field(default=None, alias="REDDIT_USERNAME")
     reddit_password: Optional[str] = Field(default=None, alias="REDDIT_PASSWORD")
@@ -333,30 +324,8 @@ def require_perplexity() -> Settings:
     return settings
 
 
-def require_google_oauth() -> Settings:
-    """
-    Get settings and validate Google OAuth configuration is present.
-
-    Raises:
-        MissingRequiredSettingError: If Google OAuth settings are missing
-    """
-    settings = get_settings()
-    if not settings.google_oauth_client_id:
-        raise MissingRequiredSettingError(
-            "GOOGLE_OAUTH_CLIENT_ID is required for Google Drive/Docs integration. "
-            "Please set it in your .env file."
-        )
-    if not settings.google_oauth_client_secret:
-        raise MissingRequiredSettingError(
-            "GOOGLE_OAUTH_CLIENT_SECRET is required for Google Drive/Docs integration. "
-            "Please set it in your .env file."
-        )
-    if not settings.google_oauth_refresh_token:
-        raise MissingRequiredSettingError(
-            "GOOGLE_OAUTH_REFRESH_TOKEN is required for Google Drive/Docs integration. "
-            "Please set it in your .env file."
-        )
-    return settings
+    # NOTE: require_google_oauth() removed (Audit Fix 9.1) — never called,
+    # Google Drive integration deprecated 2026-01-19.
 
 
 def require_tavily() -> Settings:

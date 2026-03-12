@@ -256,50 +256,8 @@ def _extract_research_data(job: "JobRecord") -> dict:
     }
 
 
-def _gather_sources_from_results(results: dict) -> list:
-    """Gather all sources from job results."""
-    sources = []
-
-    # Web sources
-    web_sources = results.get("web_sources", []) or results.get("sources", [])
-    for s in web_sources:
-        if isinstance(s, dict):
-            sources.append({
-                "url": s.get("url", ""),
-                "title": s.get("title", ""),
-                "type": s.get("type", "web"),
-                "author": s.get("author"),
-                "published_at": s.get("published_at"),
-                "quality_score": s.get("quality_score", 0.5),
-            })
-
-    # Videos
-    videos = results.get("videos", []) or results.get("youtube_videos", [])
-    for v in videos:
-        if isinstance(v, dict):
-            sources.append({
-                "url": v.get("url", ""),
-                "title": v.get("title", ""),
-                "type": "video",
-                "author": v.get("channel") or v.get("author"),
-                "published_at": v.get("published_at"),
-                "quality_score": v.get("quality_score", 0.5),
-            })
-
-    # Reddit
-    reddit = results.get("reddit_posts", []) or results.get("reddit", [])
-    for r in reddit:
-        if isinstance(r, dict):
-            sources.append({
-                "url": r.get("url", ""),
-                "title": r.get("title", ""),
-                "type": "social",
-                "author": r.get("author"),
-                "published_at": r.get("created_at"),
-                "quality_score": r.get("quality_score", 0.5),
-            })
-
-    return sources
+    # NOTE: _gather_sources_from_results was removed (Audit Fix 9.1) — dead code,
+    # replaced by _extract_research_data which reads sources from config.
 
 
 def _generate_export(manager: ExportManager, format: ExportFormat, data: dict) -> str:
