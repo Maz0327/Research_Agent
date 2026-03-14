@@ -1,11 +1,34 @@
 """Jina AI Reader - fast content extraction to LLM-ready markdown."""
 import os
-from typing import Dict, List
+import re
+from typing import Dict, List, Optional
 import httpx
 from loguru import logger
 
 from backend.utils.error_handling import sanitize_error_message
 from backend.utils.rate_limiter import with_rate_limit
+
+
+# Sites that need special handling (JS rendering, consent walls, etc.)
+_REDDIT_PATTERN = re.compile(r"(reddit\.com|redd\.it)", re.IGNORECASE)
+
+
+def _is_reddit_url(url: str) -> bool:
+    """Check if URL is a Reddit URL."""
+    return bool(_REDDIT_PATTERN.search(url))
+
+
+def _convert_to_old_reddit(url: str) -> str:
+    """Convert www.reddit.com URLs to old.reddit.com for better extraction.
+
+    old.reddit.com serves static HTML without JS rendering requirements,
+    which yields much better content extraction via Jina Reader.
+    """
+    return re.sub(
+        r"https?://(www\.)?reddit\.com",
+        "https://old.reddit.com",
+        url,
+    )
 
 
 class JinaReaderClient:
@@ -31,29 +54,55 @@ class JinaReaderClient:
         self.cost_per_extraction = 0.0  # Free tier
 
     @with_rate_limit("jina")
-    def extract(self, url: str) -> Dict[str, str]:
+    def extract(
+        self,
+        url: str,
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
         """
         Extract content from URL as markdown.
 
+        Automatically applies site-specific optimizations for Reddit
+        and other anti-bot sites (e.g., old.reddit.com conversion,
+        cache-busting, wait-for-selector).
+
         Args:
             url: Target URL to extract content from
+            extra_headers: Optional additional Jina headers (X-No-Cache, etc.)
 
         Returns:
             Dict with markdown content and metadata
         """
         try:
-            logger.info(f"Jina extracting: {url[:50]}...")
+            # Site-specific URL transformations
+            fetch_url = url
+            if _is_reddit_url(url):
+                fetch_url = _convert_to_old_reddit(url)
+                logger.info(f"Jina: Reddit URL → old.reddit.com: {fetch_url[:60]}")
+
+            logger.info(f"Jina extracting: {fetch_url[:60]}...")
 
             # Construct Jina Reader URL
-            jina_url = f"{self.BASE_URL}{url}"
+            jina_url = f"{self.BASE_URL}{fetch_url}"
 
             headers = {
                 "Accept": "text/markdown",
                 "X-Return-Format": "markdown",
+                "X-No-Cache": "true",  # Always bypass cache for fresh content
             }
+
+            # Site-specific headers
+            if _is_reddit_url(url):
+                # old.reddit.com renders as static HTML, but add timeout
+                # to ensure full page load
+                headers["X-Timeout"] = "20"
 
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
+
+            # Merge any caller-provided headers
+            if extra_headers:
+                headers.update(extra_headers)
 
             with httpx.Client(timeout=self.timeout) as client:
                 response = client.get(jina_url, headers=headers)
@@ -61,10 +110,13 @@ class JinaReaderClient:
 
             markdown_content = response.text
 
-            logger.info(f"Jina extracted {len(markdown_content)} chars from {url[:30]}...")
+            logger.info(
+                f"Jina extracted {len(markdown_content)} chars from "
+                f"{fetch_url[:40]}..."
+            )
 
             return {
-                "url": url,
+                "url": url,  # Return original URL, not transformed
                 "content": markdown_content,
                 "content_type": "markdown",
                 "char_count": len(markdown_content),

@@ -110,7 +110,7 @@ IMPORTANT:
         raw = await asyncio.to_thread(
             client.generate_json,
             prompt=prompt,
-            model="gemini-2.0-flash",  # Fast model for preview
+            model="gemini-2.5-flash",  # Fast model for preview
             temperature=0.3,
         )
         # generate_json returns {"data": {...}, "cost": ...}
