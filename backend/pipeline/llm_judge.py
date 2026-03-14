@@ -329,7 +329,7 @@ def validate_extraction_with_judge(
                         {"role": "user", "content": prompt},
                     ],
                     "response_format": {"type": "json_object"},
-                    "temperature": 0.1,
+                    "temperature": 1,  # Kimi K2.5 only allows temperature=1
                     "max_tokens": 4000,
                 },
             )

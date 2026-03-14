@@ -40,7 +40,7 @@ KIMI_MODEL = "kimi-k2.5"
 KIMI_TIMEOUT_SECONDS = 120
 KIMI_RATE_LIMIT_DELAY = 1.0  # Seconds between API calls
 MAX_FRAMES_PER_REQUEST = 20   # API limit
-VISION_TEMPERATURE = 0.1       # Low for factual visual analysis
+VISION_TEMPERATURE = 1         # Kimi K2.5 only allows temperature=1
 
 
 # ---------------------------------------------------------------------------
