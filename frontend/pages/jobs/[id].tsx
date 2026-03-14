@@ -78,6 +78,8 @@ function JobDetailContent() {
 
   // Polling for active jobs/tasks
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollErrorCountRef = useRef(0);
+  const MAX_POLL_ERRORS = 5;
 
   useEffect(() => {
     if (!job || !jobId) return;
@@ -94,8 +96,18 @@ function JobDetailContent() {
       job.iteration_status === 'queued';
 
     if (shouldPoll) {
-      pollIntervalRef.current = setInterval(() => {
-        refreshJob(jobId);
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          await refreshJob(jobId);
+          pollErrorCountRef.current = 0; // Reset on success
+        } catch {
+          pollErrorCountRef.current += 1;
+          if (pollErrorCountRef.current >= MAX_POLL_ERRORS && pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            console.warn(`Polling stopped after ${MAX_POLL_ERRORS} consecutive errors`);
+          }
+        }
       }, POLLING_INTERVALS.JOB_STATUS);
     }
 
