@@ -13,6 +13,7 @@ from typing import Any
 from loguru import logger
 
 from backend.pipeline.search.relevance_validator import SearchCandidate
+from backend.pipeline.style_enforcer import enforce_style
 
 
 async def generate_quick_brief(
@@ -141,6 +142,15 @@ RULES:
             result["is_preview"] = True
             result["brief_type"] = "quick"
 
+            # Run style enforcement on LLM output (warnings only for preview)
+            style_warnings = _check_brief_style(result)
+            if style_warnings:
+                result["_style_warnings"] = style_warnings
+                logger.warning(
+                    f"Quick brief style violations ({len(style_warnings)}): "
+                    f"{style_warnings[:3]}"
+                )
+
         logger.info(f"Quick brief generated for topic: {topic[:50]}")
         return result
 
@@ -170,3 +180,45 @@ RULES:
             "source_count": len(top_candidates),
             "preview_note": "Quick preview unavailable. Run full research for complete analysis.",
         }
+
+
+def _check_brief_style(result: dict[str, Any]) -> list[str]:
+    """Run enforce_style() on all text fields in a quick brief result.
+
+    Args:
+        result: Quick brief dict from LLM
+
+    Returns:
+        List of style violation strings (empty if clean)
+    """
+    warnings: list[str] = []
+
+    # Collect all text fields worth checking
+    texts_to_check: list[tuple[str, str]] = []
+
+    # Setup text
+    setup = result.get("setup", {})
+    if isinstance(setup, dict) and setup.get("text"):
+        texts_to_check.append(("setup", setup["text"]))
+
+    # Hook texts
+    for hook in result.get("hook_options", []):
+        if isinstance(hook, dict) and hook.get("text"):
+            texts_to_check.append((hook.get("hook_id", "hook"), hook["text"]))
+
+    # Core fact statements and say_it_like
+    for fact in result.get("core_facts", []):
+        if isinstance(fact, dict):
+            if fact.get("statement"):
+                texts_to_check.append((fact.get("fact_id", "fact"), fact["statement"]))
+            if fact.get("say_it_like"):
+                texts_to_check.append((f"{fact.get('fact_id', 'fact')}.say_it_like", fact["say_it_like"]))
+
+    # Run style checks on each field
+    for field_name, text in texts_to_check:
+        passes, violations = enforce_style(text)
+        if not passes:
+            for v in violations:
+                warnings.append(f"[{field_name}] {v}")
+
+    return warnings
