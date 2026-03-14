@@ -34,27 +34,27 @@ export function JobDetailHeader({
   actionsDisabled = false,
 }: JobDetailHeaderProps) {
   return (
-    <header className="border-b border-gray-800 pb-6 mb-6">
+    <header className="border-b border-gray-800 pb-4 sm:pb-6 mb-4 sm:mb-6">
       {/* Back navigation */}
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
+        className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-3 sm:mb-4 transition-colors min-h-[44px] touch-manipulation"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Back to Dashboard
+        <span className="text-sm sm:text-base">Back to Dashboard</span>
       </Link>
 
       {/* Title row */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-white truncate" title={title}>
+          <h1 className="text-xl sm:text-2xl font-bold text-white truncate" title={title}>
             {title || 'Untitled Job'}
           </h1>
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2">
             <StatusBadge status={status} />
-            <span className="text-sm text-gray-400">
+            <span className="text-xs sm:text-sm text-gray-400">
               Created {formatRelativeTime(createdAt)}
             </span>
           </div>
@@ -65,14 +65,14 @@ export function JobDetailHeader({
           <button
             onClick={onArchive}
             disabled={actionsDisabled}
-            className="px-3 py-1.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] touch-manipulation"
           >
             Archive
           </button>
           <button
             onClick={onDelete}
             disabled={actionsDisabled}
-            className="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px] touch-manipulation"
           >
             Delete
           </button>

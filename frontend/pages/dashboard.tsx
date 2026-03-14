@@ -352,7 +352,7 @@ function DashboardContent() {
   return (
     <Layout>
       {/* Responsive container with mobile-friendly padding */}
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0">
+      <div className="mx-auto max-w-5xl">
         {/* Header - responsive text */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -414,65 +414,65 @@ function DashboardContent() {
               >
                 <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-800">
                   {/* 4-Card Entry Point Grid */}
-                  <div className="pt-4 sm:pt-5 mb-5 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="pt-4 sm:pt-5 mb-4 sm:mb-6 grid grid-cols-2 gap-2 sm:gap-3">
                     {/* Entry Point 1: Topic Research (placeholder until Phase 5) */}
                     <button
                       onClick={() => setJobMode(jobMode === 'topic' ? 'none' : 'topic')}
-                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                      className={`text-left p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation ${
                         jobMode === 'topic'
                           ? 'border-blue-500 bg-blue-500/10'
                           : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
                       }`}
                     >
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <span className="text-xl">🔍</span>
-                        <span className="text-sm font-medium text-gray-100">What do you want to research?</span>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                        <span className="text-lg sm:text-xl">🔍</span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-100">Research a topic</span>
                       </div>
-                      <p className="text-xs text-gray-500 ml-8">Enter a topic and we&apos;ll find sources for you</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500 ml-6 sm:ml-8 hidden sm:block">Enter a topic and we&apos;ll find sources for you</p>
                     </button>
 
                     {/* Entry Point 2: Own Sources */}
                     <button
                       onClick={() => setJobMode(jobMode === 'research' ? 'none' : 'research')}
-                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                      className={`text-left p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation ${
                         jobMode === 'research'
                           ? 'border-green-500 bg-green-500/10'
                           : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
                       }`}
                     >
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <span className="text-xl">📎</span>
-                        <span className="text-sm font-medium text-gray-100">I have my own sources</span>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                        <span className="text-lg sm:text-xl">📎</span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-100">My own sources</span>
                       </div>
-                      <p className="text-xs text-gray-500 ml-8">Paste URLs, text, or screenshots to analyze</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500 ml-6 sm:ml-8 hidden sm:block">Paste URLs, text, or screenshots to analyze</p>
                     </button>
 
                     {/* Entry Point 3: Claim Extractor */}
                     <button
                       onClick={() => setJobMode(jobMode === 'claims' ? 'none' : 'claims')}
-                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                      className={`text-left p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation ${
                         jobMode === 'claims'
                           ? 'border-purple-500 bg-purple-500/10'
                           : 'border-gray-700 bg-gray-800/30 hover:border-gray-600'
                       }`}
                     >
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <span className="text-xl">📋</span>
-                        <span className="text-sm font-medium text-gray-100">Extract claims from content</span>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                        <span className="text-lg sm:text-xl">📋</span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-100">Extract claims</span>
                       </div>
-                      <p className="text-xs text-gray-500 ml-8">Pull out claims with confidence scores</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500 ml-6 sm:ml-8 hidden sm:block">Pull out claims with confidence scores</p>
                     </button>
 
                     {/* Entry Point 4: YouTube Transcripts */}
                     <Link
                       href="/transcripts"
-                      className="text-left p-4 rounded-xl border-2 border-gray-700 bg-gray-800/30 hover:border-gray-600 transition-all touch-manipulation"
+                      className="text-left p-3 sm:p-4 rounded-xl border-2 border-gray-700 bg-gray-800/30 hover:border-gray-600 transition-all touch-manipulation"
                     >
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <span className="text-xl">🎬</span>
-                        <span className="text-sm font-medium text-gray-100">Get YouTube transcripts</span>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-1">
+                        <span className="text-lg sm:text-xl">🎬</span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-100">Transcripts</span>
                       </div>
-                      <p className="text-xs text-gray-500 ml-8">Extract and download video transcripts</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500 ml-6 sm:ml-8 hidden sm:block">Extract and download video transcripts</p>
                     </Link>
                   </div>
 

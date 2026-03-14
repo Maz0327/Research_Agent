@@ -36,11 +36,11 @@ function ActiveJobCard({ job, position }: { job: Job; position: number }) {
   return (
     <div
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`group relative flex flex-col p-4 bg-[#1a1a1a] rounded-xl border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all`}
+      className={`group relative flex flex-col p-3 sm:p-4 bg-[#1a1a1a] rounded-xl border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all touch-manipulation`}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {/* Position indicator */}
-        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center text-gray-400 font-mono text-sm">
+        <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gray-800 flex items-center justify-center text-gray-400 font-mono text-xs sm:text-sm">
           #{position}
         </div>
 
@@ -48,12 +48,12 @@ function ActiveJobCard({ job, position }: { job: Job; position: number }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <StatusDot status={job.status} />
-            <h3 className="text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
+            <h3 className="text-sm sm:text-base text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
           </div>
-          <p className="text-sm text-gray-400 truncate">{stageDescription}</p>
-          
+          <p className="text-xs sm:text-sm text-gray-400 truncate">{stageDescription}</p>
+
           {/* Time info row */}
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1.5 sm:mt-2 text-xs text-gray-500">
             <span>Elapsed: {formatElapsedTime(job.stage_started_at || job.created_at)}</span>
             {job.status === 'running' && progress > 0 && (
               <span>ETA: {estimateETA(progress, job.stage_started_at || job.created_at)}</span>
@@ -63,12 +63,12 @@ function ActiveJobCard({ job, position }: { job: Job; position: number }) {
 
         {/* Progress percentage */}
         <div className="flex-shrink-0 text-right">
-          <span className={`text-lg font-mono ${config.textColor}`}>{progress}%</span>
+          <span className={`text-base sm:text-lg font-mono ${config.textColor}`}>{progress}%</span>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="mt-3 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+      <div className="mt-2.5 sm:mt-3 h-1.5 bg-gray-800 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -97,16 +97,16 @@ function CompletedJobCard({ job }: { job: Job }) {
   return (
     <div
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`group relative flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-xl border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all`}
+      className={`group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-[#1a1a1a] rounded-xl border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all touch-manipulation`}
     >
       {/* Status icon */}
-      <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${config.bgColor} flex items-center justify-center`}>
+      <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${config.bgColor} flex items-center justify-center`}>
         {hasWarnings ? (
-          <svg className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         ) : (
-          <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         )}
@@ -114,23 +114,23 @@ function CompletedJobCard({ job }: { job: Job }) {
 
       {/* Job info */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
-        <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
+        <h3 className="text-sm sm:text-base text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
+        <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-400">
           <span>{pipelineLabels[job.pipeline] || job.pipeline}</span>
-          <span className="text-gray-600">•</span>
+          <span className="text-gray-600 hidden sm:inline">•</span>
           <span>{formatRelativeTime(job.created_at)}</span>
           {hasWarnings && job.warning_count && (
             <>
-              <span className="text-gray-600">•</span>
+              <span className="text-gray-600 hidden sm:inline">•</span>
               <span className="text-yellow-400">{job.warning_count} warning{job.warning_count > 1 ? 's' : ''}</span>
             </>
           )}
         </div>
       </div>
 
-      {/* Document indicator */}
+      {/* Document indicator - hide on small mobile */}
       {hasDocuments && (
-        <div className="flex items-center gap-2 text-gray-400">
+        <div className="hidden sm:flex items-center gap-2 text-gray-400">
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -140,7 +140,7 @@ function CompletedJobCard({ job }: { job: Job }) {
 
       {/* Hover arrow */}
       <svg
-        className="flex-shrink-0 h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors"
+        className="flex-shrink-0 h-4 w-4 sm:h-5 sm:w-5 text-gray-600 group-hover:text-gray-400 transition-colors"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -161,20 +161,20 @@ function FailedJobCard({ job }: { job: Job }) {
   return (
     <div
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`group relative flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-xl border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all`}
+      className={`group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-[#1a1a1a] rounded-xl border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all touch-manipulation`}
     >
       {/* Status icon */}
-      <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${config.bgColor} flex items-center justify-center`}>
+      <div className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${config.bgColor} flex items-center justify-center`}>
         {isCancelled ? (
-          <svg className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
         ) : isInsufficient ? (
-          <svg className="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         ) : (
-          <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         )}
@@ -183,22 +183,22 @@ function FailedJobCard({ job }: { job: Job }) {
       {/* Job info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
-          <span className={`px-2 py-0.5 text-xs rounded-full ${config.bgColor} ${config.textColor}`}>
+          <h3 className="text-sm sm:text-base text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
+          <span className={`flex-shrink-0 px-2 py-0.5 text-xs rounded-full ${config.bgColor} ${config.textColor}`}>
             {config.label}
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
+        <div className="flex items-center gap-3 mt-1 text-xs sm:text-sm text-gray-400">
           <span>{formatRelativeTime(job.created_at)}</span>
         </div>
         {job.error && (
-          <p className="mt-2 text-sm text-red-300 truncate">{job.error}</p>
+          <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-red-300 truncate">{job.error}</p>
         )}
       </div>
 
       {/* Hover arrow */}
       <svg
-        className="flex-shrink-0 h-5 w-5 text-gray-600 group-hover:text-gray-400 transition-colors"
+        className="flex-shrink-0 h-4 w-4 sm:h-5 sm:w-5 text-gray-600 group-hover:text-gray-400 transition-colors"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -210,21 +210,21 @@ function FailedJobCard({ job }: { job: Job }) {
 }
 
 /** Tab button component */
-function TabButton({ 
-  active, 
-  onClick, 
-  children, 
-  count 
-}: { 
-  active: boolean; 
-  onClick: () => void; 
-  children: React.ReactNode; 
+function TabButton({
+  active,
+  onClick,
+  children,
+  count
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
   count: number;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`relative px-4 py-2.5 text-sm font-medium transition-all rounded-lg ${
+      className={`relative flex-shrink-0 px-3 sm:px-4 py-2.5 text-sm font-medium transition-all rounded-lg min-h-[44px] touch-manipulation ${
         active
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
           : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
@@ -232,7 +232,7 @@ function TabButton({
     >
       {children}
       {count > 0 && (
-        <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
+        <span className={`ml-1.5 sm:ml-2 px-1.5 py-0.5 text-xs rounded-full ${
           active ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'
         }`}>
           {count}
@@ -261,11 +261,11 @@ function ArchivedJobCard({ job, onRecover }: { job: Job; onRecover: (jobId: stri
   return (
     <div
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`group relative flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-xl border border-gray-700 hover:border-gray-600 cursor-pointer transition-all opacity-70 hover:opacity-100`}
+      className={`group relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-[#1a1a1a] rounded-xl border border-gray-700 hover:border-gray-600 cursor-pointer transition-all opacity-70 hover:opacity-100 touch-manipulation`}
     >
       {/* Archive icon */}
-      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center">
-        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gray-800 flex items-center justify-center">
+        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
         </svg>
       </div>
@@ -273,14 +273,14 @@ function ArchivedJobCard({ job, onRecover }: { job: Job; onRecover: (jobId: stri
       {/* Job info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
-          <span className={`px-2 py-0.5 text-xs rounded-full ${config.bgColor} ${config.textColor}`}>
+          <h3 className="text-sm sm:text-base text-white font-medium truncate">{job.title || 'Untitled Job'}</h3>
+          <span className={`flex-shrink-0 px-2 py-0.5 text-xs rounded-full ${config.bgColor} ${config.textColor}`}>
             {config.label}
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
+        <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-400">
           <span>{pipelineLabels[job.pipeline] || job.pipeline}</span>
-          <span className="text-gray-600">•</span>
+          <span className="text-gray-600 hidden sm:inline">•</span>
           <span>{formatRelativeTime(job.created_at)}</span>
         </div>
       </div>
@@ -289,7 +289,7 @@ function ArchivedJobCard({ job, onRecover }: { job: Job; onRecover: (jobId: stri
       <button
         onClick={handleRecover}
         disabled={isRecovering}
-        className="flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+        className="flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 min-h-[40px] touch-manipulation"
       >
         {isRecovering ? (
           <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -409,17 +409,17 @@ function JobsContent() {
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-2">My Jobs</h1>
-        <p className="text-gray-400">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">My Jobs</h1>
+        <p className="text-sm sm:text-base text-gray-400">
           {jobs.length === 0
             ? 'No jobs yet. Start a new research from the dashboard.'
             : `${jobs.length} total job${jobs.length === 1 ? '' : 's'}`}
         </p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 mb-6 p-1 bg-gray-900 rounded-xl border border-gray-800">
+      {/* Tab Navigation - horizontally scrollable on mobile */}
+      <div className="flex gap-1.5 sm:gap-2 mb-6 p-1 bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto scrollbar-hide">
         <TabButton 
           active={activeTab === 'active'} 
           onClick={() => handleTabChange('active')}

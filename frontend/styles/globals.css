@@ -135,19 +135,24 @@ select:focus-visible {
   }
 }
 
+/* ============================================
+   Desktop Optimizations
+   ============================================ */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* Smooth scrollbar for desktop (webkit browsers) */
+@media (hover: hover) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.3);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.5);
+  }
+}

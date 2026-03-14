@@ -453,7 +453,7 @@ export function ArtifactCardGrid({
     return (
       <div className="space-y-6">
         {/* Single card for claims document */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <ArtifactCard
             type="claims_doc"
             state={getArtifactState(job, 'claims_doc', selectedVersion)}
@@ -501,7 +501,7 @@ export function ArtifactCardGrid({
       )}
 
       {/* Artifact card grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Doc 0: Source Ledger */}
         <ArtifactCard
           type="doc_0"

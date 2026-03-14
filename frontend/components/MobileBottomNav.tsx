@@ -79,14 +79,18 @@ export function MobileBottomNav() {
               key={item.href}
               href={item.href}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] touch-manipulation transition-colors ${
+              className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] touch-manipulation transition-colors ${
                 isActive
                   ? 'text-blue-400'
                   : 'text-gray-500 hover:text-gray-400 active:text-gray-300'
               }`}
             >
+              {/* Active indicator bar */}
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-blue-400" />
+              )}
               <svg
-                className="h-5 w-5"
+                className={`h-5 w-5 transition-transform ${isActive ? 'scale-110' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -95,7 +99,7 @@ export function MobileBottomNav() {
                 {item.icon}
                 {item.iconExtra}
               </svg>
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className={`text-[10px] ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
             </Link>
           );
         })}
