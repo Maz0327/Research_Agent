@@ -44,13 +44,19 @@ export function DashboardJobCard({ job, delay = 0 }: DashboardJobCardProps) {
     router.push(`/jobs/${job.id}`);
   };
 
+  // Left accent border color by status
+  const leftBorder = isActive
+    ? job.status === 'running' ? 'border-l-blue-500' : 'border-l-yellow-500'
+    : isCompleted ? 'border-l-green-500'
+    : 'border-l-red-600';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: delay * 0.05, duration: 0.2 }}
       onClick={handleClick}
-      className={`relative p-3 bg-gray-900 rounded-lg border ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all group`}
+      className={`relative py-3.5 px-3 bg-gray-900 rounded-lg border border-l-2 ${leftBorder} ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all group`}
     >
       <div className="flex items-center gap-3">
         {/* Status indicator */}
