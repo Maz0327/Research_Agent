@@ -145,11 +145,11 @@ function UsageContent() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="rounded-lg bg-gray-800 p-4">
                   <p className="text-sm text-gray-400">Total Jobs</p>
-                  <p className="text-2xl font-bold text-gray-100">{stats.total_jobs}</p>
+                  <p className="text-3xl font-bold text-gray-100">{stats.total_jobs}</p>
                 </div>
                 <div className="rounded-lg bg-gray-800 p-4">
                   <p className="text-sm text-gray-400">Total Estimated</p>
-                  <p className="text-2xl font-bold text-green-400">${stats.estimated_costs.total.toFixed(4)}</p>
+                  <p className="text-3xl font-bold text-green-400">${stats.estimated_costs.total.toFixed(4)}</p>
                 </div>
               </div>
 

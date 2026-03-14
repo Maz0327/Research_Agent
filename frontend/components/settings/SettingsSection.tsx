@@ -9,6 +9,8 @@ interface SettingsSectionProps {
   title: string;
   description?: string;
   delay?: number;
+  /** Optional icon rendered before the title */
+  icon?: ReactNode;
   children: ReactNode;
 }
 
@@ -16,6 +18,7 @@ export function SettingsSection({
   title,
   description,
   delay = 0,
+  icon,
   children,
 }: SettingsSectionProps) {
   return (
@@ -25,7 +28,10 @@ export function SettingsSection({
       transition={{ delay }}
       className="rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-lg"
     >
-      <h2 className="mb-4 text-lg font-semibold text-gray-100">{title}</h2>
+      <h2 className="mb-4 text-lg font-semibold text-gray-100 flex items-center gap-2">
+        {icon && <span className="flex-shrink-0">{icon}</span>}
+        {title}
+      </h2>
       {description && (
         <p className="mb-4 text-sm text-gray-400">{description}</p>
       )}
