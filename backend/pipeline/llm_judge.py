@@ -14,11 +14,20 @@ Cost: ~$0.003-0.005 per extraction (GPT-4o input/output tokens)
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
 from loguru import logger
+
+
+# ---------------------------------------------------------------------------
+# Module-level circuit breaker for quota-exhausted providers
+# Prevents wasting ~4-6s per source on 3 retries that will never succeed.
+# Resets on worker restart.
+# ---------------------------------------------------------------------------
+_PROVIDER_DISABLED: dict[str, str] = {}  # provider_name -> reason
 
 
 class JudgeVerdict(str, Enum):
@@ -228,7 +237,19 @@ def _try_openai_judge(
     source_id: str,
     model: str = "gpt-4o",
 ) -> Optional[JudgeResult]:
-    """Try GPT-4o as cross-model judge. Returns None on failure."""
+    """Try GPT-4o as cross-model judge. Returns None on failure.
+
+    Uses a module-level circuit breaker to skip immediately when
+    quota is exhausted, avoiding 3× retry waste (~4-6s per source).
+    """
+    # Circuit breaker: skip if provider was disabled this worker session
+    if "GPT-4o" in _PROVIDER_DISABLED:
+        logger.debug(
+            f"[{source_id}] GPT-4o skipped (circuit breaker: "
+            f"{_PROVIDER_DISABLED['GPT-4o']})"
+        )
+        return None
+
     from backend.config import require_openai, MissingRequiredSettingError
 
     try:
@@ -275,8 +296,71 @@ def _try_openai_judge(
         return result
 
     except Exception as e:
-        logger.warning(f"[{source_id}] GPT-4o judge failed: {e}")
+        error_str = str(e)
+        # Detect quota exhaustion and trip circuit breaker
+        if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
+            _PROVIDER_DISABLED["GPT-4o"] = "insufficient_quota"
+            logger.warning(
+                f"[{source_id}] GPT-4o quota exhausted — circuit breaker tripped, "
+                f"skipping for remaining sources this worker session"
+            )
+        else:
+            logger.warning(f"[{source_id}] GPT-4o judge failed: {e}")
         return None
+
+
+def _repair_truncated_json(text: str) -> Optional[str]:
+    """Attempt to repair truncated JSON from LLM responses.
+
+    Kimi K2.5 sometimes hits max_tokens mid-string, producing valid JSON
+    except for an unterminated string at the end. This function closes
+    open strings, arrays, and objects to salvage partial results.
+
+    Args:
+        text: Potentially truncated JSON string
+
+    Returns:
+        Repaired JSON string, or None if repair is not possible.
+    """
+    if not text or not text.strip():
+        return None
+
+    text = text.rstrip()
+
+    # Track nesting to know what closers we need
+    closers_needed: list[str] = []
+    in_string = False
+    escape_next = False
+
+    for ch in text:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\":
+            escape_next = True
+            continue
+        if ch == '"' and not escape_next:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            closers_needed.append("}")
+        elif ch == "[":
+            closers_needed.append("]")
+        elif ch in ("}", "]"):
+            if closers_needed and closers_needed[-1] == ch:
+                closers_needed.pop()
+
+    # If we're inside a string, close it
+    if in_string:
+        text += '"'
+
+    # Close any open arrays/objects
+    while closers_needed:
+        text += closers_needed.pop()
+
+    return text
 
 
 def _try_kimi_judge(
@@ -284,7 +368,11 @@ def _try_kimi_judge(
     system_prompt: str,
     source_id: str,
 ) -> Optional[JudgeResult]:
-    """Try Kimi K2.5 as cross-model judge. Returns None on failure."""
+    """Try Kimi K2.5 as cross-model judge. Returns None on failure.
+
+    Includes JSON repair for truncated responses (unterminated strings)
+    which are common when Kimi hits max_tokens.
+    """
     kimi_api_key = os.getenv("KIMI_API_KEY")
     if not kimi_api_key:
         logger.debug(f"[{source_id}] Kimi K2.5 not configured (KIMI_API_KEY missing)")
@@ -309,7 +397,7 @@ def _try_kimi_judge(
                     ],
                     "response_format": {"type": "json_object"},
                     "temperature": 1,  # Kimi K2.5 only allows temperature=1
-                    "max_tokens": 4000,
+                    "max_tokens": 8000,  # Increased from 4000 to avoid truncation
                 },
             )
 
@@ -320,8 +408,14 @@ def _try_kimi_judge(
 
         resp_json = response.json()
         resp_content = resp_json["choices"][0]["message"]["content"]
-        if not resp_content:
-            raise ValueError("Empty response from Kimi K2.5")
+
+        # Check for empty or whitespace-only response
+        if not resp_content or not resp_content.strip():
+            # Check if finish_reason indicates truncation
+            finish_reason = resp_json["choices"][0].get("finish_reason", "")
+            raise ValueError(
+                f"Empty response from Kimi K2.5 (finish_reason={finish_reason})"
+            )
 
         # Strip markdown code fences if present
         resp_content = resp_content.strip()
@@ -333,7 +427,28 @@ def _try_kimi_judge(
                 resp_content = resp_content[:-3]
         resp_content = resp_content.strip()
 
-        response_data = json.loads(resp_content)
+        # Try parsing JSON, with repair fallback for truncated responses
+        try:
+            response_data = json.loads(resp_content)
+        except json.JSONDecodeError as json_err:
+            # Attempt JSON repair for truncated responses
+            logger.info(
+                f"[{source_id}] Kimi JSON parse failed, attempting repair: "
+                f"{str(json_err)[:80]}"
+            )
+            repaired = _repair_truncated_json(resp_content)
+            if repaired:
+                try:
+                    response_data = json.loads(repaired)
+                    logger.info(
+                        f"[{source_id}] Kimi JSON repair successful "
+                        f"({len(resp_content)} → {len(repaired)} chars)"
+                    )
+                except json.JSONDecodeError:
+                    raise json_err  # Re-raise original error
+            else:
+                raise
+
         result = parse_judge_response(response_data)
         result.provider = "Kimi K2.5"
 
