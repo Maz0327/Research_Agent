@@ -128,6 +128,7 @@ def stage_semantic_validation(ctx: PipelineContext) -> PipelineContext:
             source_duration_minutes=source_duration / 60 if source_duration else None,
             has_source_metadata=bool(source_metadata),
             verification_rate=extraction_rate,
+            expected_source_id=source_id,
         )
 
         # Collect warnings from validation report
