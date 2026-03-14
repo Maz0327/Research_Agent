@@ -338,9 +338,9 @@ export function ArtifactCardGrid({
                 const result = await fetchDocumentFromAPI(job.id, 'doc_3');
                 data = result.data;
                 markdown = result.markdown;
-              } else if (artifacts.producer_packet_md) {
-                data = { markdown: artifacts.producer_packet_md };
-                markdown = artifacts.producer_packet_md;
+              } else if (artifacts.creator_brief_md) {
+                data = { markdown: artifacts.creator_brief_md };
+                markdown = artifacts.creator_brief_md;
               }
               break;
 

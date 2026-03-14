@@ -162,7 +162,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
               iterationId={job.iteration_id}
               iterationProgressPercent={job.iteration_progress_percent}
               iterationCount={job.artifacts?.iterations?.filter((it) => it.status === 'completed').length}
-              hasProducerPacket={!!(job.artifacts?.doc_3_path || job.artifacts?.producer_packet_md)}
+              hasProducerPacket={!!(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md)}
             />
           </div>
 

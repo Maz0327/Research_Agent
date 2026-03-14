@@ -1690,6 +1690,14 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
     start_time = datetime.now(timezone.utc)
     versions_created: list[str] = []
 
+    # Update iteration status to running (DO NOT modify job.status - it must stay "completed")
+    update_job(
+        job_id,
+        iteration_status="running",
+        iteration_started_at=start_time,
+        iteration_error=None,  # Clear any previous error
+    )
+
     try:
         # ── DEEP DIVE ────────────────────────────────────────────────────────
         if mode == "deep_dive":
@@ -1798,6 +1806,14 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
             mode=mode,
             versions_created=versions_created,
             elapsed_seconds=elapsed_r,
+        )
+
+        # Mark iteration completed (DO NOT modify job.status - it must stay "completed")
+        update_job(
+            job_id,
+            iteration_status="completed",
+            iteration_completed_at=datetime.now(timezone.utc),
+            iteration_id=iterate_id,
         )
 
         return {
