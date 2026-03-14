@@ -27,6 +27,7 @@ from backend.pipeline.prompts.semantic_synthesis_prompt import (
     build_semantic_synthesis_prompt,
     SEMANTIC_SYNTHESIS_ROLE,
 )
+from backend.pipeline.style_enforcer import enforce_style
 from backend.state import update_job
 
 
@@ -322,25 +323,70 @@ def stage_semantic_synthesis(ctx: PipelineContext) -> None:
         # Initialize Gemini client
         gemini_client = GeminiClient()
 
-        # Call Gemini for synthesis
-        response = gemini_client.generate_json(
-            prompt=prompt,
-            system_message=SEMANTIC_SYNTHESIS_ROLE,
-        )
+        # Call Gemini for synthesis (with style enforcement retry)
+        synthesis_result = None
+        total_cost = 0.0
 
-        if "error" in response:
-            logger.error(f"Gemini error during synthesis: {response['error']}")
-            ctx.add_warning(f"Semantic synthesis error: {response['error']}")
-            return
+        for attempt in range(2):  # Max 2 attempts (original + 1 retry)
+            current_prompt = prompt
+            if attempt > 0:
+                # Append style violations to prompt for retry
+                violation_msg = "\n".join(style_violations)
+                current_prompt = (
+                    prompt
+                    + f"\n\n## STYLE VIOLATIONS IN PREVIOUS ATTEMPT\n"
+                    f"Your previous output was rejected for these style issues:\n"
+                    f"{violation_msg}\n\n"
+                    f"Fix ALL of these. Write shorter sentences. No academic jargon. "
+                    f"Be direct. Address the creator as 'you'."
+                )
 
-        # Track cost
-        cost = response.get("cost", 0)
-        if hasattr(ctx, "add_cost"):
-            ctx.add_cost("gemini_semantic_synthesis", cost)
+            response = gemini_client.generate_json(
+                prompt=current_prompt,
+                system_message=SEMANTIC_SYNTHESIS_ROLE,
+            )
 
-        # Parse response
-        data = response.get("data", {})
-        synthesis_result = parse_synthesis_response(data)
+            if "error" in response:
+                logger.error(f"Gemini error during synthesis: {response['error']}")
+                ctx.add_warning(f"Semantic synthesis error: {response['error']}")
+                return
+
+            # Track cost
+            cost = response.get("cost", 0)
+            total_cost += cost
+            if hasattr(ctx, "add_cost"):
+                ctx.add_cost("gemini_semantic_synthesis", cost)
+
+            # Parse response
+            data = response.get("data", {})
+            synthesis_result = parse_synthesis_response(data)
+
+            # Style enforcement check
+            all_text_parts = [synthesis_result["semantic_core"]]
+            all_text_parts += [t.description for t in synthesis_result["themes"]]
+            all_text = " ".join(all_text_parts)
+
+            passes, style_violations = enforce_style(all_text)
+
+            if passes:
+                if attempt > 0:
+                    logger.info(f"[{ctx.job_id}] Style check passed on retry (attempt {attempt + 1})")
+                break
+            elif attempt == 0:
+                logger.warning(
+                    f"[{ctx.job_id}] Style check failed ({len(style_violations)} violations), "
+                    f"retrying synthesis: {style_violations[:3]}"
+                )
+            else:
+                logger.warning(
+                    f"[{ctx.job_id}] Style check still failing after retry, "
+                    f"accepting with warnings: {style_violations[:3]}"
+                )
+                ctx.add_warning(
+                    f"Style enforcement: {len(style_violations)} violations remain after retry"
+                )
+
+        cost = total_cost
 
         # Store results in context
         # These are used by document_assembly for Doc 2

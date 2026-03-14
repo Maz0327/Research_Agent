@@ -520,6 +520,7 @@ def build_semantic_brief(
     confidence_reasoning: list[str],
     source_contributions: dict | None = None,
     source_coverage: dict | None = None,
+    topic: str = "",
 ) -> SemanticBrief:
     """
     Build Doc 2: Semantic Research Brief from synthesis results.
@@ -532,6 +533,7 @@ def build_semantic_brief(
         confidence_reasoning: List of reasons for confidence level
         source_contributions: Optional dict mapping source_id → {key_points, claims, ...} (Phase 5)
         source_coverage: Optional dict mapping key_point_id → [source_ids] (Phase 5)
+        topic: Research topic string for SCQA generation
 
     Returns:
         Assembled SemanticBrief (Doc 2)
@@ -604,21 +606,20 @@ def build_semantic_brief(
 
     # R6: Build SCQA programmatically from existing data
     scqa = {}
-    scqa["situation"] = (
-        f"Research across {len(extractions)} source{'s' if len(extractions) != 1 else ''} "
-        f"on this topic."
-    )
+    topic_str = topic or "this topic"
+    scqa["situation"] = f"You're researching {topic_str}."
     # Complication: Most significant tension or gap
     if all_tensions:
         scqa["complication"] = all_tensions[0].description
     elif gaps:
-        scqa["complication"] = f"{len(gaps)} areas remain unexplored."
+        scqa["complication"] = f"There are {len(gaps)} gaps in what the sources cover."
     else:
-        scqa["complication"] = "No significant tensions or gaps identified."
-    # Question: Derived from primary theme
+        scqa["complication"] = "No major disagreements found across sources."
+    # Question: Direct, not academic
     if all_themes:
+        theme_label = all_themes[0].label.lower()
         scqa["question"] = (
-            f"What does the evidence reveal about {all_themes[0].label.lower()}?"
+            f"What do the sources actually tell you about {theme_label}?"
         )
     # Answer: The semantic core itself
     scqa["answer"] = semantic_core
@@ -900,18 +901,42 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
             f"{len(doc_1.tensions)} areas of tension."
         )
 
-    # Calibrate confidence
-    confidence_reasoning = []
-    if len(sources) >= 2:
-        confidence_reasoning.append("Multiple sources available")
+    # Calibrate confidence — deterministic formula, not vibes
+    total_sources = len(sources)
+    failed_sources = doc_0.failed_count
+    tension_count = len(doc_1.tensions)
+
+    # Determine confidence level based on hard thresholds
+    if failed_sources / max(total_sources, 1) > 0.3:
+        # >30% sources failed = never HIGH
+        overall_confidence = ConfidenceLevel.LOW
+    elif tension_count > 10 or total_sources < 2:
+        # Many tensions or single source = cap at MEDIUM
+        overall_confidence = ConfidenceLevel.MEDIUM
     else:
+        # Use synthesis stage assessment
+        overall_confidence = doc_1.confidence
+
+    # Build reasoning from facts, not generic statements
+    confidence_reasoning = []
+    if failed_sources > 0:
+        confidence_reasoning.append(
+            f"{failed_sources}/{total_sources} sources failed ingestion"
+        )
+    if total_sources >= 3:
+        confidence_reasoning.append(
+            f"{total_sources} sources provide reasonable coverage"
+        )
+    elif total_sources == 1:
         confidence_reasoning.append("Single source limits perspective")
-
-    if doc_0.failed_count > 0:
-        confidence_reasoning.append(f"{doc_0.failed_count} sources failed ingestion")
-
-    if len(doc_1.tensions) > 0:
-        confidence_reasoning.append(f"{len(doc_1.tensions)} unresolved tensions")
+    if tension_count > 8:
+        confidence_reasoning.append(
+            f"{tension_count} unresolved tensions — contested topic"
+        )
+    elif tension_count > 0:
+        confidence_reasoning.append(
+            f"{tension_count} unresolved tension{'s' if tension_count != 1 else ''}"
+        )
 
     # Phase 5: Get source tracking from context if available
     source_contributions = getattr(ctx, "source_contributions", None)
@@ -921,10 +946,11 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
         semantic_core=semantic_core,
         extractions=extractions,
         gaps=gaps,
-        overall_confidence=doc_1.confidence,
+        overall_confidence=overall_confidence,
         confidence_reasoning=confidence_reasoning,
         source_contributions=source_contributions,
         source_coverage=source_coverage,
+        topic=ctx.topic,
     )
 
     # Store documents in context (dict format)

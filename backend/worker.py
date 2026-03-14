@@ -289,6 +289,18 @@ def _run_mixed_input_job(ctx, job) -> dict:
                     logger.warning(f"[{job_id}] No text extracted from article")
                     continue
 
+                # Filter out bot-block pages (Cloudflare, Reddit login walls, etc.)
+                from backend.utils.content_filter import filter_content_or_warn
+                filtered = filter_content_or_warn(
+                    text_content,
+                    source_id=f"SRC_{source_counter}",
+                    url=url,
+                )
+                if filtered is None:
+                    ctx.add_warning(f"Blocked content detected from {url} — skipped")
+                    continue
+                text_content = filtered
+
                 # build_source_identity_from_article expects (article_data: dict, source_index: int)
                 article_data = {"url": url, "content": text_content}
                 pkg = build_source_identity_from_article(article_data, source_counter - 1)
