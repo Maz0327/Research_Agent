@@ -9,10 +9,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Layout from '../../components/Layout';
 import { ProtectedRoute, useAuth } from '../../components/AuthProvider';
 import { useJobsStore } from '../../store/jobs';
-import { POLLING_INTERVALS, getStageLabel, getStageDescription } from '../../lib/constants';
+import { POLLING_INTERVALS } from '../../lib/constants';
 import {
   JobDetailHeader,
   ArtifactCardGrid,
+  JobProgressPanel,
 } from '../../components/job-detail';
 import { CreatorBriefView } from '../../components/creator-brief/CreatorBriefView';
 import { IterateDialog } from '../../components/iterate/IterateDialog';
@@ -195,44 +196,9 @@ function JobDetailContent() {
 
         {/* Active task loading states are now shown on individual artifact cards */}
 
-        {/* Main job running indicator — narrated loading */}
+        {/* Main job running indicator */}
         {(job.status === 'running' || job.status === 'queued') && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-blue-700 bg-blue-900/30 p-4 mb-6"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                <div>
-                  <p className="font-medium text-blue-300">
-                    {job.status === 'queued' ? 'Waiting in queue…' : getStageLabel(job.stage)}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    {job.pass_detail || getStageDescription(job.stage) || 'Processing your research…'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Dynamic source count from extractions */}
-                {job.artifacts?.semantic_extractions && job.artifacts.semantic_extractions.length > 0 && (
-                  <span className="text-xs text-gray-500 hidden sm:inline">
-                    {job.artifacts.semantic_extractions.length} source{job.artifacts.semantic_extractions.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-                <span className="text-sm font-mono text-blue-300">{job.progress_percent}%</span>
-              </div>
-            </div>
-            <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${job.progress_percent}%` }}
-                transition={{ duration: 0.3 }}
-                className="h-full bg-blue-500 rounded-full"
-              />
-            </div>
-          </motion.div>
+          <JobProgressPanel job={job} />
         )}
 
         {/* Error display */}

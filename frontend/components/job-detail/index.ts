@@ -20,3 +20,5 @@ export { RunSelector } from './RunSelector';
 export type { RunSelectorProps } from './RunSelector';
 
 export { SourceReviewPanel } from './SourceReviewPanel';
+export { JobProgressPanel } from './JobProgressPanel';
+export type { JobProgressPanelProps } from './JobProgressPanel';
