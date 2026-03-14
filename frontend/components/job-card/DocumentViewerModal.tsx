@@ -33,42 +33,48 @@ export interface DocumentViewerModalProps {
 }
 
 // Document type styling
-const docStyles: Record<0 | 1 | 2 | 3 | 4 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string }> = {
+const docStyles: Record<0 | 1 | 2 | 3 | 4 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string; accentBar: string }> = {
   0: {
     headerBg: 'bg-gray-800',
     headerBorder: 'border-gray-700',
     badge: 'bg-gray-700 text-gray-300',
     accent: 'text-gray-400',
+    accentBar: 'bg-gray-500',
   },
   1: {
     headerBg: 'bg-blue-900/30',
     headerBorder: 'border-blue-800/50',
     badge: 'bg-blue-900/50 text-blue-300',
     accent: 'text-blue-400',
+    accentBar: 'bg-blue-500',
   },
   2: {
     headerBg: 'bg-purple-900/30',
     headerBorder: 'border-purple-800/50',
     badge: 'bg-purple-900/50 text-purple-300',
     accent: 'text-purple-400',
+    accentBar: 'bg-purple-500',
   },
   3: {
     headerBg: 'bg-amber-900/30',
     headerBorder: 'border-amber-800/50',
     badge: 'bg-amber-900/50 text-amber-300',
     accent: 'text-amber-400',
+    accentBar: 'bg-amber-500',
   },
   4: {
     headerBg: 'bg-green-900/30',
     headerBorder: 'border-green-800/50',
     badge: 'bg-green-900/50 text-green-300',
     accent: 'text-green-400',
+    accentBar: 'bg-green-500',
   },
   'B': {
     headerBg: 'bg-indigo-900/30',
     headerBorder: 'border-indigo-800/50',
     badge: 'bg-indigo-900/50 text-indigo-300',
     accent: 'text-indigo-400',
+    accentBar: 'bg-indigo-500',
   },
 };
 
@@ -219,43 +225,45 @@ export function DocumentViewerModal({
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={{ left: 0, right: 0.5 }}
             onDragEnd={handleDragEnd}
-            className="absolute inset-0 lg:inset-4 lg:left-auto lg:right-4 lg:w-full lg:max-w-4xl bg-gray-900 lg:rounded-xl border-l lg:border border-gray-700 flex flex-col overflow-hidden shadow-2xl"
+            className="absolute inset-0 bg-gray-900 flex flex-col overflow-hidden shadow-2xl"
           >
             {/* Header with breadcrumb */}
             <div className={`flex-shrink-0 ${style.headerBg} border-b ${style.headerBorder}`}>
-              {/* Breadcrumb - shown if jobTitle is provided */}
+              {/* Breadcrumb strip - shown if jobTitle is provided */}
               {jobTitle && (
-                <div className="px-4 sm:px-6 pt-3 flex items-center gap-2 text-xs text-gray-500">
-                  <span className="truncate max-w-[150px] sm:max-w-none">{jobTitle}</span>
+                <div className="px-4 sm:px-6 pt-2.5 pb-0 flex items-center gap-2 text-xs text-gray-500">
+                  <span className="truncate max-w-[200px] sm:max-w-none">{jobTitle}</span>
                   <svg className="h-3 w-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
-                  <span className={`${style.accent} font-medium`}>Doc {docNumber}: {docTitles[docNumber]}</span>
+                  <span className={`${style.accent} font-medium`}>{docTitles[docNumber]}</span>
                 </div>
               )}
 
-              {/* Main header */}
-              <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <span className={`px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${style.badge}`}>
-                    DOC {docNumber}
-                  </span>
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-100 truncate">{title}</h2>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`text-xs ${style.accent} hidden sm:inline`}>
-                    {isMarkdown ? 'Markdown' : 'JSON'}
-                  </span>
-                  <button
-                    onClick={onClose}
-                    className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-                    title="Close (Esc)"
-                    aria-label="Close document viewer"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+              {/* Main header row: left accent bar + content */}
+              <div className="flex">
+                {/* 4px left accent bar */}
+                <div className={`w-1 flex-shrink-0 ${style.accentBar}`} />
+                {/* Header content */}
+                <div className="flex-1 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className={`px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${style.badge}`}>
+                      DOC {docNumber}
+                    </span>
+                    <h2 className="text-base sm:text-xl font-semibold text-gray-100 truncate">{title}</h2>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={onClose}
+                      className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+                      title="Close (Esc)"
+                      aria-label="Close document viewer"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -265,9 +273,9 @@ export function DocumentViewerModal({
               <div className="w-10 h-1 rounded-full bg-gray-600" />
             </div>
 
-            {/* Content - wider for tables, with good reading width for text */}
+            {/* Content — reading column centered at 900px on wide screens */}
             <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto">
+              <div className="max-w-[900px] mx-auto">
                 {isMarkdown ? (
                   <div className="max-w-none">
                     <MarkdownRenderer content={transformMarkdownWithDetails(markdown, showDetails)} />
