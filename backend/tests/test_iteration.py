@@ -244,11 +244,11 @@ class TestIterationModels:
         from backend.models.job_record import IterationRequest
 
         request = IterationRequest(
-            mode="more_sources",
+            mode="expand_sources",
             user_prompt="Find more academic sources",
             max_new_sources=5,
         )
-        assert request.mode == "more_sources"
+        assert request.mode == "expand_sources"
         assert request.max_new_sources == 5
 
     def test_iteration_outputs_model(self):

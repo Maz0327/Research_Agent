@@ -197,11 +197,19 @@ class Theme:
     label: str
     description: str
     related_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
-    confidence: Optional[str] = None  # ConfidenceLevel string, subject to ceiling enforcement
+    confidence: Optional[ConfidenceLevel] = None  # Subject to ceiling enforcement
 
     # Phase 5: Multi-Source Attribution
     sources_supporting: list[str] = field(default_factory=list)  # source_ids that support this theme
     is_consensus: bool = False  # True if 2+ sources agree on this theme
+
+    def __post_init__(self) -> None:
+        """Coerce confidence string to ConfidenceLevel enum."""
+        if isinstance(self.confidence, str):
+            try:
+                self.confidence = ConfidenceLevel(self.confidence)
+            except ValueError:
+                self.confidence = ConfidenceLevel.LOW
 
     def to_dict(self) -> dict[str, Any]:
         result = {
@@ -210,6 +218,8 @@ class Theme:
             "description": self.description,
             "related_key_points": self.related_key_points,
         }
+        if self.confidence:
+            result["confidence"] = self.confidence.value
         # Include Phase 5 fields if populated
         if self.sources_supporting:
             result["sources_supporting"] = self.sources_supporting
@@ -241,12 +251,20 @@ class Tension:
     label: str = ""  # Short title (3-6 words, e.g., "Timeline Conflict")
     involved_key_points: list[str] = field(default_factory=list)  # KeyPoint IDs
     source_ids: list[str] = field(default_factory=list)  # All source_ids involved in this tension
-    confidence: Optional[str] = None  # ConfidenceLevel string, subject to ceiling enforcement
+    confidence: Optional[ConfidenceLevel] = None  # Subject to ceiling enforcement
 
     # Phase 5: Cross-Source Attribution
     sources_position_a: list[str] = field(default_factory=list)  # source_ids supporting one side
     sources_position_b: list[str] = field(default_factory=list)  # source_ids supporting the other
     is_cross_source: bool = False  # True if tension spans multiple sources
+
+    def __post_init__(self) -> None:
+        """Coerce confidence string to ConfidenceLevel enum."""
+        if isinstance(self.confidence, str):
+            try:
+                self.confidence = ConfidenceLevel(self.confidence)
+            except ValueError:
+                self.confidence = ConfidenceLevel.LOW
 
     def to_dict(self) -> dict[str, Any]:
         result = {

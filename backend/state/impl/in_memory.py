@@ -96,7 +96,7 @@ class InMemoryJobStore(JobStore):
                     job.stage_started_at = datetime.now(timezone.utc)
                 job.stage = stage
             if progress_percent is not None:
-                job.progress_percent = progress_percent
+                job.progress_percent = max(0, min(100, progress_percent))
             if title is not None:
                 job.title = title
             if error is not None:
