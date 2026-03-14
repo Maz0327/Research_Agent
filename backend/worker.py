@@ -209,18 +209,22 @@ def _run_mixed_input_job(ctx, job) -> dict:
 
     try:
         # Build source identity packages from provided inputs
-        source_counter = 1
+        # Pre-assign indices by input type so source_ids are deterministic even in parallel
+        video_urls = config.get("video_urls", [])
+        article_urls = config.get("article_urls", [])
+        video_offset = 0
+        article_offset = len(video_urls)
 
-        # Process videos
-        for url in config.get("video_urls", []):
-            logger.info(f"[{job_id}] Building identity for video: {url}")
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        # --- Process videos in parallel (transcript acquisition is the bottleneck) ---
+        def _fetch_video(args: tuple) -> tuple:
+            """Returns (orig_idx, pkg_or_None, warning_or_None)."""
+            orig_idx, url = args
+            source_index = video_offset + orig_idx
             try:
-                # build_source_identity_from_video expects (video_data: dict, source_index: int)
                 video_data = {"url": url}
-                pkg = build_source_identity_from_video(video_data, source_counter - 1)
-
-                # Fetch and merge Supadata metadata for title/creator/duration
-                # (same as stage_source_identity does for research jobs)
+                pkg = build_source_identity_from_video(video_data, source_index)
                 try:
                     metadata = fetch_video_metadata(url)
                     if metadata:
@@ -228,21 +232,44 @@ def _run_mixed_input_job(ctx, job) -> dict:
                         logger.info(f"[{job_id}] Metadata merged: title={pkg.title[:50]}...")
                 except Exception as meta_err:
                     logger.warning(f"[{job_id}] Metadata fetch failed (non-blocking): {meta_err}")
+                return orig_idx, pkg, None
+            except Exception as e:
+                return orig_idx, None, f"Failed to process video {url}: {e}"
 
+        video_pkgs: list = [None] * len(video_urls)
+        if video_urls:
+            logger.info(f"[{job_id}] Processing {len(video_urls)} videos in parallel")
+            with ThreadPoolExecutor(max_workers=min(len(video_urls), 5)) as executor:
+                futures = {
+                    executor.submit(_fetch_video, (i, url)): i
+                    for i, url in enumerate(video_urls)
+                }
+                for future in as_completed(futures):
+                    orig_idx, pkg, warning = future.result()
+                    video_pkgs[orig_idx] = (pkg, warning)
+
+        source_counter = 1
+        for orig_idx, result in enumerate(video_pkgs):
+            if result is None:
+                continue
+            pkg, warning = result
+            if pkg is not None:
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
-            except Exception as e:
-                ctx.add_warning(f"Failed to process video {url}: {e}")
-                logger.warning(f"[{job_id}] Video processing failed: {e}")
+            elif warning:
+                ctx.add_warning(warning)
+                logger.warning(f"[{job_id}] {warning}")
 
-        # Process articles - fetch content first
-        for url in config.get("article_urls", []):
-            logger.info(f"[{job_id}] Fetching content for article: {url}")
+        # --- Process articles in parallel (HTTP fetch + extraction is the bottleneck) ---
+        def _fetch_article(args: tuple) -> tuple:
+            """Returns (orig_idx, pkg_or_None, warning_or_None)."""
+            orig_idx, url = args
+            source_index = article_offset + orig_idx
             try:
-                # Fetch HTML content
+                from backend.utils.content_filter import filter_content_or_warn
                 html_content, status_code, error_msg = _fetch_url_content(url)
                 if html_content is None:
-                    # Direct fetch failed (403, timeout, etc.) — try Jina Reader
+                    # Direct fetch failed — try Jina Reader
                     try:
                         from backend.integrations.jina_reader_client import JinaReaderClient
                         jina = JinaReaderClient()
@@ -253,25 +280,15 @@ def _run_mixed_input_job(ctx, job) -> dict:
                                 f"[{job_id}] Jina recovered {len(jina_content)} chars "
                                 f"after HTTP {status_code or 'error'} for {url[:50]}"
                             )
-                            # Build source identity from Jina content
                             article_data = {"url": url, "content": jina_content}
-                            pkg = build_source_identity_from_article(article_data, source_counter - 1)
-                            ctx.source_identity_packages.append(pkg)
-                            source_counter += 1
-                            logger.info(f"[{job_id}] Article processed via Jina: {len(jina_content)} chars")
-                            continue
+                            pkg = build_source_identity_from_article(article_data, source_index)
+                            return orig_idx, pkg, None
                     except Exception as jina_err:
                         logger.warning(f"[{job_id}] Jina fallback also failed: {jina_err}")
+                    return orig_idx, None, f"Failed to fetch article {url}: {error_msg}"
 
-                    ctx.add_warning(f"Failed to fetch article {url}: {error_msg}")
-                    logger.warning(f"[{job_id}] Article fetch failed: {error_msg}")
-                    continue
-
-                # Extract readable text
                 text_content = _extract_text_with_trafilatura(html_content, url)
 
-                # Fallback: if no text extracted, try Jina Reader
-                # (handles JS-rendered pages, Reddit, anti-bot sites)
                 if not text_content:
                     try:
                         from backend.integrations.jina_reader_client import JinaReaderClient
@@ -285,31 +302,45 @@ def _run_mixed_input_job(ctx, job) -> dict:
                         logger.warning(f"[{job_id}] Jina fallback failed for {url[:50]}: {jina_err}")
 
                 if not text_content:
-                    ctx.add_warning(f"No text extracted from {url}")
-                    logger.warning(f"[{job_id}] No text extracted from article")
-                    continue
+                    return orig_idx, None, f"No text extracted from {url}"
 
-                # Filter out bot-block pages (Cloudflare, Reddit login walls, etc.)
-                from backend.utils.content_filter import filter_content_or_warn
                 filtered = filter_content_or_warn(
                     text_content,
-                    source_id=f"SRC_{source_counter}",
+                    source_id=f"SRC_{source_index + 1}",
                     url=url,
                 )
                 if filtered is None:
-                    ctx.add_warning(f"Blocked content detected from {url} — skipped")
-                    continue
-                text_content = filtered
+                    return orig_idx, None, f"Blocked content detected from {url} — skipped"
 
-                # build_source_identity_from_article expects (article_data: dict, source_index: int)
-                article_data = {"url": url, "content": text_content}
-                pkg = build_source_identity_from_article(article_data, source_counter - 1)
+                article_data = {"url": url, "content": filtered}
+                pkg = build_source_identity_from_article(article_data, source_index)
+                logger.info(f"[{job_id}] Article fetched: {len(filtered)} chars from {url[:50]}")
+                return orig_idx, pkg, None
+            except Exception as e:
+                return orig_idx, None, f"Failed to process article {url}: {e}"
+
+        article_pkgs: list = [None] * len(article_urls)
+        if article_urls:
+            logger.info(f"[{job_id}] Processing {len(article_urls)} articles in parallel")
+            with ThreadPoolExecutor(max_workers=min(len(article_urls), 5)) as executor:
+                futures = {
+                    executor.submit(_fetch_article, (i, url)): i
+                    for i, url in enumerate(article_urls)
+                }
+                for future in as_completed(futures):
+                    orig_idx, pkg, warning = future.result()
+                    article_pkgs[orig_idx] = (pkg, warning)
+
+        for orig_idx, result in enumerate(article_pkgs):
+            if result is None:
+                continue
+            pkg, warning = result
+            if pkg is not None:
                 ctx.source_identity_packages.append(pkg)
                 source_counter += 1
-                logger.info(f"[{job_id}] Article processed: {len(text_content)} chars extracted")
-            except Exception as e:
-                ctx.add_warning(f"Failed to process article {url}: {e}")
-                logger.warning(f"[{job_id}] Article processing failed: {e}")
+            elif warning:
+                ctx.add_warning(warning)
+                logger.warning(f"[{job_id}] {warning}")
 
         # Process text inputs
         for text_input in config.get("text_inputs", []):

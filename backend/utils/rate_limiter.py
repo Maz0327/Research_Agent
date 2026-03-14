@@ -56,12 +56,13 @@ DEFAULT_RATE_LIMITS: dict[str, RateLimitConfig] = {
     "youtube_read": RateLimitConfig(requests_per_minute=60, requests_per_hour=1000),
     # Reddit: 60 RPM with OAuth
     "reddit": RateLimitConfig(requests_per_minute=60, requests_per_hour=600),
-    # Supadata: Plan-dependent, conservative for stability
-    "supadata": RateLimitConfig(requests_per_minute=10, requests_per_hour=100),
+    # Supadata: Free=60 RPM, Basic/Pro=600 RPM, Mega=3000 RPM.
+    # Using 60 RPM (safe floor matching Free tier at 1 req/sec).
+    "supadata": RateLimitConfig(requests_per_minute=60, requests_per_hour=600),
     # Whisper: 50 RPM default, keeping conservative due to upload time
     "whisper": RateLimitConfig(requests_per_minute=10, requests_per_hour=50),
-    # Gemini Paid Tier 1: 150-300 RPM, 1M TPM. Using 100 RPM for safety.
-    "gemini": RateLimitConfig(requests_per_minute=100, requests_per_hour=2000),
+    # Gemini Paid Tier 1: 150 RPM confirmed. Using full limit.
+    "gemini": RateLimitConfig(requests_per_minute=150, requests_per_hour=3000),
     # GDELT: Standard limits
     "gdelt": RateLimitConfig(requests_per_minute=30, requests_per_hour=300),
     # Jina with API key: 500 RPM, 2M TPM. Using 200 RPM for safety.

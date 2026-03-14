@@ -1951,10 +1951,7 @@ YouTube Video URL: {chunk_url}"""
             # Update progress per-video for better UX
             safe_progress(2, total_passes, "analyzing_structure", f"Analyzing video {i+1}/{total_videos}: {video_title[:40]}...")
             
-            # H-010: Add small delay between videos to avoid rate limiting
-            # Skip delay on first video
-            if i > 0:
-                time.sleep(0.5)  # 500ms delay between API calls
+            # Rate limiting handled by with_rate_limit decorator on analyze_video_structure
 
             # Handle new tuple return signature
             blueprint_result = self.analyze_video_structure(video_url, video_title, model=model)

@@ -47,8 +47,8 @@ class TestRateLimitConfig:
         assert openai_config.requests_per_hour == 500
 
         supadata_config = get_rate_limit_config("supadata")
-        assert supadata_config.requests_per_minute == 10
-        assert supadata_config.requests_per_hour == 100
+        assert supadata_config.requests_per_minute == 60
+        assert supadata_config.requests_per_hour == 600
 
 
 class TestRateLimitChecking:

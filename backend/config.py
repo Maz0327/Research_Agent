@@ -140,8 +140,8 @@ class Settings(BaseSettings):
 
     # Performance: Parallel semantic extraction
     semantic_extraction_max_workers: int = Field(
-        default=5, alias="SEMANTIC_EXTRACTION_MAX_WORKERS",
-        description="Max concurrent sources during semantic extraction (3-6 recommended)"
+        default=9, alias="SEMANTIC_EXTRACTION_MAX_WORKERS",
+        description="Max concurrent sources during semantic extraction. Set to match max source count (default 9)."
     )
 
     # Performance: Conditional LLM Judge
