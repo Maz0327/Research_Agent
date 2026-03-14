@@ -115,6 +115,20 @@ def _extract_text_with_trafilatura(html_content: str, url: str) -> Optional[str]
         return None
 
 
+def extract_title_from_html(html_content: str, url: str) -> Optional[str]:
+    """Extract page title from HTML using trafilatura metadata.
+
+    Tries og:title, then <title> tag. Returns None if nothing useful found.
+    """
+    try:
+        metadata = trafilatura.extract_metadata(html_content, default_url=url)
+        if metadata and metadata.title and len(metadata.title.strip()) > 3:
+            return metadata.title.strip()
+    except Exception:
+        pass
+    return None
+
+
 def _fetch_url_content(url: str) -> tuple[Optional[str], Optional[int], Optional[str]]:
     """
     Fetch content from a URL using httpx.

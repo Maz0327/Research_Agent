@@ -279,22 +279,16 @@ class SourceEntry:
                 lines.append(f"- {bullet}")
             lines.append("")
 
-        # Extracted index (compact)
+        # Extracted index (counts only — no internal IDs in display)
         has_extracted = self.claim_ids or self.entity_names or self.theme_ids
         if has_extracted:
             lines.extend(["", "#### 🏷️ Extracted Index", ""])
             if self.claim_ids:
-                count = len(self.claim_ids)
-                preview = ", ".join(self.claim_ids[:5])
-                suffix = f" (+{count - 5} more)" if count > 5 else ""
-                lines.append(f"- **Claims ({count}):** {preview}{suffix}")
+                lines.append(f"- **Claims:** {len(self.claim_ids)} extracted")
             if self.entity_names:
-                count = len(self.entity_names)
-                preview = ", ".join(self.entity_names[:5])
-                suffix = f" (+{count - 5} more)" if count > 5 else ""
-                lines.append(f"- **Entities ({count}):** {preview}{suffix}")
+                lines.append(f"- **Entities:** {len(self.entity_names)} identified")
             if self.theme_ids:
-                lines.append(f"- **Themes:** {', '.join(self.theme_ids)}")
+                lines.append(f"- **Themes:** {len(self.theme_ids)} identified")
             lines.append("")
 
         # Transcript provenance (for video sources)

@@ -193,6 +193,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
     from backend.integrations.web_capture import (
         _fetch_url_content,
         _extract_text_with_trafilatura,
+        extract_title_from_html,
     )
     from backend.integrations.gemini_client import GeminiClient
     import base64
@@ -280,12 +281,24 @@ def _run_mixed_input_job(ctx, job) -> dict:
                                 f"[{job_id}] Jina recovered {len(jina_content)} chars "
                                 f"after HTTP {status_code or 'error'} for {url[:50]}"
                             )
+                            # Extract title from first H1 in Jina markdown
+                            jina_title = None
+                            for line in jina_content.splitlines():
+                                stripped = line.strip()
+                                if stripped.startswith("# "):
+                                    jina_title = stripped[2:].strip()
+                                    break
                             article_data = {"url": url, "content": jina_content}
+                            if jina_title:
+                                article_data["title"] = jina_title
                             pkg = build_source_identity_from_article(article_data, source_index)
                             return orig_idx, pkg, None
                     except Exception as jina_err:
                         logger.warning(f"[{job_id}] Jina fallback also failed: {jina_err}")
                     return orig_idx, None, f"Failed to fetch article {url}: {error_msg}"
+
+                # Extract title from HTML before trafilatura strips it
+                article_title = extract_title_from_html(html_content, url)
 
                 text_content = _extract_text_with_trafilatura(html_content, url)
 
@@ -298,6 +311,13 @@ def _run_mixed_input_job(ctx, job) -> dict:
                         if jina_content and len(jina_content) > 100:
                             text_content = jina_content
                             logger.info(f"[{job_id}] Jina fallback: {len(text_content)} chars from {url[:50]}")
+                            # If HTML title failed, try Jina H1
+                            if not article_title:
+                                for line in jina_content.splitlines():
+                                    stripped = line.strip()
+                                    if stripped.startswith("# "):
+                                        article_title = stripped[2:].strip()
+                                        break
                     except Exception as jina_err:
                         logger.warning(f"[{job_id}] Jina fallback failed for {url[:50]}: {jina_err}")
 
@@ -312,7 +332,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 if filtered is None:
                     return orig_idx, None, f"Blocked content detected from {url} — skipped"
 
-                article_data = {"url": url, "content": filtered}
+                article_data: dict = {"url": url, "content": filtered}
+                if article_title:
+                    article_data["title"] = article_title
                 pkg = build_source_identity_from_article(article_data, source_index)
                 logger.info(f"[{job_id}] Article fetched: {len(filtered)} chars from {url[:50]}")
                 return orig_idx, pkg, None
