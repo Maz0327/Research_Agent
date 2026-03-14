@@ -273,7 +273,7 @@ export function DocumentViewerModal({
                     <MarkdownRenderer content={transformMarkdownWithDetails(markdown, showDetails)} />
                   </div>
                 ) : (
-                  <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs sm:text-sm text-gray-300 font-mono whitespace-pre-wrap break-words bg-gray-800/50 rounded-lg p-3 sm:p-4 overflow-x-auto">
                     {content}
                   </pre>
                 )}
@@ -334,12 +334,12 @@ export function DocumentViewerModal({
                         className="fixed inset-0 z-10"
                         onClick={() => setShowDownloadMenu(false)}
                       />
-                      <div className="absolute right-0 bottom-full mb-1 z-20 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                      <div className="absolute right-0 bottom-full mb-1 z-20 w-52 sm:w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
                         {isMarkdown && (
                           <>
                             <button
                               onClick={handleDownloadPDF}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                              className="w-full px-3 py-2.5 sm:py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 touch-manipulation"
                             >
                               <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -348,7 +348,7 @@ export function DocumentViewerModal({
                             </button>
                             <button
                               onClick={handleDownloadDocx}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                              className="w-full px-3 py-2.5 sm:py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 touch-manipulation"
                             >
                               <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -358,7 +358,7 @@ export function DocumentViewerModal({
                             <div className="border-t border-gray-700 my-1" />
                             <button
                               onClick={handleDownloadMarkdown}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-700 hover:text-gray-300 flex items-center gap-2"
+                              className="w-full px-3 py-2.5 sm:py-2 text-left text-sm text-gray-500 hover:bg-gray-700 hover:text-gray-300 flex items-center gap-2 touch-manipulation"
                             >
                               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -370,7 +370,7 @@ export function DocumentViewerModal({
                         {hasData && (
                           <button
                             onClick={handleDownloadJSON}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-700 hover:text-gray-300 flex items-center gap-2"
+                            className="w-full px-3 py-2.5 sm:py-2 text-left text-sm text-gray-500 hover:bg-gray-700 hover:text-gray-300 flex items-center gap-2 touch-manipulation"
                           >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />

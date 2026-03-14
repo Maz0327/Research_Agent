@@ -137,12 +137,12 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
       className="space-y-5"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h3 className="text-lg font-semibold text-gray-100">
-            Sources for: <span className="text-blue-300">{searchResults.topic}</span>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-100">
+            Sources for: <span className="text-blue-300 break-words">{searchResults.topic}</span>
           </h3>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
             Found {searchResults.total_found} source{searchResults.total_found !== 1 ? 's' : ''}
             {' · '}
             {selectedUrls.size} selected
@@ -197,17 +197,17 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
           {/* Select all / deselect all */}
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Sources</span>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <button
                 onClick={selectAll}
-                className="text-xs text-blue-400 hover:text-blue-300 transition"
+                className="text-xs text-blue-400 hover:text-blue-300 transition px-2 py-1.5 min-h-[36px] touch-manipulation rounded"
               >
                 Select All
               </button>
-              <span className="text-gray-600">·</span>
+              <span className="text-gray-600 self-center">·</span>
               <button
                 onClick={deselectAll}
-                className="text-xs text-gray-400 hover:text-gray-300 transition"
+                className="text-xs text-gray-400 hover:text-gray-300 transition px-2 py-1.5 min-h-[36px] touch-manipulation rounded"
               >
                 Deselect All
               </button>
@@ -215,7 +215,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
           </div>
 
           {/* Candidate cards */}
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[60vh] sm:max-h-[500px] overflow-y-auto pr-1">
             <AnimatePresence>
               {candidates.map((candidate, i) => {
                 const isSelected = selectedUrls.has(candidate.url);
@@ -230,7 +230,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                     transition={{ delay: i * 0.03 }}
                     onClick={() => toggleCandidate(candidate.url)}
                     aria-label={`Toggle source: ${candidate.title || candidate.url}`}
-                    className={`w-full text-left rounded-lg border p-3 transition-all ${
+                    className={`w-full text-left rounded-lg border p-3 transition-all touch-manipulation ${
                       isSelected
                         ? 'border-blue-500/50 bg-blue-500/5'
                         : 'border-gray-700/50 bg-gray-800/20 opacity-60'
@@ -261,7 +261,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                         )}
 
                         {/* Meta badges */}
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-2">
                           <span className={`text-xs px-1.5 py-0.5 rounded ${providerBadge.color}`}>
                             {providerBadge.label}
                           </span>
@@ -297,11 +297,11 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
       )}
 
       {/* Action buttons */}
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
         <button
           onClick={handleApprove}
           disabled={isApproving || selectedUrls.size === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3.5 sm:py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none min-h-[48px] sm:min-h-0 touch-manipulation"
         >
           {isApproving ? (
             <>
@@ -324,7 +324,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
         <button
           onClick={handleBack}
           disabled={isApproving}
-          className="px-4 py-3 text-sm text-gray-400 hover:text-gray-300 transition"
+          className="px-4 py-3 text-sm text-gray-400 hover:text-gray-300 transition touch-manipulation text-center"
         >
           Cancel
         </button>

@@ -468,7 +468,7 @@ export function DocumentCardGrid({
         )}
 
         {/* Cards grid - responsive: 1 col mobile, 3 col desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {availableDocs.map((config) => {
             const isLoading = loadingDoc === config.key;
             // Show Deep Research action button below Doc 1 card
@@ -503,7 +503,7 @@ export function DocumentCardGrid({
                     </span>
                     <button
                       onClick={(e) => handleDownloadPdf(e, config)}
-                      className="p-1.5 rounded-lg hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 transition"
+                      className="p-2 rounded-lg hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 transition min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                       title="Download PDF"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -685,7 +685,7 @@ export function DocumentCardGrid({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
+            className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 w-full max-w-md mx-4 shadow-2xl max-h-[85vh] overflow-y-auto"
           >
             <h3 id="iteration-modal-title" className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
               <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -777,14 +777,14 @@ export function DocumentCardGrid({
             <div className="flex gap-3">
               <button
                 onClick={() => setIterationModalOpen(false)}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition min-h-[44px] touch-manipulation"
               >
                 Cancel
               </button>
               <button
                 onClick={handleIterationSubmit}
                 disabled={iterationMode === 'custom' && !iterationPrompt.trim()}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed rounded-lg transition"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed rounded-lg transition min-h-[44px] touch-manipulation"
               >
                 Start Iteration
               </button>

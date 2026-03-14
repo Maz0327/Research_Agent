@@ -181,7 +181,7 @@ export function IterateDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-4 top-[10vh] sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] max-h-[80vh] overflow-y-auto"
+            className="fixed inset-x-3 sm:inset-x-4 top-[5vh] sm:top-auto sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] max-h-[90vh] sm:max-h-[80vh] overflow-y-auto"
             role="dialog"
             aria-modal="true"
             aria-labelledby="iterate-dialog-title"
@@ -218,7 +218,7 @@ export function IterateDialog({
                     whileTap={{ scale: 0.99 }}
                     onClick={() => setSelectedMode(mode)}
                     className={`
-                      w-full text-left rounded-xl border-2 p-4 transition-all duration-150
+                      w-full text-left rounded-xl border-2 p-3 sm:p-4 transition-all duration-150 touch-manipulation
                       ${isSelected
                         ? `${colors.border} ${colors.bgSelected}`
                         : `border-gray-700 ${colors.bg} hover:border-gray-600`
@@ -353,7 +353,7 @@ export function IterateDialog({
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="px-4 py-2.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors min-h-[44px] touch-manipulation"
                 >
                   Cancel
                 </button>
@@ -361,7 +361,7 @@ export function IterateDialog({
                   onClick={handleSubmit}
                   disabled={!isValid() || submitting}
                   className={`
-                    px-5 py-2 rounded-lg text-sm font-medium transition-all
+                    px-5 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation
                     ${isValid() && !submitting
                       ? 'bg-amber-600 hover:bg-amber-500 text-white'
                       : 'bg-gray-800 text-gray-600 cursor-not-allowed'

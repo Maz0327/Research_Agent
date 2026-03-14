@@ -233,7 +233,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
             </p>
           </div>
         ) : (
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-[40vh] sm:max-h-64 overflow-y-auto">
             {sources.map((source) => (
               <SourceCard
                 key={source.id}
@@ -251,7 +251,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
           type="button"
           onClick={() => setIsModalOpen(true)}
           disabled={isSubmitting}
-          className="w-full rounded-lg border border-dashed border-gray-600 py-3 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-lg border border-dashed border-gray-600 py-3 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] touch-manipulation"
         >
           <span className="inline-flex items-center gap-2">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

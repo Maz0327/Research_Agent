@@ -115,7 +115,7 @@ export function DocumentDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-80 bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 w-full sm:w-80 bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
             role="dialog"
             aria-modal="true"
             aria-label="Document navigation"
@@ -126,7 +126,7 @@ export function DocumentDrawer({
                 <h2 className="text-base font-semibold text-gray-200">Documents</h2>
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                   aria-label="Close drawer"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,7 +216,7 @@ function DrawerItem({ doc, isSelected, onClick, onVersionClick }: DrawerItemProp
     <div
       onClick={isClickable ? onClick : undefined}
       className={`
-        flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150
+        flex items-center gap-3 px-3 py-3 sm:py-2.5 rounded-lg transition-all duration-150 min-h-[48px] sm:min-h-0 touch-manipulation
         ${isSelected
           ? 'bg-amber-900/20 border border-amber-700/40'
           : isClickable
