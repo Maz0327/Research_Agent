@@ -14,11 +14,11 @@ interface CardWrapperProps {
 
 export function CardWrapper({ children, accentColor, className = '' }: CardWrapperProps) {
   return (
-    <div className={`relative bg-gray-800/40 rounded-lg border border-gray-700/40 p-5 overflow-hidden ${className}`}>
+    <div className={`relative bg-gray-800/40 rounded-lg border border-gray-700/40 p-3 sm:p-5 overflow-hidden ${className}`}>
       {accentColor && (
         <div className={`absolute top-0 left-0 bottom-0 w-1 rounded-l-lg ${accentColor}`} />
       )}
-      <div className={accentColor ? 'pl-3' : ''}>
+      <div className={accentColor ? 'pl-2 sm:pl-3' : ''}>
         {children}
       </div>
     </div>

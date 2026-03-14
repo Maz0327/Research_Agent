@@ -144,7 +144,7 @@ function HookCard({ hook }: { hook: OpeningHook }) {
 function KeyMomentCard({ moment, showDetails }: { moment: KeyMoment; showDetails: boolean }) {
   return (
     <div className="flex gap-3 items-start py-2">
-      <div className="flex-shrink-0 w-16 text-right">
+      <div className="flex-shrink-0 w-12 sm:w-16 text-right">
         {moment.timestamp ? (
           <span className="text-[12px] font-mono text-blue-400/70">{moment.timestamp}</span>
         ) : (
@@ -221,7 +221,7 @@ function StructureOptionCard({ option }: { option: StructureOption }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2 text-[12px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px]">
         {option.pros?.length > 0 && (
           <div>
             {option.pros.map((p, i) => (
@@ -249,13 +249,13 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
   const momentCount = data.key_moments?.length || 0;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       {/* Story Core */}
       <StoryCoreSection data={data} />
 
       {/* Recommendation reasoning */}
       {data.recommendation_reasoning && (
-        <div className="text-[14px] text-gray-400 leading-relaxed bg-gray-800/20 rounded-lg px-5 py-4 border border-gray-700/20">
+        <div className="text-[14px] text-gray-400 leading-relaxed bg-gray-800/20 rounded-lg px-3 sm:px-5 py-3 sm:py-4 border border-gray-700/20">
           <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1.5">Recommendation</p>
           <p>{data.recommendation_reasoning}</p>
         </div>
@@ -382,7 +382,7 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
           <SectionHeader title="B-Roll Suggestions" accentColor="bg-cyan-500" count={data.b_roll_suggestions.length} />
           <div className="mt-4 space-y-2">
             {data.b_roll_suggestions.map((b, i) => (
-              <div key={i} className="flex items-start gap-2.5 py-1.5">
+              <div key={i} className="flex items-start gap-2.5 py-2 sm:py-1.5">
                 <span className="text-cyan-500/50 flex-shrink-0 mt-0.5">&#9654;</span>
                 <div className="flex-1 min-w-0">
                   <span className="text-[13px] text-gray-300">{b.description}</span>

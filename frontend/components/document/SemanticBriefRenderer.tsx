@@ -141,7 +141,7 @@ function TensionCard({ tension, showDetails }: { tension: Tension; showDetails: 
       {/* Two-column positions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {tension.sources_position_a?.length > 0 && (
-          <div className="bg-gray-800/40 rounded p-3">
+          <div className="bg-gray-800/40 rounded p-2 sm:p-3">
             <p className="text-[11px] font-medium text-gray-500 uppercase mb-1.5">Position A</p>
             <div className="flex flex-wrap gap-1">
               {tension.sources_position_a.map(sid => (
@@ -151,7 +151,7 @@ function TensionCard({ tension, showDetails }: { tension: Tension; showDetails: 
           </div>
         )}
         {tension.sources_position_b?.length > 0 && (
-          <div className="bg-gray-800/40 rounded p-3">
+          <div className="bg-gray-800/40 rounded p-2 sm:p-3">
             <p className="text-[11px] font-medium text-gray-500 uppercase mb-1.5">Position B</p>
             <div className="flex flex-wrap gap-1">
               {tension.sources_position_b.map(sid => (
@@ -198,11 +198,11 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
   const gapCount = data.gaps?.length || 0;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       {/* Semantic core */}
       {data.semantic_core?.text && (
         <div className="text-center pb-4 border-b border-gray-700/30">
-          <p className="text-[15px] text-gray-200 leading-relaxed max-w-[700px] mx-auto italic">
+          <p className="text-[14px] sm:text-[15px] text-gray-200 leading-relaxed max-w-none sm:max-w-[700px] mx-auto italic">
             &ldquo;{data.semantic_core.text}&rdquo;
           </p>
           {data.semantic_core.based_on?.length > 0 && (
@@ -216,7 +216,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       )}
 
       {/* Stats bar */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center text-[13px] text-gray-400">
+      <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 justify-center text-[13px] text-gray-400">
         <span>{themeCount} themes</span>
         <span className="text-gray-600">&#183;</span>
         <span>{data.key_points?.length || 0} key points</span>
@@ -240,7 +240,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       {data.warnings?.length > 0 && (
         <div className="space-y-2">
           {data.warnings.map((w, i) => (
-            <div key={i} className="flex items-start gap-2 text-[13px] text-yellow-400/80 bg-yellow-900/10 border border-yellow-800/20 rounded-lg px-4 py-2.5">
+            <div key={i} className="flex items-start gap-2 text-[13px] text-yellow-400/80 bg-yellow-900/10 border border-yellow-800/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
               <span className="flex-shrink-0 mt-0.5">⚠</span>
               <span>{w}</span>
             </div>

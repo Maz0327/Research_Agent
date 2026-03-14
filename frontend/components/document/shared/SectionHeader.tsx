@@ -27,10 +27,10 @@ export function SectionHeader({
   const titleSize = level === 2 ? 'text-lg font-semibold' : 'text-base font-semibold';
 
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-start gap-2 sm:gap-3">
       <div className={`w-1 self-stretch rounded-full ${accentColor} flex-shrink-0 mt-0.5`} />
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap">
           {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
           <Tag className={`${titleSize} text-gray-100`}>{title}</Tag>
           {count !== undefined && (

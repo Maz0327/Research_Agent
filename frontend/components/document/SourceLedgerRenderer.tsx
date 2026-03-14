@@ -41,7 +41,7 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
   return (
     <CardWrapper accentColor={source.status === 'failed' ? 'bg-red-500' : source.status === 'partial' ? 'bg-yellow-500' : 'bg-green-500'}>
       {/* Header row */}
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg flex-shrink-0">{icon}</span>
           <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider flex-shrink-0">
@@ -63,7 +63,7 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
           href={source.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[15px] font-medium text-blue-400 hover:text-blue-300 transition leading-snug block mb-2"
+          className="text-[14px] sm:text-[15px] font-medium text-blue-400 hover:text-blue-300 transition leading-snug block mb-2"
         >
           {source.title}
           <svg className="h-3 w-3 inline-block ml-1 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -75,7 +75,7 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
       )}
 
       {/* Meta row */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-gray-500 mb-3">
+      <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 text-[12px] text-gray-500 mb-3">
         {source.creator && <span>{source.creator}</span>}
         {source.published && <span>{source.published}</span>}
         {source.duration && <span>{source.duration}</span>}
@@ -134,7 +134,7 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
             {showFullText ? 'Hide full text' : 'Show full text'}
           </button>
           {showFullText && (
-            <pre className="mt-2 text-[13px] text-gray-400 leading-relaxed whitespace-pre-wrap max-h-[400px] overflow-y-auto bg-gray-900/50 rounded p-3 border border-gray-700/30">
+            <pre className="mt-2 text-[12px] sm:text-[13px] text-gray-400 leading-relaxed whitespace-pre-wrap max-h-[300px] sm:max-h-[400px] overflow-y-auto bg-gray-900/50 rounded p-2 sm:p-3 border border-gray-700/30">
               {source.full_text}
             </pre>
           )}
@@ -155,7 +155,7 @@ export function SourceLedgerRenderer({ data, showDetails = false }: SourceLedger
   const failed = data.sources?.filter(s => s.status === 'failed').length || 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* Topic header */}
       {data.topic && (
         <div className="text-center pb-4 border-b border-gray-700/30">
@@ -190,7 +190,7 @@ export function SourceLedgerRenderer({ data, showDetails = false }: SourceLedger
 
 function Stat({ label, value, color = 'text-gray-100' }: { label: string; value: number; color?: string }) {
   return (
-    <div className="text-center px-4">
+    <div className="text-center px-3 sm:px-4">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
       <p className="text-[11px] text-gray-500 uppercase tracking-wider">{label}</p>
     </div>

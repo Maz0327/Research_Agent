@@ -50,7 +50,7 @@ function GapCard({ gap, showDetails }: { gap: Gap; showDetails: boolean }) {
     : formatInternalId(gap.gap_id);
 
   return (
-    <div className="bg-amber-900/10 border border-amber-800/20 rounded-lg p-4 relative overflow-hidden">
+    <div className="bg-amber-900/10 border border-amber-800/20 rounded-lg p-3 sm:p-4 relative overflow-hidden">
       <div className="absolute top-0 left-0 bottom-0 w-1 bg-amber-500/60 rounded-l-lg" />
       <div className="pl-3">
         <div className="flex items-center gap-2 mb-1.5">
@@ -87,9 +87,9 @@ function TensionItem({ tension, showDetails }: { tension: Tension; showDetails: 
       <p className="text-[14px] font-medium text-gray-200 mb-1">{tension.label}</p>
       <p className="text-[13px] text-gray-400 leading-relaxed mb-2">{tension.description}</p>
       {/* Two-column positions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-2">
         {tension.sources_position_a?.length > 0 && (
-          <div className="bg-gray-800/30 rounded p-2.5">
+          <div className="bg-gray-800/30 rounded p-2 sm:p-2.5">
             <p className="text-[11px] font-medium text-gray-500 uppercase mb-1">Position A</p>
             <div className="flex flex-wrap gap-1">
               {tension.sources_position_a.map(sid => (
@@ -99,7 +99,7 @@ function TensionItem({ tension, showDetails }: { tension: Tension; showDetails: 
           </div>
         )}
         {tension.sources_position_b?.length > 0 && (
-          <div className="bg-gray-800/30 rounded p-2.5">
+          <div className="bg-gray-800/30 rounded p-2 sm:p-2.5">
             <p className="text-[11px] font-medium text-gray-500 uppercase mb-1">Position B</p>
             <div className="flex flex-wrap gap-1">
               {tension.sources_position_b.map(sid => (
@@ -302,13 +302,13 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
   const tensionCount = data.tensions?.length || 0;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       {/* Summary header */}
       <div className="text-center pb-4 border-b border-gray-700/30">
         <div className="flex items-center justify-center gap-2 mb-2">
           <ConfidenceBadge level={data.confidence} size="md" />
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center text-[13px] text-gray-400">
+        <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 justify-center text-[13px] text-gray-400">
           <span>{data.current_corpus?.source_count || 0} sources</span>
           <span className="text-gray-600">&#183;</span>
           <span>{threadCount} themes</span>
@@ -333,7 +333,7 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
       {data.warnings?.length > 0 && (
         <div className="space-y-2">
           {data.warnings.map((w, i) => (
-            <div key={i} className="flex items-start gap-2 text-[13px] text-yellow-400/80 bg-yellow-900/10 border border-yellow-800/20 rounded-lg px-4 py-2.5">
+            <div key={i} className="flex items-start gap-2 text-[13px] text-yellow-400/80 bg-yellow-900/10 border border-yellow-800/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
               <span className="flex-shrink-0 mt-0.5">⚠</span>
               <span>{w}</span>
             </div>
