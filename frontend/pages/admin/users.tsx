@@ -58,7 +58,7 @@ function UserRow({ user, onBan, onUnban }: { user: AdminUser; onBan: () => Promi
           <button
             onClick={() => handleAction(user.is_banned ? onUnban : onBan)}
             disabled={isLoading}
-            className={`rounded px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+            className={`rounded px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50 min-h-[44px] touch-manipulation ${
               user.is_banned
                 ? 'bg-green-900/30 text-green-300'
                 : 'bg-red-900/30 text-red-300'
@@ -132,7 +132,7 @@ function AdminUsersContent() {
     <AdminLayout title="Users">
       <div className="rounded-lg border border-gray-700 bg-gray-800">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="border-b border-gray-700 bg-gray-900">
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-400">

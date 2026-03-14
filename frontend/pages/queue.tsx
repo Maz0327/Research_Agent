@@ -228,7 +228,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`relative px-4 py-2.5 text-sm font-medium transition-all rounded-lg whitespace-nowrap flex-shrink-0 ${
+      className={`relative flex-1 px-2 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-all rounded-lg text-center ${
         active
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
           : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800'
@@ -423,7 +423,7 @@ function JobsContent() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-6 p-1 bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto scrollbar-hide">
+      <div className="flex gap-1 sm:gap-2 mb-6 p-1 bg-gray-900 rounded-xl border border-gray-800">
         <TabButton 
           active={activeTab === 'active'} 
           onClick={() => handleTabChange('active')}

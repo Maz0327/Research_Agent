@@ -31,7 +31,7 @@ function StatCard({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-400">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-white">{value}</p>
+          <p className="mt-1 text-2xl sm:text-3xl font-bold text-white">{value}</p>
         </div>
         <div className="rounded-full bg-gray-800/80 p-3">{icon}</div>
       </div>

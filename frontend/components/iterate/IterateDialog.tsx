@@ -353,7 +353,7 @@ export function IterateDialog({
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="px-4 py-2.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors min-h-[44px] touch-manipulation"
                 >
                   Cancel
                 </button>
@@ -361,7 +361,7 @@ export function IterateDialog({
                   onClick={handleSubmit}
                   disabled={!isValid() || submitting}
                   className={`
-                    px-5 py-2 rounded-lg text-sm font-medium transition-all
+                    px-5 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation
                     ${isValid() && !submitting
                       ? 'bg-amber-600 hover:bg-amber-500 text-white'
                       : 'bg-gray-800 text-gray-600 cursor-not-allowed'

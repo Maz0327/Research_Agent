@@ -75,7 +75,7 @@ function JobRow({
             <button
               onClick={() => handleAction(onCancel, 'cancel')}
               disabled={isLoading !== null}
-              className="rounded bg-orange-900/30 px-2 py-1 text-xs font-medium text-orange-300 disabled:opacity-50"
+              className="rounded bg-orange-900/30 px-3 py-2 text-xs font-medium text-orange-300 disabled:opacity-50 min-h-[44px] touch-manipulation"
             >
               {isLoading === 'cancel' ? '...' : 'Cancel'}
             </button>
@@ -83,7 +83,7 @@ function JobRow({
           <button
             onClick={() => handleAction(onDelete, 'delete')}
             disabled={isLoading !== null}
-            className="rounded bg-red-900/30 px-2 py-1 text-xs font-medium text-red-300 disabled:opacity-50"
+            className="rounded bg-red-900/30 px-3 py-2 text-xs font-medium text-red-300 disabled:opacity-50 min-h-[44px] touch-manipulation"
           >
             {isLoading === 'delete' ? '...' : 'Delete'}
           </button>
@@ -180,7 +180,7 @@ function AdminJobsContent() {
 
       <div className="rounded-lg border border-gray-700 bg-gray-800">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[750px]">
             <thead>
               <tr className="border-b border-gray-700 bg-gray-900">
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-400">

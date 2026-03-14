@@ -54,8 +54,8 @@ export default function Home() {
       <div className="min-h-screen bg-dark-bg-primary text-gray-100">
         {/* Background gradient effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-1/4 w-[80vw] h-[80vw] sm:w-[500px] sm:h-[500px] bg-blue-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-[80vw] h-[80vw] sm:w-[500px] sm:h-[500px] bg-purple-500/10 rounded-full blur-3xl" />
         </div>
 
         <PublicHeader />
@@ -68,7 +68,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 id="hero-heading" className="text-5xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
+            <h1 id="hero-heading" className="text-3xl font-extrabold tracking-tight sm:text-5xl md:text-7xl">
               <span className="block text-gray-100">Research Agent</span>
               <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 for Documentary Creators

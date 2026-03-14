@@ -137,9 +137,9 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
       className="space-y-5"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold text-gray-100 truncate">
             Sources for: <span className="text-blue-300">{searchResults.topic}</span>
           </h3>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -150,7 +150,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
         </div>
         <button
           onClick={handleBack}
-          className="text-sm text-gray-400 hover:text-gray-300 transition"
+          className="text-sm text-gray-400 hover:text-gray-300 transition flex-shrink-0 self-start sm:self-auto"
         >
           ← New Search
         </button>
@@ -297,11 +297,11 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
       )}
 
       {/* Action buttons */}
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
         <button
           onClick={handleApprove}
           disabled={isApproving || selectedUrls.size === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-purple-500 hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {isApproving ? (
             <>
