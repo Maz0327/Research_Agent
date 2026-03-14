@@ -1,5 +1,6 @@
 /**
  * Admin layout component with navigation sidebar.
+ * Mobile-first responsive: horizontal nav on mobile, sidebar on desktop.
  * Dark mode styling.
  */
 import { ReactNode } from 'react';
@@ -48,9 +49,41 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
   return (
     <Layout>
-      <div className="flex gap-6">
-        {/* Sidebar */}
-        <aside className="w-56 flex-shrink-0">
+      <div className="flex flex-col lg:flex-row lg:gap-6">
+        {/* Mobile: horizontal scrollable nav strip */}
+        <div className="lg:hidden mb-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+            {adminNavItems.map((item) => {
+              const isActive = router.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-all touch-manipulation ${
+                    isActive
+                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-gray-700'
+                  }`}
+                >
+                  {icons[item.icon]}
+                  {item.label}
+                </Link>
+              );
+            })}
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 hover:text-gray-300 whitespace-nowrap border border-gray-700 transition touch-manipulation"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back
+            </Link>
+          </div>
+        </div>
+
+        {/* Desktop: sidebar */}
+        <aside className="hidden lg:block w-56 flex-shrink-0">
           <nav className="sticky top-4 rounded-xl border border-gray-800 bg-gray-900 p-4 shadow-lg">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
               Admin Panel
@@ -95,7 +128,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           <motion.h1
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+            className="mb-4 sm:mb-6 text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
           >
             {title}
           </motion.h1>

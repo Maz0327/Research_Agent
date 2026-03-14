@@ -120,7 +120,7 @@ function getArtifactState(
       return 'not_available';
 
     case 'doc_3':
-      if (artifacts?.doc_3_path || artifacts?.producer_packet_md) return 'completed';
+      if (artifacts?.doc_3_path || artifacts?.creator_brief_md) return 'completed';
       if (producer_status === 'failed') return 'failed';
       if (producer_status === 'running') return 'running';
       if (producer_status === 'queued') return 'queued';
