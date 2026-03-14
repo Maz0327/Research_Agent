@@ -4,6 +4,7 @@ Provides centralized rate limiting with exponential backoff to prevent
 API quota exhaustion and handle transient failures gracefully.
 """
 import asyncio
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, TypeVar
@@ -32,8 +33,9 @@ class RateLimiterState:
     consecutive_failures: int = 0
 
 
-# Per-API rate limiter states
+# Per-API rate limiter states (guarded by _rate_limiter_lock)
 _rate_limiter_states: dict[str, RateLimiterState] = {}
+_rate_limiter_lock = threading.Lock()
 
 
 # Default configurations per API service
@@ -78,9 +80,10 @@ DEFAULT_RATE_LIMITS: dict[str, RateLimitConfig] = {
 
 def get_rate_limiter_state(api_name: str) -> RateLimiterState:
     """Get or create rate limiter state for an API."""
-    if api_name not in _rate_limiter_states:
-        _rate_limiter_states[api_name] = RateLimiterState()
-    return _rate_limiter_states[api_name]
+    with _rate_limiter_lock:
+        if api_name not in _rate_limiter_states:
+            _rate_limiter_states[api_name] = RateLimiterState()
+        return _rate_limiter_states[api_name]
 
 
 def get_rate_limit_config(api_name: str) -> RateLimitConfig:
@@ -114,25 +117,26 @@ def check_rate_limit(api_name: str) -> tuple[bool, float]:
     state = get_rate_limiter_state(api_name)
     config = get_rate_limit_config(api_name)
 
-    _cleanup_old_requests(state)
+    with _rate_limiter_lock:
+        _cleanup_old_requests(state)
 
-    now = time.time()
+        now = time.time()
 
-    # Check minute limit
-    if len(state.minute_requests) >= config.requests_per_minute:
-        oldest_minute_request = min(state.minute_requests)
-        wait_time = 60 - (now - oldest_minute_request)
-        if wait_time > 0:
-            logger.debug(f"Rate limit: {api_name} minute limit reached, wait {wait_time:.1f}s")
-            return False, wait_time
+        # Check minute limit
+        if len(state.minute_requests) >= config.requests_per_minute:
+            oldest_minute_request = min(state.minute_requests)
+            wait_time = 60 - (now - oldest_minute_request)
+            if wait_time > 0:
+                logger.debug(f"Rate limit: {api_name} minute limit reached, wait {wait_time:.1f}s")
+                return False, wait_time
 
-    # Check hour limit
-    if len(state.hour_requests) >= config.requests_per_hour:
-        oldest_hour_request = min(state.hour_requests)
-        wait_time = 3600 - (now - oldest_hour_request)
-        if wait_time > 0:
-            logger.debug(f"Rate limit: {api_name} hour limit reached, wait {wait_time:.1f}s")
-            return False, wait_time
+        # Check hour limit
+        if len(state.hour_requests) >= config.requests_per_hour:
+            oldest_hour_request = min(state.hour_requests)
+            wait_time = 3600 - (now - oldest_hour_request)
+            if wait_time > 0:
+                logger.debug(f"Rate limit: {api_name} hour limit reached, wait {wait_time:.1f}s")
+                return False, wait_time
 
     return True, 0.0
 
@@ -142,21 +146,24 @@ def record_request(api_name: str) -> None:
     state = get_rate_limiter_state(api_name)
     now = time.time()
 
-    state.minute_requests.append(now)
-    state.hour_requests.append(now)
-    state.last_request = now
+    with _rate_limiter_lock:
+        state.minute_requests.append(now)
+        state.hour_requests.append(now)
+        state.last_request = now
 
 
 def record_success(api_name: str) -> None:
     """Record a successful request (resets failure counter)."""
     state = get_rate_limiter_state(api_name)
-    state.consecutive_failures = 0
+    with _rate_limiter_lock:
+        state.consecutive_failures = 0
 
 
 def record_failure(api_name: str) -> None:
     """Record a failed request (increments failure counter)."""
     state = get_rate_limiter_state(api_name)
-    state.consecutive_failures += 1
+    with _rate_limiter_lock:
+        state.consecutive_failures += 1
 
 
 def get_backoff_delay(api_name: str) -> float:
@@ -301,11 +308,12 @@ def reset_rate_limiter(api_name: Optional[str] = None) -> None:
     Args:
         api_name: Specific API to reset, or None to reset all
     """
-    if api_name:
-        if api_name in _rate_limiter_states:
-            _rate_limiter_states[api_name] = RateLimiterState()
-    else:
-        _rate_limiter_states.clear()
+    with _rate_limiter_lock:
+        if api_name:
+            if api_name in _rate_limiter_states:
+                _rate_limiter_states[api_name] = RateLimiterState()
+        else:
+            _rate_limiter_states.clear()
 
 
 def get_rate_limit_stats(api_name: str) -> dict[str, Any]:
@@ -318,7 +326,8 @@ def get_rate_limit_stats(api_name: str) -> dict[str, Any]:
     state = get_rate_limiter_state(api_name)
     config = get_rate_limit_config(api_name)
 
-    _cleanup_old_requests(state)
+    with _rate_limiter_lock:
+        _cleanup_old_requests(state)
 
     return {
         "api_name": api_name,

@@ -111,6 +111,7 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
     createdAt: job.created_at,
   });
 
+  const clampedProgress = Math.min(100, Math.max(0, job.progress_percent ?? 0));
   const stageList = resolveStageList(job.pipeline, job.stage);
   const stageLabel =
     job.status === 'queued'
@@ -139,7 +140,7 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
 
         {/* Timing block */}
         <div className="flex-shrink-0 text-right">
-          <p className="text-sm font-mono text-blue-300">{job.progress_percent}%</p>
+          <p className="text-sm font-mono text-blue-300">{clampedProgress}%</p>
           {elapsed && (
             <p className="text-xs text-gray-500 mt-0.5">{elapsed} elapsed</p>
           )}
@@ -153,7 +154,7 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
       <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
-          animate={{ width: `${job.progress_percent}%` }}
+          animate={{ width: `${clampedProgress}%` }}
           transition={{ duration: 0.3 }}
           className="h-full bg-blue-500 rounded-full"
         />

@@ -478,12 +478,13 @@ def extract_semantic_structure(
             total_cost += response.get("cost", 0)
             data = response.get("data", {})
 
-            # Validate extraction
+            # Validate extraction (including Source Identity Lock)
             validation_report = validate_semantic_extraction(
                 data=data,
                 analysis_mode=analysis_mode,
                 source_word_count=source_word_count,
                 source_duration_minutes=source_duration_minutes,
+                expected_source_id=source_id,
             )
 
             # Check if retry needed

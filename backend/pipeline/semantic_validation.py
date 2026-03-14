@@ -403,15 +403,16 @@ def validate_grounding(
 
         if analysis_mode in _NO_QUOTE_MODES_FOR_GROUNDING:
             # video_only: NO quotes allowed, use observations with timestamps
+            # Architecture Rule 6: timestamps REQUIRED, confidence must be LOW
             if not timestamp:
                 results.append(ValidationResult(
-                    level=ValidationLevel.SOFT_FAIL,
+                    level=ValidationLevel.HARD_FAIL,
                     message=f"Claim {claim.get('claim_id')} in video_only mode missing timestamp_range",
                     field="claims",
                 ))
             if confidence != "low":
                 results.append(ValidationResult(
-                    level=ValidationLevel.SOFT_FAIL,
+                    level=ValidationLevel.HARD_FAIL,
                     message=f"Claim {claim.get('claim_id')} in video_only mode must have confidence: low",
                     field="claims",
                 ))
@@ -908,117 +909,10 @@ def validate_clip_timestamps(
     return clips, warnings
 
 
-# -----------------------------------------------------------------------------
-# Hallucination Prevention: Citation Validation (CV-001)
-# DEPRECATED 2026-03-11: based_on field does not exist in current models.
-# Kept for backward compatibility with existing tests. Will be removed in Phase 1.
-# -----------------------------------------------------------------------------
 
-def validate_based_on_references(
-    assertions: list[dict],
-    valid_ids: set[str],
-) -> tuple[list[dict], list[str]]:
-    """
-    Validate that based_on references point to existing IDs.
-
-    Rule CV-001: Citation IDs must exist - hard fail removes invalid refs.
-
-    Args:
-        assertions: List of assertion dicts with "based_on" field
-        valid_ids: Set of valid IDs that can be referenced
-
-    Returns:
-        Tuple of (validated_assertions, warnings)
-    """
-    warnings = []
-    valid_assertions = []
-
-    for assertion in assertions:
-        based_on = assertion.get("based_on", [])
-
-        # Skip if no references
-        if not based_on:
-            valid_assertions.append(assertion)
-            continue
-
-        # Separate valid and invalid references
-        valid_refs = [ref for ref in based_on if ref in valid_ids]
-        invalid_refs = [ref for ref in based_on if ref not in valid_ids]
-
-        if invalid_refs:
-            assertion_id = assertion.get("key_point_id") or assertion.get("claim_id") or "UNKNOWN"
-            warning = f"Assertion {assertion_id}: removed invalid refs {invalid_refs}"
-            warnings.append(warning)
-            logger.warning(warning)
-            assertion["_validation_warning"] = f"Removed invalid refs: {invalid_refs}"
-            assertion["_removed_refs"] = invalid_refs
-
-        assertion["based_on"] = valid_refs
-
-        # Only keep if at least one valid reference remains
-        if valid_refs:
-            valid_assertions.append(assertion)
-        else:
-            # All references were invalid - keep assertion but mark it
-            assertion["_all_refs_invalid"] = True
-            assertion["confidence"] = "low"  # Downgrade confidence
-            valid_assertions.append(assertion)
-            warnings.append(
-                f"Assertion {assertion.get('key_point_id', 'UNKNOWN')}: "
-                "all based_on refs invalid, confidence downgraded to low"
-            )
-
-    return valid_assertions, warnings
-
-
-def collect_valid_ids(data: dict) -> set[str]:
-    """
-    Collect all valid IDs from extraction data for citation validation.
-
-    Args:
-        data: Semantic extraction output dict
-
-    Returns:
-        Set of valid IDs (SRC_*, QUOTE_*, CLIP_*, etc.)
-    """
-    valid_ids = set()
-
-    # Source IDs
-    source_id = data.get("source_id")
-    if source_id:
-        valid_ids.add(source_id)
-
-    # Quote IDs
-    for quote in data.get("quotes", []):
-        quote_id = quote.get("quote_id")
-        if quote_id:
-            valid_ids.add(quote_id)
-
-    # Clip IDs
-    for clip in data.get("clips", []):
-        clip_id = clip.get("clip_id")
-        if clip_id:
-            valid_ids.add(clip_id)
-
-    # Key Point IDs
-    for kp in data.get("key_points", []):
-        kp_id = kp.get("key_point_id")
-        if kp_id:
-            valid_ids.add(kp_id)
-
-    # Claim IDs
-    for claim in data.get("claims", []):
-        claim_id = claim.get("claim_id")
-        if claim_id:
-            valid_ids.add(claim_id)
-
-    # Theme IDs
-    for theme in data.get("themes", []):
-        theme_id = theme.get("theme_id")
-        if theme_id:
-            valid_ids.add(theme_id)
-
-    return valid_ids
+# NOTE: validate_based_on_references() and collect_valid_ids() removed 2026-03-14.
+# The based_on field never existed in current models. Dead code moved to:
+# backend/archive/deprecated_validation.py
 
 
 # -----------------------------------------------------------------------------
