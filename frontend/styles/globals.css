@@ -135,6 +135,27 @@ select:focus-visible {
   }
 }
 
+/* Tree-branch list styles — used by document preprocessor to render ├── / └── patterns */
+.tree-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 12px 0;
+}
+.tree-list li {
+  padding: 5px 0 5px 14px;
+  border-left: 2px solid #333333;
+  margin-left: 8px;
+  color: #d1d5db;
+  line-height: 1.65;
+}
+.tree-list li em {
+  color: #6b7280;
+  font-style: italic;
+}
+.tree-list li strong {
+  color: #f3f4f6;
+}
+
 
 
 

@@ -128,6 +128,70 @@ export function formatTimestampWithRelative(
 }
 
 // =============================================================================
+// Document Markdown Preprocessor
+// =============================================================================
+
+/**
+ * Preprocess raw document markdown to fix known rendering issues before display.
+ *
+ * Fixes applied (in order):
+ * 1. Strip "> > " nested blockquote artifacts from doc headers
+ * 2. Transform tree branch chars (├──, └──, │) into clean bullet lists
+ * 3. Remove duplicate "Single-source claim (...)" lines
+ * 4. Remove ALL-CAPS template title headers (already shown in modal header)
+ */
+export function preprocessDocumentMarkdown(markdown: string): string {
+  if (!markdown) return markdown;
+
+  let result = markdown;
+
+  // Fix 1: Strip "> > " artifacts (nested blockquotes that render as literal "> >")
+  // Pattern: lines starting with "> > " — flatten to just the content
+  result = result.replace(/^> > /gm, '');
+
+  // Fix 2: Transform tree branch lines into clean indented markdown lists
+  // Detect blocks of lines starting with tree chars and convert them
+  result = result.replace(
+    /((?:^[ \t]*[├└│][─ ][^\n]*\n?)+)/gm,
+    (block) => {
+      const lines = block.split('\n').filter(line => line.trim());
+      const converted = lines.map(line => {
+        const trimmed = line.trim();
+        // Skip pure connector lines (│ alone or │   )
+        if (/^│\s*$/.test(trimmed)) return null;
+        // Strip tree prefix chars
+        const content = trimmed.replace(/^[├└│][─ ]+/, '').trim();
+        if (!content) return null;
+        // Convert pipe-separated source citations: "text | (Source X)" → "text *(Source X)*"
+        const withCitation = content.replace(/\s*\|\s*(\(Source[^)]+\))/g, ' *$1*');
+        // Determine indent level from original indentation
+        const indent = line.match(/^([ \t]*)/)?.[1] ?? '';
+        const depth = Math.floor(indent.length / 2);
+        const prefix = '  '.repeat(depth) + '- ';
+        return prefix + withCitation;
+      }).filter(Boolean);
+      return converted.join('\n') + '\n';
+    }
+  );
+
+  // Fix 3: Remove duplicate "Single-source claim (X only — verify independently)" lines
+  // These always repeat the parenthetical already on the previous bullet line
+  result = result.replace(/^Single-source claim \([^)]+only[^)]*\)\s*$/gm, '');
+
+  // Fix 4: Remove ALL-CAPS document template title headers
+  // The modal header already shows the doc name — these add visual noise
+  result = result.replace(
+    /^(SEMANTIC RESEARCH BRIEF|RESEARCH BRIEF|SOURCE LEDGER|CREATOR BRIEF|JUMP-START DIRECTIONS|PRODUCER PACKET)\s*$/gm,
+    ''
+  );
+
+  // Clean up any triple+ blank lines left by removals
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result;
+}
+
+// =============================================================================
 // Markdown Transformation
 // =============================================================================
 
@@ -205,8 +269,11 @@ function restoreProtectedSections(text: string, protectedMap: Map<string, string
 export function transformMarkdownForDisplay(markdown: string): string {
   if (!markdown) return markdown;
 
+  // Step 0: Fix known rendering artifacts before any transformation
+  const preprocessed = preprocessDocumentMarkdown(markdown);
+
   // Step 1: Protect code blocks and URLs from transformation
-  const { text: safeText, protected: protectedMap } = protectSections(markdown);
+  const { text: safeText, protected: protectedMap } = protectSections(preprocessed);
 
   let result = safeText;
 
@@ -241,8 +308,11 @@ export function transformMarkdownForDisplay(markdown: string): string {
 export function transformMarkdownWithDetails(markdown: string, showDetails: boolean): string {
   if (!markdown) return markdown;
 
+  // Step 0: Fix known rendering artifacts
+  const preprocessed = preprocessDocumentMarkdown(markdown);
+
   // Step 1: Protect code blocks and URLs
-  const { text: safeText, protected: protectedMap } = protectSections(markdown);
+  const { text: safeText, protected: protectedMap } = protectSections(preprocessed);
 
   let result = safeText;
 

@@ -47,11 +47,11 @@ function preprocessMarkdown(md: string): string {
 
   // GitHub-style alerts → styled divs (must be done before remark parses blockquotes)
   const alertConfig: Record<string, { border: string; bg: string; icon: string; titleColor: string }> = {
-    NOTE:      { border: '#3b82f6', bg: 'rgba(30,58,138,0.3)',  icon: 'ℹ️', titleColor: '#93c5fd' },
-    TIP:       { border: '#22c55e', bg: 'rgba(20,83,45,0.3)',   icon: '💡', titleColor: '#86efac' },
-    IMPORTANT: { border: '#a855f7', bg: 'rgba(88,28,135,0.3)',  icon: '⚡', titleColor: '#c4b5fd' },
-    WARNING:   { border: '#eab308', bg: 'rgba(113,63,18,0.3)',  icon: '⚠️', titleColor: '#fde047' },
-    CAUTION:   { border: '#ef4444', bg: 'rgba(127,29,29,0.3)',  icon: '🚨', titleColor: '#fca5a5' },
+    NOTE:      { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  icon: 'ℹ️', titleColor: '#93c5fd' },
+    TIP:       { border: '#22c55e', bg: 'rgba(34,197,94,0.07)',   icon: '💡', titleColor: '#86efac' },
+    IMPORTANT: { border: '#8b5cf6', bg: 'rgba(139,92,246,0.08)',  icon: '⚡', titleColor: '#c4b5fd' },
+    WARNING:   { border: '#f59e0b', bg: 'rgba(245,158,11,0.07)',  icon: '⚠️', titleColor: '#fde68a' },
+    CAUTION:   { border: '#f59e0b', bg: 'rgba(245,158,11,0.07)',  icon: '🚨', titleColor: '#fde68a' },
   };
 
   result = result.replace(
@@ -59,7 +59,7 @@ function preprocessMarkdown(md: string): string {
     (_, type: string, body: string) => {
       const content = body.replace(/^> ?/gm, '').trim();
       const cfg = alertConfig[type] || alertConfig.NOTE;
-      return `<div class="github-alert" style="border-left:4px solid ${cfg.border};background:${cfg.bg};padding:12px 12px 12px 16px;margin:16px 0;border-radius:0 8px 8px 0;">\n<div style="color:${cfg.titleColor};font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">${cfg.icon} ${type}</div>\n<div style="color:#d1d5db;font-size:14px;line-height:1.6;">${content}</div>\n</div>\n`;
+      return `<div class="github-alert" style="border-left:4px solid ${cfg.border};background:${cfg.bg};padding:16px 20px;margin:20px 0;border-radius:8px;">\n<div style="color:${cfg.titleColor};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">${cfg.icon} ${type}</div>\n<div style="color:#d1d5db;font-size:14px;line-height:1.65;">${content}</div>\n</div>\n`;
     }
   );
 
@@ -136,8 +136,8 @@ function buildComponents(compact: boolean) {
       }
     : {
         h1: 'text-2xl font-bold text-white mt-8 mb-5 pb-3 border-b-2 border-gray-600',
-        h2: 'text-xl font-bold text-gray-50 mt-8 mb-4 pb-2 border-b border-gray-700',
-        h3: 'text-lg font-semibold text-gray-100 mt-6 mb-3 pb-1 border-b border-gray-800',
+        h2: 'text-xl font-bold text-gray-50 mt-10 mb-4 pb-2 border-b border-gray-700',
+        h3: 'text-base font-semibold text-gray-100 mt-7 mb-3',
         h4: 'text-base font-semibold text-gray-200 mt-5 mb-2',
       };
 
@@ -156,9 +156,9 @@ function buildComponents(compact: boolean) {
       <h4 className={headingStyles.h4}>{children}</h4>
     ),
 
-    // ----- Paragraph -----
+    // ----- Paragraph — improved line-height and spacing -----
     p: ({ children }: { children?: ReactNode }) => (
-      <p className={compact ? 'my-1.5 leading-relaxed' : 'my-2 leading-relaxed'}>{children}</p>
+      <p className={compact ? 'my-1.5 leading-relaxed text-sm' : 'my-3 leading-[1.75] text-[15px]'}>{children}</p>
     ),
 
     // ----- Links with external indicator -----
@@ -181,9 +181,9 @@ function buildComponents(compact: boolean) {
       );
     },
 
-    // ----- Code blocks -----
+    // ----- Code blocks — prose detection for source text -----
     pre: ({ children }: { children?: ReactNode }) => (
-      <pre className={`bg-gray-800/80 rounded-lg ${compact ? 'p-3 my-2' : 'p-4 my-3'} overflow-x-auto border border-gray-700/50 text-sm leading-relaxed`}>
+      <pre className={`bg-gray-800/80 rounded-lg ${compact ? 'p-3 my-2' : 'p-4 my-4'} border border-gray-700/50 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden`}>
         {children}
       </pre>
     ),
@@ -205,57 +205,56 @@ function buildComponents(compact: boolean) {
       );
     },
 
-    // ----- Tables with alternating rows -----
+    // ----- Tables with alternating rows — more padding -----
     table: ({ children }: { children?: ReactNode }) => {
       tableRowIndex = 0; // reset on each table
       return (
-        <div className={`overflow-x-auto ${compact ? 'my-3' : 'my-4'} rounded-lg border border-gray-700/50`}>
+        <div className={`overflow-x-auto ${compact ? 'my-3' : 'my-5'} rounded-lg border border-gray-700/50`}>
           <table className="w-full text-sm border-collapse">{children}</table>
         </div>
       );
     },
     thead: ({ children }: { children?: ReactNode }) => (
-      <thead className="bg-gray-800">{children}</thead>
+      <thead className="bg-gray-800/60">{children}</thead>
     ),
     th: ({ children }: { children?: ReactNode }) => (
-      <th className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2.5 text-xs'} text-left font-semibold text-gray-200 uppercase tracking-wider border-b border-gray-600`}>
+      <th className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-600`}>
         {children}
       </th>
     ),
     td: ({ children }: { children?: ReactNode }) => (
-      <td className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2'} text-gray-300 border-b border-gray-800/50`}>
+      <td className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'} text-gray-200 border-b border-gray-800/50`}>
         {children}
       </td>
     ),
     tr: ({ children }: { children?: ReactNode }) => {
       const idx = tableRowIndex++;
-      // Skip header row (idx 0 is typically thead's tr)
       const bg = idx % 2 === 0 ? 'bg-gray-800/30' : 'bg-gray-800/10';
       return (
         <tr className={`${bg} hover:bg-gray-700/30 transition-colors`}>{children}</tr>
       );
     },
 
-    // ----- Lists -----
+    // ----- Lists — more breathing room -----
     ul: ({ children }: { children?: ReactNode }) => (
-      <ul className={`${compact ? 'my-2 space-y-0.5' : 'my-3 space-y-1'}`}>{children}</ul>
+      <ul className={`${compact ? 'my-2 space-y-0.5' : 'my-4 space-y-2'}`}>{children}</ul>
     ),
     ol: ({ children }: { children?: ReactNode }) => (
-      <ol className={`${compact ? 'my-2 space-y-0.5' : 'my-3 space-y-1'} list-decimal`}>{children}</ol>
+      <ol className={`${compact ? 'my-2 space-y-0.5' : 'my-4 space-y-2'} list-decimal`}>{children}</ol>
     ),
     li: ({ children }: { children?: ReactNode }) => (
-      <li className="ml-4 pl-1 list-disc text-gray-300 leading-relaxed">{children}</li>
+      <li className="ml-4 pl-1 list-disc text-gray-300 leading-[1.7]">{children}</li>
     ),
 
-    // ----- Blockquotes -----
+    // ----- Blockquotes — remove italic, improve readability -----
     blockquote: ({ children }: { children?: ReactNode }) => (
-      <blockquote className="border-l-4 border-gray-600 pl-4 py-1 my-2 text-gray-400 italic">
+      <blockquote className="border-l-4 border-gray-600 pl-5 py-2 my-4 text-gray-300 leading-relaxed">
         {children}
       </blockquote>
     ),
 
     // ----- Horizontal rule -----
-    hr: () => <hr className={`border-gray-700/50 ${compact ? 'my-4' : 'my-6'}`} />,
+    hr: () => <hr className={`border-gray-700/50 ${compact ? 'my-4' : 'my-8'}`} />,
 
     // ----- Strong / emphasis -----
     strong: ({ children }: { children?: ReactNode }) => (
