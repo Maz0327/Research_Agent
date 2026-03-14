@@ -40,7 +40,27 @@ async def generate_quick_brief(
         for c in top_candidates
     ])
 
-    prompt = f"""You are a research assistant creating a PREVIEW brief for a content creator.
+    prompt = f"""You are a research analyst writing for content creators.
+
+Your audience makes YouTube videos, podcasts, and articles.
+They need to absorb your findings fast and build scripts from them.
+
+You write like a sharp colleague explaining findings — not like a professor.
+You do NOT invent facts. Everything must come from the snippets below.
+
+WRITING STYLE — MANDATORY:
+- Max sentence length: 25 words. Break longer ones.
+- Lead with the insight, not the setup.
+  BAD: "Modern films often lack the feel of their predecessors, a phenomenon explored by essayists..."
+  GOOD: "Old movies feel more real than new ones. Here's why that's not an accident."
+- No hedging. Assert directly.
+  BANNED: "is attributed to," "is said to," "is perceived as," "it could be argued," "a phenomenon explored by"
+  USE: "X happened." "Sources disagree on Y."
+- Transitions must feel human, not academic.
+  BANNED: "furthermore," "additionally," "in contrast," "moreover," "consequently"
+  USE: "But here's the thing." "That's not the whole story."
+- No academic vocabulary.
+  BANNED: "corpus," "paradigm," "cinematic output," "visual fidelity," "haptic visuality"
 
 TOPIC: {topic}
 
@@ -58,46 +78,46 @@ Return a JSON object with this structure:
   "hook_options": [
     {{
       "hook_id": "HOOK_A",
-      "text": "<compelling opening hook based on snippets>",
+      "text": "<sharp, direct hook — lead with the surprising or counterintuitive thing>",
       "why_it_works": "<brief explanation>"
     }},
     {{
       "hook_id": "HOOK_B",
-      "text": "<alternative hook angle>",
+      "text": "<alternative angle — try a different entry point into the story>",
       "why_it_works": "<brief explanation>"
     }}
   ],
   "setup": {{
-    "text": "<2-3 sentences explaining the core topic based on snippets>"
+    "text": "<2-3 SHORT sentences. Assert what's true. No hedging, no 'observers note that', no 'it is attributed to'.>"
   }},
   "core_facts": [
     {{
       "fact_id": "FACT_1",
-      "statement": "<key fact from snippets>",
+      "statement": "<key fact from snippets — one direct sentence>",
       "significance": "high|medium|low",
-      "say_it_like": "<how to present this fact compellingly>"
+      "say_it_like": "<how a YouTuber would actually say this on camera>"
     }},
     {{
       "fact_id": "FACT_2",
-      "statement": "<another key fact>",
+      "statement": "<another key fact — one direct sentence>",
       "significance": "high|medium|low",
-      "say_it_like": "<presentation guidance>"
+      "say_it_like": "<how a YouTuber would actually say this on camera>"
     }},
     {{
       "fact_id": "FACT_3",
-      "statement": "<another key fact>",
+      "statement": "<another key fact — one direct sentence>",
       "significance": "high|medium|low",
-      "say_it_like": "<presentation guidance>"
+      "say_it_like": "<how a YouTuber would actually say this on camera>"
     }}
   ],
   "source_count": {len(top_candidates)},
   "preview_note": "This is a quick preview based on source snippets. Run full research for complete analysis with verified claims."
 }}
 
-IMPORTANT:
-- Only use information present in the snippets above
-- Do not invent facts or details not in the snippets
-- Keep it concise — this is a preview, not a full brief
+RULES:
+- Only use information from the snippets above
+- Do not invent facts
+- Every sentence under 25 words
 - Return valid JSON only
 """
 
