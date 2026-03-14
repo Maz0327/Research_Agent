@@ -17,6 +17,99 @@ import {
 } from '../../components/job-detail';
 import { CreatorBriefView } from '../../components/creator-brief/CreatorBriefView';
 import { IterateDialog } from '../../components/iterate/IterateDialog';
+import type { Job } from '../../store/jobs';
+import { formatTimestampWithRelative } from '../../lib/document-formatters';
+
+/** Research Overview panel — fills blank space below artifact grid for completed jobs */
+function ResearchOverview({ job }: { job: Job }) {
+  const { artifacts } = job;
+  if (!artifacts) return null;
+
+  // Count completed docs
+  const docsCompleted = [
+    artifacts.doc_0_path || artifacts.source_ledger,
+    artifacts.doc_1_path || artifacts.jump_start,
+    artifacts.doc_2_path || artifacts.semantic_brief,
+    artifacts.doc_3_path || artifacts.creator_brief_md,
+  ].filter(Boolean).length;
+
+  // Count iterations
+  const iterationCount = artifacts.iterations?.filter((it) => it.status === 'completed').length ?? 0;
+
+  const docItems = [
+    { key: 0, label: 'Source Ledger', color: 'bg-gray-500', ready: !!(artifacts.doc_0_path || artifacts.source_ledger) },
+    { key: 1, label: 'Jump-Start', color: 'bg-blue-500', ready: !!(artifacts.doc_1_path || artifacts.jump_start) },
+    { key: 2, label: 'Semantic Brief', color: 'bg-purple-500', ready: !!(artifacts.doc_2_path || artifacts.semantic_brief) },
+    { key: 3, label: 'Creator Brief', color: 'bg-amber-500', ready: !!(artifacts.doc_3_path || artifacts.creator_brief_md) },
+  ];
+
+  return (
+    <div className="mt-8 rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
+      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Research Overview</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Documents completed */}
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 font-medium">Documents</p>
+          <div className="space-y-1.5">
+            {docItems.map((doc) => (
+              <div key={doc.key} className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${doc.ready ? doc.color : 'bg-gray-700'}`} />
+                <span className={`text-xs ${doc.ready ? 'text-gray-300' : 'text-gray-600'}`}>{doc.label}</span>
+                {doc.ready && <span className="text-xs text-green-500 ml-auto">✓</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Pipeline info */}
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 font-medium">Pipeline</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 capitalize">{job.pipeline?.replace(/_/g, ' ') || 'Semantic'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{docsCompleted} of 4 docs complete</span>
+            </div>
+            {iterationCount > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-teal-400">{iterationCount} iteration{iterationCount > 1 ? 's' : ''} run</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 font-medium">Status</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              {job.status === 'completed' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-900/40 text-green-400 border border-green-700/40">
+                  ● Completed
+                </span>
+              )}
+              {job.status === 'completed_with_warnings' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-yellow-900/40 text-yellow-400 border border-yellow-700/40">
+                  ● Completed
+                </span>
+              )}
+            </div>
+            {artifacts.booster_output && (
+              <span className="text-xs text-indigo-400">Deep Research: done</span>
+            )}
+          </div>
+        </div>
+
+        {/* Timestamps */}
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500 font-medium">Created</p>
+          <p className="text-xs text-gray-400">{formatTimestampWithRelative(job.created_at)}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Skeleton loader for job detail */
 function JobDetailSkeleton() {
@@ -279,6 +372,11 @@ function JobDetailContent() {
             onScrollToHero={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
           />
         </div>
+
+        {/* Research Overview — fills blank space below grid for completed jobs */}
+        {(job.status === 'completed' || job.status === 'completed_with_warnings') && job.artifacts && (
+          <ResearchOverview job={job} />
+        )}
 
         {/* 5-Mode Iterate Dialog */}
         <IterateDialog

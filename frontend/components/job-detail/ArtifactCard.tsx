@@ -25,6 +25,18 @@ export type ArtifactType =
   | 'iteration'
   | 'claims_doc';
 
+/** Left accent bar color per artifact type */
+const DOC_ACCENT_COLORS: Record<ArtifactType, string> = {
+  doc_0: 'bg-gray-500',
+  doc_1: 'bg-blue-500',
+  doc_2: 'bg-purple-500',
+  doc_3: 'bg-amber-500',
+  doc_4: 'bg-green-500',
+  booster: 'bg-indigo-500',
+  iteration: 'bg-teal-500',
+  claims_doc: 'bg-rose-500',
+};
+
 /** Configuration for each artifact type */
 const ARTIFACT_CONFIG: Record<ArtifactType, {
   title: string;
@@ -224,63 +236,75 @@ export function ArtifactCard({
       whileTap={state !== 'not_available' && state !== 'queued' && state !== 'running' ? { scale: 0.98 } : {}}
       onClick={handleClick}
       className={`
-        relative rounded-xl border-2 p-4 transition-all duration-200
+        relative rounded-xl border-2 overflow-hidden transition-all duration-200
         ${styles.border} ${styles.bg} ${styles.cursor}
       `}
     >
-      {/* Icon and title */}
-      <div className="flex items-start gap-3">
-        <span className="text-2xl">{config.icon}</span>
-        <div className="flex-1 min-w-0">
-          <h3 className={`font-semibold ${styles.text}`}>{config.title}</h3>
-          <p className="text-sm text-gray-400 truncate">{config.subtitle}</p>
-        </div>
+      {/* Left accent bar */}
+      <div className={`absolute top-0 left-0 bottom-0 w-1 ${DOC_ACCENT_COLORS[type]}`} />
 
-        {/* Status indicator */}
-        <div className="flex-shrink-0">
-          {state === 'completed' && (
-            <span className="text-green-400">✓</span>
-          )}
-          {state === 'failed' && (
-            <span className="text-red-400">✗</span>
-          )}
-          {state === 'running' && (
-            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-          )}
-          {state === 'queued' && (
-            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-          )}
-        </div>
-      </div>
-
-      {/* Progress bar for running state */}
-      {state === 'running' && (
-        <div className="mt-3">
-          <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              className="h-full bg-blue-500 rounded-full"
-              transition={{ duration: 0.3 }}
-            />
+      {/* Card content — extra left padding to clear the accent bar */}
+      <div className="pl-5 pr-4 pt-4 pb-4">
+        {/* Icon and title */}
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">{config.icon}</span>
+          <div className="flex-1 min-w-0">
+            <h3 className={`font-semibold ${styles.text}`}>{config.title}</h3>
+            <p className="text-sm text-gray-400 truncate">{config.subtitle}</p>
           </div>
-          {iterationId && (
-            <p className="text-xs text-gray-400 mt-1">{iterationId}</p>
+
+          {/* Status indicator */}
+          <div className="flex-shrink-0">
+            {state === 'completed' && (
+              <span className="text-green-400">✓</span>
+            )}
+            {state === 'failed' && (
+              <span className="text-red-400">✗</span>
+            )}
+            {state === 'running' && (
+              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            )}
+            {state === 'queued' && (
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar for running state */}
+        {state === 'running' && (
+          <div className="mt-3">
+            <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercent}%` }}
+                className="h-full bg-blue-500 rounded-full"
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            {iterationId && (
+              <p className="text-xs text-gray-400 mt-1">{iterationId}</p>
+            )}
+          </div>
+        )}
+
+        {/* Action area */}
+        <div className="mt-3">
+          {state === 'completed' && type !== 'iteration' ? (
+            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-gray-700 text-sm font-medium text-gray-100 transition-colors">
+              View →
+            </span>
+          ) : (
+            <span className={`text-sm font-medium ${styles.text}`}>
+              {getActionLabel()}
+            </span>
           )}
         </div>
-      )}
 
-      {/* Action label */}
-      <div className="mt-3">
-        <span className={`text-sm font-medium ${styles.text}`}>
-          {getActionLabel()}
-        </span>
+        {/* Error preview for failed state */}
+        {state === 'failed' && error && (
+          <p className="mt-2 text-xs text-red-300 line-clamp-2">{error}</p>
+        )}
       </div>
-
-      {/* Error preview for failed state */}
-      {state === 'failed' && error && (
-        <p className="mt-2 text-xs text-red-300 line-clamp-2">{error}</p>
-      )}
     </motion.div>
   );
 }
