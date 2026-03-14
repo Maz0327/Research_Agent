@@ -90,11 +90,15 @@ export default function Layout({ children }: LayoutProps) {
           {/* Logo / Header */}
           <header className="flex h-16 items-center justify-between px-4 border-b border-gray-800">
             {!sidebarCollapsed && (
-              <Link
-                href="/dashboard"
-                className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
-              >
-                Research Agent
+              <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-7 w-7 flex-shrink-0 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 items-center justify-center">
+                  <svg className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Research Agent
+                </span>
               </Link>
             )}
             {sidebarCollapsed && (
@@ -136,10 +140,10 @@ export default function Layout({ children }: LayoutProps) {
                   href={item.href}
                   aria-current={isActive ? 'page' : undefined}
                   title={sidebarCollapsed ? item.label : undefined}
-                  className={`nav-item flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 mb-1 ${
+                  className={`nav-item flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 mb-1 border-l-2 ${
                     isActive
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent'
+                      ? 'bg-blue-600/20 text-blue-400 border-l-blue-500'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200 border-l-transparent'
                   } ${sidebarCollapsed ? 'justify-center' : ''}`}
                 >
                   <svg
