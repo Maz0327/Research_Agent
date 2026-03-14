@@ -919,7 +919,9 @@ def _run_llm_judge(
             warnings.append(f"[{source_id}] LLM Judge: {warning}")
 
         if judge_result.cost:
-            costs["openai_llm_judge"] = judge_result.cost
+            # Track cost under the actual provider that ran
+            cost_key = f"{judge_result.provider.lower().replace(' ', '_')}_llm_judge"
+            costs[cost_key] = judge_result.cost
 
         logger.info(
             f"[{source_id}] LLM Judge: {judge_result.items_reviewed} items, "

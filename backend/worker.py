@@ -242,12 +242,48 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 # Fetch HTML content
                 html_content, status_code, error_msg = _fetch_url_content(url)
                 if html_content is None:
+                    # Direct fetch failed (403, timeout, etc.) — try Jina Reader
+                    try:
+                        from backend.integrations.jina_reader_client import JinaReaderClient
+                        jina = JinaReaderClient()
+                        jina_result = jina.extract(url)
+                        jina_content = jina_result.get("content", "")
+                        if jina_content and len(jina_content) > 100:
+                            logger.info(
+                                f"[{job_id}] Jina recovered {len(jina_content)} chars "
+                                f"after HTTP {status_code or 'error'} for {url[:50]}"
+                            )
+                            # Build source identity from Jina content
+                            article_data = {"url": url, "content": jina_content}
+                            pkg = build_source_identity_from_article(article_data, source_counter - 1)
+                            ctx.source_identity_packages.append(pkg)
+                            source_counter += 1
+                            logger.info(f"[{job_id}] Article processed via Jina: {len(jina_content)} chars")
+                            continue
+                    except Exception as jina_err:
+                        logger.warning(f"[{job_id}] Jina fallback also failed: {jina_err}")
+
                     ctx.add_warning(f"Failed to fetch article {url}: {error_msg}")
                     logger.warning(f"[{job_id}] Article fetch failed: {error_msg}")
                     continue
 
                 # Extract readable text
                 text_content = _extract_text_with_trafilatura(html_content, url)
+
+                # Fallback: if no text extracted, try Jina Reader
+                # (handles JS-rendered pages, Reddit, anti-bot sites)
+                if not text_content:
+                    try:
+                        from backend.integrations.jina_reader_client import JinaReaderClient
+                        jina = JinaReaderClient()
+                        jina_result = jina.extract(url)
+                        jina_content = jina_result.get("content", "")
+                        if jina_content and len(jina_content) > 100:
+                            text_content = jina_content
+                            logger.info(f"[{job_id}] Jina fallback: {len(text_content)} chars from {url[:50]}")
+                    except Exception as jina_err:
+                        logger.warning(f"[{job_id}] Jina fallback failed for {url[:50]}: {jina_err}")
+
                 if not text_content:
                     ctx.add_warning(f"No text extracted from {url}")
                     logger.warning(f"[{job_id}] No text extracted from article")

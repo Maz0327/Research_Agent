@@ -226,7 +226,9 @@ async def approve_search_sources(
         from backend.state import create_job
         from backend.worker import run_research_job
 
-        # Build article URLs from selected candidates
+        # Build selected URLs from validated candidates
+        from backend.pipeline.utils.url_dedup import is_youtube_url
+
         selected_urls = [
             url for url in request.selected_urls
             if any(c.url == url for c in session["candidates"])
@@ -238,13 +240,23 @@ async def approve_search_sources(
                 detail="No valid URLs selected from search candidates"
             )
 
+        # Split by URL type: YouTube videos need transcript pipeline, not HTML scraping
+        video_urls = [url for url in selected_urls if is_youtube_url(url)]
+        article_urls = [url for url in selected_urls if not is_youtube_url(url)]
+
+        if video_urls:
+            logger.info(
+                f"[{search_id}] Auto-classified {len(video_urls)} YouTube URL(s) "
+                f"for transcript pipeline"
+            )
+
         # Build config for the job (matches mixed-input format)
         config_json = {
             "topic": session["topic"],
             "job_type": "mixed_input",
             "input_mode": "mixed",
-            "video_urls": [],
-            "article_urls": selected_urls,
+            "video_urls": video_urls,
+            "article_urls": article_urls,
             "text_inputs": [],
             "screenshots": [],
             "source_count": len(selected_urls),

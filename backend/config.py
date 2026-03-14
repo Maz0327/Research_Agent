@@ -149,6 +149,11 @@ class Settings(BaseSettings):
         default=False, alias="LLM_JUDGE_CONDITIONAL",
         description="Only run LLM Judge when confidence < HIGH or warnings > threshold"
     )
+    llm_judge_primary: str = Field(
+        default="kimi",
+        alias="LLM_JUDGE_PRIMARY",
+        description="Primary LLM judge provider: 'kimi' or 'gpt-4o'"
+    )
     llm_judge_warning_threshold: int = Field(
         default=2, alias="LLM_JUDGE_WARNING_THRESHOLD",
         description="Warning count threshold to trigger LLM Judge when conditional mode is on"

@@ -107,6 +107,7 @@ class JudgeResult:
     summary: str = ""
     cost: float = 0.0
     error: Optional[str] = None
+    provider: str = "unknown"
 
     @property
     def valid_count(self) -> int:
@@ -221,97 +222,75 @@ def parse_judge_response(response_data: dict) -> JudgeResult:
     return result
 
 
-def validate_extraction_with_judge(
-    source_text: str,
-    extraction_result: dict,
-    source_id: str = "UNKNOWN",
+def _try_openai_judge(
+    prompt: str,
+    system_prompt: str,
+    source_id: str,
     model: str = "gpt-4o",
-) -> JudgeResult:
-    """Validate extraction using cross-model judge (GPT-4o with Kimi K2.5 fallback).
-
-    Attempts GPT-4o first; falls back to Kimi K2.5 (Moonshot) if OpenAI is
-    unavailable or fails (e.g. quota exhausted, insufficient_quota error).
-
-    Args:
-        source_text: Original source content
-        extraction_result: Extraction result dict to validate
-        source_id: Source identifier for logging
-        model: OpenAI model to use (default gpt-4o)
-
-    Returns:
-        JudgeResult with validation assessment
-    """
+) -> Optional[JudgeResult]:
+    """Try GPT-4o as cross-model judge. Returns None on failure."""
     from backend.config import require_openai, MissingRequiredSettingError
-    from backend.pipeline.prompts.llm_judge_prompt import (
-        build_judge_prompt,
-        LLM_JUDGE_SYSTEM_PROMPT,
-    )
 
-    # Build prompt (shared by both providers)
-    extraction_json = json.dumps(extraction_result, indent=2)
-    prompt = build_judge_prompt(source_text, extraction_json)
-
-    # --- Attempt 1: OpenAI GPT-4o ---
-    openai_error: Optional[str] = None
     try:
         settings = require_openai()
     except MissingRequiredSettingError:
-        openai_error = "OpenAI not configured"
-        logger.warning(f"[{source_id}] OpenAI not configured, trying Kimi K2.5 fallback")
+        logger.debug(f"[{source_id}] OpenAI not configured, skipping")
+        return None
 
-    if openai_error is None:
-        logger.info(f"[{source_id}] Running GPT-4o cross-model validation")
-        try:
-            from openai import OpenAI
+    logger.info(f"[{source_id}] Running GPT-4o cross-model validation")
+    try:
+        from openai import OpenAI
 
-            client = OpenAI(api_key=settings.openai_api_key)
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": LLM_JUDGE_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1,
-                max_tokens=4000,
-            )
-
-            content = response.choices[0].message.content
-            if not content:
-                raise ValueError("Empty response from GPT-4o")
-
-            response_data = json.loads(content)
-            result = parse_judge_response(response_data)
-
-            # GPT-4o: ~$2.50/1M input, ~$10/1M output
-            input_tokens = response.usage.prompt_tokens if response.usage else 0
-            output_tokens = response.usage.completion_tokens if response.usage else 0
-            result.cost = (input_tokens * 2.5 / 1_000_000) + (output_tokens * 10 / 1_000_000)
-
-            logger.info(
-                f"[{source_id}] Judge result (GPT-4o): quality={result.overall_quality.value}, "
-                f"valid={result.valid_count}, questionable={result.questionable_count}, "
-                f"invalid={result.invalid_count}, hallucination_flags={len(result.hallucination_flags)}, "
-                f"cost=${result.cost:.4f}"
-            )
-            return result
-
-        except Exception as e:
-            openai_error = str(e)
-            logger.warning(
-                f"[{source_id}] GPT-4o judge failed ({e}) — trying Kimi K2.5 fallback"
-            )
-
-    # --- Attempt 2: Kimi K2.5 (Moonshot) fallback ---
-    kimi_api_key = os.getenv("KIMI_API_KEY")
-    if not kimi_api_key:
-        logger.error(f"[{source_id}] Kimi K2.5 not configured (KIMI_API_KEY missing)")
-        return JudgeResult(
-            error=f"OpenAI failed ({openai_error}); Kimi K2.5 not configured",
-            summary="Cross-model validation skipped (both providers unavailable)",
+        client = OpenAI(api_key=settings.openai_api_key)
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=4000,
         )
 
-    logger.info(f"[{source_id}] Running Kimi K2.5 cross-model validation (fallback)")
+        resp_content = response.choices[0].message.content
+        if not resp_content:
+            raise ValueError("Empty response from GPT-4o")
+
+        response_data = json.loads(resp_content)
+        result = parse_judge_response(response_data)
+        result.provider = "GPT-4o"
+
+        # GPT-4o: ~$2.50/1M input, ~$10/1M output
+        input_tokens = response.usage.prompt_tokens if response.usage else 0
+        output_tokens = response.usage.completion_tokens if response.usage else 0
+        result.cost = (input_tokens * 2.5 / 1_000_000) + (output_tokens * 10 / 1_000_000)
+
+        logger.info(
+            f"[{source_id}] Judge result (GPT-4o): quality={result.overall_quality.value}, "
+            f"valid={result.valid_count}, questionable={result.questionable_count}, "
+            f"invalid={result.invalid_count}, hallucination_flags={len(result.hallucination_flags)}, "
+            f"cost=${result.cost:.4f}"
+        )
+        return result
+
+    except Exception as e:
+        logger.warning(f"[{source_id}] GPT-4o judge failed: {e}")
+        return None
+
+
+def _try_kimi_judge(
+    prompt: str,
+    system_prompt: str,
+    source_id: str,
+) -> Optional[JudgeResult]:
+    """Try Kimi K2.5 as cross-model judge. Returns None on failure."""
+    kimi_api_key = os.getenv("KIMI_API_KEY")
+    if not kimi_api_key:
+        logger.debug(f"[{source_id}] Kimi K2.5 not configured (KIMI_API_KEY missing)")
+        return None
+
+    logger.info(f"[{source_id}] Running Kimi K2.5 cross-model validation")
     try:
         import httpx
 
@@ -325,7 +304,7 @@ def validate_extraction_with_judge(
                 json={
                     "model": "kimi-k2.5",
                     "messages": [
-                        {"role": "system", "content": LLM_JUDGE_SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt},
                     ],
                     "response_format": {"type": "json_object"},
@@ -340,22 +319,23 @@ def validate_extraction_with_judge(
             )
 
         resp_json = response.json()
-        content = resp_json["choices"][0]["message"]["content"]
-        if not content:
+        resp_content = resp_json["choices"][0]["message"]["content"]
+        if not resp_content:
             raise ValueError("Empty response from Kimi K2.5")
 
         # Strip markdown code fences if present
-        content = content.strip()
-        if content.startswith("```"):
-            first_newline = content.find("\n")
+        resp_content = resp_content.strip()
+        if resp_content.startswith("```"):
+            first_newline = resp_content.find("\n")
             if first_newline != -1:
-                content = content[first_newline + 1:]
-            if content.endswith("```"):
-                content = content[:-3]
-        content = content.strip()
+                resp_content = resp_content[first_newline + 1:]
+            if resp_content.endswith("```"):
+                resp_content = resp_content[:-3]
+        resp_content = resp_content.strip()
 
-        response_data = json.loads(content)
+        response_data = json.loads(resp_content)
         result = parse_judge_response(response_data)
+        result.provider = "Kimi K2.5"
 
         # Kimi K2.5 cost estimate: ~$0.002/1K input, $0.006/1K output tokens
         usage = resp_json.get("usage", {})
@@ -364,7 +344,7 @@ def validate_extraction_with_judge(
         result.cost = (input_tokens * 0.002 + output_tokens * 0.006) / 1000
 
         logger.info(
-            f"[{source_id}] Judge result (Kimi K2.5 fallback): quality={result.overall_quality.value}, "
+            f"[{source_id}] Judge result (Kimi K2.5): quality={result.overall_quality.value}, "
             f"valid={result.valid_count}, questionable={result.questionable_count}, "
             f"invalid={result.invalid_count}, hallucination_flags={len(result.hallucination_flags)}, "
             f"cost=${result.cost:.4f}"
@@ -372,11 +352,69 @@ def validate_extraction_with_judge(
         return result
 
     except Exception as e:
-        logger.error(f"[{source_id}] Kimi K2.5 judge fallback also failed: {e}")
-        return JudgeResult(
-            error=f"Both providers failed. OpenAI: {openai_error}; Kimi: {str(e)}",
-            summary="Cross-model validation failed (all providers unavailable)",
-        )
+        logger.warning(f"[{source_id}] Kimi K2.5 judge failed: {e}")
+        return None
+
+
+def validate_extraction_with_judge(
+    source_text: str,
+    extraction_result: dict,
+    source_id: str = "UNKNOWN",
+    model: str = "gpt-4o",
+) -> JudgeResult:
+    """Validate extraction using cross-model judge.
+
+    Provider order is controlled by LLM_JUDGE_PRIMARY env var (default: kimi).
+    Falls back to the other provider if the primary fails.
+
+    Args:
+        source_text: Original source content
+        extraction_result: Extraction result dict to validate
+        source_id: Source identifier for logging
+        model: OpenAI model to use when GPT-4o is selected
+
+    Returns:
+        JudgeResult with validation assessment
+    """
+    from backend.config import get_settings
+    from backend.pipeline.prompts.llm_judge_prompt import (
+        build_judge_prompt,
+        LLM_JUDGE_SYSTEM_PROMPT,
+    )
+
+    # Build prompt (shared by both providers)
+    extraction_json = json.dumps(extraction_result, indent=2)
+    prompt = build_judge_prompt(source_text, extraction_json)
+
+    # Determine provider order from config
+    settings = get_settings()
+    primary = getattr(settings, "llm_judge_primary", "kimi").lower()
+
+    if primary == "kimi":
+        providers = [
+            ("Kimi K2.5", lambda: _try_kimi_judge(prompt, LLM_JUDGE_SYSTEM_PROMPT, source_id)),
+            ("GPT-4o", lambda: _try_openai_judge(prompt, LLM_JUDGE_SYSTEM_PROMPT, source_id, model)),
+        ]
+    else:
+        providers = [
+            ("GPT-4o", lambda: _try_openai_judge(prompt, LLM_JUDGE_SYSTEM_PROMPT, source_id, model)),
+            ("Kimi K2.5", lambda: _try_kimi_judge(prompt, LLM_JUDGE_SYSTEM_PROMPT, source_id)),
+        ]
+
+    errors = []
+    for name, try_fn in providers:
+        result = try_fn()
+        if result is not None:
+            return result
+        errors.append(name)
+
+    # Both failed
+    logger.error(f"[{source_id}] All judge providers failed: {errors}")
+    return JudgeResult(
+        error=f"All judge providers failed: {', '.join(errors)}",
+        summary="Cross-model validation failed (all providers unavailable)",
+        provider="none",
+    )
 
 
 def apply_judge_verdicts(
