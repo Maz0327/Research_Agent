@@ -13,10 +13,9 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { transformMarkdownWithDetails } from '@/lib/document-formatters';
 import { exportToPdf } from '@/lib/pdf-export';
 import { exportToDocx } from '@/lib/docx-export';
-import { MarkdownRenderer } from '@/components/common/MarkdownRenderer';
+import { ResearchDocumentRenderer } from '@/components/document/ResearchDocumentRenderer';
 import { ShareButton } from './ShareButton';
 
 export interface DocumentViewerModalProps {
@@ -192,8 +191,7 @@ export function DocumentViewerModal({
     }
   }, [markdown, docNumber, title]);
 
-  const content = markdown || JSON.stringify(data, null, 2);
-  const isMarkdown = !!markdown;
+  const hasContent = !!markdown || Object.keys(data).length > 0;
   const hasData = Object.keys(data).length > 0;
 
   return (
@@ -276,22 +274,19 @@ export function DocumentViewerModal({
             {/* Content — reading column centered at 900px on wide screens */}
             <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-[900px] mx-auto">
-                {isMarkdown ? (
-                  <div className="max-w-none">
-                    <MarkdownRenderer content={transformMarkdownWithDetails(markdown, showDetails)} />
-                  </div>
-                ) : (
-                  <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
-                    {content}
-                  </pre>
-                )}
+                <ResearchDocumentRenderer
+                  docNumber={docNumber}
+                  data={data}
+                  markdown={markdown}
+                  showDetails={showDetails}
+                />
               </div>
             </div>
 
             {/* Footer - sticky on mobile */}
             <div className="flex-shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-700 bg-gray-800/50">
-              {/* Details toggle - left side (markdown only) */}
-              {isMarkdown ? (
+              {/* Details toggle - left side */}
+              {hasContent ? (
                 <button
                   onClick={() => setShowDetails(!showDetails)}
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 min-h-[40px] touch-manipulation ${
@@ -343,7 +338,7 @@ export function DocumentViewerModal({
                         onClick={() => setShowDownloadMenu(false)}
                       />
                       <div className="absolute right-0 bottom-full mb-1 z-20 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
-                        {isMarkdown && (
+                        {!!markdown && (
                           <>
                             <button
                               onClick={handleDownloadPDF}
