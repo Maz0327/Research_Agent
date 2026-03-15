@@ -17,6 +17,7 @@ import { exportToPdf } from '@/lib/pdf-export';
 import { exportToDocx } from '@/lib/docx-export';
 import { ResearchDocumentRenderer } from '@/components/document/ResearchDocumentRenderer';
 import { ShareButton } from './ShareButton';
+import { ExportToolbar } from '@/components/document/ExportToolbar';
 
 export interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -270,6 +271,17 @@ export function DocumentViewerModal({
             <div className="lg:hidden flex justify-center py-1.5 bg-gray-800/50">
               <div className="w-10 h-1 rounded-full bg-gray-600" />
             </div>
+
+            {/* Export toolbar — persistent at top (Phase 3E) */}
+            <ExportToolbar
+              markdown={markdown}
+              data={data}
+              title={title}
+              docNumber={docNumber}
+              jobId={jobId}
+              onExportPdf={markdown ? handleDownloadPDF : undefined}
+              onExportDocx={markdown ? handleDownloadDocx : undefined}
+            />
 
             {/* Content — reading column centered at 900px on wide screens */}
             <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
