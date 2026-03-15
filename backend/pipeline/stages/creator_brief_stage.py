@@ -226,9 +226,14 @@ def _run_creator_brief(ctx: PipelineContext) -> None:
     cost = response.get("cost", 0.0)
     ctx.add_cost("creator_brief", cost)
 
+    # Generate story arc suggestion based on topic/mode
+    story_arc = _generate_story_arc_suggestion(ctx, doc2)
+
     # Store outputs — use polished formatter for markdown
     from backend.pipeline.formatters.creator_brief_formatter import format_creator_brief
     brief_dict = brief.model_dump(mode="json")
+    if story_arc:
+        brief_dict["suggested_structure"] = story_arc
     ctx.outputs["creator_brief"] = brief_dict
     ctx.outputs["creator_brief_md"] = format_creator_brief(brief)
 
@@ -485,3 +490,163 @@ def _render_creator_brief_markdown(brief: CreatorBriefDocument, topic: str) -> s
     lines.append(f"*Doc 3 — Creator Brief | Job: {brief.job_id}*")
 
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Story Arc Suggestion — Phase 3B
+# ---------------------------------------------------------------------------
+
+# Arc templates keyed by mode/topic type
+_STORY_ARC_TEMPLATES: dict[str, dict[str, Any]] = {
+    "cold_open": {
+        "arc_name": "Cold Open Investigation",
+        "arc_type": "cold_open",
+        "topic_fit_reason": "Investigation topics work best with a single damning detail that pulls viewers in.",
+        "beats": [
+            {"beat_number": 1, "label": "The Detail", "description": "Open with the single most damning or surprising detail. No context yet — just the hook."},
+            {"beat_number": 2, "label": "Surface Story", "description": "Give the official version. What does the public think happened?"},
+            {"beat_number": 3, "label": "Evidence Trail", "description": "Walk through the evidence chronologically. Let each piece build on the last."},
+            {"beat_number": 4, "label": "The Pattern", "description": "Zoom out. Show this isn't isolated — it's part of a pattern."},
+            {"beat_number": 5, "label": "What Happens Next", "description": "The stakes going forward. What should the audience watch for?"},
+        ],
+    },
+    "multiple_perspectives": {
+        "arc_name": "Multiple Perspectives",
+        "arc_type": "multiple_perspectives",
+        "topic_fit_reason": "Controversy topics need balanced presentation of competing viewpoints.",
+        "beats": [
+            {"beat_number": 1, "label": "The Claim", "description": "State the central claim or controversy clearly. What's being debated?"},
+            {"beat_number": 2, "label": "Side A", "description": "Present the strongest evidence for one perspective. Steel-man it."},
+            {"beat_number": 3, "label": "Side B", "description": "Present the strongest evidence for the other perspective. Equal treatment."},
+            {"beat_number": 4, "label": "What's Actually True", "description": "Where does the evidence actually land? What can we verify?"},
+            {"beat_number": 5, "label": "Why It Matters", "description": "The broader implications. What does this mean for the audience?"},
+        ],
+    },
+    "heros_journey": {
+        "arc_name": "Hero's Journey",
+        "arc_type": "heros_journey",
+        "topic_fit_reason": "Profile topics follow a natural arc: origin, conflict, transformation.",
+        "beats": [
+            {"beat_number": 1, "label": "The Payoff", "description": "Show where the subject is now — the impressive result that makes people care."},
+            {"beat_number": 2, "label": "Origin / Conflict", "description": "Go back to the beginning. What obstacles did they face?"},
+            {"beat_number": 3, "label": "The Build", "description": "The process, the grind, the key decisions that led to breakthrough."},
+            {"beat_number": 4, "label": "Transformation", "description": "The turning point. What changed and why?"},
+            {"beat_number": 5, "label": "Call to Action", "description": "What can the audience learn or apply from this story?"},
+        ],
+    },
+    "discovery": {
+        "arc_name": "Discovery Arc",
+        "arc_type": "discovery",
+        "topic_fit_reason": "Explainer topics are best structured as a guided journey of understanding.",
+        "beats": [
+            {"beat_number": 1, "label": "The Question", "description": "Frame the central question. Why should anyone care about this?"},
+            {"beat_number": 2, "label": "Why It's Hard", "description": "Show why this question doesn't have a simple answer. Acknowledge complexity."},
+            {"beat_number": 3, "label": "The Mechanism", "description": "Explain how it actually works. The core insight."},
+            {"beat_number": 4, "label": "Implications", "description": "So what? What does this mean for the real world?"},
+            {"beat_number": 5, "label": "Open Thread", "description": "The unanswered question. What we still don't know."},
+        ],
+    },
+}
+
+# Mode → arc type mapping
+_MODE_TO_ARC: dict[str, str] = {
+    "investigation": "cold_open",
+    "controversy": "multiple_perspectives",
+    "profile": "heros_journey",
+    "breaking_news": "cold_open",
+    "full": "discovery",
+    "quick": "discovery",
+}
+
+
+def _generate_story_arc_suggestion(
+    ctx: PipelineContext,
+    doc2: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Generate a story arc suggestion based on the topic mode and Doc 2 themes.
+
+    This is deterministic — no LLM call needed. The arc template is selected
+    based on the job mode and then customized with theme/claim IDs from Doc 2.
+
+    Args:
+        ctx: Pipeline context with mode and topic.
+        doc2: Doc 2 data (semantic brief) with themes and tensions.
+
+    Returns:
+        Story arc dict or None if no appropriate arc found.
+    """
+    mode = getattr(ctx, "mode", "full") or "full"
+
+    # Check if tensions exist — if so, controversy arc might fit better
+    tensions = doc2.get("tensions", [])
+    if len(tensions) >= 2 and mode not in ("investigation", "profile"):
+        arc_key = "multiple_perspectives"
+    else:
+        arc_key = _MODE_TO_ARC.get(mode, "discovery")
+
+    template = _STORY_ARC_TEMPLATES.get(arc_key)
+    if not template:
+        return None
+
+    # Deep copy the template
+    import copy
+    arc = copy.deepcopy(template)
+
+    # Map Doc 2 themes to beats where possible
+    themes = doc2.get("themes", [])
+    theme_ids = [t.get("theme_id", "") for t in themes[:5]]
+
+    for i, beat in enumerate(arc["beats"]):
+        if i < len(theme_ids) and theme_ids[i]:
+            beat["mapped_ids"] = [theme_ids[i]]
+
+    # Generate scripting preview
+    topic = ctx.topic or "this topic"
+    arc["scripting_preview"] = _generate_scripting_preview(arc_key, topic, themes)
+
+    return arc
+
+
+def _generate_scripting_preview(
+    arc_key: str,
+    topic: str,
+    themes: list[dict[str, Any]],
+) -> str:
+    """Generate a one-paragraph scripting preview for the arc.
+
+    Args:
+        arc_key: The arc template key.
+        topic: The research topic.
+        themes: Doc 2 themes for context.
+
+    Returns:
+        A one-paragraph preview string.
+    """
+    theme_labels = [t.get("label", "") for t in themes[:3] if t.get("label")]
+    themes_str = ", ".join(theme_labels) if theme_labels else "the key findings"
+
+    previews = {
+        "cold_open": (
+            f"Open with the most surprising detail about {topic} — something that makes viewers "
+            f"stop scrolling. Then pull back and give the official story. Walk through {themes_str} "
+            f"one by one, building the evidence trail. Zoom out to show the pattern, then end with "
+            f"what's still unfolding."
+        ),
+        "multiple_perspectives": (
+            f"Start by stating the core debate around {topic} clearly. Present the strongest case "
+            f"for each side — don't strawman either position. Use {themes_str} as the framework for "
+            f"what the evidence actually shows. Close with why this matters to your audience."
+        ),
+        "heros_journey": (
+            f"Start with the payoff — show where the subject of {topic} is now. Then rewind to "
+            f"the beginning: the obstacles, the early struggles. Build through {themes_str}, "
+            f"hitting the turning point, and close with what the audience can take away."
+        ),
+        "discovery": (
+            f"Frame {topic} as a question your audience didn't know they had. Show why the answer "
+            f"isn't obvious — then walk them through {themes_str} as the mechanism. End with the "
+            f"implications and the question that's still unanswered."
+        ),
+    }
+
+    return previews.get(arc_key, f"Structure your video about {topic} around {themes_str}.")

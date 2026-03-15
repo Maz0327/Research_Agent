@@ -20,6 +20,7 @@ import { CardWrapper } from './shared/CardWrapper';
 import { CitationPill } from './shared/CitationPill';
 import { CollapsibleSection } from './shared/CollapsibleSection';
 import { HookOptionCard } from './HookOptionCard';
+import { StoryArcCard, type StoryArc } from './StoryArcCard';
 import { formatInternalId } from '@/lib/document-formatters';
 
 interface CreatorBriefRendererProps {
@@ -264,6 +265,7 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
   if (angleCount > 0) sections.push('Narrative Angles');
   if (hookCount > 0) sections.push('Opening Hooks');
   if (data.structure_options?.length) sections.push('Structure Options');
+  if ((data as any).suggested_structure) sections.push('Suggested Structure');
   if (momentCount > 0) sections.push('Key Moments');
   if (data.story_core?.why_this_matters) sections.push('Why It Matters');
   if (data.title_options?.length) sections.push('Title Options');
@@ -335,6 +337,16 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
                 ))}
               </div>
             </CollapsibleSection>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Structure — Phase 3B story arc suggestion */}
+      {(data as any).suggested_structure && (
+        <div>
+          <SectionHeader title="Suggested Structure" accentColor="bg-teal-500" sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-4">
+            <StoryArcCard arc={(data as any).suggested_structure as StoryArc} />
           </div>
         </div>
       )}
