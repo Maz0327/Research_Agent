@@ -18,6 +18,7 @@ import { SourceLedgerRenderer } from './SourceLedgerRenderer';
 import { JumpStartRenderer } from './JumpStartRenderer';
 import { SemanticBriefRenderer } from './SemanticBriefRenderer';
 import { CreatorBriefRenderer } from './CreatorBriefRenderer';
+import { CreatorBriefView } from '@/components/creator-brief/CreatorBriefView';
 
 export interface ResearchDocumentRendererProps {
   docNumber: 0 | 1 | 2 | 3 | 4 | 'B';
@@ -34,7 +35,8 @@ function hasTypedData(data: Record<string, unknown>): boolean {
     docType === 'source_ledger' ||
     docType === 'jump_start' ||
     docType === 'semantic_brief' ||
-    docType === 'producer_packet'
+    docType === 'producer_packet' ||
+    docType === 'creator_brief'
   );
 }
 
@@ -55,6 +57,14 @@ export function ResearchDocumentRenderer({
         return <SemanticBriefRenderer data={data as unknown as SemanticBriefData} showDetails={showDetails} />;
       case 'producer_packet':
         return <CreatorBriefRenderer data={data as unknown as ProducerPacketData} showDetails={showDetails} />;
+      case 'creator_brief':
+        // Use CreatorBriefView with pre-loaded data (skip its internal fetch)
+        return (
+          <CreatorBriefView
+            jobId={data.job_id as string || ''}
+            data={data as any}
+          />
+        );
     }
   }
 

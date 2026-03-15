@@ -13,8 +13,8 @@ interface CitationPillProps {
 }
 
 export function CitationPill({ sourceId, showDetails = false }: CitationPillProps) {
-  // Short form: S1, S2 etc. Long form: Source 1
-  const shortLabel = sourceId.replace('SRC_', 'S');
+  // Short form: S1, KP1 etc. Long form: Source 1, Key Point 1
+  const shortLabel = sourceId.replace('SRC_', 'S').replace(/^KP_/i, 'KP');
   const longLabel = formatInternalId(sourceId);
   const label = showDetails ? `${longLabel} (${sourceId})` : shortLabel;
 

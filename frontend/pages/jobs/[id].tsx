@@ -237,14 +237,19 @@ function JobDetailContent() {
     router.push('/dashboard');
   }, [jobId, deleteJob, router]);
 
-  const handleTriggerBooster = useCallback(async (runId?: string) => {
-    if (!jobId) return;
-    await triggerBooster(jobId, runId);
-  }, [jobId, triggerBooster]);
+  const handleTriggerBooster = useCallback(async () => {
+    // Booster endpoint is deprecated (HTTP 410). Open the iterate dialog instead,
+    // which supports deep_dive mode as the replacement.
+    setNewIterateDialogOpen(true);
+  }, []);
 
   const handleTriggerProducer = useCallback(async (runId?: string) => {
     if (!jobId) return;
-    await triggerProducerPacket(jobId, runId);
+    try {
+      await triggerProducerPacket(jobId, runId);
+    } catch (err) {
+      console.error('Failed to trigger producer packet:', err);
+    }
   }, [jobId, triggerProducerPacket]);
 
   const actionsDisabled = !!actionInProgress;
