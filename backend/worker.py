@@ -39,6 +39,7 @@ celery_app.conf.update(
         "backend.worker.run_booster_task": {"queue": "research"},
         "backend.worker.run_iterate_task": {"queue": "research"},
         "backend.worker.run_producer_task": {"queue": "research"},
+        "backend.worker.run_blog_post_task": {"queue": "research"},
         "backend.worker.run_claim_extraction_job": {"queue": "research"},
     },
     task_default_queue="research",
@@ -2128,6 +2129,131 @@ def run_producer_task(self, job_id: str, user_id: str, run_id: str = None) -> di
             "status": "failed",
             "error": str(e),
         }
+
+
+# =============================================================================
+# BLOG POST TASK (Doc 7 — user-triggered)
+# =============================================================================
+
+@celery_app.task(
+    bind=True,
+    name="backend.worker.run_blog_post_task",
+    max_retries=1,
+    soft_time_limit=300,  # 5 min soft limit
+)
+def run_blog_post_task(self, job_id: str, user_id: str) -> dict:
+    """Generate Blog Post (Doc 7) for a completed job.
+
+    Args:
+        job_id: ID of the completed job.
+        user_id: ID of the user who triggered blog post.
+
+    Returns:
+        Dict with job_id, status, cost, and summary.
+    """
+    from backend.pipeline.stages.blog_post_stage import run_blog_post_stage
+    from backend.pipeline.formatters.blog_post_formatter import format_blog_post
+    from backend.pipeline.version_manager import store_document_version
+
+    logger.info(f"[{job_id}] Starting Blog Post generation")
+
+    job = get_job(job_id)
+    if not job:
+        logger.error(f"[{job_id}] Job not found")
+        return {"job_id": job_id, "status": "failed", "error": "Job not found"}
+
+    # Get job as dict
+    if hasattr(job, "model_dump"):
+        job_dict = job.model_dump(exclude_none=True)
+    elif hasattr(job, "__dict__"):
+        job_dict = {k: v for k, v in job.__dict__.items() if not k.startswith("_")}
+    else:
+        job_dict = dict(job) if isinstance(job, dict) else {}
+
+    # Ensure artifacts dict
+    if hasattr(job, "artifacts"):
+        if hasattr(job.artifacts, "model_dump"):
+            artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+        elif isinstance(job.artifacts, dict):
+            artifacts_dict = job.artifacts
+        else:
+            artifacts_dict = {}
+        job_dict["artifacts"] = artifacts_dict
+    else:
+        artifacts_dict = {}
+
+    try:
+        from datetime import datetime, timezone
+
+        # Update status
+        update_job(
+            job_id,
+            blog_post_status="running",
+            blog_post_progress_percent=10,
+        )
+
+        # Run blog post stage
+        blog_post, cost, warnings = run_blog_post_stage(job_id, job_dict)
+
+        # Format as markdown
+        blog_post_dict = blog_post.model_dump(mode="json")
+        blog_post_md = format_blog_post(blog_post)
+
+        # Store via version manager
+        version_num, storage_path = store_document_version(
+            job_id=job_id,
+            doc_type="doc_7",
+            content=blog_post_dict,
+            trigger="initial_run",
+            markdown=blog_post_md,
+        )
+
+        # Store in artifacts
+        partial_artifacts = {
+            "blog_post": blog_post_dict,
+            "blog_post_md": blog_post_md,
+            "doc_7_path": storage_path,
+        }
+
+        update_job(
+            job_id,
+            partial_artifacts=partial_artifacts,
+            warnings_append=warnings if warnings else None,
+            blog_post_status="completed",
+            blog_post_completed_at=datetime.now(timezone.utc),
+            blog_post_progress_percent=100,
+        )
+
+        logger.info(
+            f"[{job_id}] Blog Post complete: "
+            f"{len(blog_post.sections)} sections, "
+            f"cost=${cost:.4f}, {len(warnings)} warnings"
+        )
+
+        return {
+            "job_id": job_id,
+            "status": "success",
+            "cost": cost,
+            "warnings": warnings,
+        }
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Blog post timed out after 5 minutes")
+        update_job(
+            job_id,
+            blog_post_status="failed",
+            blog_post_error="Blog post timed out after 5 minutes",
+        )
+        return {"job_id": job_id, "status": "failed", "error": "Blog post timed out"}
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Blog post failed: {e}")
+        update_job(
+            job_id,
+            blog_post_status="failed",
+            blog_post_error=str(e),
+        )
+        return {"job_id": job_id, "status": "failed", "error": str(e)}
 
 
 # =============================================================================

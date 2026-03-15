@@ -28,6 +28,9 @@ export type ArtifactType =
   | 'doc_2'
   | 'doc_3'
   | 'doc_4'
+  | 'doc_5'
+  | 'doc_6'
+  | 'doc_7'
   | 'booster'
   | 'iteration'
   | 'claims_doc';
@@ -122,6 +125,43 @@ function ClipboardIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function ScriptIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="2" width="14" height="16" rx="2" />
+      <line x1="6" y1="6" x2="14" y2="6" />
+      <line x1="6" y1="9" x2="12" y2="9" />
+      <line x1="6" y1="12" x2="14" y2="12" />
+      <line x1="6" y1="15" x2="10" y2="15" />
+      <circle cx="15" cy="14" r="2" fill="currentColor" opacity="0.3" />
+    </svg>
+  );
+}
+
+function ShareIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="5" cy="10" r="2.5" />
+      <circle cx="15" cy="5" r="2.5" />
+      <circle cx="15" cy="15" r="2.5" />
+      <line x1="7" y1="9" x2="13" y2="6" />
+      <line x1="7" y1="11" x2="13" y2="14" />
+    </svg>
+  );
+}
+
+function BlogIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="2" width="16" height="16" rx="2" />
+      <line x1="5" y1="6" x2="15" y2="6" />
+      <line x1="5" y1="9" x2="15" y2="9" />
+      <line x1="5" y1="12" x2="11" y2="12" />
+      <rect x="12" y="11" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.2" />
+    </svg>
+  );
+}
+
 /** SVG spinner - replaces CSS border hack */
 function Spinner({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
@@ -160,6 +200,9 @@ const ACCENT_COLORS: Record<ArtifactType, { icon: string; bar: string; glow: str
   doc_2: { icon: 'text-purple-400', bar: 'from-purple-500 to-purple-400', glow: 'rgba(139,92,246,0.3)' },
   doc_3: { icon: 'text-amber-400', bar: 'from-amber-500 to-amber-400', glow: 'rgba(245,158,11,0.3)' },
   doc_4: { icon: 'text-green-400', bar: 'from-green-500 to-green-400', glow: 'rgba(34,197,94,0.3)' },
+  doc_5: { icon: 'text-cyan-400', bar: 'from-cyan-500 to-cyan-400', glow: 'rgba(6,182,212,0.3)' },
+  doc_6: { icon: 'text-pink-400', bar: 'from-pink-500 to-pink-400', glow: 'rgba(236,72,153,0.3)' },
+  doc_7: { icon: 'text-emerald-400', bar: 'from-emerald-500 to-emerald-400', glow: 'rgba(16,185,129,0.3)' },
   booster: { icon: 'text-indigo-400', bar: 'from-indigo-500 to-indigo-400', glow: 'rgba(99,102,241,0.3)' },
   iteration: { icon: 'text-teal-400', bar: 'from-teal-500 to-teal-400', glow: 'rgba(20,184,166,0.3)' },
   claims_doc: { icon: 'text-rose-400', bar: 'from-rose-500 to-rose-400', glow: 'rgba(244,63,94,0.3)' },
@@ -172,6 +215,9 @@ const ARTIFACT_ICONS: Record<ArtifactType, React.FC<{ className?: string }>> = {
   doc_2: PrismIcon,
   doc_3: SparkIcon,
   doc_4: FilmIcon,
+  doc_5: ScriptIcon,
+  doc_6: ShareIcon,
+  doc_7: BlogIcon,
   booster: ScopeIcon,
   iteration: LayersIcon,
   claims_doc: ClipboardIcon,
@@ -187,6 +233,9 @@ const ARTIFACT_CONFIG: Record<ArtifactType, {
   doc_2: { title: 'Semantic Brief', subtitle: 'Themes & insights', readyLabel: 'View Brief' },
   doc_3: { title: 'Creator Brief', subtitle: 'Production-ready brief', readyLabel: 'Generate' },
   doc_4: { title: 'Producer Packet', subtitle: 'Production notes', readyLabel: 'Generate' },
+  doc_5: { title: 'Script', subtitle: 'Video script', readyLabel: 'Generate' },
+  doc_6: { title: 'Social Kit', subtitle: 'Social media posts', readyLabel: 'Generate' },
+  doc_7: { title: 'Blog Post', subtitle: 'SEO article', readyLabel: 'Generate' },
   booster: { title: 'Deep Research', subtitle: 'Expanded analysis', readyLabel: 'Start Analysis' },
   iteration: { title: 'Iterations', subtitle: 'Additional passes', readyLabel: 'Run New Pass' },
   claims_doc: { title: 'Claims', subtitle: 'Extracted claims', readyLabel: 'View Claims' },
@@ -248,6 +297,9 @@ export function ArtifactCard({
                type === 'doc_1' ? 'Finding directions' :
                type === 'doc_2' ? 'Synthesizing themes' :
                type === 'doc_3' ? 'Generating brief' :
+               type === 'doc_5' ? 'Writing script' :
+               type === 'doc_6' ? 'Creating social posts' :
+               type === 'doc_7' ? 'Writing blog post' :
                type === 'booster' ? 'Expanding research' :
                type === 'iteration' ? 'Running analysis' :
                type === 'claims_doc' ? 'Extracting claims' :

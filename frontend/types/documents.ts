@@ -341,7 +341,133 @@ export interface ProducerPacketData {
 }
 
 // =============================================================================
+// Blog Post (Doc 7)
+// =============================================================================
+
+export interface BlogSection {
+  section_id: string;
+  heading: string;
+  body: string;
+  claim_ids: string[];
+  source_ids: string[];
+}
+
+export interface BlogPostData {
+  document_type: 'blog_post';
+  job_id: string;
+  generated_at: string;
+  topic: string;
+  source_count: number;
+  title: string;
+  subtitle?: string | null;
+  meta_description: string;
+  estimated_reading_time: string;
+  sections: BlogSection[];
+  conclusion: string;
+  call_to_action?: string | null;
+  seo_keywords: string[];
+  description_sources: { source_id: string; title: string; url?: string; creator?: string }[];
+  guardrails: {
+    no_new_facts_ack: boolean;
+    all_facts_reference_doc2: boolean;
+    all_facts_reference_doc0: boolean;
+  };
+}
+
+// =============================================================================
+// Script (Doc 5)
+// =============================================================================
+
+export interface ScriptHook {
+  text: string;
+  hook_type: string;
+  claim_id: string;
+  source_id: string;
+}
+
+export interface ScriptSection {
+  section_id: string;
+  beat_label: string;
+  spoken_text: string;
+  stage_direction?: string | null;
+  duration_estimate: string;
+  claim_ids: string[];
+  source_ids: string[];
+}
+
+export interface ScriptOutro {
+  text: string;
+  call_to_action?: string | null;
+}
+
+export interface ScriptData {
+  document_type: 'script';
+  job_id: string;
+  generated_at: string;
+  topic: string;
+  source_count: number;
+  tone: 'serious' | 'casual' | 'energetic' | 'conversational';
+  target_length: 'short' | 'medium' | 'long';
+  story_arc: string;
+  title: string;
+  hook: ScriptHook;
+  sections: ScriptSection[];
+  outro: ScriptOutro;
+  total_word_count: number;
+  estimated_duration: string;
+  description_sources: { source_id: string; title: string; url?: string; creator?: string }[];
+  guardrails: {
+    no_new_facts_ack: boolean;
+    all_facts_reference_doc2: boolean;
+    all_facts_reference_doc0: boolean;
+  };
+}
+
+// =============================================================================
+// Social Media Kit (Doc 6)
+// =============================================================================
+
+export interface TweetItem {
+  tweet_number: number;
+  text: string;
+  claim_ids: string[];
+}
+
+export interface TimestampEntry {
+  timestamp: string;
+  label: string;
+}
+
+export type SocialPlatform = 'twitter_thread' | 'linkedin' | 'instagram' | 'youtube_description' | 'tiktok' | 'newsletter';
+
+export interface PlatformPost {
+  platform: SocialPlatform;
+  tweets?: TweetItem[];
+  body?: string | null;
+  description_body?: string | null;
+  timestamps?: TimestampEntry[];
+  hashtags: string[];
+  char_count: number;
+  claim_ids: string[];
+  source_ids: string[];
+}
+
+export interface SocialKitData {
+  document_type: 'social_kit';
+  job_id: string;
+  generated_at: string;
+  topic: string;
+  source_count: number;
+  platforms: PlatformPost[];
+  guardrails: {
+    no_new_facts_ack: boolean;
+    all_facts_reference_doc2: boolean;
+    all_facts_reference_doc0: boolean;
+  };
+}
+
+// =============================================================================
 // Union type for all document data
 // =============================================================================
 
-export type DocumentData = SourceLedgerData | JumpStartData | SemanticBriefData | ProducerPacketData;
+export type DocumentData = SourceLedgerData | JumpStartData | SemanticBriefData | ProducerPacketData | BlogPostData | ScriptData | SocialKitData;

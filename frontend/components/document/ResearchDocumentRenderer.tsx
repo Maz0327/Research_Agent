@@ -13,15 +13,17 @@ import type {
   JumpStartData,
   SemanticBriefData,
   ProducerPacketData,
+  BlogPostData,
 } from '@/types/documents';
 import { SourceLedgerRenderer } from './SourceLedgerRenderer';
 import { JumpStartRenderer } from './JumpStartRenderer';
 import { SemanticBriefRenderer } from './SemanticBriefRenderer';
 import { CreatorBriefRenderer } from './CreatorBriefRenderer';
 import { CreatorBriefView } from '@/components/creator-brief/CreatorBriefView';
+import { BlogPostRenderer } from './BlogPostRenderer';
 
 export interface ResearchDocumentRendererProps {
-  docNumber: 0 | 1 | 2 | 3 | 4 | 'B';
+  docNumber: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B';
   data: Record<string, unknown>;
   markdown?: string;
   showDetails?: boolean;
@@ -36,7 +38,8 @@ function hasTypedData(data: Record<string, unknown>): boolean {
     docType === 'jump_start' ||
     docType === 'semantic_brief' ||
     docType === 'producer_packet' ||
-    docType === 'creator_brief'
+    docType === 'creator_brief' ||
+    docType === 'blog_post'
   );
 }
 
@@ -65,6 +68,8 @@ export function ResearchDocumentRenderer({
             data={data as any}
           />
         );
+      case 'blog_post':
+        return <BlogPostRenderer data={data as unknown as BlogPostData} showDetails={showDetails} />;
     }
   }
 

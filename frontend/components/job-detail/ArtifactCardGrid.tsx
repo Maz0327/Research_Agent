@@ -152,7 +152,7 @@ function getCardStageInfo(
 /** Props for document modal */
 interface DocModalState {
   isOpen: boolean;
-  docNumber: 0 | 1 | 2 | 3 | 4 | 'B';
+  docNumber: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B';
   title: string;
   markdown?: string;
   data: Record<string, unknown>;
@@ -167,6 +167,8 @@ export interface ArtifactCardGridProps {
   onTriggerProducer: (runId?: string) => void;
   /** Handler to open iteration dialog */
   onOpenIterationDialog: () => void;
+  /** Handler to trigger blog post generation */
+  onTriggerBlogPost?: () => void;
   /** Whether actions are disabled (loading state) */
   actionsDisabled?: boolean;
 }
@@ -266,6 +268,39 @@ function getArtifactState(
       if (!mainComplete) return 'not_available';
       return 'ready';
 
+    case 'doc_5': {
+      const a5 = artifacts as any;
+      if (a5?.doc_5_path || a5?.script) return 'completed';
+      const scriptStatus = (job as any).script_status;
+      if (scriptStatus === 'failed') return 'failed';
+      if (scriptStatus === 'running') return 'running';
+      if (scriptStatus === 'queued') return 'queued';
+      if (!mainComplete) return 'not_available';
+      return 'ready';
+    }
+
+    case 'doc_6': {
+      const a6 = artifacts as any;
+      if (a6?.doc_6_path || a6?.social_kit) return 'completed';
+      const socialKitStatus = (job as any).social_kit_status;
+      if (socialKitStatus === 'failed') return 'failed';
+      if (socialKitStatus === 'running') return 'running';
+      if (socialKitStatus === 'queued') return 'queued';
+      if (!mainComplete) return 'not_available';
+      return 'ready';
+    }
+
+    case 'doc_7': {
+      const a7 = artifacts as any;
+      if (a7?.doc_7_path || a7?.blog_post) return 'completed';
+      const blogPostStatus = (job as any).blog_post_status;
+      if (blogPostStatus === 'failed') return 'failed';
+      if (blogPostStatus === 'running') return 'running';
+      if (blogPostStatus === 'queued') return 'queued';
+      if (!mainComplete) return 'not_available';
+      return 'ready';
+    }
+
     case 'booster':
       if (booster_status === 'completed') return 'completed';
       if (booster_status === 'failed') return 'failed';
@@ -298,7 +333,7 @@ function getArtifactState(
 /** Fetch document content from API endpoint */
 async function fetchDocumentFromAPI(
   jobId: string,
-  docType: 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3' | 'doc_4'
+  docType: 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3' | 'doc_4' | 'doc_5' | 'doc_6' | 'doc_7'
 ): Promise<{ data: Record<string, unknown>; markdown?: string }> {
   const token = await getAccessToken();
   const headers: Record<string, string> = {
@@ -343,6 +378,7 @@ export function ArtifactCardGrid({
   onTriggerBooster,
   onTriggerProducer,
   onOpenIterationDialog,
+  onTriggerBlogPost,
   actionsDisabled = false,
 }: ArtifactCardGridProps) {
   // Check if this is a claim extraction job
@@ -426,7 +462,7 @@ export function ArtifactCardGrid({
 
   /** Open document viewer for a specific doc */
   const openDocViewer = useCallback(
-    async (docNumber: 0 | 1 | 2 | 3 | 4 | 'B', title: string) => {
+    async (docNumber: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B', title: string) => {
       setIsLoadingDoc(true);
 
       try {
@@ -528,6 +564,42 @@ export function ArtifactCardGrid({
                 markdown = result.markdown;
               }
               break;
+            case 5: {
+              const a5 = artifacts as any;
+              if (a5.doc_5_path) {
+                const result = await fetchDocumentFromAPI(job.id, 'doc_5');
+                data = result.data;
+                markdown = result.markdown;
+              } else if (a5.script) {
+                data = a5.script;
+                markdown = a5.script_md;
+              }
+              break;
+            }
+            case 6: {
+              const a6 = artifacts as any;
+              if (a6.doc_6_path) {
+                const result = await fetchDocumentFromAPI(job.id, 'doc_6');
+                data = result.data;
+                markdown = result.markdown;
+              } else if (a6.social_kit) {
+                data = a6.social_kit;
+                markdown = a6.social_kit_md;
+              }
+              break;
+            }
+            case 7: {
+              const a7 = artifacts as any;
+              if (a7.doc_7_path) {
+                const result = await fetchDocumentFromAPI(job.id, 'doc_7');
+                data = result.data;
+                markdown = result.markdown;
+              } else if (a7.blog_post) {
+                data = a7.blog_post;
+                markdown = a7.blog_post_md;
+              }
+              break;
+            }
             case 'B':
               if (artifacts.booster_output) {
                 data = artifacts.booster_output;
@@ -602,6 +674,28 @@ export function ArtifactCardGrid({
             onTriggerProducer(); // Producer packet generation
           }
           break;
+        case 'doc_5':
+          if (state === 'completed') {
+            openDocViewer(5, 'Script');
+          } else if (state === 'ready' && !actionsDisabled) {
+            // Will be handled by onTriggerScript in Phase 2
+          }
+          break;
+        case 'doc_6':
+          if (state === 'completed') {
+            openDocViewer(6, 'Social Media Kit');
+          } else if (state === 'ready' && !actionsDisabled) {
+            // Will be handled by onTriggerSocialKit in Phase 4
+          }
+          break;
+        case 'doc_7':
+          if (state === 'completed') {
+            openDocViewer(7, 'Blog Post');
+          } else if (state === 'ready' && !actionsDisabled) {
+            // Trigger blog post generation
+            onTriggerBlogPost?.();
+          }
+          break;
         case 'booster':
           if (state === 'completed') {
             openDocViewer('B', 'Deep Research');
@@ -621,7 +715,7 @@ export function ArtifactCardGrid({
           break;
       }
     },
-    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, actionsDisabled]
+    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, onTriggerBlogPost, actionsDisabled]
   );
 
   // Count completed iterations and runs
@@ -732,6 +826,27 @@ export function ArtifactCardGrid({
           state={getArtifactState(job, 'doc_4', selectedVersion)}
           onClick={() => handleCardClick('doc_4')}
           readingOrder={READING_ORDER.doc_4}
+        />
+
+        {/* Doc 5: Script — user-triggered */}
+        <ArtifactCard
+          type="doc_5"
+          state={getArtifactState(job, 'doc_5', selectedVersion)}
+          onClick={() => handleCardClick('doc_5')}
+        />
+
+        {/* Doc 6: Social Media Kit — user-triggered */}
+        <ArtifactCard
+          type="doc_6"
+          state={getArtifactState(job, 'doc_6', selectedVersion)}
+          onClick={() => handleCardClick('doc_6')}
+        />
+
+        {/* Doc 7: Blog Post — user-triggered */}
+        <ArtifactCard
+          type="doc_7"
+          state={getArtifactState(job, 'doc_7', selectedVersion)}
+          onClick={() => handleCardClick('doc_7')}
         />
 
         {/* Booster: Deep Research — independent progress tracking */}

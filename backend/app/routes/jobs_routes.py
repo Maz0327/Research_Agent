@@ -1300,6 +1300,89 @@ async def generate_producer_packet(
 
 
 # =============================================================================
+# BLOG POST ENDPOINT (Doc 7 — user-triggered)
+# =============================================================================
+
+@router.post("/{job_id}/blog-post")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def generate_blog_post(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Generate a Blog Post (Doc 7) from completed research.
+
+    Prerequisites:
+    - Job must be in 'completed' or 'completed_with_warnings' status
+    - Doc 3 (Creator Brief) should exist (recommended but not required)
+
+    Returns status and message. Poll job for completion.
+    """
+    # Validate job_id format
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Authorization: owner only
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Job must be completed
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to generate blog post. Current status: '{job_status}'"
+        )
+
+    # Check for existing blog_post_status to prevent concurrent runs
+    blog_post_status = getattr(job, "blog_post_status", None)
+    if blog_post_status == "running":
+        raise HTTPException(
+            status_code=409,
+            detail="Blog post is already being generated for this job"
+        )
+
+    # Update status
+    from datetime import datetime, timezone
+    update_job(
+        job_id,
+        blog_post_status="queued",
+        blog_post_progress_percent=0,
+        blog_post_error=None,
+    )
+
+    # Queue task
+    from backend.worker import run_blog_post_task
+    logger.info(f"Enqueuing blog post task for job {job_id}")
+    run_blog_post_task.apply_async(
+        (job_id, user.user_id),
+        task_id=f"{job_id}_blog_post"
+    )
+
+    logger.info(
+        "Blog post triggered",
+        extra={
+            "job_id": job_id,
+            "user_id": user.user_id,
+            "event": "blog_post_triggered",
+        }
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "blog_post_status": "queued",
+        "message": "Blog Post (Doc 7) generation started.",
+    }
+
+
+# =============================================================================
 # RUN-SCOPED PRODUCER/BOOSTER ENDPOINTS (V2 Run Abstraction)
 # =============================================================================
 

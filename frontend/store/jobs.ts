@@ -1016,6 +1016,45 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
+  triggerBlogPost: async (jobId: string): Promise<{ job_id: string; status: string; message: string }> => {
+    set({ actionInProgress: 'blog_post' as any });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/blog-post`, {
+        method: 'POST',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to trigger blog post'));
+      }
+
+      const data = await response.json();
+
+      // Update blog_post_status in local state (DO NOT change job.status)
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId ? { ...job, blog_post_status: 'queued' as any } : job
+        ),
+        actionInProgress: null,
+      }));
+
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to trigger blog post';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
+  },
+
   createRun: async (jobId: string, request: CreateRunRequest): Promise<CreateRunResponse> => {
     set({ actionInProgress: 'iteration' });
     try {

@@ -32,7 +32,7 @@ from backend.models.creator_brief import DocumentVersionMetadata
 MAX_VERSIONS = 4
 
 # Doc numbers that support versioning
-DOC_TYPES = ("doc_0", "doc_1", "doc_2", "doc_3", "doc_4")
+DOC_TYPES = ("doc_0", "doc_1", "doc_2", "doc_3", "doc_4", "doc_5", "doc_6", "doc_7")
 
 # Trigger type
 TriggerType = Literal[

@@ -33,7 +33,7 @@ interface VersionMeta {
 export interface DocumentViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  docNumber: 0 | 1 | 2 | 3 | 4 | 'B';
+  docNumber: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B';
   title: string;
   markdown?: string;
   data: Record<string, unknown>;
@@ -44,7 +44,7 @@ export interface DocumentViewerModalProps {
 }
 
 // Document type styling
-const docStyles: Record<0 | 1 | 2 | 3 | 4 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string; accentBar: string }> = {
+const docStyles: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string; accentBar: string }> = {
   0: {
     headerBg: 'bg-gray-800',
     headerBorder: 'border-gray-700',
@@ -80,6 +80,27 @@ const docStyles: Record<0 | 1 | 2 | 3 | 4 | 'B', { headerBg: string; headerBorde
     accent: 'text-green-400',
     accentBar: 'bg-green-500',
   },
+  5: {
+    headerBg: 'bg-cyan-900/30',
+    headerBorder: 'border-cyan-800/50',
+    badge: 'bg-cyan-900/50 text-cyan-300',
+    accent: 'text-cyan-400',
+    accentBar: 'bg-cyan-500',
+  },
+  6: {
+    headerBg: 'bg-pink-900/30',
+    headerBorder: 'border-pink-800/50',
+    badge: 'bg-pink-900/50 text-pink-300',
+    accent: 'text-pink-400',
+    accentBar: 'bg-pink-500',
+  },
+  7: {
+    headerBg: 'bg-emerald-900/30',
+    headerBorder: 'border-emerald-800/50',
+    badge: 'bg-emerald-900/50 text-emerald-300',
+    accent: 'text-emerald-400',
+    accentBar: 'bg-emerald-500',
+  },
   'B': {
     headerBg: 'bg-indigo-900/30',
     headerBorder: 'border-indigo-800/50',
@@ -90,12 +111,15 @@ const docStyles: Record<0 | 1 | 2 | 3 | 4 | 'B', { headerBg: string; headerBorde
 };
 
 // Document titles for breadcrumbs
-const docTitles: Record<0 | 1 | 2 | 3 | 4 | 'B', string> = {
+const docTitles: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B', string> = {
   0: 'Source Ledger',
   1: 'Jump-Start Directions',
   2: 'Semantic Brief',
   3: 'Creator Brief',
   4: 'Producer Packet',
+  5: 'Script',
+  6: 'Social Media Kit',
+  7: 'Blog Post',
   'B': 'Deep Research',
 };
 
