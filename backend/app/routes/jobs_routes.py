@@ -1383,6 +1383,62 @@ async def generate_blog_post(
 
 
 # =============================================================================
+# SOCIAL KIT ENDPOINT (Doc 6 — user-triggered)
+# =============================================================================
+
+@router.post("/{job_id}/social-kit")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def generate_social_kit(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Generate Social Media Kit (Doc 6) from completed research."""
+    from backend.models.social_kit_models import GenerateSocialKitRequest
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    kit_request = GenerateSocialKitRequest(**body)
+
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(status_code=400, detail=f"Job must be completed. Current: '{job_status}'")
+
+    social_kit_status = getattr(job, "social_kit_status", None)
+    if social_kit_status == "running":
+        raise HTTPException(status_code=409, detail="Social kit is already being generated")
+
+    from datetime import datetime, timezone
+    update_job(job_id, social_kit_status="queued", social_kit_progress_percent=0, social_kit_error=None)
+
+    from backend.worker import run_social_kit_task
+    run_social_kit_task.apply_async(
+        (job_id, user.user_id, kit_request.model_dump()),
+        task_id=f"{job_id}_social_kit"
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "social_kit_status": "queued",
+        "message": f"Social Media Kit (Doc 6) generation started ({len(kit_request.platforms)} platforms).",
+    }
+
+
+# =============================================================================
 # SCRIPT ENDPOINT (Doc 5 — user-triggered)
 # =============================================================================
 

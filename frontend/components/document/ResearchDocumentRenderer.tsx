@@ -15,6 +15,7 @@ import type {
   ProducerPacketData,
   BlogPostData,
   ScriptData,
+  SocialKitData,
 } from '@/types/documents';
 import { SourceLedgerRenderer } from './SourceLedgerRenderer';
 import { JumpStartRenderer } from './JumpStartRenderer';
@@ -23,6 +24,7 @@ import { CreatorBriefRenderer } from './CreatorBriefRenderer';
 import { CreatorBriefView } from '@/components/creator-brief/CreatorBriefView';
 import { BlogPostRenderer } from './BlogPostRenderer';
 import { ScriptRenderer } from './ScriptRenderer';
+import { SocialKitRenderer } from './SocialKitRenderer';
 
 export interface ResearchDocumentRendererProps {
   docNumber: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B';
@@ -42,7 +44,8 @@ function hasTypedData(data: Record<string, unknown>): boolean {
     docType === 'producer_packet' ||
     docType === 'creator_brief' ||
     docType === 'blog_post' ||
-    docType === 'script'
+    docType === 'script' ||
+    docType === 'social_kit'
   );
 }
 
@@ -75,6 +78,8 @@ export function ResearchDocumentRenderer({
         return <BlogPostRenderer data={data as unknown as BlogPostData} showDetails={showDetails} />;
       case 'script':
         return <ScriptRenderer data={data as unknown as ScriptData} showDetails={showDetails} />;
+      case 'social_kit':
+        return <SocialKitRenderer data={data as unknown as SocialKitData} showDetails={showDetails} />;
     }
   }
 

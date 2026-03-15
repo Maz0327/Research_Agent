@@ -41,6 +41,7 @@ celery_app.conf.update(
         "backend.worker.run_producer_task": {"queue": "research"},
         "backend.worker.run_blog_post_task": {"queue": "research"},
         "backend.worker.run_script_task": {"queue": "research"},
+        "backend.worker.run_social_kit_task": {"queue": "research"},
         "backend.worker.run_claim_extraction_job": {"queue": "research"},
     },
     task_default_queue="research",
@@ -2254,6 +2255,102 @@ def run_blog_post_task(self, job_id: str, user_id: str) -> dict:
             blog_post_status="failed",
             blog_post_error=str(e),
         )
+        return {"job_id": job_id, "status": "failed", "error": str(e)}
+
+
+# =============================================================================
+# SOCIAL KIT TASK (Doc 6 — user-triggered)
+# =============================================================================
+
+@celery_app.task(
+    bind=True,
+    name="backend.worker.run_social_kit_task",
+    max_retries=1,
+    soft_time_limit=300,
+)
+def run_social_kit_task(self, job_id: str, user_id: str, params: dict = None) -> dict:
+    """Generate Social Media Kit (Doc 6) for a completed job.
+
+    Args:
+        job_id: ID of the completed job.
+        user_id: ID of the user.
+        params: Optional dict with platforms, tone.
+
+    Returns:
+        Dict with job_id, status, cost.
+    """
+    from backend.pipeline.stages.social_kit_stage import run_social_kit_stage
+    from backend.pipeline.formatters.social_kit_formatter import format_social_kit
+    from backend.pipeline.version_manager import store_document_version
+
+    params = params or {}
+    logger.info(f"[{job_id}] Starting Social Kit generation")
+
+    job = get_job(job_id)
+    if not job:
+        return {"job_id": job_id, "status": "failed", "error": "Job not found"}
+
+    if hasattr(job, "model_dump"):
+        job_dict = job.model_dump(exclude_none=True)
+    elif hasattr(job, "__dict__"):
+        job_dict = {k: v for k, v in job.__dict__.items() if not k.startswith("_")}
+    else:
+        job_dict = dict(job) if isinstance(job, dict) else {}
+
+    if hasattr(job, "artifacts"):
+        if hasattr(job.artifacts, "model_dump"):
+            artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+        elif isinstance(job.artifacts, dict):
+            artifacts_dict = job.artifacts
+        else:
+            artifacts_dict = {}
+        job_dict["artifacts"] = artifacts_dict
+
+    try:
+        from datetime import datetime, timezone
+        update_job(job_id, social_kit_status="running", social_kit_progress_percent=10)
+
+        kit, cost, warnings = run_social_kit_stage(
+            job_id=job_id,
+            job_data=job_dict,
+            platforms=params.get("platforms"),
+            tone=params.get("tone", "professional"),
+        )
+
+        kit_dict = kit.model_dump(mode="json")
+        kit_md = format_social_kit(kit)
+
+        version_num, storage_path = store_document_version(
+            job_id=job_id, doc_type="doc_6",
+            content=kit_dict, trigger="initial_run", markdown=kit_md,
+        )
+
+        partial_artifacts = {
+            "social_kit": kit_dict,
+            "social_kit_md": kit_md,
+            "doc_6_path": storage_path,
+        }
+
+        update_job(
+            job_id,
+            partial_artifacts=partial_artifacts,
+            warnings_append=warnings if warnings else None,
+            social_kit_status="completed",
+            social_kit_completed_at=datetime.now(timezone.utc),
+            social_kit_progress_percent=100,
+        )
+
+        logger.info(f"[{job_id}] Social Kit complete: {len(kit.platforms)} platforms, cost=${cost:.4f}")
+        return {"job_id": job_id, "status": "success", "cost": cost, "warnings": warnings}
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Social kit timed out")
+        update_job(job_id, social_kit_status="failed", social_kit_error="Timed out")
+        return {"job_id": job_id, "status": "failed", "error": "Social kit timed out"}
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Social kit failed: {e}")
+        update_job(job_id, social_kit_status="failed", social_kit_error=str(e))
         return {"job_id": job_id, "status": "failed", "error": str(e)}
 
 

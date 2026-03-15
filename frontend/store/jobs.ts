@@ -1016,6 +1016,45 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
+  triggerSocialKit: async (jobId: string, options?: { platforms?: string[]; tone?: string }): Promise<{ job_id: string; status: string; message: string }> => {
+    set({ actionInProgress: 'social_kit' as any });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/social-kit`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(options || {}),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to trigger social kit'));
+      }
+
+      const data = await response.json();
+
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId ? { ...job, social_kit_status: 'queued' as any } : job
+        ),
+        actionInProgress: null,
+      }));
+
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to trigger social kit';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
+  },
+
   triggerScript: async (jobId: string, options?: { tone?: string; target_length?: string; story_arc?: string; voice_profile_id?: string }): Promise<{ job_id: string; status: string; message: string }> => {
     set({ actionInProgress: 'script' as any });
     try {
