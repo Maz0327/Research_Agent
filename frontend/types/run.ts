@@ -84,7 +84,7 @@ export function normalizeRunType(runType: string): 'expand' | 'refine' | 'regene
 // =============================================================================
 
 /** The 5 iterate modes supported by the unified iterate endpoint */
-export type IterateMode = 'deep_dive' | 'expand_sources' | 'deeper' | 'different_angle' | 'custom';
+export type IterateMode = 'deep_dive' | 'expand_sources' | 'deeper' | 'different_angle' | 'custom' | 'inline_edit';
 
 /** Request body for POST /jobs/{job_id}/iterate */
 export interface IterateRequest {
@@ -97,6 +97,12 @@ export interface IterateRequest {
   angle?: string;
   /** Custom instructions (custom mode — required; deeper mode — optional) */
   user_prompt?: string;
+  /** Document type for inline_edit (e.g. 'doc_5', 'doc_7') */
+  doc_type?: string;
+  /** Section ID for inline_edit (e.g. 'SECT_3', 'SCRIPT_SEC_4') */
+  section_id?: string;
+  /** Edit instruction for inline_edit */
+  edit_instruction?: string;
 }
 
 /** Display configuration for iterate modes */
@@ -141,6 +147,13 @@ export const ITERATE_MODE_CONFIG: Record<IterateMode, {
     icon: '✏️',
     color: 'gray',
     docsAffected: 'Varies',
+  },
+  inline_edit: {
+    label: 'Inline Edit',
+    description: 'Edit a single section',
+    icon: '✂️',
+    color: 'cyan',
+    docsAffected: 'Target section only',
   },
 };
 

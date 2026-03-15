@@ -42,6 +42,7 @@ TriggerType = Literal[
     "deeper",
     "different_angle",
     "custom",
+    "inline_edit",
 ]
 
 

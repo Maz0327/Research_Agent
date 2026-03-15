@@ -283,6 +283,7 @@ class DocumentVersionMetadata(BaseModel):
         "deeper",
         "different_angle",
         "custom",
+        "inline_edit",
     ] = "initial_run"
     source_count: int = Field(..., ge=0)
     claim_count: int = Field(..., ge=0)

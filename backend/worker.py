@@ -1722,6 +1722,26 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
             versions_created.append(f"doc_1 v{version}")
             logger.info(f"[{job_id}] deep_dive complete: doc_1 v{version}")
 
+        # ── INLINE EDIT ─────────────────────────────────────────────────────
+        elif mode == "inline_edit":
+            from backend.pipeline.stages.inline_edit_stage import run_inline_edit
+
+            doc_type = params.get("doc_type", "")
+            section_id = params.get("section_id", "")
+            edit_instruction = params.get("edit_instruction", "")
+
+            if not doc_type or not section_id or not edit_instruction:
+                raise ValueError("inline_edit requires doc_type, section_id, and edit_instruction")
+
+            updated_doc, cost, edit_warnings = run_inline_edit(
+                job_id=job_id,
+                doc_type=doc_type,
+                section_id=section_id,
+                edit_instruction=edit_instruction,
+            )
+            versions_created.append(f"{doc_type} (inline edit: {section_id})")
+            logger.info(f"[{job_id}] inline_edit complete: {doc_type}/{section_id}")
+
         # ── OTHER MODES — delegate to existing iteration pipeline ────────────
         else:
             from backend.pipeline.iteration import (

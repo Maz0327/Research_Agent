@@ -1827,6 +1827,18 @@ class IterateRequest(_IterBaseModel):
         default="",
         description="User instructions (custom mode: required; deeper: optional)",
     )
+    doc_type: str = _IterField(
+        default="",
+        description="Document type for inline_edit (e.g. 'doc_5', 'doc_3')",
+    )
+    section_id: str = _IterField(
+        default="",
+        description="Section ID for inline_edit (e.g. 'SECT_3', 'SCRIPT_SEC_4')",
+    )
+    edit_instruction: str = _IterField(
+        default="",
+        description="Edit instruction for inline_edit (e.g. 'make more casual', 'expand', 'shorten')",
+    )
 
 
 @router.post("/{job_id}/iterate")
@@ -1857,7 +1869,7 @@ async def run_unified_iterate(
     import time
     from backend.worker import celery_app
 
-    VALID_MODES = {"deep_dive", "expand_sources", "deeper", "different_angle", "custom"}
+    VALID_MODES = {"deep_dive", "expand_sources", "deeper", "different_angle", "custom", "inline_edit"}
     if iterate_request.mode not in VALID_MODES:
         raise HTTPException(
             status_code=400,
@@ -1874,6 +1886,12 @@ async def run_unified_iterate(
             status_code=400,
             detail="custom mode requires 'user_prompt' parameter",
         )
+    if iterate_request.mode == "inline_edit":
+        if not iterate_request.doc_type or not iterate_request.section_id or not iterate_request.edit_instruction:
+            raise HTTPException(
+                status_code=400,
+                detail="inline_edit mode requires 'doc_type', 'section_id', and 'edit_instruction' parameters",
+            )
 
     try:
         uuid.UUID(job_id)
@@ -1901,6 +1919,9 @@ async def run_unified_iterate(
         "max_new_sources": iterate_request.max_new_sources,
         "angle": iterate_request.angle,
         "user_prompt": iterate_request.user_prompt,
+        "doc_type": iterate_request.doc_type,
+        "section_id": iterate_request.section_id,
+        "edit_instruction": iterate_request.edit_instruction,
     }
 
     celery_app.send_task(
