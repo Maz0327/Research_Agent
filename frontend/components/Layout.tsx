@@ -197,7 +197,7 @@ export default function Layout({ children }: LayoutProps) {
         <main
           id="main-content"
           role="main"
-          className={`flex-1 pt-14 lg:pt-0 pb-20 lg:pb-0 ${mainMargin} p-4 sm:p-6 lg:p-8 text-gray-100 transition-all duration-300`}
+          className={`flex-1 min-h-0 overflow-y-auto pt-14 lg:pt-0 pb-20 lg:pb-0 ${mainMargin} p-4 sm:p-6 lg:p-8 text-gray-100 transition-all duration-300`}
         >
           {children}
         </main>

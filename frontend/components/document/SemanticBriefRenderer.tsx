@@ -205,7 +205,8 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
           <p className="text-[14px] sm:text-[15px] text-gray-200 leading-relaxed max-w-none sm:max-w-[700px] mx-auto italic">
             &ldquo;{data.semantic_core.text}&rdquo;
           </p>
-          {data.semantic_core.based_on?.length > 0 && (
+          {/* based_on contains internal KP_ IDs — only show in debug mode */}
+          {showDetails && data.semantic_core.based_on?.length > 0 && (
             <div className="flex flex-wrap gap-1 justify-center mt-2">
               {data.semantic_core.based_on.map(sid => (
                 <CitationPill key={sid} sourceId={sid} showDetails={showDetails} />
