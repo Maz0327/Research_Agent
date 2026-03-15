@@ -34,6 +34,22 @@ Apply the autoresearch loop (modify -> verify -> keep/revert -> log -> repeat) t
 - Commit format: `Phase X.Y: [description]`
 - Follow architecture rules in `docs/authoritative/INDEX.md`
 
+## Validation Summary
+
+**Validated:** 2026-03-15
+**Questions asked:** 7
+
+### Confirmed Decisions
+- **Quality score weights:** Accept defaults (validation=0.35, provenance=0.25, diversity=0.20, ceiling=0.20)
+- **LLM Judge unavailable fallback:** Default validation_rate to 0.5 (neutral)
+- **Gemini circuit breaker threshold:** 5 failures before trip
+- **LLM Judge circuit breaker threshold:** Keep threshold=1 (matches current _PROVIDER_DISABLED behavior)
+
+### Changes from Plan
+- [ ] **Phase 1:** Move quality score computation to a new **post-assembly stage** instead of inside document_assembly — cleaner separation of concerns
+- [ ] **Phase 2:** Add `--run` flag to trigger a pipeline run on a test topic (measure + trigger), not just measure existing jobs
+- [ ] **Phase 3:** Add `threading.Lock` to CircuitBreaker's `record_failure()`/`record_success()` for thread safety in ThreadPoolExecutor
+
 ## Files Created
 
 | File | Phase |
@@ -48,7 +64,8 @@ Apply the autoresearch loop (modify -> verify -> keep/revert -> log -> repeat) t
 |------|-------|--------|
 | `backend/models/job_record.py` | 1 | Add `quality_score` field |
 | `backend/pipeline/context.py` | 1 | Add `quality_score` field |
-| `backend/pipeline/stages/document_assembly.py` | 1 | Compute + store score |
+| `backend/pipeline/stages/quality_assessment.py` | 1 | NEW: post-assembly stage for quality score |
+| `backend/pipeline/stage_runner.py` | 1 | Add quality_assessment after document_assembly |
 | `backend/pipeline/transcript_acquisition.py` | 3 | Wrap fallback chain |
 | `backend/pipeline/stages/semantic_extraction.py` | 3 | Add Gemini circuit breaker |
 | `backend/pipeline/llm_judge.py` | 3 | Migrate to shared CircuitBreaker |
