@@ -1,54 +1,108 @@
 /**
  * JobProgressPanel - Premium pipeline progress visualization
  *
+ * Phase 3C: Active Wait with Narrated Loading States
+ * - Narrated stage descriptions that tell the user what's happening
+ * - Partial result previews as stages complete
+ * - "While you wait" suggestions
+ *
  * Design language: Linear/Vercel-inspired dark theme
- * - Neutral surface (no colored alert boxes)
- * - Vertical timeline with connecting track line
- * - SVG spinner (no CSS border hack)
- * - Thin gradient progress bar with glow
- * - Opacity-based text hierarchy
- * - Spring animations
  */
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import useETA from '../../hooks/useETA';
-import { getStageLabel, getStageDescription } from '../../lib/constants';
+import { getStageLabel } from '../../lib/constants';
 import type { Job } from '../../store/jobs';
+import { PartialResultsPreview } from './PartialResultsPreview';
 
 export interface JobProgressPanelProps {
   job: Job;
 }
 
+// ─── Narrated Stage Descriptions ──────────────────────────────────────────────
+
+const NARRATED_DESCRIPTIONS: Record<string, string> = {
+  source_identity: 'Analyzing your sources... identifying content types and fetching transcripts',
+  semantic_extraction: 'Reading each source carefully... extracting claims, key points, and quotes',
+  semantic_validation: 'Verifying claims... checking confidence levels against source quality',
+  gap_analysis: 'Looking for gaps in the research... what angles are missing?',
+  semantic_synthesis: 'Finding patterns across all sources... connecting themes and tensions',
+  document_assembly: 'Building your documents... formatting for readability',
+  creator_brief_assembly: 'Writing your Creator Brief... crafting hooks and story angles',
+  completion: 'Final checks... polishing and saving your research',
+};
+
+/** Get a narrated description with dynamic details from the job */
+function getNarratedDescription(job: Job): string {
+  const stage = job.stage || '';
+
+  // Dynamic descriptions based on actual job data
+  if (stage === 'semantic_extraction' && job.artifacts?.semantic_extractions) {
+    const count = job.artifacts.semantic_extractions.length;
+    const totalSources = (job.artifacts as any)?.source_count || count;
+    return `Reading source ${count} of ${totalSources}... extracting claims and key points`;
+  }
+
+  if (stage === 'semantic_synthesis' && job.artifacts?.semantic_brief) {
+    const themes = (job.artifacts.semantic_brief as any)?.themes;
+    if (themes?.length) {
+      return `Finding patterns across sources... ${themes.length} theme${themes.length !== 1 ? 's' : ''} emerging`;
+    }
+  }
+
+  return job.pass_detail || NARRATED_DESCRIPTIONS[stage] || 'Processing your research...';
+}
+
 // ─── Stage Definitions ──────────────────────────────────────────────────────────
 
-const SEMANTIC_STAGES: Array<{ key: string; label: string }> = [
-  { key: 'source_identity', label: 'Identifying Sources' },
-  { key: 'semantic_extraction', label: 'Extracting Claims' },
-  { key: 'semantic_validation', label: 'Validating Claims' },
-  { key: 'gap_analysis', label: 'Finding Gaps' },
-  { key: 'semantic_synthesis', label: 'Connecting Themes' },
-  { key: 'document_assembly', label: 'Assembling Documents' },
-  { key: 'completion', label: 'Finalizing' },
+const SEMANTIC_STAGES: Array<{ key: string; label: string; narrated: string }> = [
+  { key: 'source_identity', label: 'Identifying Sources', narrated: 'Analyzing your sources' },
+  { key: 'semantic_extraction', label: 'Extracting Claims', narrated: 'Reading each source' },
+  { key: 'semantic_validation', label: 'Validating Claims', narrated: 'Verifying accuracy' },
+  { key: 'gap_analysis', label: 'Finding Gaps', narrated: 'Checking for blind spots' },
+  { key: 'semantic_synthesis', label: 'Connecting Themes', narrated: 'Finding patterns' },
+  { key: 'document_assembly', label: 'Assembling Documents', narrated: 'Building your docs' },
+  { key: 'completion', label: 'Finalizing', narrated: 'Almost ready' },
 ];
 
-const GEMINI_STAGES: Array<{ key: string; label: string }> = [
-  { key: 'pass_1_extraction', label: 'Pass 1: Extracting clips & quotes' },
-  { key: 'pass_2_structure', label: 'Pass 2: Analyzing video structure' },
-  { key: 'pass_3_gaps', label: 'Pass 3: Identifying research gaps' },
-  { key: 'pass_4_research', label: 'Pass 4: Generating research starter' },
+const GEMINI_STAGES: Array<{ key: string; label: string; narrated: string }> = [
+  { key: 'pass_1_extraction', label: 'Pass 1: Extracting clips & quotes', narrated: 'Pulling clips' },
+  { key: 'pass_2_structure', label: 'Pass 2: Analyzing video structure', narrated: 'Analyzing structure' },
+  { key: 'pass_3_gaps', label: 'Pass 3: Identifying research gaps', narrated: 'Finding gaps' },
+  { key: 'pass_4_research', label: 'Pass 4: Generating research starter', narrated: 'Building starter' },
 ];
 
-const TRANSCRIPT_STAGES: Array<{ key: string; label: string }> = [
-  { key: 'extracting_transcripts', label: 'Extracting Transcripts' },
-  { key: 'storing_transcripts', label: 'Saving Transcripts' },
+const TRANSCRIPT_STAGES: Array<{ key: string; label: string; narrated: string }> = [
+  { key: 'extracting_transcripts', label: 'Extracting Transcripts', narrated: 'Getting transcripts' },
+  { key: 'storing_transcripts', label: 'Saving Transcripts', narrated: 'Saving' },
 ];
 
-function resolveStageList(pipeline: string, stage?: string): Array<{ key: string; label: string }> | null {
+function resolveStageList(pipeline: string, stage?: string): Array<{ key: string; label: string; narrated: string }> | null {
   if (pipeline === 'gemini_video' || stage?.startsWith('pass_')) return GEMINI_STAGES;
   if (pipeline === 'transcript') return TRANSCRIPT_STAGES;
   const isSemanticStage = SEMANTIC_STAGES.some((s) => s.key === stage);
   const isSemanticPipeline = ['mixed_input', 'text_provided', 'ocr_extracted', 'video_analysis'].includes(pipeline);
   if (isSemanticStage || isSemanticPipeline) return SEMANTIC_STAGES;
   return null;
+}
+
+// ─── While You Wait Suggestions ─────────────────────────────────────────────
+
+const WHILE_YOU_WAIT_TIPS = [
+  'Pro tip: Start with the Creator Brief when results are ready — it has your hooks and story angles.',
+  'The Semantic Brief (Doc 2) has the deep analysis. Great for fact-checking your script.',
+  'You can iterate on results after they are done. Try "Different angle" for fresh perspectives.',
+];
+
+function WhileYouWait() {
+  // Pick a tip based on current minute to rotate them
+  const tipIndex = Math.floor(Date.now() / 60000) % WHILE_YOU_WAIT_TIPS.length;
+
+  return (
+    <div className="mt-4 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+      <p className="text-[11px] text-white/30 uppercase tracking-wider font-medium mb-1">While you wait</p>
+      <p className="text-[12px] text-white/40 leading-relaxed">{WHILE_YOU_WAIT_TIPS[tipIndex]}</p>
+    </div>
+  );
 }
 
 // ─── SVG Spinner ────────────────────────────────────────────────────────────────
@@ -68,7 +122,7 @@ function StageTimeline({
   stages,
   currentStage,
 }: {
-  stages: Array<{ key: string; label: string }>;
+  stages: Array<{ key: string; label: string; narrated: string }>;
   currentStage?: string;
 }) {
   const currentIdx = stages.findIndex((s) => s.key === currentStage);
@@ -120,17 +174,28 @@ function StageTimeline({
               )}
             </div>
 
-            {/* Label */}
-            <span
-              className={`
-                text-sm pb-3 transition-all duration-300
-                ${done ? 'text-white/35 font-normal' : ''}
-                ${active ? 'text-white/90 font-medium' : ''}
-                ${!done && !active ? 'text-white/25 font-normal' : ''}
-              `}
-            >
-              {stage.label}
-            </span>
+            {/* Label + narrated description for active stage */}
+            <div className="pb-3 min-w-0">
+              <span
+                className={`
+                  text-sm transition-all duration-300
+                  ${done ? 'text-white/35 font-normal' : ''}
+                  ${active ? 'text-white/90 font-medium' : ''}
+                  ${!done && !active ? 'text-white/25 font-normal' : ''}
+                `}
+              >
+                {stage.label}
+              </span>
+              {active && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[11px] text-white/30 mt-0.5"
+                >
+                  {stage.narrated}
+                </motion.p>
+              )}
+            </div>
           </div>
         );
       })}
@@ -141,7 +206,7 @@ function StageTimeline({
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 export function JobProgressPanel({ job }: JobProgressPanelProps) {
-  const { eta, elapsed, stageDescription } = useETA({
+  const { eta, elapsed } = useETA({
     progress: job.progress_percent,
     status: job.status,
     stage: job.stage,
@@ -160,7 +225,7 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
   const description =
     job.status === 'queued'
       ? 'Your job will start shortly.'
-      : job.pass_detail || stageDescription || getStageDescription(job.stage) || 'Processing your research';
+      : getNarratedDescription(job);
 
   return (
     <motion.div
@@ -177,7 +242,18 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-white/90 tracking-tight truncate">{stageLabel}</p>
-            <p className="text-sm text-white/40 mt-0.5">{description}</p>
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={description}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.3 }}
+                className="text-sm text-white/40 mt-0.5"
+              >
+                {description}
+              </motion.p>
+            </AnimatePresence>
           </div>
         </div>
 
@@ -213,6 +289,12 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
 
       {/* Stage timeline */}
       {stageList && <StageTimeline stages={stageList} currentStage={job.stage} />}
+
+      {/* Partial result previews */}
+      <PartialResultsPreview job={job} />
+
+      {/* While you wait suggestion */}
+      {clampedProgress > 10 && clampedProgress < 80 && <WhileYouWait />}
     </motion.div>
   );
 }
