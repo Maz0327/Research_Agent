@@ -1016,6 +1016,45 @@ export const useJobsStore = create<JobsState>((set, get) => ({
     }
   },
 
+  triggerScript: async (jobId: string, options?: { tone?: string; target_length?: string; story_arc?: string; voice_profile_id?: string }): Promise<{ job_id: string; status: string; message: string }> => {
+    set({ actionInProgress: 'script' as any });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/jobs/${jobId}/script`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(options || {}),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(formatApiError(errorData, 'Failed to trigger script'));
+      }
+
+      const data = await response.json();
+
+      set((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.id === jobId ? { ...job, script_status: 'queued' as any } : job
+        ),
+        actionInProgress: null,
+      }));
+
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to trigger script';
+      set({ error: message, actionInProgress: null });
+      throw error;
+    }
+  },
+
   triggerBlogPost: async (jobId: string): Promise<{ job_id: string; status: string; message: string }> => {
     set({ actionInProgress: 'blog_post' as any });
     try {

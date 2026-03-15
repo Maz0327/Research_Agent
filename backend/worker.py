@@ -40,6 +40,7 @@ celery_app.conf.update(
         "backend.worker.run_iterate_task": {"queue": "research"},
         "backend.worker.run_producer_task": {"queue": "research"},
         "backend.worker.run_blog_post_task": {"queue": "research"},
+        "backend.worker.run_script_task": {"queue": "research"},
         "backend.worker.run_claim_extraction_job": {"queue": "research"},
     },
     task_default_queue="research",
@@ -2253,6 +2254,112 @@ def run_blog_post_task(self, job_id: str, user_id: str) -> dict:
             blog_post_status="failed",
             blog_post_error=str(e),
         )
+        return {"job_id": job_id, "status": "failed", "error": str(e)}
+
+
+# =============================================================================
+# SCRIPT TASK (Doc 5 — user-triggered)
+# =============================================================================
+
+@celery_app.task(
+    bind=True,
+    name="backend.worker.run_script_task",
+    max_retries=1,
+    soft_time_limit=300,
+)
+def run_script_task(self, job_id: str, user_id: str, params: dict = None) -> dict:
+    """Generate Script (Doc 5) for a completed job.
+
+    Args:
+        job_id: ID of the completed job.
+        user_id: ID of the user who triggered script.
+        params: Optional dict with tone, target_length, story_arc, voice_profile_id.
+
+    Returns:
+        Dict with job_id, status, cost, and summary.
+    """
+    from backend.pipeline.stages.script_stage import run_script_stage
+    from backend.pipeline.formatters.script_formatter import format_script
+    from backend.pipeline.version_manager import store_document_version
+
+    params = params or {}
+    logger.info(f"[{job_id}] Starting Script generation")
+
+    job = get_job(job_id)
+    if not job:
+        return {"job_id": job_id, "status": "failed", "error": "Job not found"}
+
+    if hasattr(job, "model_dump"):
+        job_dict = job.model_dump(exclude_none=True)
+    elif hasattr(job, "__dict__"):
+        job_dict = {k: v for k, v in job.__dict__.items() if not k.startswith("_")}
+    else:
+        job_dict = dict(job) if isinstance(job, dict) else {}
+
+    if hasattr(job, "artifacts"):
+        if hasattr(job.artifacts, "model_dump"):
+            artifacts_dict = job.artifacts.model_dump(exclude_none=True)
+        elif isinstance(job.artifacts, dict):
+            artifacts_dict = job.artifacts
+        else:
+            artifacts_dict = {}
+        job_dict["artifacts"] = artifacts_dict
+
+    try:
+        from datetime import datetime, timezone
+
+        update_job(job_id, script_status="running", script_progress_percent=10)
+
+        script, cost, warnings = run_script_stage(
+            job_id=job_id,
+            job_data=job_dict,
+            tone=params.get("tone", "conversational"),
+            target_length=params.get("target_length", "medium"),
+            story_arc=params.get("story_arc", ""),
+            voice_profile_id=params.get("voice_profile_id"),
+        )
+
+        script_dict = script.model_dump(mode="json")
+        script_md = format_script(script)
+
+        version_num, storage_path = store_document_version(
+            job_id=job_id,
+            doc_type="doc_5",
+            content=script_dict,
+            trigger="initial_run",
+            markdown=script_md,
+        )
+
+        partial_artifacts = {
+            "script": script_dict,
+            "script_md": script_md,
+            "doc_5_path": storage_path,
+        }
+
+        update_job(
+            job_id,
+            partial_artifacts=partial_artifacts,
+            warnings_append=warnings if warnings else None,
+            script_status="completed",
+            script_completed_at=datetime.now(timezone.utc),
+            script_progress_percent=100,
+        )
+
+        logger.info(
+            f"[{job_id}] Script complete: {len(script.sections)} sections, "
+            f"{script.total_word_count} words, cost=${cost:.4f}"
+        )
+
+        return {"job_id": job_id, "status": "success", "cost": cost, "warnings": warnings}
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"[{job_id}] Script timed out")
+        update_job(job_id, script_status="failed", script_error="Script timed out after 5 minutes")
+        return {"job_id": job_id, "status": "failed", "error": "Script timed out"}
+
+    except Exception as e:
+        logger.exception(f"[{job_id}] Script failed: {e}")
+        update_job(job_id, script_status="failed", script_error=str(e))
         return {"job_id": job_id, "status": "failed", "error": str(e)}
 
 

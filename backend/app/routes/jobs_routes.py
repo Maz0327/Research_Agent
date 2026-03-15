@@ -1383,6 +1383,77 @@ async def generate_blog_post(
 
 
 # =============================================================================
+# SCRIPT ENDPOINT (Doc 5 — user-triggered)
+# =============================================================================
+
+@router.post("/{job_id}/script")
+@limiter.limit(RATE_LIMITS["jobs_create"])
+async def generate_script(
+    request: Request,
+    job_id: str,
+    user: AuthUser = Depends(get_active_user),
+):
+    """Generate a Script (Doc 5) from completed research.
+
+    Accepts optional JSON body with tone, target_length, story_arc,
+    style_guide_id, and voice_profile_id.
+    """
+    from backend.models.script_models import GenerateScriptRequest
+
+    # Parse optional request body
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    script_request = GenerateScriptRequest(**body)
+
+    # Validate job_id
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.user_id != user.user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    job_status = job.status if hasattr(job, "status") else job.get("status")
+    if job_status not in ("completed", "completed_with_warnings"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job must be completed to generate script. Current status: '{job_status}'"
+        )
+
+    script_status = getattr(job, "script_status", None)
+    if script_status == "running":
+        raise HTTPException(status_code=409, detail="Script is already being generated")
+
+    from datetime import datetime, timezone
+    update_job(
+        job_id,
+        script_status="queued",
+        script_progress_percent=0,
+        script_error=None,
+    )
+
+    from backend.worker import run_script_task
+    run_script_task.apply_async(
+        (job_id, user.user_id, script_request.model_dump()),
+        task_id=f"{job_id}_script"
+    )
+
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "script_status": "queued",
+        "message": f"Script (Doc 5) generation started (tone={script_request.tone}, length={script_request.target_length}).",
+    }
+
+
+# =============================================================================
 # RUN-SCOPED PRODUCER/BOOSTER ENDPOINTS (V2 Run Abstraction)
 # =============================================================================
 

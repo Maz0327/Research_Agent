@@ -14,6 +14,7 @@ import type {
   SemanticBriefData,
   ProducerPacketData,
   BlogPostData,
+  ScriptData,
 } from '@/types/documents';
 import { SourceLedgerRenderer } from './SourceLedgerRenderer';
 import { JumpStartRenderer } from './JumpStartRenderer';
@@ -21,6 +22,7 @@ import { SemanticBriefRenderer } from './SemanticBriefRenderer';
 import { CreatorBriefRenderer } from './CreatorBriefRenderer';
 import { CreatorBriefView } from '@/components/creator-brief/CreatorBriefView';
 import { BlogPostRenderer } from './BlogPostRenderer';
+import { ScriptRenderer } from './ScriptRenderer';
 
 export interface ResearchDocumentRendererProps {
   docNumber: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B';
@@ -39,7 +41,8 @@ function hasTypedData(data: Record<string, unknown>): boolean {
     docType === 'semantic_brief' ||
     docType === 'producer_packet' ||
     docType === 'creator_brief' ||
-    docType === 'blog_post'
+    docType === 'blog_post' ||
+    docType === 'script'
   );
 }
 
@@ -70,6 +73,8 @@ export function ResearchDocumentRenderer({
         );
       case 'blog_post':
         return <BlogPostRenderer data={data as unknown as BlogPostData} showDetails={showDetails} />;
+      case 'script':
+        return <ScriptRenderer data={data as unknown as ScriptData} showDetails={showDetails} />;
     }
   }
 
