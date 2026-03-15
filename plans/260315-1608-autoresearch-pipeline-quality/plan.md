@@ -4,7 +4,7 @@ description: "Apply Karpathy's autoresearch self-improving pattern to the Resear
 status: pending
 priority: P2
 effort: 12h
-branch: kai/feat/autoresearch-pipeline-quality
+branch: claude/review-video-insights-de0aU
 tags: [quality, observability, circuit-breaker, prompt-optimization]
 created: 2026-03-15
 ---
