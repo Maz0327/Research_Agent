@@ -14,6 +14,17 @@ import { isV2Run } from '../../types/run';
 import { API_URL } from '../../lib/constants';
 import { getAccessToken } from '../../lib/supabase';
 
+// ─── Reading Order Badges ───────────────────────────────────────────────────────
+
+/** Reading order labels shown on completed doc cards */
+const READING_ORDER: Partial<Record<ArtifactType, string>> = {
+  doc_3: '1 · Start Here',
+  doc_2: '2 · Deep Research',
+  doc_1: '3 · Next Steps',
+  doc_0: '4 · All Sources',
+  doc_4: '5 · Production',
+};
+
 // ─── Stage-to-Card Mapping Constants ───────────────────────────────────────────
 
 /** Pipeline stage order — matches exact backend/worker.py update_job() calls */
@@ -710,6 +721,7 @@ export function ArtifactCardGrid({
               progressPercent={props.progressPercent}
               runningDescription={props.runningDescription}
               onClick={() => handleCardClick(key)}
+              readingOrder={READING_ORDER[key]}
             />
           </motion.div>
         ))}
@@ -719,6 +731,7 @@ export function ArtifactCardGrid({
           type="doc_4"
           state={getArtifactState(job, 'doc_4', selectedVersion)}
           onClick={() => handleCardClick('doc_4')}
+          readingOrder={READING_ORDER.doc_4}
         />
 
         {/* Booster: Deep Research — independent progress tracking */}

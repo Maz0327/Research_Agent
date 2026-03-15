@@ -209,6 +209,8 @@ export interface ArtifactCardProps {
   iterationId?: string;
   onClick: () => void;
   onRetry?: () => void;
+  /** Reading order badge (e.g. "1 · Start Here") */
+  readingOrder?: string;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
@@ -223,6 +225,7 @@ export function ArtifactCard({
   iterationId,
   onClick,
   onRetry,
+  readingOrder,
 }: ArtifactCardProps) {
   const config = ARTIFACT_CONFIG[type];
   const accent = ACCENT_COLORS[type];
@@ -324,14 +327,27 @@ export function ArtifactCard({
             <IconComponent className="w-5 h-5" />
           </div>
 
-          {/* Title + subtitle */}
+          {/* Title + subtitle + reading order badge */}
           <div className="flex-1 min-w-0">
-            <h3 className={`
-              text-sm font-semibold tracking-tight transition-opacity duration-300
-              ${state === 'waiting' || state === 'not_available' ? 'text-white/30' : 'text-white/90'}
-            `}>
-              {config.title}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className={`
+                text-sm font-semibold tracking-tight transition-opacity duration-300
+                ${state === 'waiting' || state === 'not_available' ? 'text-white/30' : 'text-white/90'}
+              `}>
+                {config.title}
+              </h3>
+              {readingOrder && state === 'completed' && (
+                <span className={`
+                  text-[10px] px-1.5 py-0.5 rounded-full font-medium
+                  ${type === 'doc_3'
+                    ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20'
+                    : 'bg-white/[0.06] text-white/40 border border-white/[0.06]'
+                  }
+                `}>
+                  {readingOrder}
+                </span>
+              )}
+            </div>
             <p className={`
               text-xs mt-0.5 transition-opacity duration-300
               ${state === 'waiting' || state === 'not_available' ? 'text-white/15' : 'text-white/40'}

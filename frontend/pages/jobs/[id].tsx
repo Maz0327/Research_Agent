@@ -16,7 +16,8 @@ import {
   JobProgressPanel,
 } from '../../components/job-detail';
 import { CreatorBriefView } from '../../components/creator-brief/CreatorBriefView';
-import { IterateDialog } from '../../components/iterate/IterateDialog';
+import { RefinePanel } from '../../components/iterate/RefinePanel';
+import { ReadingGuide } from '../../components/job-detail/ReadingGuide';
 import type { Job } from '../../store/jobs';
 import { formatTimestampWithRelative } from '../../lib/document-formatters';
 
@@ -354,6 +355,17 @@ function JobDetailContent() {
         {/* Improve Research button removed — Deep Research card pre-selects deep_dive,
             Iterations card opens the full iterate dialog. No need for a 3rd redundant CTA. */}
 
+        {/* Reading Guide — guides user to start with Creator Brief */}
+        {(job.status === 'completed' || job.status === 'completed_with_warnings') && (
+          <ReadingGuide
+            hasCreatorBrief={!!(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md)}
+            onStartReading={() => {
+              // Scroll to hero section which shows Creator Brief
+              heroRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+        )}
+
         {/* Artifact Cards Grid */}
         <div id="artifact-grid">
           <ArtifactCardGrid
@@ -370,15 +382,15 @@ function JobDetailContent() {
           <ResearchOverview job={job} />
         )}
 
-        {/* 5-Mode Iterate Dialog */}
-        <IterateDialog
+        {/* Natural Language Refine Panel — replaces 5-mode IterateDialog */}
+        <RefinePanel
           isOpen={newIterateDialogOpen}
           onClose={() => {
             setNewIterateDialogOpen(false);
             setIterateDefaultMode(undefined);
           }}
           jobId={jobId}
-          defaultMode={iterateDefaultMode as any}
+          job={{ title: job.title || job.prompt, artifacts: job.artifacts as Record<string, unknown> | undefined }}
           onIterateStarted={() => {
             setNewIterateDialogOpen(false);
             setIterateDefaultMode(undefined);

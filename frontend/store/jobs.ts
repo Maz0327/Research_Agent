@@ -557,6 +557,11 @@ interface JobsState {
   fetchQuickBrief: (searchId: string) => Promise<QuickBriefResponse>;
   approveSearchSources_v2: (searchId: string, selectedUrls: string[], depth?: string) => Promise<SearchApproveResponse>;
   clearSearchResults: () => void;
+  // Brainstorm pre-stage (Phase 2A)
+  brainstormResult: any | null;
+  isBrainstorming: boolean;
+  brainstormTopic: (topic: string, audienceHint?: string, styleGuideId?: string) => Promise<any>;
+  clearBrainstorm: () => void;
 }
 
 export const useJobsStore = create<JobsState>((set, get) => ({
@@ -581,6 +586,9 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   isSearching: false,
   quickBrief: null,
   isLoadingQuickBrief: false,
+  // Brainstorm pre-stage (Phase 2A)
+  brainstormResult: null,
+  isBrainstorming: false,
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -1721,5 +1729,40 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
   clearSearchResults: () => {
     set({ searchResults: null, quickBrief: null, isSearching: false, isLoadingQuickBrief: false });
+  },
+
+  // ─── Brainstorm Pre-Stage (Phase 2A) ─────────────────────────────────────
+  brainstormTopic: async (topic: string, audienceHint?: string, styleGuideId?: string) => {
+    set({ isBrainstorming: true, brainstormResult: null, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const body: Record<string, unknown> = { topic };
+      if (audienceHint) body.audience_hint = audienceHint;
+      if (styleGuideId) body.style_guide_id = styleGuideId;
+
+      const res = await fetch(`${API_URL}/jobs/brainstorm`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Brainstorm failed: ${res.status}`);
+      }
+      const result = await res.json();
+      set({ brainstormResult: result, isBrainstorming: false });
+      return result;
+    } catch (e: any) {
+      set({ error: formatApiError(e), isBrainstorming: false });
+      return null;
+    }
+  },
+
+  clearBrainstorm: () => {
+    set({ brainstormResult: null, isBrainstorming: false });
   },
 }));

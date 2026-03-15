@@ -17,6 +17,7 @@ import type {
 } from '@/types/documents';
 import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
+import { CollapsibleSection } from './shared/CollapsibleSection';
 import { ConfidenceBadge } from './shared/ConfidenceBadge';
 import { CitationPill } from './shared/CitationPill';
 import { formatInternalId } from '@/lib/document-formatters';
@@ -90,6 +91,8 @@ function ThemeCard({ theme, keyPoints, showDetails }: { theme: Theme; keyPoints:
         {theme.confidence && <ConfidenceBadge level={theme.confidence} />}
       </div>
       <h3 className="text-[16px] font-semibold text-gray-100 mb-1">{theme.label}</h3>
+      {/* "So what?" label — makes themes instantly scannable for creators */}
+      <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1 mt-2">So what?</p>
       <p className="text-[14px] text-gray-400 leading-relaxed">{theme.description}</p>
 
       {/* Source pills */}
@@ -191,6 +194,17 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
   const tensionCount = data.tensions?.length || 0;
   const gapCount = data.gaps?.length || 0;
 
+  // Section count for progress indicator
+  const sections: string[] = [];
+  if (data.scqa) sections.push('SCQA');
+  if (data.confidence_assessment) sections.push('Confidence');
+  if (themeCount > 0) sections.push('Themes');
+  if (tensionCount > 0) sections.push('Tensions');
+  if (gapCount > 0) sections.push('Gaps');
+  if (data.speculative_observations?.length) sections.push('Speculative');
+  const totalSections = sections.length;
+  let sectionIdx = 0;
+
   return (
     <div className="space-y-6 sm:space-y-10">
       {/* Semantic core */}
@@ -243,18 +257,22 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
         </div>
       )}
 
-      {/* SCQA */}
-      {data.scqa && <SCQASection scqa={data.scqa} />}
+      {/* SCQA — always expanded (core overview) */}
+      {data.scqa && (++sectionIdx, true) && <SCQASection scqa={data.scqa} />}
 
-      {/* Confidence Assessment */}
+      {/* Confidence Assessment — collapsed by default */}
       {data.confidence_assessment && (
-        <ConfidenceSection assessment={data.confidence_assessment} />
+        <div>
+          <CollapsibleSection label="Confidence assessment">
+            <ConfidenceSection assessment={data.confidence_assessment} />
+          </CollapsibleSection>
+        </div>
       )}
 
-      {/* Themes */}
+      {/* Themes — always expanded (core section) */}
       {themeCount > 0 && (
         <div>
-          <SectionHeader title="Patterns & Insights" accentColor="bg-purple-500" count={themeCount} />
+          <SectionHeader title="Patterns & Insights" accentColor="bg-purple-500" count={themeCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
           <div className="mt-4 space-y-4">
             {data.themes.map(theme => (
               <ThemeCard key={theme.theme_id} theme={theme} keyPoints={data.key_points || []} showDetails={showDetails} />
@@ -263,10 +281,10 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
         </div>
       )}
 
-      {/* Tensions */}
+      {/* Tensions — always expanded (important for creators) */}
       {tensionCount > 0 && (
         <div>
-          <SectionHeader title="Conflicting Views" accentColor="bg-red-500" count={tensionCount} />
+          <SectionHeader title="Conflicting Views" accentColor="bg-red-500" count={tensionCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
           <div className="mt-4 space-y-4">
             {data.tensions.map(t => (
               <TensionCard key={t.tension_id} tension={t} showDetails={showDetails} />
@@ -275,38 +293,46 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
         </div>
       )}
 
-      {/* Gaps */}
+      {/* Gaps — collapsed by default (supporting detail) */}
       {gapCount > 0 && (
         <div>
-          <SectionHeader title="Open Questions" accentColor="bg-amber-500" count={gapCount} />
-          <div className="mt-4 space-y-4">
-            {data.gaps.map(gap => (
-              <GapCard key={gap.gap_id} gap={gap} showDetails={showDetails} />
-            ))}
+          <SectionHeader title="Open Questions" accentColor="bg-amber-500" count={gapCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View open questions" itemCount={gapCount}>
+              <div className="space-y-4">
+                {data.gaps.map(gap => (
+                  <GapCard key={gap.gap_id} gap={gap} showDetails={showDetails} />
+                ))}
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
       )}
 
-      {/* Speculative observations */}
+      {/* Speculative observations — collapsed by default */}
       {data.speculative_observations?.length > 0 && (
         <div>
-          <SectionHeader title="Worth Exploring" accentColor="bg-gray-600" count={data.speculative_observations.length} />
-          <div className="mt-4 space-y-3">
-            {data.speculative_observations.map((obs, i) => (
-              <CardWrapper key={i} accentColor="bg-gray-600">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400 border border-gray-600/30 italic">Speculative</span>
-                </div>
-                <p className="text-[14px] text-gray-300 leading-relaxed italic">{obs.text}</p>
-                {obs.based_on?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {obs.based_on.map(sid => (
-                      <CitationPill key={sid} sourceId={sid} showDetails={showDetails} />
-                    ))}
-                  </div>
-                )}
-              </CardWrapper>
-            ))}
+          <SectionHeader title="Worth Exploring" accentColor="bg-gray-600" count={data.speculative_observations.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View speculative observations" itemCount={data.speculative_observations.length}>
+              <div className="space-y-3">
+                {data.speculative_observations.map((obs, i) => (
+                  <CardWrapper key={i} accentColor="bg-gray-600">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400 border border-gray-600/30 italic">Speculative</span>
+                    </div>
+                    <p className="text-[14px] text-gray-300 leading-relaxed italic">{obs.text}</p>
+                    {obs.based_on?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {obs.based_on.map(sid => (
+                          <CitationPill key={sid} sourceId={sid} showDetails={showDetails} />
+                        ))}
+                      </div>
+                    )}
+                  </CardWrapper>
+                ))}
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
       )}

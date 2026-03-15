@@ -13,7 +13,11 @@ import { POLLING_INTERVALS, VALIDATION_LIMITS, PLATFORM_HINTS, SCREENSHOT_PLATFO
 import { UnifiedInputPanel } from '../components/unified-input';
 import { FloatingActionButton } from '../components/ui/FloatingActionButton';
 import SearchApprovalView from '../components/search/SearchApprovalView';
+import { BrainstormPanel } from '../components/brainstorm/BrainstormPanel';
 import { DashboardJobCard } from '../components/dashboard/DashboardJobCard';
+import { StartInput } from '../components/dashboard/StartInput';
+import type { DetectedIntent } from '../lib/intent-router';
+import Router from 'next/router';
 
 // Job creation modes: 4 entry points
 type JobMode = 'none' | 'topic' | 'research' | 'claims' | 'transcripts';
@@ -94,6 +98,7 @@ function DashboardContent() {
   const {
     jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createClaimExtractionJob, createMixedInputJob, refreshJob, clearPreview,
     searchResults, isSearching, searchTopic: searchTopicAction, clearSearchResults,
+    brainstormResult, isBrainstorming, brainstormTopic, clearBrainstorm,
   } = useJobsStore();
   const { user } = useAuth();
   const { createPanelCollapsed, toggleCreatePanel } = useUIPreferences();
@@ -103,6 +108,49 @@ function DashboardContent() {
     setJobModeRaw(mode);
     if (mode !== 'topic') clearSearchResults();
   }, [clearSearchResults]);
+
+  // Handle StartInput submission — routes based on detected intent
+  const handleStartInputSubmit = useCallback((input: string, intent: DetectedIntent) => {
+    switch (intent) {
+      case 'topic':
+      case 'creator_analysis':
+        // Route to brainstorm first, then source discovery
+        setTopicInput(input);
+        setJobMode('topic');
+        clearBrainstorm();
+        // Trigger brainstorm pre-stage
+        brainstormTopic(input).catch((err: unknown) => {
+          // If brainstorm fails, fall back to direct search
+          setSearchError(err instanceof Error ? err.message : 'Brainstorm failed, searching directly...');
+          searchTopicAction(input, 'full').catch(() => {});
+        });
+        break;
+      case 'sources':
+        // Route to own-sources flow
+        setJobMode('research');
+        break;
+      case 'claims':
+        // Route to claim extraction flow
+        setClaimTitle(input);
+        setJobMode('claims');
+        break;
+    }
+  }, [setJobMode, brainstormTopic, clearBrainstorm, searchTopicAction]);
+
+  // Handle power-user mode selection from StartInput links
+  const handleModeSelect = useCallback((mode: 'sources' | 'claims' | 'transcripts') => {
+    switch (mode) {
+      case 'sources':
+        setJobMode('research');
+        break;
+      case 'claims':
+        setJobMode('claims');
+        break;
+      case 'transcripts':
+        Router.push('/transcripts');
+        break;
+    }
+  }, [setJobMode]);
 
   // Get current depth config for placeholder example
   const currentDepth = researchDepths.find(d => d.value === researchDepth) || researchDepths[3];
@@ -413,87 +461,25 @@ function DashboardContent() {
                 className="overflow-hidden"
               >
                 <div className="px-4 sm:px-6 pb-4 sm:pb-6 border-t border-gray-800">
-                  {/* 4-Card Entry Point Grid */}
-                  <div className="pt-4 sm:pt-5 mb-5 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Entry Point 1: Topic Research */}
-                    <button
-                      onClick={() => setJobMode(jobMode === 'topic' ? 'none' : 'topic')}
-                      className={`relative text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
-                        jobMode === 'topic'
-                          ? 'border-blue-500/70 bg-blue-500/8'
-                          : 'border-gray-700 bg-gray-800/30 hover:border-blue-500/30 hover:bg-blue-500/5'
-                      }`}
-                    >
-                      {/* Popular badge */}
-                      <span className="absolute top-3 right-3 text-xs px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/40">
-                        Popular
-                      </span>
-                      <div className="flex items-start gap-3 mb-1.5">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xl">🔍</span>
-                        </div>
-                        <div className="pt-0.5 pr-12">
-                          <span className="text-sm font-medium text-gray-100 block">What do you want to research?</span>
-                          <p className="text-xs text-gray-500 mt-0.5">Enter a topic and we&apos;ll find sources for you</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Entry Point 2: Own Sources */}
-                    <button
-                      onClick={() => setJobMode(jobMode === 'research' ? 'none' : 'research')}
-                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
-                        jobMode === 'research'
-                          ? 'border-green-500/70 bg-green-500/8'
-                          : 'border-gray-700 bg-gray-800/30 hover:border-green-500/30 hover:bg-green-500/5'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 mb-1.5">
-                        <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xl">📎</span>
-                        </div>
-                        <div className="pt-0.5">
-                          <span className="text-sm font-medium text-gray-100 block">I have my own sources</span>
-                          <p className="text-xs text-gray-500 mt-0.5">Paste URLs, text, or screenshots to analyze</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Entry Point 3: Claim Extractor */}
-                    <button
-                      onClick={() => setJobMode(jobMode === 'claims' ? 'none' : 'claims')}
-                      className={`text-left p-4 rounded-xl border-2 transition-all touch-manipulation ${
-                        jobMode === 'claims'
-                          ? 'border-purple-500/70 bg-purple-500/8'
-                          : 'border-gray-700 bg-gray-800/30 hover:border-purple-500/30 hover:bg-purple-500/5'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 mb-1.5">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/15 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xl">📋</span>
-                        </div>
-                        <div className="pt-0.5">
-                          <span className="text-sm font-medium text-gray-100 block">Extract claims from content</span>
-                          <p className="text-xs text-gray-500 mt-0.5">Pull out claims with confidence scores</p>
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Entry Point 4: YouTube Transcripts */}
-                    <Link
-                      href="/transcripts"
-                      className="text-left p-4 rounded-xl border-2 border-gray-700 bg-gray-800/30 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all touch-manipulation"
-                    >
-                      <div className="flex items-start gap-3 mb-1.5">
-                        <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xl">🎬</span>
-                        </div>
-                        <div className="pt-0.5">
-                          <span className="text-sm font-medium text-gray-100 block">Get YouTube transcripts</span>
-                          <p className="text-xs text-gray-500 mt-0.5">Extract and download video transcripts</p>
-                        </div>
-                      </div>
-                    </Link>
+                  {/* Smart Input — replaces 4-card grid */}
+                  <div className="pt-4 sm:pt-5 mb-5 sm:mb-6">
+                    {jobMode === 'none' ? (
+                      <StartInput
+                        onSubmit={handleStartInputSubmit}
+                        isLoading={isSearching}
+                        onModeSelect={handleModeSelect}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setJobMode('none')}
+                        className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors mb-4"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back to search
+                      </button>
+                    )}
                   </div>
 
           <AnimatePresence mode="wait">
@@ -507,6 +493,28 @@ function DashboardContent() {
               >
                 {searchResults ? (
                   <SearchApprovalView onBack={() => clearSearchResults()} />
+                ) : brainstormResult ? (
+                  <BrainstormPanel
+                    result={brainstormResult}
+                    topic={topicInput}
+                    onProceed={(selected) => {
+                      // After brainstorm, trigger source discovery
+                      clearBrainstorm();
+                      searchTopicAction(topicInput, 'full').catch((err: unknown) => {
+                        setSearchError(err instanceof Error ? err.message : 'Search failed');
+                      });
+                    }}
+                    onBack={() => {
+                      clearBrainstorm();
+                      setJobMode('none');
+                    }}
+                  />
+                ) : isBrainstorming ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                    <p className="text-[14px] text-gray-400">Brainstorming creative angles...</p>
+                    <p className="text-[12px] text-gray-600">Analyzing &ldquo;{topicInput}&rdquo;</p>
+                  </div>
                 ) : (
                   <form onSubmit={handleTopicSearch} className="space-y-4">
                     <div>

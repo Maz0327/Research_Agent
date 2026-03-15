@@ -11,6 +11,7 @@ import {
   DisplaySection,
   NotificationsSection,
   PipelineSection,
+  StyleGuideSection,
 } from '../components/settings';
 import {
   useSettingsStore,
@@ -274,6 +275,8 @@ function SettingsContent() {
             usernameCheck={usernameCheck}
             currentUsername={settings?.username}
           />
+
+          <StyleGuideSection />
 
           <PipelineSection
             defaultPipeline={defaultPipeline}

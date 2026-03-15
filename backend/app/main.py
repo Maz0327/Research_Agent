@@ -15,6 +15,8 @@ from backend.app.routes import (
     export_router,
     share_router,
     search_router,
+    style_guide_router,
+    brainstorm_router,
 )
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user
@@ -272,3 +274,5 @@ app.include_router(admin_router)
 app.include_router(export_router)
 app.include_router(share_router)
 app.include_router(search_router)
+app.include_router(style_guide_router)
+app.include_router(brainstorm_router)

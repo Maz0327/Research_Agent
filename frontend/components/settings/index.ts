@@ -6,3 +6,4 @@ export { DisplaySection } from './DisplaySection';
 export { NotificationsSection } from './NotificationsSection';
 export { PipelineSection } from './PipelineSection';
 export { SettingsSection } from './SettingsSection';
+export { StyleGuideSection } from './StyleGuideSection';

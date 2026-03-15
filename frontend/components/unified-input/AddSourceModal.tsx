@@ -1,10 +1,11 @@
 /**
  * AddSourceModal - Modal for selecting and adding source type.
+ * Includes batch URL paste for adding multiple URLs at once.
  */
 import { useState, useEffect } from 'react';
 import { VideoSourceForm, TextSourceForm, ArticleSourceForm, ScreenshotSourceForm } from './source-forms';
 
-type SourceFormType = 'video' | 'text' | 'article' | 'screenshot' | null;
+type SourceFormType = 'video' | 'text' | 'article' | 'screenshot' | 'batch' | null;
 
 interface TextInputData {
   title: string;
@@ -25,6 +26,68 @@ interface AddSourceModalProps {
   onAddText: (data: TextInputData) => void;
   onAddArticles: (urls: string[]) => void;
   onAddScreenshot: (data: ScreenshotData) => void;
+}
+
+/** Inline batch URL form */
+function BatchUrlForm({ onAddVideos, onAddArticles, onCancel }: {
+  onAddVideos: (urls: string[]) => void;
+  onAddArticles: (urls: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [batchText, setBatchText] = useState('');
+
+  const parsedUrls = batchText
+    .split(/[\n,]/)
+    .map((u) => u.trim())
+    .filter((u) => u.startsWith('http'));
+
+  const videoUrls = parsedUrls.filter((u) => u.includes('youtube.com') || u.includes('youtu.be'));
+  const articleUrls = parsedUrls.filter((u) => !u.includes('youtube.com') && !u.includes('youtu.be'));
+
+  const handleAdd = () => {
+    if (videoUrls.length > 0) onAddVideos(videoUrls);
+    if (articleUrls.length > 0) onAddArticles(articleUrls);
+  };
+
+  return (
+    <div className="space-y-3">
+      <textarea
+        value={batchText}
+        onChange={(e) => setBatchText(e.target.value)}
+        placeholder="Paste multiple URLs here (one per line or comma-separated)"
+        rows={6}
+        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        style={{ fontSize: '16px' }}
+        autoFocus
+      />
+      {parsedUrls.length > 0 && (
+        <div className="flex flex-wrap gap-2 text-xs">
+          {videoUrls.length > 0 && (
+            <span className="px-2 py-1 rounded-full bg-purple-900/30 text-purple-300 border border-purple-700/40">
+              {videoUrls.length} video{videoUrls.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          {articleUrls.length > 0 && (
+            <span className="px-2 py-1 rounded-full bg-blue-900/30 text-blue-300 border border-blue-700/40">
+              {articleUrls.length} article{articleUrls.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="flex gap-3">
+        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition">
+          Cancel
+        </button>
+        <button
+          onClick={handleAdd}
+          disabled={parsedUrls.length === 0}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Add {parsedUrls.length} URL{parsedUrls.length !== 1 ? 's' : ''}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddArticles, onAddScreenshot }: AddSourceModalProps) {
@@ -72,7 +135,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-700 px-5 py-4">
           <h3 id="add-source-modal-title" className="text-lg font-semibold text-gray-100">
-            {activeForm ? `Add ${activeForm.charAt(0).toUpperCase() + activeForm.slice(1)}` : 'Add Source'}
+            {activeForm === 'batch' ? 'Paste Multiple URLs' : activeForm ? `Add ${activeForm.charAt(0).toUpperCase() + activeForm.slice(1)}` : 'Add Source'}
           </h3>
           <button
             onClick={handleClose}
@@ -88,7 +151,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
         <div className="p-5">
           {!activeForm ? (
             // Source type selection
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <button
                 onClick={() => setActiveForm('video')}
                 className="flex flex-col items-center gap-2 rounded-lg border border-purple-700/50 bg-purple-900/20 p-4 text-purple-300 hover:bg-purple-900/30 transition"
@@ -133,6 +196,17 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                 <span className="text-sm font-medium">Screenshot</span>
                 <span className="text-xs text-gray-500">Upload image</span>
               </button>
+
+              <button
+                onClick={() => setActiveForm('batch')}
+                className="flex flex-col items-center gap-2 rounded-lg border border-teal-700/50 bg-teal-900/20 p-4 text-teal-300 hover:bg-teal-900/30 transition"
+              >
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span className="text-sm font-medium">Batch</span>
+                <span className="text-xs text-gray-500">Multiple URLs</span>
+              </button>
             </div>
           ) : activeForm === 'video' ? (
             <VideoSourceForm
@@ -152,6 +226,12 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
           ) : activeForm === 'screenshot' ? (
             <ScreenshotSourceForm
               onAdd={handleAddScreenshot}
+              onCancel={() => setActiveForm(null)}
+            />
+          ) : activeForm === 'batch' ? (
+            <BatchUrlForm
+              onAddVideos={handleAddVideos}
+              onAddArticles={handleAddArticles}
               onCancel={() => setActiveForm(null)}
             />
           ) : null}

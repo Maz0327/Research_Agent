@@ -5,6 +5,7 @@
  * title options, thumbnail concepts, and risk assessment.
  */
 
+import { useState } from 'react';
 import type {
   ProducerPacketData,
   NarrativeAngle,
@@ -17,6 +18,8 @@ import type {
 import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
 import { CitationPill } from './shared/CitationPill';
+import { CollapsibleSection } from './shared/CollapsibleSection';
+import { HookOptionCard } from './HookOptionCard';
 import { formatInternalId } from '@/lib/document-formatters';
 
 interface CreatorBriefRendererProps {
@@ -41,10 +44,6 @@ function StoryCoreSection({ data }: { data: ProducerPacketData }) {
         <div>
           <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wider">One-Sentence Pitch</p>
           <p className="text-[15px] text-gray-200 leading-relaxed mt-0.5 italic">{core.one_sentence_pitch}</p>
-        </div>
-        <div>
-          <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wider">Why This Matters</p>
-          <p className="text-[14px] text-gray-300 leading-relaxed mt-0.5">{core.why_this_matters}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
           <div>
@@ -130,17 +129,24 @@ function AngleCard({ angle, isRecommended, showDetails }: { angle: NarrativeAngl
   );
 }
 
-function HookCard({ hook }: { hook: OpeningHook }) {
+// HookCard removed — replaced by HookOptionCard (Task 2E)
+
+function WhyItMattersSection({ text }: { text: string }) {
+  if (!text) return null;
+
   return (
-    <CardWrapper>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">{hook.hook_type}</span>
-        {hook.tone && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-700/60 text-gray-400 italic">{hook.tone}</span>
-        )}
+    <div className="relative bg-gray-800/40 rounded-lg border border-amber-700/30 p-4 sm:p-5 overflow-hidden">
+      {/* Amber accent bar */}
+      <div className="absolute top-0 left-0 bottom-0 w-1 rounded-l-lg bg-amber-500" />
+      <div className="pl-2 sm:pl-3">
+        <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-2">
+          What this means for your audience
+        </p>
+        <p className="text-[16px] text-gray-100 leading-relaxed font-medium">
+          {text}
+        </p>
       </div>
-      <p className="text-[14px] text-gray-200 leading-relaxed italic">&ldquo;{hook.content}&rdquo;</p>
-    </CardWrapper>
+    </div>
   );
 }
 
@@ -247,14 +253,31 @@ function StructureOptionCard({ option }: { option: StructureOption }) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBriefRendererProps) {
+  const [selectedHookIndex, setSelectedHookIndex] = useState<number>(-1);
   const angleCount = data.narrative_angles?.length || 0;
   const hookCount = data.opening_hooks?.length || 0;
   const momentCount = data.key_moments?.length || 0;
 
+  // Count visible sections for progress indicator
+  const sections: string[] = [];
+  if (data.story_core) sections.push('Story Core');
+  if (angleCount > 0) sections.push('Narrative Angles');
+  if (hookCount > 0) sections.push('Opening Hooks');
+  if (data.structure_options?.length) sections.push('Structure Options');
+  if (momentCount > 0) sections.push('Key Moments');
+  if (data.story_core?.why_this_matters) sections.push('Why It Matters');
+  if (data.title_options?.length) sections.push('Title Options');
+  if (data.thumbnail_concepts?.length) sections.push('Thumbnail Concepts');
+  if (data.interview_suggestions) sections.push('Interview Suggestions');
+  if (data.b_roll_suggestions?.length) sections.push('B-Roll Suggestions');
+  if (data.risk_assessment) sections.push('Risk Assessment');
+  const totalSections = sections.length;
+  let sectionIdx = 0;
+
   return (
     <div className="space-y-6 sm:space-y-10">
-      {/* Story Core */}
-      <StoryCoreSection data={data} />
+      {/* Story Core — always expanded */}
+      {data.story_core && (++sectionIdx, true) && <StoryCoreSection data={data} />}
 
       {/* Recommendation reasoning */}
       {data.recommendation_reasoning && (
@@ -264,10 +287,10 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
         </div>
       )}
 
-      {/* Narrative Angles */}
+      {/* Narrative Angles — always expanded (core creative section) */}
       {angleCount > 0 && (
         <div>
-          <SectionHeader title="Narrative Angles" accentColor="bg-amber-500" count={angleCount} />
+          <SectionHeader title="Narrative Angles" accentColor="bg-amber-500" count={angleCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
           <div className="mt-4 space-y-4">
             {data.narrative_angles.map(angle => (
               <AngleCard
@@ -281,46 +304,66 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
         </div>
       )}
 
-      {/* Opening Hooks */}
+      {/* Opening Hooks — always expanded (core creative section) */}
       {hookCount > 0 && (
         <div>
-          <SectionHeader title="Opening Hooks" accentColor="bg-blue-500" count={hookCount} />
-          <div className="mt-4 space-y-3">
+          <SectionHeader title="Opening Hooks" accentColor="bg-blue-500" count={hookCount} subtitle="Tap to select your favorite" sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.opening_hooks.map((hook, i) => (
-              <HookCard key={i} hook={hook} />
+              <HookOptionCard
+                key={i}
+                hook={hook}
+                index={i}
+                isSelected={selectedHookIndex === i}
+                onSelect={(idx) => setSelectedHookIndex(idx === selectedHookIndex ? -1 : idx)}
+                showDetails={showDetails}
+              />
             ))}
           </div>
         </div>
       )}
 
-      {/* Structure Options */}
+      {/* Structure Options — collapsed by default (supporting detail) */}
       {data.structure_options?.length > 0 && (
         <div>
-          <SectionHeader title="Structure Options" accentColor="bg-green-500" count={data.structure_options.length} />
-          <div className="mt-4 space-y-4">
-            {data.structure_options.map((opt, i) => (
-              <StructureOptionCard key={i} option={opt} />
-            ))}
+          <SectionHeader title="Structure Options" accentColor="bg-green-500" count={data.structure_options.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View structure options" itemCount={data.structure_options.length}>
+              <div className="space-y-4">
+                {data.structure_options.map((opt, i) => (
+                  <StructureOptionCard key={i} option={opt} />
+                ))}
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
       )}
 
-      {/* Key Moments */}
+      {/* Key Moments — collapsed by default (supporting detail) */}
       {momentCount > 0 && (
         <div>
-          <SectionHeader title="Key Moments" accentColor="bg-purple-500" count={momentCount} />
-          <div className="mt-4 divide-y divide-gray-800/50">
-            {data.key_moments.map((m, i) => (
-              <KeyMomentCard key={i} moment={m} showDetails={showDetails} />
-            ))}
+          <SectionHeader title="Key Moments" accentColor="bg-purple-500" count={momentCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View key moments" itemCount={momentCount}>
+              <div className="divide-y divide-gray-800/50">
+                {data.key_moments.map((m, i) => (
+                  <KeyMomentCard key={i} moment={m} showDetails={showDetails} />
+                ))}
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
       )}
 
-      {/* Title Options */}
+      {/* Why It Matters — elevated standalone section (Task 2D), always visible */}
+      {data.story_core?.why_this_matters && (++sectionIdx, true) && (
+        <WhyItMattersSection text={data.story_core.why_this_matters} />
+      )}
+
+      {/* Title Options — always expanded (quick-scan section) */}
       {data.title_options?.length > 0 && (
         <div>
-          <SectionHeader title="Title Options" accentColor="bg-blue-500" count={data.title_options.length} />
+          <SectionHeader title="Title Options" accentColor="bg-blue-500" count={data.title_options.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.title_options.map((opt, i) => (
               <TitleOptionCard key={i} option={opt} />
@@ -329,145 +372,161 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
         </div>
       )}
 
-      {/* Thumbnail Concepts */}
+      {/* Thumbnail Concepts — collapsed by default (supporting detail) */}
       {data.thumbnail_concepts?.length > 0 && (
         <div>
-          <SectionHeader title="Thumbnail Concepts" accentColor="bg-pink-500" count={data.thumbnail_concepts.length} />
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {data.thumbnail_concepts.map((concept, i) => (
-              <ThumbnailConceptCard key={i} concept={concept} />
-            ))}
+          <SectionHeader title="Thumbnail Concepts" accentColor="bg-pink-500" count={data.thumbnail_concepts.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View thumbnail concepts" itemCount={data.thumbnail_concepts.length}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {data.thumbnail_concepts.map((concept, i) => (
+                  <ThumbnailConceptCard key={i} concept={concept} />
+                ))}
+              </div>
+            </CollapsibleSection>
           </div>
         </div>
       )}
 
-      {/* Interview Suggestions */}
+      {/* Interview Suggestions — collapsed by default */}
       {data.interview_suggestions && (
         <div>
-          <SectionHeader title="Interview Suggestions" accentColor="bg-teal-500" />
-          <CardWrapper className="mt-4">
-            {data.interview_suggestions.suggested_guests?.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Suggested Guests</p>
-                <div className="space-y-2">
-                  {data.interview_suggestions.suggested_guests.map((guest, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className="text-teal-500/50 flex-shrink-0 mt-0.5">&#8226;</span>
-                      <div>
-                        <span className="text-[14px] font-medium text-gray-200">{guest.name}</span>
-                        <p className="text-[12px] text-gray-500">{guest.why}</p>
-                      </div>
+          <SectionHeader title="Interview Suggestions" accentColor="bg-teal-500" sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View interview suggestions">
+              <CardWrapper>
+                {data.interview_suggestions.suggested_guests?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Suggested Guests</p>
+                    <div className="space-y-2">
+                      {data.interview_suggestions.suggested_guests.map((guest, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <span className="text-teal-500/50 flex-shrink-0 mt-0.5">&#8226;</span>
+                          <div>
+                            <span className="text-[14px] font-medium text-gray-200">{guest.name}</span>
+                            <p className="text-[12px] text-gray-500">{guest.why}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {data.interview_suggestions.key_questions?.length > 0 && (
-              <div>
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Key Questions</p>
-                <ul className="space-y-1">
-                  {data.interview_suggestions.key_questions.map((q, i) => (
-                    <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
-                      <span className="text-teal-500/50 flex-shrink-0">?</span>
-                      <span>{q}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardWrapper>
-        </div>
-      )}
-
-      {/* B-Roll Suggestions */}
-      {data.b_roll_suggestions && data.b_roll_suggestions.length > 0 && (
-        <div>
-          <SectionHeader title="B-Roll Suggestions" accentColor="bg-cyan-500" count={data.b_roll_suggestions.length} />
-          <div className="mt-4 space-y-2">
-            {data.b_roll_suggestions.map((b, i) => (
-              <div key={i} className="flex items-start gap-2.5 py-2 sm:py-1.5">
-                <span className="text-cyan-500/50 flex-shrink-0 mt-0.5">&#9654;</span>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[13px] text-gray-300">{b.description}</span>
-                  {b.visual_type && (
-                    <span className="text-[11px] text-gray-600 ml-2">({b.visual_type})</span>
-                  )}
-                  {b.source_id && (
-                    <span className="ml-2"><CitationPill sourceId={b.source_id} showDetails={showDetails} /></span>
-                  )}
-                </div>
-              </div>
-            ))}
+                  </div>
+                )}
+                {data.interview_suggestions.key_questions?.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-2">Key Questions</p>
+                    <ul className="space-y-1">
+                      {data.interview_suggestions.key_questions.map((q, i) => (
+                        <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
+                          <span className="text-teal-500/50 flex-shrink-0">?</span>
+                          <span>{q}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardWrapper>
+            </CollapsibleSection>
           </div>
         </div>
       )}
 
-      {/* Risk Assessment */}
+      {/* B-Roll Suggestions — collapsed by default */}
+      {data.b_roll_suggestions && data.b_roll_suggestions.length > 0 && (
+        <div>
+          <SectionHeader title="B-Roll Suggestions" accentColor="bg-cyan-500" count={data.b_roll_suggestions.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View B-roll suggestions" itemCount={data.b_roll_suggestions.length}>
+              <div className="space-y-2">
+                {data.b_roll_suggestions.map((b, i) => (
+                  <div key={i} className="flex items-start gap-2.5 py-2 sm:py-1.5">
+                    <span className="text-cyan-500/50 flex-shrink-0 mt-0.5">&#9654;</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[13px] text-gray-300">{b.description}</span>
+                      {b.visual_type && (
+                        <span className="text-[11px] text-gray-600 ml-2">({b.visual_type})</span>
+                      )}
+                      {b.source_id && (
+                        <span className="ml-2"><CitationPill sourceId={b.source_id} showDetails={showDetails} /></span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleSection>
+          </div>
+        </div>
+      )}
+
+      {/* Risk Assessment — collapsed by default */}
       {data.risk_assessment && (
         <div>
-          <SectionHeader title="Risk Assessment" accentColor="bg-red-500" />
-          <CardWrapper accentColor="bg-red-500/60" className="mt-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Sensitivity</span>
-              <span className="text-[12px] font-medium text-red-400">{data.risk_assessment.sensitivity_level}</span>
-            </div>
+          <SectionHeader title="Risk Assessment" accentColor="bg-red-500" sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <div className="mt-3">
+            <CollapsibleSection label="View risk assessment">
+              <CardWrapper accentColor="bg-red-500/60">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Sensitivity</span>
+                  <span className="text-[12px] font-medium text-red-400">{data.risk_assessment.sensitivity_level}</span>
+                </div>
 
-            {data.risk_assessment.potential_issues?.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Potential Issues</p>
-                <ul className="space-y-1">
-                  {data.risk_assessment.potential_issues.map((issue, i) => (
-                    <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
-                      <span className="text-red-500/50 flex-shrink-0">&#8226;</span>
-                      <span>{issue}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                {data.risk_assessment.potential_issues?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Potential Issues</p>
+                    <ul className="space-y-1">
+                      {data.risk_assessment.potential_issues.map((issue, i) => (
+                        <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
+                          <span className="text-red-500/50 flex-shrink-0">&#8226;</span>
+                          <span>{issue}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-            {data.risk_assessment.mitigation_suggestions?.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Mitigation</p>
-                <ul className="space-y-1">
-                  {data.risk_assessment.mitigation_suggestions.map((s, i) => (
-                    <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
-                      <span className="text-green-500/50 flex-shrink-0">→</span>
-                      <span>{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                {data.risk_assessment.mitigation_suggestions?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Mitigation</p>
+                    <ul className="space-y-1">
+                      {data.risk_assessment.mitigation_suggestions.map((s, i) => (
+                        <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
+                          <span className="text-green-500/50 flex-shrink-0">→</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-            {data.risk_assessment.legal_considerations?.length > 0 && (
-              <div className="mb-3">
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Legal</p>
-                <ul className="space-y-1">
-                  {data.risk_assessment.legal_considerations.map((l, i) => (
-                    <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
-                      <span className="text-yellow-500/50 flex-shrink-0">&#8226;</span>
-                      <span>{l}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                {data.risk_assessment.legal_considerations?.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Legal</p>
+                    <ul className="space-y-1">
+                      {data.risk_assessment.legal_considerations.map((l, i) => (
+                        <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
+                          <span className="text-yellow-500/50 flex-shrink-0">&#8226;</span>
+                          <span>{l}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-            {data.risk_assessment.ethical_considerations?.length > 0 && (
-              <div>
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Ethical</p>
-                <ul className="space-y-1">
-                  {data.risk_assessment.ethical_considerations.map((e, i) => (
-                    <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
-                      <span className="text-purple-500/50 flex-shrink-0">&#8226;</span>
-                      <span>{e}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardWrapper>
+                {data.risk_assessment.ethical_considerations?.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider mb-1">Ethical</p>
+                    <ul className="space-y-1">
+                      {data.risk_assessment.ethical_considerations.map((e, i) => (
+                        <li key={i} className="text-[13px] text-gray-300 flex gap-1.5">
+                          <span className="text-purple-500/50 flex-shrink-0">&#8226;</span>
+                          <span>{e}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardWrapper>
+            </CollapsibleSection>
+          </div>
         </div>
       )}
     </div>

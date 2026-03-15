@@ -78,6 +78,13 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
     setSelectedUrls(new Set(candidates.map((c) => c.url)));
   }, [candidates]);
 
+  // Auto-trigger Quick Brief on mount so users don't miss it
+  useEffect(() => {
+    if (searchResults?.search_id && !quickBrief && !isLoadingQuickBrief) {
+      fetchQuickBrief(searchResults.search_id).catch(() => {});
+    }
+  }, [searchResults?.search_id, quickBrief, isLoadingQuickBrief, fetchQuickBrief]);
+
   const toggleCandidate = useCallback((url: string) => {
     setSelectedUrls((prev) => {
       const next = new Set(prev);

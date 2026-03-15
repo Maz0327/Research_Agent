@@ -13,6 +13,8 @@ interface SectionHeaderProps {
   accentColor?: string; // Tailwind bg class, e.g. 'bg-blue-500'
   icon?: ReactNode;
   level?: 2 | 3;
+  sectionIndex?: number;   // 1-based section index for progress indicator
+  totalSections?: number;  // Total sections for progress indicator
 }
 
 export function SectionHeader({
@@ -22,6 +24,8 @@ export function SectionHeader({
   accentColor = 'bg-blue-500',
   icon,
   level = 2,
+  sectionIndex,
+  totalSections,
 }: SectionHeaderProps) {
   const Tag = level === 2 ? 'h2' : 'h3';
   const titleSize = level === 2 ? 'text-lg font-semibold' : 'text-base font-semibold';
@@ -36,6 +40,12 @@ export function SectionHeader({
           {count !== undefined && (
             <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-700/60 text-gray-400">
               {count}
+            </span>
+          )}
+          {/* Section progress indicator — reduces "how much more?" anxiety */}
+          {sectionIndex !== undefined && totalSections !== undefined && (
+            <span className="text-[11px] text-gray-600 ml-auto flex-shrink-0">
+              Section {sectionIndex} of {totalSections}
             </span>
           )}
         </div>
