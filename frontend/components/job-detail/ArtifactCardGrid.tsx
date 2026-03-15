@@ -32,10 +32,6 @@ export interface ArtifactCardGridProps {
   onOpenIterationDialog: () => void;
   /** Whether actions are disabled (loading state) */
   actionsDisabled?: boolean;
-  /** Callback when Doc 3 card is clicked and hero is available — scroll to hero section */
-  onScrollToHero?: () => void;
-  /** Whether Creator Brief hero section is rendered on the page */
-  hasHeroSection?: boolean;
 }
 
 /** Determine artifact state from job data */
@@ -205,8 +201,6 @@ export function ArtifactCardGrid({
   onTriggerProducer,
   onOpenIterationDialog,
   actionsDisabled = false,
-  onScrollToHero,
-  hasHeroSection = false,
 }: ArtifactCardGridProps) {
   // Check if this is a claim extraction job
   const isClaimExtractionJob = job.pipeline === 'claim_extraction';
@@ -406,12 +400,7 @@ export function ArtifactCardGrid({
           break;
         case 'doc_3':
           if (state === 'completed') {
-            // If hero section is rendered, scroll to it instead of opening modal
-            if (hasHeroSection && onScrollToHero) {
-              onScrollToHero();
-            } else {
-              openDocViewer(3, 'Creator Brief');
-            }
+            openDocViewer(3, 'Creator Brief');
           } else if (state === 'ready' && !actionsDisabled) {
             // Pass runId for V2 runs (except baseline run_0)
             const producerRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
@@ -440,7 +429,7 @@ export function ArtifactCardGrid({
           break;
       }
     },
-    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, actionsDisabled, hasHeroSection, onScrollToHero]
+    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, actionsDisabled]
   );
 
   // Count completed iterations and runs

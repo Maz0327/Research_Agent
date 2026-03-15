@@ -368,8 +368,6 @@ function JobDetailContent() {
             onTriggerProducer={handleTriggerProducer}
             onOpenIterationDialog={() => setNewIterateDialogOpen(true)}
             actionsDisabled={actionsDisabled}
-            hasHeroSection={!!(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md)}
-            onScrollToHero={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
           />
         </div>
 
