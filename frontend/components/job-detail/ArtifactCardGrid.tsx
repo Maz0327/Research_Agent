@@ -248,6 +248,13 @@ function getArtifactState(
       if (!mainComplete) return 'not_available';
       return 'ready';
 
+    case 'doc_4':
+      if (artifacts?.doc_4_path) return 'completed';
+      // Doc 4 requires Doc 3 to be done first
+      if (!(artifacts?.doc_3_path || artifacts?.creator_brief_md)) return 'not_available';
+      if (!mainComplete) return 'not_available';
+      return 'ready';
+
     case 'booster':
       if (booster_status === 'completed') return 'completed';
       if (booster_status === 'failed') return 'failed';
@@ -503,6 +510,13 @@ export function ArtifactCardGrid({
                 markdown = artifacts.creator_brief_md;
               }
               break;
+            case 4:
+              if (artifacts.doc_4_path) {
+                const result = await fetchDocumentFromAPI(job.id, 'doc_4');
+                data = result.data;
+                markdown = result.markdown;
+              }
+              break;
             case 'B':
               if (artifacts.booster_output) {
                 data = artifacts.booster_output;
@@ -568,6 +582,13 @@ export function ArtifactCardGrid({
               ? selectedVersion
               : undefined;
             onTriggerProducer(producerRunId);
+          }
+          break;
+        case 'doc_4':
+          if (state === 'completed') {
+            openDocViewer(4, 'Producer Packet');
+          } else if (state === 'ready' && !actionsDisabled) {
+            onTriggerProducer(); // Producer packet generation
           }
           break;
         case 'booster':
@@ -692,6 +713,13 @@ export function ArtifactCardGrid({
             />
           </motion.div>
         ))}
+
+        {/* Doc 4: Producer Packet — available after Doc 3 completes */}
+        <ArtifactCard
+          type="doc_4"
+          state={getArtifactState(job, 'doc_4', selectedVersion)}
+          onClick={() => handleCardClick('doc_4')}
+        />
 
         {/* Booster: Deep Research — independent progress tracking */}
         <ArtifactCard

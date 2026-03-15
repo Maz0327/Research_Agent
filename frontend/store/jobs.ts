@@ -136,6 +136,8 @@ export interface JobArtifacts {
   doc_2_path?: string;
   /** Storage path for Doc 3 (Creator Brief) */
   doc_3_path?: string;
+  /** Storage path for Doc 4 (Producer Packet) */
+  doc_4_path?: string;
   // Per-source extraction data
   /** Semantic extractions per source */
   semantic_extractions?: Record<string, unknown>[];

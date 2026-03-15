@@ -1730,7 +1730,7 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
             from backend.pipeline.iteration.metrics_tracker import MetricsTracker
 
             baseline = load_baseline(job_id, artifacts_dict)
-            ctx = create_iteration_context(job_id, baseline, mode)
+            ctx = create_iteration_context(job_id, iterate_id, baseline, mode)
             metrics = MetricsTracker()
 
             doc_0, doc_1, doc_2 = run_iteration_mode(
