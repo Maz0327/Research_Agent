@@ -18,6 +18,17 @@ import { exportToDocx } from '@/lib/docx-export';
 import { ResearchDocumentRenderer } from '@/components/document/ResearchDocumentRenderer';
 import { ShareButton } from './ShareButton';
 import { ExportToolbar } from '@/components/document/ExportToolbar';
+import { API_URL } from '@/lib/constants';
+import { getAccessToken } from '@/lib/supabase';
+
+interface VersionMeta {
+  version: number;
+  created_at: string;
+  trigger: string;
+  source_count?: number;
+  claim_count?: number;
+  diff_summary?: string;
+}
 
 export interface DocumentViewerModalProps {
   isOpen: boolean;
@@ -104,6 +115,92 @@ export function DocumentViewerModal({
   const [showDetails, setShowDetails] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
+  // Version selector state
+  const [versions, setVersions] = useState<VersionMeta[]>([]);
+  const [activeVersion, setActiveVersion] = useState<number | null>(null);
+  const [versionMarkdown, setVersionMarkdown] = useState<string | undefined>(undefined);
+  const [versionData, setVersionData] = useState<Record<string, unknown> | null>(null);
+  const [isLoadingVersion, setIsLoadingVersion] = useState(false);
+
+  // Fetch available versions when modal opens
+  useEffect(() => {
+    if (!isOpen || !jobId || docNumber === 'B') {
+      setVersions([]);
+      setActiveVersion(null);
+      setVersionMarkdown(undefined);
+      setVersionData(null);
+      return;
+    }
+
+    const docType = `doc_${docNumber}`;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch(`${API_URL}/jobs/${jobId}/documents/${docType}/versions`, { headers });
+        if (!res.ok || cancelled) return;
+
+        const json = await res.json();
+        if (!cancelled && json.versions && json.versions.length > 1) {
+          setVersions(json.versions);
+        }
+      } catch {
+        // Version listing is optional — silently fail
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isOpen, jobId, docNumber]);
+
+  // Load a specific version
+  const loadVersion = useCallback(async (version: number) => {
+    if (!jobId || docNumber === 'B') return;
+    setIsLoadingVersion(true);
+    setActiveVersion(version);
+
+    try {
+      const docType = `doc_${docNumber}`;
+      const token = await getAccessToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_URL}/jobs/${jobId}/documents/${docType}?version=${version}`, { headers });
+      if (!res.ok) throw new Error('Failed to fetch version');
+
+      const json = await res.json();
+
+      if (json.url) {
+        const docRes = await fetch(json.url);
+        const docJson = await docRes.json();
+        setVersionData(docJson.data || docJson);
+        setVersionMarkdown(docJson.markdown || docJson.content);
+      } else {
+        setVersionData(json.data || json);
+        setVersionMarkdown(json.markdown || json.content);
+      }
+    } catch {
+      setVersionData(null);
+      setVersionMarkdown(undefined);
+    } finally {
+      setIsLoadingVersion(false);
+    }
+  }, [jobId, docNumber]);
+
+  // Reset to latest (original props)
+  const resetToLatest = useCallback(() => {
+    setActiveVersion(null);
+    setVersionData(null);
+    setVersionMarkdown(undefined);
+  }, []);
+
+  // Effective content — use version override if active
+  const effectiveMarkdown = activeVersion !== null ? versionMarkdown : markdown;
+  const effectiveData = activeVersion !== null && versionData ? versionData : data;
+
   // Close on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -137,16 +234,16 @@ export function DocumentViewerModal({
 
   // Copy with feedback
   const handleCopy = useCallback(async () => {
-    const content = markdown || JSON.stringify(data, null, 2);
+    const content = effectiveMarkdown || JSON.stringify(effectiveData, null, 2);
     await navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [markdown, data]);
+  }, [effectiveMarkdown, effectiveData]);
 
   // Download as Markdown
   const handleDownloadMarkdown = useCallback(() => {
-    if (!markdown) return;
-    const blob = new Blob([markdown], { type: 'text/markdown' });
+    if (!effectiveMarkdown) return;
+    const blob = new Blob([effectiveMarkdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -154,11 +251,11 @@ export function DocumentViewerModal({
     a.click();
     URL.revokeObjectURL(url);
     setShowDownloadMenu(false);
-  }, [markdown, docNumber, title]);
+  }, [effectiveMarkdown, docNumber, title]);
 
   // Download as JSON
   const handleDownloadJSON = useCallback(() => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(effectiveData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -166,34 +263,34 @@ export function DocumentViewerModal({
     a.click();
     URL.revokeObjectURL(url);
     setShowDownloadMenu(false);
-  }, [data, docNumber, title]);
+  }, [effectiveData, docNumber, title]);
 
   // Download as PDF
   const handleDownloadPDF = useCallback(async () => {
-    if (!markdown) return;
+    if (!effectiveMarkdown) return;
     setShowDownloadMenu(false);
     try {
       const filename = `doc-${docNumber}-${title.toLowerCase().replace(/\s+/g, '-')}`;
-      await exportToPdf(markdown, filename);
+      await exportToPdf(effectiveMarkdown, filename);
     } catch (err) {
       console.error('PDF download failed:', err);
     }
-  }, [markdown, docNumber, title]);
+  }, [effectiveMarkdown, docNumber, title]);
 
   // Download as DOCX
   const handleDownloadDocx = useCallback(async () => {
-    if (!markdown) return;
+    if (!effectiveMarkdown) return;
     setShowDownloadMenu(false);
     try {
       const filename = `doc-${docNumber}-${title.toLowerCase().replace(/\s+/g, '-')}`;
-      await exportToDocx(markdown, filename);
+      await exportToDocx(effectiveMarkdown, filename);
     } catch (err) {
       console.error('DOCX download failed:', err);
     }
-  }, [markdown, docNumber, title]);
+  }, [effectiveMarkdown, docNumber, title]);
 
-  const hasContent = !!markdown || Object.keys(data).length > 0;
-  const hasData = Object.keys(data).length > 0;
+  const hasContent = !!effectiveMarkdown || Object.keys(effectiveData).length > 0;
+  const hasData = Object.keys(effectiveData).length > 0;
 
   return (
     <AnimatePresence>
@@ -272,15 +369,54 @@ export function DocumentViewerModal({
               <div className="w-10 h-1 rounded-full bg-gray-600" />
             </div>
 
+            {/* Version selector — show when multiple versions exist */}
+            {versions.length > 1 && (
+              <div className="flex-shrink-0 flex items-center gap-2 px-4 sm:px-6 py-2 border-b border-gray-700/50 bg-gray-800/30">
+                <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Version</span>
+                <select
+                  value={activeVersion ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      resetToLatest();
+                    } else {
+                      loadVersion(Number(val));
+                    }
+                  }}
+                  className="bg-gray-700/50 border border-gray-600/50 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Latest (v{versions[0]?.version})</option>
+                  {versions.slice(1).map((v) => (
+                    <option key={v.version} value={v.version}>
+                      v{v.version} — {v.trigger}{v.diff_summary ? ` (${v.diff_summary})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {isLoadingVersion && (
+                  <svg className="animate-spin h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.12" />
+                    <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
+                )}
+                {activeVersion !== null && !isLoadingVersion && (
+                  <span className="text-[11px] text-gray-500">
+                    {versions.find(v => v.version === activeVersion)?.created_at
+                      ? new Date(versions.find(v => v.version === activeVersion)!.created_at).toLocaleDateString()
+                      : ''}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Export toolbar — persistent at top (Phase 3E) */}
             <ExportToolbar
-              markdown={markdown}
-              data={data}
+              markdown={effectiveMarkdown}
+              data={effectiveData}
               title={title}
               docNumber={docNumber}
               jobId={jobId}
-              onExportPdf={markdown ? handleDownloadPDF : undefined}
-              onExportDocx={markdown ? handleDownloadDocx : undefined}
+              onExportPdf={effectiveMarkdown ? handleDownloadPDF : undefined}
+              onExportDocx={effectiveMarkdown ? handleDownloadDocx : undefined}
             />
 
             {/* Content — reading column centered at 900px on wide screens */}
@@ -288,8 +424,8 @@ export function DocumentViewerModal({
               <div className="max-w-[900px] mx-auto">
                 <ResearchDocumentRenderer
                   docNumber={docNumber}
-                  data={data}
-                  markdown={markdown}
+                  data={effectiveData}
+                  markdown={effectiveMarkdown}
                   showDetails={showDetails}
                 />
               </div>
@@ -350,7 +486,7 @@ export function DocumentViewerModal({
                         onClick={() => setShowDownloadMenu(false)}
                       />
                       <div className="absolute right-0 bottom-full mb-1 z-20 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
-                        {!!markdown && (
+                        {!!effectiveMarkdown && (
                           <>
                             <button
                               onClick={handleDownloadPDF}

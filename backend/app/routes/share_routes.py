@@ -339,20 +339,17 @@ async def get_shared_document(
         if expires_at < now:
             raise HTTPException(status_code=410, detail="This share link has expired")
         
-        # Check max views
-        view_count = share["view_count"] or 0
+        # Atomically increment view count and enforce max_views
         max_views = share["max_views"]
-        if max_views is not None and view_count >= max_views:
+        rpc_result = client.rpc("increment_share_view_count", {
+            "p_share_id": share["id"],
+            "p_max_views": max_views,
+        }).execute()
+
+        new_view_count = rpc_result.data
+        if new_view_count is None:
             raise HTTPException(status_code=410, detail="This share link has reached its view limit")
-        
-        # Increment view count
-        # TODO(audit-H8): This is a non-atomic read-modify-write. Under concurrent
-        # requests, the same view_count can be read by two requests before either
-        # writes, allowing views beyond max_views. A proper fix requires a Supabase
-        # RPC with: UPDATE ... SET view_count = view_count + 1 WHERE view_count < max_views
-        client.table("share_tokens").update({
-            "view_count": view_count + 1
-        }).eq("id", share["id"]).execute()
+        view_count = new_view_count
         
         # Get job and document content
         job_id = share["job_id"]
@@ -393,7 +390,7 @@ async def get_shared_document(
             extra={
                 "job_id": job_id,
                 "doc_type": doc_type,
-                "view_count": view_count + 1,
+                "view_count": view_count,
                 "event": "share_viewed",
             }
         )
@@ -406,7 +403,7 @@ async def get_shared_document(
             markdown=markdown,
             data=data,
             expires_at=expires_at,
-            view_count=view_count + 1,
+            view_count=view_count,
         )
         
     except HTTPException:

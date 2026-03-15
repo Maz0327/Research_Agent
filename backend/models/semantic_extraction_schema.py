@@ -15,7 +15,7 @@ Usage in generate_json():
     )
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Literal
 
 
@@ -36,6 +36,14 @@ class ClaimSchema(BaseModel):
     supporting_quotes: list[str]
     confidence: Literal["low", "medium", "high"]
     confidence_rationale: str  # Required: explanation for confidence level
+
+    @field_validator("source_id")
+    @classmethod
+    def source_id_not_empty(cls, v: str) -> str:
+        """Claims must reference a valid source."""
+        if not v or not v.strip():
+            raise ValueError("source_id must be non-empty")
+        return v
 
 
 class KeyPointSchema(BaseModel):

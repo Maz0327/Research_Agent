@@ -20,6 +20,7 @@ import { CardWrapper } from './shared/CardWrapper';
 import { CollapsibleSection } from './shared/CollapsibleSection';
 import { ConfidenceBadge } from './shared/ConfidenceBadge';
 import { CitationPill } from './shared/CitationPill';
+import { SectionActions } from './SectionActions';
 import { formatInternalId } from '@/lib/document-formatters';
 
 interface SemanticBriefRendererProps {
@@ -271,8 +272,11 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
 
       {/* Themes — always expanded (core section) */}
       {themeCount > 0 && (
-        <div>
-          <SectionHeader title="Patterns & Insights" accentColor="bg-purple-500" count={themeCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Patterns & Insights" accentColor="bg-purple-500" count={themeCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.themes.map(t => `${t.label}: ${t.description}`).join('\n\n')} sectionTitle="Patterns & Insights" />
+          </div>
           <div className="mt-4 space-y-4">
             {data.themes.map(theme => (
               <ThemeCard key={theme.theme_id} theme={theme} keyPoints={data.key_points || []} showDetails={showDetails} />
@@ -283,8 +287,11 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
 
       {/* Tensions — always expanded (important for creators) */}
       {tensionCount > 0 && (
-        <div>
-          <SectionHeader title="Conflicting Views" accentColor="bg-red-500" count={tensionCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Conflicting Views" accentColor="bg-red-500" count={tensionCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.tensions.map(t => `${t.label}: ${t.description}`).join('\n\n')} sectionTitle="Conflicting Views" />
+          </div>
           <div className="mt-4 space-y-4">
             {data.tensions.map(t => (
               <TensionCard key={t.tension_id} tension={t} showDetails={showDetails} />
@@ -295,8 +302,11 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
 
       {/* Gaps — collapsed by default (supporting detail) */}
       {gapCount > 0 && (
-        <div>
-          <SectionHeader title="Open Questions" accentColor="bg-amber-500" count={gapCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Open Questions" accentColor="bg-amber-500" count={gapCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.gaps.map(g => `${g.label}: ${g.description}`).join('\n\n')} sectionTitle="Open Questions" />
+          </div>
           <div className="mt-3">
             <CollapsibleSection label="View open questions" itemCount={gapCount}>
               <div className="space-y-4">

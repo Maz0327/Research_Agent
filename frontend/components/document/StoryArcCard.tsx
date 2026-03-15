@@ -8,22 +8,9 @@
 
 import { useState } from 'react';
 import { CardWrapper } from './shared/CardWrapper';
+import type { StoryArc, StoryBeat } from '@/types/documents';
 
-export interface StoryBeat {
-  beat_number: number;
-  label: string;
-  description: string;
-  /** Claim IDs or theme IDs that map to this beat */
-  mapped_ids?: string[];
-}
-
-export interface StoryArc {
-  arc_name: string;
-  arc_type: 'cold_open' | 'multiple_perspectives' | 'heros_journey' | 'discovery';
-  beats: StoryBeat[];
-  scripting_preview: string;
-  topic_fit_reason: string;
-}
+export type { StoryArc, StoryBeat };
 
 interface StoryArcCardProps {
   arc: StoryArc;

@@ -18,6 +18,7 @@ import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
 import { ConfidenceBadge } from './shared/ConfidenceBadge';
 import { CitationPill } from './shared/CitationPill';
+import { SectionActions } from './SectionActions';
 import { formatInternalId } from '@/lib/document-formatters';
 
 interface JumpStartRendererProps {
@@ -342,8 +343,11 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
 
       {/* Next Steps */}
       {data.next_steps?.length > 0 && (
-        <div>
-          <SectionHeader title="Next Steps" accentColor="bg-green-500" count={data.next_steps.length} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Next Steps" accentColor="bg-green-500" count={data.next_steps.length} />
+            <SectionActions content={data.next_steps.join('\n')} sectionTitle="Next Steps" />
+          </div>
           <ol className="mt-4 space-y-2">
             {data.next_steps.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
@@ -359,8 +363,11 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
 
       {/* Research Threads */}
       {data.research_threads?.length > 0 && (
-        <div>
-          <SectionHeader title="What We Found" accentColor="bg-blue-500" count={threadCount} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="What We Found" accentColor="bg-blue-500" count={threadCount} />
+            <SectionActions content={data.research_threads.map(t => `${t.theme?.label}: ${t.theme?.description}`).join('\n\n')} sectionTitle="What We Found" />
+          </div>
           <div className="mt-4 space-y-5">
             {data.research_threads.map((thread, i) => (
               <ResearchThreadCard key={thread.theme?.theme_id || i} thread={thread} showDetails={showDetails} />
@@ -371,8 +378,11 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
 
       {/* Standalone tensions (not in threads) */}
       {tensionCount > 0 && (
-        <div>
-          <SectionHeader title="Conflicting Views" accentColor="bg-red-500" count={tensionCount} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Conflicting Views" accentColor="bg-red-500" count={tensionCount} />
+            <SectionActions content={data.tensions.map(t => `${t.label}: ${t.description}`).join('\n\n')} sectionTitle="Conflicting Views" />
+          </div>
           <div className="mt-4 space-y-4">
             {data.tensions.map(t => (
               <TensionItem key={t.tension_id} tension={t} showDetails={showDetails} />

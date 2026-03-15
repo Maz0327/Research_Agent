@@ -8,6 +8,7 @@
 import type { SourceLedgerData, SourceEntry } from '@/types/documents';
 import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
+import { SectionActions } from './SectionActions';
 import { formatInternalId } from '@/lib/document-formatters';
 import { useState } from 'react';
 
@@ -34,8 +35,13 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
   const [showFullText, setShowFullText] = useState(false);
   const status = statusStyles[source.status] || statusStyles.ingested;
   const icon = typeIcons[source.source_type?.toLowerCase()] || '📄';
+  const sourceText = [source.title, ...(source.skim_summary || [])].join('\n');
   return (
+    <div className="group">
     <CardWrapper accentColor={source.status === 'failed' ? 'bg-red-500' : source.status === 'partial' ? 'bg-yellow-500' : 'bg-green-500'}>
+      <div className="absolute top-2 right-2">
+        <SectionActions content={sourceText} sectionTitle={source.title} />
+      </div>
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -144,6 +150,7 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
         </p>
       )}
     </CardWrapper>
+    </div>
   );
 }
 

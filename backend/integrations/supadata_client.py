@@ -292,7 +292,8 @@ def fetch_transcript_supadata(
 
 def is_supadata_available() -> bool:
     """Check if Supadata is available and configured."""
-    return bool(os.getenv("SUPADATA_API_KEY"))
+    from backend.config import get_settings
+    return bool(get_settings().supadata_api_key)
 
 
 def get_platform_reliability(platform: Platform) -> str:

@@ -280,6 +280,21 @@ export interface InterviewSuggestions {
   key_questions: string[];
 }
 
+export interface StoryBeat {
+  beat_number: number;
+  label: string;
+  description: string;
+  mapped_ids?: string[];
+}
+
+export interface StoryArc {
+  arc_name: string;
+  arc_type: 'cold_open' | 'multiple_perspectives' | 'heros_journey' | 'discovery';
+  beats: StoryBeat[];
+  scripting_preview: string;
+  topic_fit_reason: string;
+}
+
 export interface ProductionBlueprint {
   estimated_runtime?: string | null;
   pacing_notes?: string[];
@@ -321,6 +336,7 @@ export interface ProducerPacketData {
   decision_criteria?: string[] | null;
   quality_score?: number | null;
   quality_issues?: string[];
+  suggested_structure?: StoryArc;
   [key: string]: unknown;
 }
 

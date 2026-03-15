@@ -20,7 +20,8 @@ import { CardWrapper } from './shared/CardWrapper';
 import { CitationPill } from './shared/CitationPill';
 import { CollapsibleSection } from './shared/CollapsibleSection';
 import { HookOptionCard } from './HookOptionCard';
-import { StoryArcCard, type StoryArc } from './StoryArcCard';
+import { StoryArcCard } from './StoryArcCard';
+import { SectionActions } from './SectionActions';
 import { formatInternalId } from '@/lib/document-formatters';
 
 interface CreatorBriefRendererProps {
@@ -265,7 +266,7 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
   if (angleCount > 0) sections.push('Narrative Angles');
   if (hookCount > 0) sections.push('Opening Hooks');
   if (data.structure_options?.length) sections.push('Structure Options');
-  if ((data as any).suggested_structure) sections.push('Suggested Structure');
+  if (data.suggested_structure) sections.push('Suggested Structure');
   if (momentCount > 0) sections.push('Key Moments');
   if (data.story_core?.why_this_matters) sections.push('Why It Matters');
   if (data.title_options?.length) sections.push('Title Options');
@@ -291,8 +292,11 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
 
       {/* Narrative Angles — always expanded (core creative section) */}
       {angleCount > 0 && (
-        <div>
-          <SectionHeader title="Narrative Angles" accentColor="bg-amber-500" count={angleCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Narrative Angles" accentColor="bg-amber-500" count={angleCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.narrative_angles.map(a => `${a.title}: ${a.description}`).join('\n\n')} sectionTitle="Narrative Angles" />
+          </div>
           <div className="mt-4 space-y-4">
             {data.narrative_angles.map(angle => (
               <AngleCard
@@ -308,8 +312,11 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
 
       {/* Opening Hooks — always expanded (core creative section) */}
       {hookCount > 0 && (
-        <div>
-          <SectionHeader title="Opening Hooks" accentColor="bg-blue-500" count={hookCount} subtitle="Tap to select your favorite" sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Opening Hooks" accentColor="bg-blue-500" count={hookCount} subtitle="Tap to select your favorite" sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.opening_hooks.map(h => h.content).join('\n\n')} sectionTitle="Opening Hooks" />
+          </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.opening_hooks.map((hook, i) => (
               <HookOptionCard
@@ -342,19 +349,22 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
       )}
 
       {/* Suggested Structure — Phase 3B story arc suggestion */}
-      {(data as any).suggested_structure && (
+      {data.suggested_structure && (
         <div>
           <SectionHeader title="Suggested Structure" accentColor="bg-teal-500" sectionIndex={++sectionIdx} totalSections={totalSections} />
           <div className="mt-4">
-            <StoryArcCard arc={(data as any).suggested_structure as StoryArc} />
+            <StoryArcCard arc={data.suggested_structure} />
           </div>
         </div>
       )}
 
       {/* Key Moments — collapsed by default (supporting detail) */}
       {momentCount > 0 && (
-        <div>
-          <SectionHeader title="Key Moments" accentColor="bg-purple-500" count={momentCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Key Moments" accentColor="bg-purple-500" count={momentCount} sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.key_moments.map(m => m.moment).join('\n\n')} sectionTitle="Key Moments" />
+          </div>
           <div className="mt-3">
             <CollapsibleSection label="View key moments" itemCount={momentCount}>
               <div className="divide-y divide-gray-800/50">
@@ -374,8 +384,11 @@ export function CreatorBriefRenderer({ data, showDetails = false }: CreatorBrief
 
       {/* Title Options — always expanded (quick-scan section) */}
       {data.title_options?.length > 0 && (
-        <div>
-          <SectionHeader title="Title Options" accentColor="bg-blue-500" count={data.title_options.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+        <div className="group">
+          <div className="flex items-center justify-between">
+            <SectionHeader title="Title Options" accentColor="bg-blue-500" count={data.title_options.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+            <SectionActions content={data.title_options.map(t => t.title + (t.subtitle ? ` — ${t.subtitle}` : '')).join('\n')} sectionTitle="Title Options" />
+          </div>
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.title_options.map((opt, i) => (
               <TitleOptionCard key={i} option={opt} />
