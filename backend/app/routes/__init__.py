@@ -12,6 +12,7 @@ from .search_routes import router as search_router
 from .style_guide_routes import router as style_guide_router
 from .brainstorm_routes import router as brainstorm_router
 from .creator_analysis_routes import router as creator_analysis_router
+from .voice_profile_routes import router as voice_profile_router
 
 __all__ = [
     "settings_router",
@@ -24,4 +25,5 @@ __all__ = [
     "style_guide_router",
     "brainstorm_router",
     "creator_analysis_router",
+    "voice_profile_router",
 ]

@@ -226,14 +226,38 @@ def _validate_provenance(
 def _load_voice_instructions(voice_profile_id: str) -> str:
     """Load voice mimicry instructions from a voice profile.
 
-    This is a Phase 3 hook — returns empty string until voice profiles are implemented.
-
     Args:
         voice_profile_id: UUID of the voice profile.
 
     Returns:
         Voice instruction string or empty string.
     """
-    # Phase 3 implementation will load from Supabase voice_profiles table
-    logger.info(f"Voice profile {voice_profile_id} requested but Phase 3 not yet implemented")
-    return ""
+    try:
+        from backend.integrations.supabase_client import get_supabase_client
+        from backend.models.voice_profile import VoiceProfile
+
+        supabase = get_supabase_client()
+        if not supabase:
+            logger.warning(f"Supabase unavailable — cannot load voice profile {voice_profile_id}")
+            return ""
+
+        result = (
+            supabase.table("voice_profiles")
+            .select("*")
+            .eq("id", voice_profile_id)
+            .single()
+            .execute()
+        )
+
+        if not result.data:
+            logger.warning(f"Voice profile {voice_profile_id} not found")
+            return ""
+
+        profile = VoiceProfile(id=voice_profile_id, **result.data)
+        instructions = profile.to_voice_instructions()
+        logger.info(f"Loaded voice profile {voice_profile_id} for {profile.creator_name}")
+        return instructions
+
+    except Exception as e:
+        logger.warning(f"Failed to load voice profile {voice_profile_id}: {e}")
+        return ""

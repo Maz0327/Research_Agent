@@ -18,6 +18,7 @@ from backend.app.routes import (
     style_guide_router,
     brainstorm_router,
     creator_analysis_router,
+    voice_profile_router,
 )
 from backend.auth import AuthUser
 from backend.auth.dependencies import get_current_user
@@ -278,3 +279,4 @@ app.include_router(search_router)
 app.include_router(style_guide_router)
 app.include_router(brainstorm_router)
 app.include_router(creator_analysis_router)
+app.include_router(voice_profile_router)
