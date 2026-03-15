@@ -18,6 +18,7 @@ import {
 import { CreatorBriefView } from '../../components/creator-brief/CreatorBriefView';
 import { RefinePanel } from '../../components/iterate/RefinePanel';
 import { ReadingGuide } from '../../components/job-detail/ReadingGuide';
+import { DocumentAccordion } from '../../components/job-detail/DocumentAccordion';
 import type { Job } from '../../store/jobs';
 import { formatTimestampWithRelative } from '../../lib/document-formatters';
 
@@ -149,6 +150,7 @@ function JobDetailContent() {
   const [newIterateDialogOpen, setNewIterateDialogOpen] = useState(false);
   const [iterateDefaultMode, setIterateDefaultMode] = useState<string | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [viewMode, setViewMode] = useState<'hero' | 'grid'>('hero');
   const heroRef = useRef<HTMLDivElement>(null);
 
   // Find job in store
@@ -337,49 +339,111 @@ function JobDetailContent() {
           </div>
         )}
 
-        {/* Creator Brief Hero Section — shown when job completed and doc_3 exists */}
-        {(job.status === 'completed' || job.status === 'completed_with_warnings') &&
-          (job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md) && (
-          <div ref={heroRef} className="mb-8">
-            <CreatorBriefView
-              jobId={job.id}
-              onNavigateToDoc={(docType) => {
-                // Scroll to artifact card grid — user can click the relevant card
-                const grid = document.getElementById('artifact-grid');
-                grid?.scrollIntoView({ behavior: 'smooth' });
-              }}
+        {/* ─── Progressive Document Reveal (Phase 3D) ──────────────── */}
+        {(job.status === 'completed' || job.status === 'completed_with_warnings') && (
+          <>
+            {/* View mode toggle */}
+            <div className="flex items-center justify-end mb-4 gap-2">
+              <button
+                onClick={() => setViewMode(viewMode === 'hero' ? 'grid' : 'hero')}
+                className="text-[12px] text-white/40 hover:text-white/60 transition-colors flex items-center gap-1.5"
+              >
+                {viewMode === 'hero' ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    View all documents
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
+                    Focus on Creator Brief
+                  </>
+                )}
+              </button>
+            </div>
+
+            {viewMode === 'hero' ? (
+              <>
+                {/* Creator Brief Hero Section — full-width at top */}
+                {(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md) && (
+                  <div ref={heroRef} className="mb-8">
+                    <CreatorBriefView
+                      jobId={job.id}
+                      onNavigateToDoc={() => {
+                        setViewMode('grid');
+                        setTimeout(() => {
+                          const grid = document.getElementById('artifact-grid');
+                          grid?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Supporting documents in accordion */}
+                <div className="mb-8">
+                  <DocumentAccordion
+                    job={job}
+                    onOpenDoc={(docNumber, title) => {
+                      // Switch to grid view and scroll to the card
+                      setViewMode('grid');
+                    }}
+                  />
+                </div>
+
+                {/* Iteration/Booster actions still visible */}
+                <div id="artifact-grid">
+                  <ArtifactCardGrid
+                    job={job}
+                    onTriggerBooster={handleTriggerBooster}
+                    onTriggerProducer={handleTriggerProducer}
+                    onOpenIterationDialog={() => setNewIterateDialogOpen(true)}
+                    actionsDisabled={actionsDisabled}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Grid view — original layout */}
+                <ReadingGuide
+                  hasCreatorBrief={!!(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md)}
+                  onStartReading={() => {
+                    setViewMode('hero');
+                    setTimeout(() => {
+                      heroRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }}
+                />
+                <div id="artifact-grid">
+                  <ArtifactCardGrid
+                    job={job}
+                    onTriggerBooster={handleTriggerBooster}
+                    onTriggerProducer={handleTriggerProducer}
+                    onOpenIterationDialog={() => setNewIterateDialogOpen(true)}
+                    actionsDisabled={actionsDisabled}
+                  />
+                </div>
+                <ResearchOverview job={job} />
+              </>
+            )}
+          </>
+        )}
+
+        {/* For non-completed jobs, show the standard grid */}
+        {job.status !== 'completed' && job.status !== 'completed_with_warnings' && (
+          <div id="artifact-grid">
+            <ArtifactCardGrid
+              job={job}
+              onTriggerBooster={handleTriggerBooster}
+              onTriggerProducer={handleTriggerProducer}
+              onOpenIterationDialog={() => setNewIterateDialogOpen(true)}
+              actionsDisabled={actionsDisabled}
             />
           </div>
-        )}
-
-        {/* Improve Research button removed — Deep Research card pre-selects deep_dive,
-            Iterations card opens the full iterate dialog. No need for a 3rd redundant CTA. */}
-
-        {/* Reading Guide — guides user to start with Creator Brief */}
-        {(job.status === 'completed' || job.status === 'completed_with_warnings') && (
-          <ReadingGuide
-            hasCreatorBrief={!!(job.artifacts?.doc_3_path || job.artifacts?.creator_brief_md)}
-            onStartReading={() => {
-              // Scroll to hero section which shows Creator Brief
-              heroRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          />
-        )}
-
-        {/* Artifact Cards Grid */}
-        <div id="artifact-grid">
-          <ArtifactCardGrid
-            job={job}
-            onTriggerBooster={handleTriggerBooster}
-            onTriggerProducer={handleTriggerProducer}
-            onOpenIterationDialog={() => setNewIterateDialogOpen(true)}
-            actionsDisabled={actionsDisabled}
-          />
-        </div>
-
-        {/* Research Overview — fills blank space below grid for completed jobs */}
-        {(job.status === 'completed' || job.status === 'completed_with_warnings') && job.artifacts && (
-          <ResearchOverview job={job} />
         )}
 
         {/* Natural Language Refine Panel — replaces 5-mode IterateDialog */}
