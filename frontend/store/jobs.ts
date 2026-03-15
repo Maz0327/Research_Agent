@@ -562,6 +562,11 @@ interface JobsState {
   isBrainstorming: boolean;
   brainstormTopic: (topic: string, audienceHint?: string, styleGuideId?: string) => Promise<any>;
   clearBrainstorm: () => void;
+  // Creator analysis (Phase 3A)
+  creatorAnalysisResult: any | null;
+  isAnalyzingCreator: boolean;
+  analyzeCreator: (creatorName: string, videoUrls: string[]) => Promise<any>;
+  clearCreatorAnalysis: () => void;
 }
 
 export const useJobsStore = create<JobsState>((set, get) => ({
@@ -589,6 +594,8 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   // Brainstorm pre-stage (Phase 2A)
   brainstormResult: null,
   isBrainstorming: false,
+  creatorAnalysisResult: null,
+  isAnalyzingCreator: false,
 
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
@@ -1764,5 +1771,39 @@ export const useJobsStore = create<JobsState>((set, get) => ({
 
   clearBrainstorm: () => {
     set({ brainstormResult: null, isBrainstorming: false });
+  },
+
+  // ─── Creator Analysis (Phase 3A) ──────────────────────────────────────────
+  analyzeCreator: async (creatorName: string, videoUrls: string[]) => {
+    set({ isAnalyzingCreator: true, creatorAnalysisResult: null, error: null });
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const res = await fetch(`${API_URL}/creator-analysis`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          creator_name: creatorName,
+          video_urls: videoUrls,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Creator analysis failed: ${res.status}`);
+      }
+      const result = await res.json();
+      set({ creatorAnalysisResult: result, isAnalyzingCreator: false });
+      return result;
+    } catch (e: any) {
+      set({ error: formatApiError(e), isAnalyzingCreator: false });
+      throw e;
+    }
+  },
+
+  clearCreatorAnalysis: () => {
+    set({ creatorAnalysisResult: null, isAnalyzingCreator: false });
   },
 }));

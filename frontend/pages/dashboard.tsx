@@ -17,10 +17,12 @@ import { BrainstormPanel } from '../components/brainstorm/BrainstormPanel';
 import { DashboardJobCard } from '../components/dashboard/DashboardJobCard';
 import { StartInput } from '../components/dashboard/StartInput';
 import type { DetectedIntent } from '../lib/intent-router';
+import { CreatorAnalysisInput } from '../components/creator-analysis/CreatorAnalysisInput';
+import { CreatorStyleProfileRenderer } from '../components/creator-analysis/CreatorStyleProfileRenderer';
 import Router from 'next/router';
 
-// Job creation modes: 4 entry points
-type JobMode = 'none' | 'topic' | 'research' | 'claims' | 'transcripts';
+// Job creation modes: 5 entry points
+type JobMode = 'none' | 'topic' | 'research' | 'claims' | 'transcripts' | 'creator_analysis';
 
 // Research depth options (mode)
 const researchDepths = [
@@ -99,6 +101,7 @@ function DashboardContent() {
     jobs, isLoading, preview, isPreviewLoading, fetchJobs, previewJob, createJob, createClaimExtractionJob, createMixedInputJob, refreshJob, clearPreview,
     searchResults, isSearching, searchTopic: searchTopicAction, clearSearchResults,
     brainstormResult, isBrainstorming, brainstormTopic, clearBrainstorm,
+    creatorAnalysisResult, isAnalyzingCreator, analyzeCreator, clearCreatorAnalysis,
   } = useJobsStore();
   const { user } = useAuth();
   const { createPanelCollapsed, toggleCreatePanel } = useUIPreferences();
@@ -112,8 +115,13 @@ function DashboardContent() {
   // Handle StartInput submission — routes based on detected intent
   const handleStartInputSubmit = useCallback((input: string, intent: DetectedIntent) => {
     switch (intent) {
-      case 'topic':
       case 'creator_analysis':
+        // Route to creator analysis URL input
+        setTopicInput(input);
+        setJobMode('creator_analysis');
+        clearCreatorAnalysis();
+        break;
+      case 'topic':
         // Route to brainstorm first, then source discovery
         setTopicInput(input);
         setJobMode('topic');
@@ -135,7 +143,7 @@ function DashboardContent() {
         setJobMode('claims');
         break;
     }
-  }, [setJobMode, brainstormTopic, clearBrainstorm, searchTopicAction]);
+  }, [setJobMode, brainstormTopic, clearBrainstorm, clearCreatorAnalysis, searchTopicAction]);
 
   // Handle power-user mode selection from StartInput links
   const handleModeSelect = useCallback((mode: 'sources' | 'claims' | 'transcripts') => {
@@ -757,6 +765,36 @@ function DashboardContent() {
                   )}
                 </button>
               </motion.form>
+            ) : jobMode === 'creator_analysis' ? (
+              <motion.div
+                key="creator-analysis"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                {creatorAnalysisResult ? (
+                  <CreatorStyleProfileRenderer
+                    profile={creatorAnalysisResult.profile}
+                    videoCount={creatorAnalysisResult.video_count}
+                    onBack={() => {
+                      clearCreatorAnalysis();
+                      setJobMode('none');
+                    }}
+                  />
+                ) : (
+                  <CreatorAnalysisInput
+                    initialQuery={topicInput}
+                    isLoading={isAnalyzingCreator}
+                    onSubmit={(creatorName, videoUrls) => {
+                      analyzeCreator(creatorName, videoUrls).catch(() => {});
+                    }}
+                    onBack={() => {
+                      clearCreatorAnalysis();
+                      setJobMode('none');
+                    }}
+                  />
+                )}
+              </motion.div>
             ) : null}
                   </AnimatePresence>
                 </div>
