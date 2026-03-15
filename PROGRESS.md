@@ -1,9 +1,9 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-03-12
-**Current Phase:** Phase 5 — Search/Discovery Flow
-**Current Task:** Pre-push audit complete, ready for live testing
-**Branch:** phase/5-search-discovery
+**Last Updated:** 2026-03-15
+**Current Phase:** Tier 5 — Content Generation (COMPLETE)
+**Current Task:** All pushed, needs live testing + migration 027
+**Branch:** feature/kimi-visual-analysis-and-optimizations
 
 ---
 
@@ -25,8 +25,74 @@ Phase 10:  ✅ COMPLETE — Documentation & Cleanup
 POST:      ✅ COMPLETE — Constitution Finalization & Legacy Cleanup
 MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 Phase 4*:  ✅ COMPLETE — Frontend Document Layer Model & UI Overhaul (17 commits)
-Phase 5*:  🔄 IN PROGRESS — Search/Discovery Flow (backend + frontend + audit)
+Phase 5*:  ✅ COMPLETE — Search/Discovery Flow (backend + frontend + audit)
+Tier 5:    ✅ COMPLETE — Content Generation: Doc 5/6/7 + Voice Mimicry + Inline Edit (6 commits, 39 tests)
 ```
+
+---
+
+## Tier 5: Content Generation (2026-03-15)
+
+**Status:** ✅ COMPLETE — all pushed, audited, 39 tests passing
+**Branch:** `feature/kimi-visual-analysis-and-optimizations`
+**Commits:** 92296d7 → 321d1ed (6 commits, 41 files, ~5000 lines)
+
+### Phase 1: Blog Post Writer (Doc 7)
+- `backend/models/blog_post_models.py` — BlogPostDocument with SEO fields, section validation
+- `backend/pipeline/stages/blog_post_stage.py` — LLM stage (temp 0.4), provenance validation
+- `backend/pipeline/prompts/blog_post_prompt.py` — Full prompt with grounding rules
+- `backend/pipeline/formatters/blog_post_formatter.py` — Markdown renderer
+- `POST /jobs/{job_id}/blog-post` endpoint + `run_blog_post_task` worker
+- `frontend/components/document/BlogPostRenderer.tsx` — Sections, SEO metadata, source pills
+- 9 tests
+
+### Phase 2: Script Writer (Doc 5)
+- `backend/models/script_models.py` — tone (4 modes) + length (short/medium/long) controls
+- `backend/pipeline/stages/script_stage.py` — Voice profile hook (temp 0.5, 0.55 with voice)
+- `backend/pipeline/prompts/script_prompt.py` — Tone/length instruction blocks
+- `POST /jobs/{job_id}/script` endpoint + `run_script_task` worker
+- `frontend/components/document/ScriptRenderer.tsx` — Beat labels, stage directions, durations
+- 8 tests
+
+### Phase 3: Voice Mimicry
+- `backend/models/voice_profile.py` — VoiceProfile with to_voice_instructions()
+- `backend/pipeline/stages/voice_profile_stage.py` — 2 LLM calls (temp 0.2)
+- `backend/app/routes/voice_profile_routes.py` — CRUD API
+- `backend/migrations/027_add_voice_profiles.sql` — Supabase table + RLS
+- Script stage wired to load profiles and bump temperature
+- `frontend/store/voice-profiles.ts` — Zustand CRUD store
+- 8 tests
+
+### Phase 4: Social Media Kit (Doc 6)
+- `backend/models/social_kit_models.py` — Platform-specific (280-char tweets), 6 platforms
+- `POST /jobs/{job_id}/social-kit` endpoint + `run_social_kit_task` worker
+- `frontend/components/document/SocialKitRenderer.tsx` — Tabbed UI, copy buttons, hashtag pills
+- 8 tests
+
+### Phase 5: Inline Edit
+- `backend/pipeline/stages/inline_edit_stage.py` — Section splicing (temp 0.3)
+- `inline_edit` mode in iterate system + version manager
+- `frontend/components/document/shared/EditableSection.tsx` — Click-to-edit wrapper
+- `frontend/components/document/shared/InlineEditBar.tsx` — Presets (Expand/Shorten/Casual/Formal)
+- All renderers wrapped with EditableSection
+- 6 tests
+
+### Audit (10 issues found & fixed)
+- Broken import in voice_profile_routes (CRITICAL)
+- Inline edit not updating job artifacts (CRITICAL)
+- Doc 5/6 card clicks were no-ops (CRITICAL)
+- EditableSection never used in renderers (CRITICAL)
+- Missing claim_id validation in social_kit_stage (HIGH)
+- Missing _completed_at in error handlers (HIGH)
+- Silent exception in voice_profile transition parsing (HIGH)
+- Missing inline_edit in version_manager diff summary (HIGH)
+- Prompt/model section count mismatch (MEDIUM)
+- Missing onTriggerScript/onTriggerSocialKit props (CRITICAL)
+
+### Pending
+- [ ] Run migration 027 on Supabase (voice_profiles table)
+- [ ] Live test all 3 new doc endpoints
+- [ ] Check OpenAI balance for Whisper
 
 ---
 

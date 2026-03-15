@@ -627,6 +627,64 @@ Job Detail Page features:
 
 ---
 
+## ADR-019: Tier 5 Content Generation — Three User-Triggered Documents
+
+**Date:** 2026-03-15
+**Status:** ACCEPTED
+**Deciders:** Project Owner
+
+### Context
+Tiers 1-4 produce Doc 0-4 (auto + user-triggered). Users need derivative content: blog posts, video scripts, and social media posts — all grounded in the same research data with full provenance.
+
+### Decision
+**Add three user-triggered document types following the established Doc N pattern:**
+- **Doc 5 (Script):** Spoken-word video script with tone/length controls and optional voice mimicry
+- **Doc 6 (Social Kit):** Multi-platform social posts (Twitter 280-char validation, LinkedIn, Instagram, YouTube, TikTok, Newsletter)
+- **Doc 7 (Blog Post):** Long-form SEO article with meta description and keyword optimization
+
+All follow the established pattern: POST endpoint → Celery task → LLM stage → version_manager storage.
+
+### Consequences
+- 3 new API endpoints, 3 new Celery tasks, 3 new pipeline stages
+- version_manager DOC_TYPES expanded to doc_0 through doc_7
+- ArtifactCardGrid shows 3 new cards in the UI
+- Temperature varies by document type (0.3-0.5)
+
+---
+
+## ADR-020: Voice Mimicry via Profile Analysis
+
+**Date:** 2026-03-15
+**Status:** ACCEPTED
+**Deciders:** Project Owner
+
+### Decision
+**Voice mimicry implemented as persistent Supabase-stored profiles, not inline analysis.** Users create profiles from video URLs, analyzed via LLM. Profiles inject voice instructions into Script Writer prompt and bump temperature from 0.5 to 0.55.
+
+### Consequences
+- New `voice_profiles` Supabase table with RLS (migration 027)
+- CRUD API at `/voice-profiles`
+- `VoiceProfile.to_voice_instructions()` generates the prompt injection block
+
+---
+
+## ADR-021: Inline Edit as Iterate Mode
+
+**Date:** 2026-03-15
+**Status:** ACCEPTED
+**Deciders:** Project Owner
+
+### Decision
+**Inline editing implemented as a new mode (`inline_edit`) in the existing iterate system.** Reuses iterate infrastructure (Celery task, version management, progress tracking) rather than creating a separate API.
+
+### Consequences
+- `inline_edit` mode requires `doc_type`, `section_id`, `edit_instruction`
+- Section spliced back into full document, stored as new version
+- Temperature 0.3 for surgical precision
+- Frontend uses EditableSection wrapper around renderer sections
+
+---
+
 ## Decision Index
 
 | ADR | Title | Status |
@@ -649,6 +707,9 @@ Job Detail Page features:
 | 016 | Artifacts Must Use Partial Merge in Atomic Updates | Accepted |
 | 017 | Iteration Loop for Completed Jobs | Accepted |
 | 018 | Progressive Disclosure UI Pattern | Accepted |
+| 019 | Tier 5 Content Generation — Three User-Triggered Documents | Accepted |
+| 020 | Voice Mimicry via Profile Analysis | Accepted |
+| 021 | Inline Edit as Iterate Mode | Accepted |
 
 ---
 
