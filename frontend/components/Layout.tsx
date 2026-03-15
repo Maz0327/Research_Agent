@@ -49,7 +49,7 @@ export default function Layout({ children }: LayoutProps) {
     <>
       <SkipLink />
 
-      <div className="flex min-h-screen bg-dark-bg-primary">
+      <div className="flex h-screen bg-dark-bg-primary">
         {/* Mobile overlay */}
         {sidebarOpen && (
           <div

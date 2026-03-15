@@ -146,6 +146,7 @@ function JobDetailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [newIterateDialogOpen, setNewIterateDialogOpen] = useState(false);
+  const [iterateDefaultMode, setIterateDefaultMode] = useState<string | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -239,7 +240,8 @@ function JobDetailContent() {
 
   const handleTriggerBooster = useCallback(async () => {
     // Booster endpoint is deprecated (HTTP 410). Open the iterate dialog instead,
-    // which supports deep_dive mode as the replacement.
+    // pre-selecting deep_dive mode as the booster replacement.
+    setIterateDefaultMode('deep_dive');
     setNewIterateDialogOpen(true);
   }, []);
 
@@ -292,7 +294,7 @@ function JobDetailContent() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-0 py-6">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
         <JobDetailHeader
           jobId={job.id}
@@ -349,21 +351,8 @@ function JobDetailContent() {
           </div>
         )}
 
-        {/* Improve Research button — uses new 5-mode IterateDialog */}
-        {(job.status === 'completed' || job.status === 'completed_with_warnings') && (
-          <div className="mb-6 flex justify-end">
-            <button
-              onClick={() => setNewIterateDialogOpen(true)}
-              disabled={actionsDisabled}
-              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-amber-600 hover:bg-amber-500 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Improve Research
-            </button>
-          </div>
-        )}
+        {/* Improve Research button removed — Deep Research card pre-selects deep_dive,
+            Iterations card opens the full iterate dialog. No need for a 3rd redundant CTA. */}
 
         {/* Artifact Cards Grid */}
         <div id="artifact-grid">
@@ -384,10 +373,15 @@ function JobDetailContent() {
         {/* 5-Mode Iterate Dialog */}
         <IterateDialog
           isOpen={newIterateDialogOpen}
-          onClose={() => setNewIterateDialogOpen(false)}
+          onClose={() => {
+            setNewIterateDialogOpen(false);
+            setIterateDefaultMode(undefined);
+          }}
           jobId={jobId}
+          defaultMode={iterateDefaultMode as any}
           onIterateStarted={() => {
             setNewIterateDialogOpen(false);
+            setIterateDefaultMode(undefined);
             // Refresh job to start polling
             refreshJob(jobId);
           }}
