@@ -38,7 +38,7 @@ function SCQASection({ scqa }: { scqa: SCQA }) {
 
   return (
     <CardWrapper accentColor="bg-indigo-500">
-      <p className="text-[11px] font-medium text-indigo-400 uppercase tracking-wider mb-3">SCQA Framework</p>
+      <p className="text-[11px] font-medium text-indigo-400 uppercase tracking-wider mb-3">The Big Picture</p>
       <div className="space-y-3">
         {items.map(item => (
           <div key={item.label}>
@@ -73,10 +73,6 @@ function ConfidenceSection({ assessment }: { assessment: ConfidenceAssessment })
 }
 
 function ThemeCard({ theme, keyPoints, showDetails }: { theme: Theme; keyPoints: KeyPoint[]; showDetails: boolean }) {
-  const displayId = showDetails
-    ? `${formatInternalId(theme.theme_id)} (${theme.theme_id})`
-    : formatInternalId(theme.theme_id);
-
   // Resolve related key points by ID
   const relatedKPs = theme.related_key_points
     ?.map(kpId => keyPoints.find(kp => kp.key_point_id === kpId))
@@ -85,9 +81,11 @@ function ThemeCard({ theme, keyPoints, showDetails }: { theme: Theme; keyPoints:
   return (
     <CardWrapper accentColor="bg-purple-500">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-[11px] font-medium text-purple-400/70 uppercase tracking-wider">{displayId}</span>
+        {showDetails && (
+          <span className="text-[11px] font-medium text-purple-400/70 uppercase tracking-wider">{formatInternalId(theme.theme_id)} ({theme.theme_id})</span>
+        )}
         {theme.is_consensus && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800/30">Consensus</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800/30">Multiple sources agree</span>
         )}
         {theme.confidence && <ConfidenceBadge level={theme.confidence} />}
       </div>
@@ -122,16 +120,14 @@ function ThemeCard({ theme, keyPoints, showDetails }: { theme: Theme; keyPoints:
 }
 
 function TensionCard({ tension, showDetails }: { tension: Tension; showDetails: boolean }) {
-  const displayId = showDetails
-    ? `${formatInternalId(tension.tension_id)} (${tension.tension_id})`
-    : formatInternalId(tension.tension_id);
-
   return (
     <CardWrapper accentColor="bg-red-500/60">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[11px] font-medium text-red-400/70 uppercase tracking-wider">{displayId}</span>
+        {showDetails && (
+          <span className="text-[11px] font-medium text-red-400/70 uppercase tracking-wider">{formatInternalId(tension.tension_id)} ({tension.tension_id})</span>
+        )}
         {tension.is_cross_source && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800/30">Cross-source</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800/30">Sources disagree</span>
         )}
         {tension.confidence && <ConfidenceBadge level={tension.confidence} />}
       </div>
@@ -166,15 +162,13 @@ function TensionCard({ tension, showDetails }: { tension: Tension; showDetails: 
 }
 
 function GapCard({ gap, showDetails }: { gap: Gap; showDetails: boolean }) {
-  const displayId = showDetails
-    ? `${formatInternalId(gap.gap_id)} (${gap.gap_id})`
-    : formatInternalId(gap.gap_id);
-
   return (
     <CardWrapper accentColor="bg-amber-500/60">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[11px] font-medium text-amber-500/70 uppercase tracking-wider">{displayId}</span>
-      </div>
+      {showDetails && (
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-[11px] font-medium text-amber-500/70 uppercase tracking-wider">{formatInternalId(gap.gap_id)} ({gap.gap_id})</span>
+        </div>
+      )}
       <p className="text-[14px] font-medium text-gray-200 mb-1">{gap.label}</p>
       <p className="text-[13px] text-gray-400 leading-relaxed">{gap.description}</p>
       {gap.why_expected && (
@@ -218,19 +212,19 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
 
       {/* Stats bar */}
       <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 justify-center text-[13px] text-gray-400">
-        <span>{themeCount} themes</span>
+        <span>{themeCount} patterns</span>
         <span className="text-gray-600">&#183;</span>
-        <span>{data.key_points?.length || 0} key points</span>
+        <span>{data.key_points?.length || 0} findings</span>
         {tensionCount > 0 && (
           <>
             <span className="text-gray-600">&#183;</span>
-            <span>{tensionCount} tensions</span>
+            <span>{tensionCount} debates</span>
           </>
         )}
         {gapCount > 0 && (
           <>
             <span className="text-gray-600">&#183;</span>
-            <span>{gapCount} gaps</span>
+            <span>{gapCount} open questions</span>
           </>
         )}
         <span className="text-gray-600">&#183;</span>
@@ -260,7 +254,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       {/* Themes */}
       {themeCount > 0 && (
         <div>
-          <SectionHeader title="Themes" accentColor="bg-purple-500" count={themeCount} />
+          <SectionHeader title="Patterns & Insights" accentColor="bg-purple-500" count={themeCount} />
           <div className="mt-4 space-y-4">
             {data.themes.map(theme => (
               <ThemeCard key={theme.theme_id} theme={theme} keyPoints={data.key_points || []} showDetails={showDetails} />
@@ -296,7 +290,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       {/* Speculative observations */}
       {data.speculative_observations?.length > 0 && (
         <div>
-          <SectionHeader title="Speculative Observations" accentColor="bg-gray-600" count={data.speculative_observations.length} />
+          <SectionHeader title="Worth Exploring" accentColor="bg-gray-600" count={data.speculative_observations.length} />
           <div className="mt-4 space-y-3">
             {data.speculative_observations.map((obs, i) => (
               <CardWrapper key={i} accentColor="bg-gray-600">

@@ -17,6 +17,7 @@ import type {
 import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
 import { CitationPill } from './shared/CitationPill';
+import { formatInternalId } from '@/lib/document-formatters';
 
 interface CreatorBriefRendererProps {
   data: ProducerPacketData;
@@ -64,9 +65,11 @@ function AngleCard({ angle, isRecommended, showDetails }: { angle: NarrativeAngl
   return (
     <CardWrapper accentColor={isRecommended ? 'bg-amber-500' : 'bg-gray-600'}>
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-          {showDetails ? `Angle ${angle.angle_id} (${angle.angle_id})` : `Angle ${angle.angle_id?.replace('ANG_', '')}`}
-        </span>
+        {showDetails && (
+          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">
+            {formatInternalId(angle.angle_id)} ({angle.angle_id})
+          </span>
+        )}
         {isRecommended && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-400 border border-amber-800/30 font-medium">
             Recommended

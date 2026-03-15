@@ -34,19 +34,17 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
   const [showFullText, setShowFullText] = useState(false);
   const status = statusStyles[source.status] || statusStyles.ingested;
   const icon = typeIcons[source.source_type?.toLowerCase()] || '📄';
-  const displayId = showDetails
-    ? `${formatInternalId(source.source_id)} (${source.source_id})`
-    : formatInternalId(source.source_id);
-
   return (
     <CardWrapper accentColor={source.status === 'failed' ? 'bg-red-500' : source.status === 'partial' ? 'bg-yellow-500' : 'bg-green-500'}>
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg flex-shrink-0">{icon}</span>
-          <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider flex-shrink-0">
-            {displayId}
-          </span>
+          {showDetails && (
+            <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider flex-shrink-0">
+              {formatInternalId(source.source_id)} ({source.source_id})
+            </span>
+          )}
           <span className="text-[11px] font-medium text-gray-600 flex-shrink-0">
             {source.source_type}
           </span>

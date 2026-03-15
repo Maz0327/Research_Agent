@@ -365,16 +365,34 @@ function normalizeHeadings(markdown: string): string {
     'missing_angles': 'Unexplored Angles',
 
     // Doc 2 - Semantic Brief
-    'Cross-Source Themes': 'Common Themes',
-    'cross_source_themes': 'Common Themes',
-    'Source Tensions': 'Conflicting Views',
-    'source_tensions': 'Conflicting Views',
+    'Cross-Source Themes': 'Patterns & Insights',
+    'cross_source_themes': 'Patterns & Insights',
+    'Source Tensions': 'Where Sources Disagree',
+    'source_tensions': 'Where Sources Disagree',
     'Evidence Summary': 'Evidence Overview',
     'evidence_summary': 'Evidence Overview',
     'Verified Claims': 'Confirmed Facts',
     'verified_claims': 'Confirmed Facts',
     'Unverified Claims': 'Unconfirmed Claims',
     'unverified_claims': 'Unconfirmed Claims',
+
+    // Doc 1 - Jump-Start (typed renderer renames)
+    'Research Threads': 'What We Found',
+    'Cross-Cutting Analysis': 'What Multiple Sources Agree On',
+    'cross_cutting_analysis': 'What Multiple Sources Agree On',
+
+    // Doc 2 - Semantic Brief (typed renderer renames)
+    'Themes': 'Patterns & Insights',
+    'Tensions': 'Conflicting Views',
+    'Speculative Observations': 'Worth Exploring',
+    'SCQA Framework': 'The Big Picture',
+    'scqa_framework': 'The Big Picture',
+
+    // Booster / Iteration documents
+    'Booster Directions': 'Go Deeper',
+    'booster_directions': 'Go Deeper',
+    'Deep Dive Results': 'Deep Dive Findings',
+    'Iteration Results': 'Updated Findings',
 
     // Generic improvements
     'Executive Summary': 'Overview',

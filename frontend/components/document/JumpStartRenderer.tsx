@@ -45,17 +45,15 @@ function KeyPointItem({ kp, showDetails }: { kp: KeyPoint; showDetails: boolean 
 }
 
 function GapCard({ gap, showDetails }: { gap: Gap; showDetails: boolean }) {
-  const displayId = showDetails
-    ? `${formatInternalId(gap.gap_id)} (${gap.gap_id})`
-    : formatInternalId(gap.gap_id);
-
   return (
     <div className="bg-amber-900/10 border border-amber-800/20 rounded-lg p-3 sm:p-4 relative overflow-hidden">
       <div className="absolute top-0 left-0 bottom-0 w-1 bg-amber-500/60 rounded-l-lg" />
       <div className="pl-3">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[11px] font-medium text-amber-500/70 uppercase tracking-wider">{displayId}</span>
-        </div>
+        {showDetails && (
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[11px] font-medium text-amber-500/70 uppercase tracking-wider">{formatInternalId(gap.gap_id)} ({gap.gap_id})</span>
+          </div>
+        )}
         <p className="text-[14px] font-medium text-gray-200 mb-1">{gap.label}</p>
         <p className="text-[13px] text-gray-400 leading-relaxed">{gap.description}</p>
         {gap.why_expected && (
@@ -76,9 +74,11 @@ function TensionItem({ tension, showDetails }: { tension: Tension; showDetails: 
   return (
     <CardWrapper accentColor="bg-red-500/60">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[11px] font-medium text-red-400/70 uppercase tracking-wider">
-          {showDetails ? `${formatInternalId(tension.tension_id)} (${tension.tension_id})` : formatInternalId(tension.tension_id)}
-        </span>
+        {showDetails && (
+          <span className="text-[11px] font-medium text-red-400/70 uppercase tracking-wider">
+            {formatInternalId(tension.tension_id)} ({tension.tension_id})
+          </span>
+        )}
         {tension.is_cross_source && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800/30">Cross-source</span>
         )}
@@ -146,9 +146,6 @@ function BoosterDirectionItem({ item, type }: { item: BoosterItem; type: string 
 
 function ResearchThreadCard({ thread, showDetails }: { thread: ResearchThread; showDetails: boolean }) {
   const theme = thread.theme;
-  const displayId = showDetails
-    ? `${formatInternalId(theme.theme_id)} (${theme.theme_id})`
-    : formatInternalId(theme.theme_id);
 
   const allBoosters = [
     ...(thread.booster_search_queries || []).map(b => ({ ...b, _type: 'search' })),
@@ -162,9 +159,11 @@ function ResearchThreadCard({ thread, showDetails }: { thread: ResearchThread; s
       {/* Theme header */}
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[11px] font-medium text-blue-400/70 uppercase tracking-wider">{displayId}</span>
+          {showDetails && (
+            <span className="text-[11px] font-medium text-blue-400/70 uppercase tracking-wider">{formatInternalId(theme.theme_id)} ({theme.theme_id})</span>
+          )}
           {theme.is_consensus && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800/30">Consensus</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800/30">Multiple sources agree</span>
           )}
           {theme.confidence && <ConfidenceBadge level={theme.confidence} />}
         </div>
@@ -227,7 +226,7 @@ function CrossCuttingSection({ analysis, showDetails }: { analysis: CrossCutting
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Cross-Cutting Analysis" accentColor="bg-purple-500" />
+      <SectionHeader title="What Multiple Sources Agree On" accentColor="bg-purple-500" />
 
       {hasConfirmed && (
         <div className="space-y-2">
@@ -311,13 +310,13 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
         <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 justify-center text-[13px] text-gray-400">
           <span>{data.current_corpus?.source_count || 0} sources</span>
           <span className="text-gray-600">&#183;</span>
-          <span>{threadCount} themes</span>
+          <span>{threadCount} patterns</span>
           <span className="text-gray-600">&#183;</span>
-          <span>{kpCount} key findings</span>
+          <span>{kpCount} findings</span>
           {gapCount > 0 && (
             <>
               <span className="text-gray-600">&#183;</span>
-              <span>{gapCount} gaps</span>
+              <span>{gapCount} open questions</span>
             </>
           )}
         </div>
@@ -361,7 +360,7 @@ export function JumpStartRenderer({ data, showDetails = false }: JumpStartRender
       {/* Research Threads */}
       {data.research_threads?.length > 0 && (
         <div>
-          <SectionHeader title="Research Threads" accentColor="bg-blue-500" count={threadCount} />
+          <SectionHeader title="What We Found" accentColor="bg-blue-500" count={threadCount} />
           <div className="mt-4 space-y-5">
             {data.research_threads.map((thread, i) => (
               <ResearchThreadCard key={thread.theme?.theme_id || i} thread={thread} showDetails={showDetails} />
