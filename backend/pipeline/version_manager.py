@@ -450,6 +450,7 @@ def _compute_diff_summary(
             "deeper": "Deeper extraction applied",
             "different_angle": "New perspective applied",
             "custom": "Custom iteration applied",
+            "inline_edit": "Section edited inline",
             "initial_run": "No change",
         }
         return mode_descriptions.get(trigger, "Updated")

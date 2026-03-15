@@ -8,7 +8,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 
-from backend.app.auth import AuthUser, get_active_user
+from backend.auth import AuthUser
+from backend.auth.ban_check import get_active_user
 from backend.models.voice_profile import CreateVoiceProfileRequest, VoiceProfile
 
 router = APIRouter(prefix="/voice-profiles", tags=["voice-profiles"])

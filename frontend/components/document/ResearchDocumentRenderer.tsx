@@ -75,11 +75,11 @@ export function ResearchDocumentRenderer({
           />
         );
       case 'blog_post':
-        return <BlogPostRenderer data={data as unknown as BlogPostData} showDetails={showDetails} />;
+        return <BlogPostRenderer data={data as unknown as BlogPostData} showDetails={showDetails} jobId={data.job_id as string} />;
       case 'script':
-        return <ScriptRenderer data={data as unknown as ScriptData} showDetails={showDetails} />;
+        return <ScriptRenderer data={data as unknown as ScriptData} showDetails={showDetails} jobId={data.job_id as string} />;
       case 'social_kit':
-        return <SocialKitRenderer data={data as unknown as SocialKitData} showDetails={showDetails} />;
+        return <SocialKitRenderer data={data as unknown as SocialKitData} showDetails={showDetails} jobId={data.job_id as string} />;
     }
   }
 

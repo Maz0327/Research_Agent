@@ -10,11 +10,13 @@ import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
 import { CollapsibleSection } from './shared/CollapsibleSection';
 import { CitationPill } from './shared/CitationPill';
+import { EditableSection } from './shared/EditableSection';
 import type { ScriptData, ScriptSection } from '@/types/documents';
 
 export interface ScriptRendererProps {
   data: ScriptData;
   showDetails?: boolean;
+  jobId?: string;
 }
 
 function ScriptSectionCard({ section, showDetails }: { section: ScriptSection; showDetails?: boolean }) {
@@ -49,7 +51,7 @@ function ScriptSectionCard({ section, showDetails }: { section: ScriptSection; s
   );
 }
 
-export function ScriptRenderer({ data, showDetails = false }: ScriptRendererProps) {
+export function ScriptRenderer({ data, showDetails = false, jobId }: ScriptRendererProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -89,7 +91,13 @@ export function ScriptRenderer({ data, showDetails = false }: ScriptRendererProp
       <SectionHeader title="Script" count={data.sections.length} accentColor="cyan" />
       <div className="space-y-3">
         {data.sections.map((section) => (
-          <ScriptSectionCard key={section.section_id} section={section} showDetails={showDetails} />
+          jobId ? (
+            <EditableSection key={section.section_id} sectionId={section.section_id} docType="doc_5" jobId={jobId}>
+              <ScriptSectionCard section={section} showDetails={showDetails} />
+            </EditableSection>
+          ) : (
+            <ScriptSectionCard key={section.section_id} section={section} showDetails={showDetails} />
+          )
         ))}
       </div>
 

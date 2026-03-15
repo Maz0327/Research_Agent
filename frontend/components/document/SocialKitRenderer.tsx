@@ -8,11 +8,13 @@
 import { useState, useCallback } from 'react';
 import { CardWrapper } from './shared/CardWrapper';
 import { CitationPill } from './shared/CitationPill';
+import { EditableSection } from './shared/EditableSection';
 import type { SocialKitData, PlatformPost } from '@/types/documents';
 
 export interface SocialKitRendererProps {
   data: SocialKitData;
   showDetails?: boolean;
+  jobId?: string;
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -145,7 +147,7 @@ function PlatformPostCard({ post, showDetails }: { post: PlatformPost; showDetai
   );
 }
 
-export function SocialKitRenderer({ data, showDetails = false }: SocialKitRendererProps) {
+export function SocialKitRenderer({ data, showDetails = false, jobId }: SocialKitRendererProps) {
   const [activeTab, setActiveTab] = useState(0);
 
   return (

@@ -131,8 +131,9 @@ def generate_voice_profile(
     for tp_data in raw_data.get("transition_patterns", []):
         try:
             transitions.append(TransitionPattern(**tp_data))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to parse transition_pattern: {e}")
+            warnings.append(f"Transition pattern parse error: {e}")
 
     try:
         emphasis = EmphasisPatterns(**raw_data.get("emphasis_patterns", {}))

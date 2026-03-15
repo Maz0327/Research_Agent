@@ -119,7 +119,8 @@ def build_blog_post_prompt(
 ## YOUR TASK
 
 Write a long-form, SEO-optimized blog post about "{topic}" using ONLY the data below.
-The post should have 5-8 sections, each with a descriptive heading.
+The post should have 3-12 sections (typically 5-8), each with a descriptive heading.
+Use fewer sections if the data is thin; use more if the data is rich.
 
 ## SOURCE DATA
 

@@ -54,6 +54,7 @@ def run_social_kit_stage(
     # Load docs
     from backend.pipeline.stages.blog_post_stage import (
         _resolve_doc_data,
+        _collect_valid_claim_ids,
         _format_sources,
         _format_claims,
         _format_themes,
@@ -106,7 +107,14 @@ def run_social_kit_stage(
     social_kit = SocialKitDocument(**raw_data)
 
     # Provenance validation
+    valid_claim_ids = _collect_valid_claim_ids(source_ledger, semantic_brief)
     valid_source_ids = {s.get("source_id", "") for s in sources if s.get("source_id")}
+
+    if valid_claim_ids:
+        bad_claims = social_kit.all_claim_ids() - valid_claim_ids
+        if bad_claims:
+            warnings.append(f"Social Kit references unknown claim_ids: {sorted(bad_claims)}")
+
     bad_sources = social_kit.all_source_ids() - valid_source_ids
     if bad_sources:
         warnings.append(f"Social Kit references unknown source_ids: {sorted(bad_sources)}")

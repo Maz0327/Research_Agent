@@ -169,6 +169,10 @@ export interface ArtifactCardGridProps {
   onOpenIterationDialog: () => void;
   /** Handler to trigger blog post generation */
   onTriggerBlogPost?: () => void;
+  /** Handler to trigger script generation */
+  onTriggerScript?: () => void;
+  /** Handler to trigger social kit generation */
+  onTriggerSocialKit?: () => void;
   /** Whether actions are disabled (loading state) */
   actionsDisabled?: boolean;
 }
@@ -379,6 +383,8 @@ export function ArtifactCardGrid({
   onTriggerProducer,
   onOpenIterationDialog,
   onTriggerBlogPost,
+  onTriggerScript,
+  onTriggerSocialKit,
   actionsDisabled = false,
 }: ArtifactCardGridProps) {
   // Check if this is a claim extraction job
@@ -678,14 +684,14 @@ export function ArtifactCardGrid({
           if (state === 'completed') {
             openDocViewer(5, 'Script');
           } else if (state === 'ready' && !actionsDisabled) {
-            // Will be handled by onTriggerScript in Phase 2
+            onTriggerScript?.();
           }
           break;
         case 'doc_6':
           if (state === 'completed') {
             openDocViewer(6, 'Social Media Kit');
           } else if (state === 'ready' && !actionsDisabled) {
-            // Will be handled by onTriggerSocialKit in Phase 4
+            onTriggerSocialKit?.();
           }
           break;
         case 'doc_7':
@@ -715,7 +721,7 @@ export function ArtifactCardGrid({
           break;
       }
     },
-    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, onTriggerBlogPost, actionsDisabled]
+    [job, selectedVersion, openDocViewer, onTriggerBooster, onTriggerProducer, onOpenIterationDialog, onTriggerBlogPost, onTriggerScript, onTriggerSocialKit, actionsDisabled]
   );
 
   // Count completed iterations and runs

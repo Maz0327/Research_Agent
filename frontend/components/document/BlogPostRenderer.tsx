@@ -10,11 +10,13 @@ import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
 import { CollapsibleSection } from './shared/CollapsibleSection';
 import { CitationPill } from './shared/CitationPill';
+import { EditableSection } from './shared/EditableSection';
 import type { BlogPostData, BlogSection } from '@/types/documents';
 
 export interface BlogPostRendererProps {
   data: BlogPostData;
   showDetails?: boolean;
+  jobId?: string;
 }
 
 function SectionCard({ section, showDetails }: { section: BlogSection; showDetails?: boolean }) {
@@ -35,7 +37,7 @@ function SectionCard({ section, showDetails }: { section: BlogSection; showDetai
   );
 }
 
-export function BlogPostRenderer({ data, showDetails = false }: BlogPostRendererProps) {
+export function BlogPostRenderer({ data, showDetails = false, jobId }: BlogPostRendererProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -77,7 +79,13 @@ export function BlogPostRenderer({ data, showDetails = false }: BlogPostRenderer
       <SectionHeader title="Article" count={data.sections.length} accentColor="emerald" />
       <div className="space-y-4">
         {data.sections.map((section) => (
-          <SectionCard key={section.section_id} section={section} showDetails={showDetails} />
+          jobId ? (
+            <EditableSection key={section.section_id} sectionId={section.section_id} docType="doc_7" jobId={jobId}>
+              <SectionCard section={section} showDetails={showDetails} />
+            </EditableSection>
+          ) : (
+            <SectionCard key={section.section_id} section={section} showDetails={showDetails} />
+          )
         ))}
       </div>
 

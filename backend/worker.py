@@ -1739,6 +1739,21 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
                 section_id=section_id,
                 edit_instruction=edit_instruction,
             )
+
+            # Update job artifacts with the edited document
+            # Map doc_type to artifact key names
+            _doc_artifact_keys = {
+                "doc_5": ("script", "script_md", "doc_5_path"),
+                "doc_6": ("social_kit", "social_kit_md", "doc_6_path"),
+                "doc_7": ("blog_post", "blog_post_md", "doc_7_path"),
+            }
+            if doc_type in _doc_artifact_keys:
+                data_key, _md_key, _path_key = _doc_artifact_keys[doc_type]
+                update_job(
+                    job_id,
+                    partial_artifacts={data_key: updated_doc},
+                )
+
             versions_created.append(f"{doc_type} (inline edit: {section_id})")
             logger.info(f"[{job_id}] inline_edit complete: {doc_type}/{section_id}")
 
@@ -2261,18 +2276,22 @@ def run_blog_post_task(self, job_id: str, user_id: str) -> dict:
 
     except SoftTimeLimitExceeded:
         logger.error(f"[{job_id}] Blog post timed out after 5 minutes")
+        from datetime import datetime, timezone as _tz
         update_job(
             job_id,
             blog_post_status="failed",
+            blog_post_completed_at=datetime.now(_tz.utc),
             blog_post_error="Blog post timed out after 5 minutes",
         )
         return {"job_id": job_id, "status": "failed", "error": "Blog post timed out"}
 
     except Exception as e:
         logger.exception(f"[{job_id}] Blog post failed: {e}")
+        from datetime import datetime, timezone as _tz
         update_job(
             job_id,
             blog_post_status="failed",
+            blog_post_completed_at=datetime.now(_tz.utc),
             blog_post_error=str(e),
         )
         return {"job_id": job_id, "status": "failed", "error": str(e)}
@@ -2365,12 +2384,14 @@ def run_social_kit_task(self, job_id: str, user_id: str, params: dict = None) ->
 
     except SoftTimeLimitExceeded:
         logger.error(f"[{job_id}] Social kit timed out")
-        update_job(job_id, social_kit_status="failed", social_kit_error="Timed out")
+        from datetime import datetime, timezone as _tz
+        update_job(job_id, social_kit_status="failed", social_kit_completed_at=datetime.now(_tz.utc), social_kit_error="Timed out")
         return {"job_id": job_id, "status": "failed", "error": "Social kit timed out"}
 
     except Exception as e:
         logger.exception(f"[{job_id}] Social kit failed: {e}")
-        update_job(job_id, social_kit_status="failed", social_kit_error=str(e))
+        from datetime import datetime, timezone as _tz
+        update_job(job_id, social_kit_status="failed", social_kit_completed_at=datetime.now(_tz.utc), social_kit_error=str(e))
         return {"job_id": job_id, "status": "failed", "error": str(e)}
 
 
@@ -2471,12 +2492,14 @@ def run_script_task(self, job_id: str, user_id: str, params: dict = None) -> dic
 
     except SoftTimeLimitExceeded:
         logger.error(f"[{job_id}] Script timed out")
-        update_job(job_id, script_status="failed", script_error="Script timed out after 5 minutes")
+        from datetime import datetime, timezone as _tz
+        update_job(job_id, script_status="failed", script_completed_at=datetime.now(_tz.utc), script_error="Script timed out after 5 minutes")
         return {"job_id": job_id, "status": "failed", "error": "Script timed out"}
 
     except Exception as e:
         logger.exception(f"[{job_id}] Script failed: {e}")
-        update_job(job_id, script_status="failed", script_error=str(e))
+        from datetime import datetime, timezone as _tz
+        update_job(job_id, script_status="failed", script_completed_at=datetime.now(_tz.utc), script_error=str(e))
         return {"job_id": job_id, "status": "failed", "error": str(e)}
 
 
