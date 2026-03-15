@@ -1,8 +1,10 @@
 /**
  * ArtifactCardGrid - Grid layout for artifact cards
  * Orchestrates card states, handles click routing, and manages document viewing.
+ * Stage-aware: maps pipeline stage to per-card progress, descriptions, and animations.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { ArtifactCard, type ArtifactState, type ArtifactType } from './ArtifactCard';
 import { RunSelector } from './RunSelector';
 import { DocumentViewerModal } from '../job-card/DocumentViewerModal';
@@ -11,6 +13,132 @@ import type { Run } from '../../types/run';
 import { isV2Run } from '../../types/run';
 import { API_URL } from '../../lib/constants';
 import { getAccessToken } from '../../lib/supabase';
+
+// ─── Stage-to-Card Mapping Constants ───────────────────────────────────────────
+
+/** Pipeline stage order (from backend/worker.py) */
+const STAGE_ORDER = [
+  'source_identity',
+  'semantic_extraction',
+  'semantic_validation',
+  'gap_analysis',
+  'semantic_synthesis',
+  'document_assembly',
+  'creator_brief_assembly',
+  'completion',
+] as const;
+
+/** Progress % emitted at each stage boundary */
+const STAGE_PROGRESS: Record<string, number> = {
+  source_identity: 5,
+  semantic_extraction: 20,
+  semantic_validation: 35,
+  gap_analysis: 50,
+  semantic_synthesis: 65,
+  document_assembly: 80,
+  creator_brief_assembly: 88,
+  completion: 95,
+};
+
+/** Per-card: which stage starts feeding it, and which stage produces the doc */
+const CARD_STAGE_RANGES: Record<string, { start: string; end: string }> = {
+  doc_0: { start: 'source_identity', end: 'document_assembly' },
+  doc_1: { start: 'gap_analysis', end: 'document_assembly' },
+  doc_2: { start: 'semantic_synthesis', end: 'document_assembly' },
+  doc_3: { start: 'creator_brief_assembly', end: 'completion' },
+};
+
+/** Stage-aware descriptions for each card at each pipeline stage */
+const CARD_STAGE_DESCRIPTIONS: Record<string, Record<string, string>> = {
+  doc_0: {
+    source_identity: 'Identifying sources\u2026',
+    semantic_extraction: 'Extracting content from sources\u2026',
+    semantic_validation: 'Validating extracted data\u2026',
+    gap_analysis: 'Cataloging source details\u2026',
+    semantic_synthesis: 'Finalizing source catalog\u2026',
+    document_assembly: 'Assembling source ledger\u2026',
+  },
+  doc_1: {
+    gap_analysis: 'Analyzing research gaps\u2026',
+    semantic_synthesis: 'Connecting themes across sources\u2026',
+    document_assembly: 'Assembling jump-start directions\u2026',
+  },
+  doc_2: {
+    semantic_synthesis: 'Synthesizing semantic brief\u2026',
+    document_assembly: 'Assembling semantic brief\u2026',
+  },
+  doc_3: {
+    creator_brief_assembly: 'Generating creator brief\u2026',
+    completion: 'Finalizing creator brief\u2026',
+  },
+};
+
+/** Stagger delay (ms) per card index for sequential animations */
+const CARD_STAGGER_DELAY = 0.12; // 120ms between cards
+
+// ─── Stage Info Function ───────────────────────────────────────────────────────
+
+interface CardStageInfo {
+  state: ArtifactState;
+  progress: number;
+  description: string;
+}
+
+/** Map pipeline stage + progress to per-card state, progress, and description */
+function getCardStageInfo(
+  jobStage: string | undefined,
+  jobProgress: number,
+  cardType: string
+): CardStageInfo {
+  const range = CARD_STAGE_RANGES[cardType];
+  if (!range || !jobStage) {
+    return { state: 'running', progress: jobProgress, description: '' };
+  }
+
+  const currentIdx = STAGE_ORDER.indexOf(jobStage as typeof STAGE_ORDER[number]);
+  const startIdx = STAGE_ORDER.indexOf(range.start as typeof STAGE_ORDER[number]);
+  const endIdx = STAGE_ORDER.indexOf(range.end as typeof STAGE_ORDER[number]);
+
+  // Stage not found in our order — fall back to generic running
+  if (currentIdx === -1) {
+    return { state: 'running', progress: jobProgress, description: '' };
+  }
+
+  // Pipeline hasn't reached this card's relevant stage yet
+  if (currentIdx < startIdx) {
+    return { state: 'waiting', progress: 0, description: '' };
+  }
+
+  // Pipeline is at the assembly/end stage for this card — nearly ready
+  if (currentIdx === endIdx) {
+    const descriptions = CARD_STAGE_DESCRIPTIONS[cardType];
+    const desc = descriptions?.[jobStage] || 'Assembling document\u2026';
+    return { state: 'nearly_ready', progress: 90, description: desc };
+  }
+
+  // Pipeline is past the end stage — card should show as completed
+  // (actual completed detection still uses artifact presence in getArtifactState)
+  if (currentIdx > endIdx) {
+    return { state: 'running', progress: 100, description: '' };
+  }
+
+  // Pipeline is in the card's active building range
+  // Map job progress to the card's own 0-100% range
+  const startProgress = STAGE_PROGRESS[range.start] || 0;
+  const endProgress = STAGE_PROGRESS[range.end] || 100;
+  const progressRange = endProgress - startProgress;
+  const cardProgress = progressRange > 0
+    ? Math.round(((jobProgress - startProgress) / progressRange) * 100)
+    : 0;
+  const clampedProgress = Math.max(5, Math.min(95, cardProgress)); // min 5% so bar is visible
+
+  const descriptions = CARD_STAGE_DESCRIPTIONS[cardType];
+  const desc = descriptions?.[jobStage] || 'Processing\u2026';
+
+  return { state: 'running', progress: clampedProgress, description: desc };
+}
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 /** Props for document modal */
 interface DocModalState {
@@ -34,6 +162,8 @@ export interface ArtifactCardGridProps {
   actionsDisabled?: boolean;
 }
 
+// ─── getArtifactState ──────────────────────────────────────────────────────────
+
 /** Determine artifact state from job data */
 function getArtifactState(
   job: Job,
@@ -56,7 +186,6 @@ function getArtifactState(
       if (run.producer_packet?.status === 'failed') return 'failed';
       if (run.producer_packet?.status === 'running') return 'running';
       if (run.producer_packet?.status === 'queued') return 'queued';
-      // Run completed but producer not started yet - ready to trigger
       if (run.status === 'completed') return 'ready';
       return 'not_available';
     }
@@ -67,7 +196,6 @@ function getArtifactState(
       if (run.booster_expansion?.status === 'failed') return 'failed';
       if (run.booster_expansion?.status === 'running') return 'running';
       if (run.booster_expansion?.status === 'queued') return 'queued';
-      // Run completed but booster not started yet - ready to trigger
       if (run.status === 'completed') return 'ready';
       return 'not_available';
     }
@@ -93,7 +221,6 @@ function getArtifactState(
 
   switch (type) {
     case 'claims_doc':
-      // Claim extraction jobs use doc_0_path for claims_doc storage
       if (artifacts?.doc_0_path || artifacts?.source_ledger) return 'completed';
       if (status === 'running' || status === 'queued') return 'running';
       return 'not_available';
@@ -150,6 +277,8 @@ function getArtifactState(
   }
 }
 
+// ─── Document Fetch ────────────────────────────────────────────────────────────
+
 /** Fetch document content from API endpoint */
 async function fetchDocumentFromAPI(
   jobId: string,
@@ -163,7 +292,6 @@ async function fetchDocumentFromAPI(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Call the correct backend endpoint
   const response = await fetch(`${API_URL}/jobs/${jobId}/documents/${docType}`, {
     headers,
   });
@@ -174,9 +302,7 @@ async function fetchDocumentFromAPI(
 
   const result = await response.json();
 
-  // Backend returns either {url, expires_in} for storage jobs or inline data
   if (result.url) {
-    // Fetch from signed URL
     const docResponse = await fetch(result.url);
     if (!docResponse.ok) {
       throw new Error(`Failed to fetch from storage: ${docResponse.statusText}`);
@@ -188,12 +314,13 @@ async function fetchDocumentFromAPI(
     };
   }
 
-  // Inline data returned directly
   return {
     data: result.data || result,
     markdown: result.markdown || result.content,
   };
 }
+
+// ─── Component ─────────────────────────────────────────────────────────────────
 
 export function ArtifactCardGrid({
   job,
@@ -223,6 +350,64 @@ export function ArtifactCardGrid({
   const iterations = useMemo(() => job.artifacts?.iterations || [], [job.artifacts?.iterations]);
   const runs = useMemo(() => (job.artifacts?.runs || []) as Run[], [job.artifacts?.runs]);
 
+  const isBaseline = selectedVersion === 'baseline' || selectedVersion === 'run_0';
+
+  // ─── Stage-aware card info for doc cards during baseline running ────────────
+
+  const docCardInfos = useMemo(() => {
+    if (!isBaseline || job.status !== 'running') return null;
+
+    return {
+      doc_0: getCardStageInfo(job.stage, job.progress_percent, 'doc_0'),
+      doc_1: getCardStageInfo(job.stage, job.progress_percent, 'doc_1'),
+      doc_2: getCardStageInfo(job.stage, job.progress_percent, 'doc_2'),
+      doc_3: getCardStageInfo(job.stage, job.progress_percent, 'doc_3'),
+    };
+  }, [job.stage, job.progress_percent, job.status, isBaseline]);
+
+  // Track previous card states to detect transitions for animations
+  const prevStatesRef = useRef<Record<string, ArtifactState>>({});
+
+  useEffect(() => {
+    if (docCardInfos) {
+      // Store current states for next render comparison
+      prevStatesRef.current = {
+        doc_0: docCardInfos.doc_0.state,
+        doc_1: docCardInfos.doc_1.state,
+        doc_2: docCardInfos.doc_2.state,
+        doc_3: docCardInfos.doc_3.state,
+      };
+    }
+  }, [docCardInfos]);
+
+  // ─── Compute effective card props ──────────────────────────────────────────
+
+  /** Get effective state, progress, and description for a doc card */
+  const getEffectiveCardProps = useCallback(
+    (cardType: 'doc_0' | 'doc_1' | 'doc_2' | 'doc_3') => {
+      const baseState = getArtifactState(job, cardType, selectedVersion);
+      const info = docCardInfos?.[cardType];
+
+      // Only override if base state is 'running' and we have stage info
+      if (baseState === 'running' && info) {
+        return {
+          state: info.state,
+          progressPercent: info.progress,
+          runningDescription: info.description || undefined,
+        };
+      }
+
+      return {
+        state: baseState,
+        progressPercent: cardType === 'doc_3' ? undefined : job.progress_percent,
+        runningDescription: undefined,
+      };
+    },
+    [job, selectedVersion, docCardInfos]
+  );
+
+  // ─── Document viewer ──────────────────────────────────────────────────────
+
   /** Open document viewer for a specific doc */
   const openDocViewer = useCallback(
     async (docNumber: 0 | 1 | 2 | 3 | 4 | 'B', title: string) => {
@@ -232,30 +417,22 @@ export function ArtifactCardGrid({
         let data: Record<string, unknown> = {};
         let markdown: string | undefined;
 
-        // Check if viewing iteration or run version
-        const isBaseline = selectedVersion === 'baseline' || selectedVersion === 'run_0';
+        const viewingBaseline = selectedVersion === 'baseline' || selectedVersion === 'run_0';
 
-        if (!isBaseline && isV2Run(selectedVersion)) {
-          // V2 Run - check run outputs
+        if (!viewingBaseline && isV2Run(selectedVersion)) {
           const run = runs.find((r) => r.run_id === selectedVersion);
 
-          // Handle Doc 3 (Creator Brief) - stored in run.producer_packet (legacy field name)
           if (docNumber === 3 && run?.producer_packet) {
             if (run.producer_packet.status === 'completed') {
               data = run.producer_packet.inline || {};
               markdown = run.producer_packet.markdown;
             }
-          }
-          // Handle Booster - stored in run.booster_expansion
-          else if (docNumber === 'B' && run?.booster_expansion) {
+          } else if (docNumber === 'B' && run?.booster_expansion) {
             if (run.booster_expansion.status === 'completed') {
               data = run.booster_expansion.output || {};
               markdown = run.booster_expansion.markdown;
             }
-          }
-          // Handle Doc 0/1/2 - stored in run.outputs
-          else if (run?.outputs) {
-            // V2 runs use doc_X_inline keys in outputs
+          } else if (run?.outputs) {
             const inlineKey = docNumber === 0 ? 'doc_0_inline' :
                              docNumber === 1 ? 'doc_1_inline' :
                              docNumber === 2 ? 'doc_2_inline' : null;
@@ -267,17 +444,13 @@ export function ArtifactCardGrid({
               markdown = (inlineData as { markdown?: string }).markdown;
             }
           }
-        } else if (!isBaseline) {
-          // V1 Iteration
+        } else if (!viewingBaseline) {
           const iteration = iterations.find((it) => it.iteration_id === selectedVersion);
           if (iteration?.outputs) {
-            // Get inline data from iteration using correct positional keys
-            // IterationBundle.outputs uses doc_X_inline keys, not named keys like source_ledger
             const inlineKey = docNumber === 0 ? 'doc_0_inline' :
                              docNumber === 1 ? 'doc_1_inline' :
                              docNumber === 2 ? 'doc_2_inline' : null;
 
-            // Note: Doc 3 (producer_packet) is not generated for iterations
             if (inlineKey && iteration.outputs[inlineKey as keyof typeof iteration.outputs]) {
               const inlineData = iteration.outputs[inlineKey as keyof typeof iteration.outputs] as Record<string, unknown>;
               const nestedData = inlineData.data as Record<string, unknown> | undefined;
@@ -286,7 +459,6 @@ export function ArtifactCardGrid({
             }
           }
         } else {
-          // Baseline documents - use API endpoint
           const { artifacts } = job;
           if (!artifacts) {
             throw new Error('No artifacts available');
@@ -294,7 +466,6 @@ export function ArtifactCardGrid({
 
           switch (docNumber) {
             case 0:
-              // Try API first, fall back to inline data
               if (artifacts.doc_0_path) {
                 const result = await fetchDocumentFromAPI(job.id, 'doc_0');
                 data = result.data;
@@ -304,7 +475,6 @@ export function ArtifactCardGrid({
                 markdown = artifacts.source_ledger.markdown;
               }
               break;
-
             case 1:
               if (artifacts.doc_1_path) {
                 const result = await fetchDocumentFromAPI(job.id, 'doc_1');
@@ -315,7 +485,6 @@ export function ArtifactCardGrid({
                 markdown = artifacts.jump_start.markdown;
               }
               break;
-
             case 2:
               if (artifacts.doc_2_path) {
                 const result = await fetchDocumentFromAPI(job.id, 'doc_2');
@@ -326,7 +495,6 @@ export function ArtifactCardGrid({
                 markdown = artifacts.semantic_brief.markdown;
               }
               break;
-
             case 3:
               if (artifacts.doc_3_path) {
                 const result = await fetchDocumentFromAPI(job.id, 'doc_3');
@@ -337,9 +505,7 @@ export function ArtifactCardGrid({
                 markdown = artifacts.creator_brief_md;
               }
               break;
-
             case 'B':
-              // Booster uses inline data only
               if (artifacts.booster_output) {
                 data = artifacts.booster_output;
                 markdown = artifacts.booster_expansion_md;
@@ -357,7 +523,6 @@ export function ArtifactCardGrid({
         });
       } catch (error) {
         console.error('Failed to load document:', error);
-        // Show error in modal
         setDocModal({
           isOpen: true,
           docNumber,
@@ -379,7 +544,6 @@ export function ArtifactCardGrid({
       switch (type) {
         case 'claims_doc':
           if (state === 'completed') {
-            // For claim extraction jobs, open claims doc using doc_0 endpoint
             openDocViewer(0, 'Claims Document');
           }
           break;
@@ -402,7 +566,6 @@ export function ArtifactCardGrid({
           if (state === 'completed') {
             openDocViewer(3, 'Creator Brief');
           } else if (state === 'ready' && !actionsDisabled) {
-            // Pass runId for V2 runs (except baseline run_0)
             const producerRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
               ? selectedVersion
               : undefined;
@@ -413,7 +576,6 @@ export function ArtifactCardGrid({
           if (state === 'completed') {
             openDocViewer('B', 'Deep Research');
           } else if (state === 'ready' && !actionsDisabled) {
-            // Pass runId for V2 runs (except baseline run_0)
             const boosterRunId = isV2Run(selectedVersion) && selectedVersion !== 'run_0'
               ? selectedVersion
               : undefined;
@@ -437,11 +599,11 @@ export function ArtifactCardGrid({
   const completedRunCount = runs.filter((r) => r.status === 'completed' && r.run_type !== 'baseline').length;
   const totalCompletedCount = completedIterationCount + completedRunCount;
 
-  // Render claim extraction UI (single card)
+  // ─── Render: Claim Extraction (single card) ──────────────────────────────
+
   if (isClaimExtractionJob) {
     return (
       <div className="space-y-6">
-        {/* Single card for claims document */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <ArtifactCard
             type="claims_doc"
@@ -451,7 +613,6 @@ export function ArtifactCardGrid({
           />
         </div>
 
-        {/* Loading overlay */}
         {isLoadingDoc && (
           <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
             <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
@@ -461,7 +622,6 @@ export function ArtifactCardGrid({
           </div>
         )}
 
-        {/* Document viewer modal */}
         <DocumentViewerModal
           isOpen={docModal.isOpen}
           onClose={() => setDocModal((s) => ({ ...s, isOpen: false }))}
@@ -476,10 +636,20 @@ export function ArtifactCardGrid({
     );
   }
 
-  // Render semantic pipeline UI (full 6 cards)
+  // ─── Render: Semantic Pipeline (full grid with stage-aware cards) ─────────
+
+  // Compute effective props for each doc card
+  const doc0Props = getEffectiveCardProps('doc_0');
+  const doc1Props = getEffectiveCardProps('doc_1');
+  const doc2Props = getEffectiveCardProps('doc_2');
+  const doc3Props = getEffectiveCardProps('doc_3');
+
+  // Determine if we should animate transitions (only during running baseline)
+  const shouldAnimate = isBaseline && job.status === 'running' && !!docCardInfos;
+
   return (
     <div className="space-y-6">
-      {/* Run/Iteration selector - show if runs or iterations exist */}
+      {/* Run/Iteration selector */}
       {(runs.length > 0 || iterations.length > 0) && (
         <RunSelector
           runs={runs}
@@ -492,37 +662,98 @@ export function ArtifactCardGrid({
       {/* Artifact card grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Doc 0: Source Ledger */}
-        <ArtifactCard
-          type="doc_0"
-          state={getArtifactState(job, 'doc_0', selectedVersion)}
-          progressPercent={job.progress_percent}
-          onClick={() => handleCardClick('doc_0')}
-        />
+        <motion.div
+          animate={{
+            opacity: doc0Props.state === 'waiting' ? 0.5 : 1,
+            scale: doc0Props.state === 'waiting' ? 0.97 : 1,
+            y: doc0Props.state === 'completed' ? [-3, 0] : 0,
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 200,
+            damping: 25,
+            delay: shouldAnimate ? 0 * CARD_STAGGER_DELAY : 0,
+          }}
+        >
+          <ArtifactCard
+            type="doc_0"
+            state={doc0Props.state}
+            progressPercent={doc0Props.progressPercent}
+            runningDescription={doc0Props.runningDescription}
+            onClick={() => handleCardClick('doc_0')}
+          />
+        </motion.div>
 
         {/* Doc 1: Jump-Start */}
-        <ArtifactCard
-          type="doc_1"
-          state={getArtifactState(job, 'doc_1', selectedVersion)}
-          progressPercent={job.progress_percent}
-          onClick={() => handleCardClick('doc_1')}
-        />
+        <motion.div
+          animate={{
+            opacity: doc1Props.state === 'waiting' ? 0.5 : 1,
+            scale: doc1Props.state === 'waiting' ? 0.97 : 1,
+            y: doc1Props.state === 'completed' ? [-3, 0] : 0,
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 200,
+            damping: 25,
+            delay: shouldAnimate ? 1 * CARD_STAGGER_DELAY : 0,
+          }}
+        >
+          <ArtifactCard
+            type="doc_1"
+            state={doc1Props.state}
+            progressPercent={doc1Props.progressPercent}
+            runningDescription={doc1Props.runningDescription}
+            onClick={() => handleCardClick('doc_1')}
+          />
+        </motion.div>
 
         {/* Doc 2: Semantic Brief */}
-        <ArtifactCard
-          type="doc_2"
-          state={getArtifactState(job, 'doc_2', selectedVersion)}
-          progressPercent={job.progress_percent}
-          onClick={() => handleCardClick('doc_2')}
-        />
+        <motion.div
+          animate={{
+            opacity: doc2Props.state === 'waiting' ? 0.5 : 1,
+            scale: doc2Props.state === 'waiting' ? 0.97 : 1,
+            y: doc2Props.state === 'completed' ? [-3, 0] : 0,
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 200,
+            damping: 25,
+            delay: shouldAnimate ? 2 * CARD_STAGGER_DELAY : 0,
+          }}
+        >
+          <ArtifactCard
+            type="doc_2"
+            state={doc2Props.state}
+            progressPercent={doc2Props.progressPercent}
+            runningDescription={doc2Props.runningDescription}
+            onClick={() => handleCardClick('doc_2')}
+          />
+        </motion.div>
 
         {/* Doc 3: Creator Brief */}
-        <ArtifactCard
-          type="doc_3"
-          state={getArtifactState(job, 'doc_3', selectedVersion)}
-          onClick={() => handleCardClick('doc_3')}
-        />
+        <motion.div
+          animate={{
+            opacity: doc3Props.state === 'waiting' ? 0.5 : 1,
+            scale: doc3Props.state === 'waiting' ? 0.97 : 1,
+            y: doc3Props.state === 'completed' ? [-3, 0] : 0,
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 200,
+            damping: 25,
+            delay: shouldAnimate ? 3 * CARD_STAGGER_DELAY : 0,
+          }}
+        >
+          <ArtifactCard
+            type="doc_3"
+            state={doc3Props.state}
+            progressPercent={doc3Props.progressPercent}
+            runningDescription={doc3Props.runningDescription}
+            onClick={() => handleCardClick('doc_3')}
+          />
+        </motion.div>
 
-        {/* Booster: Deep Research */}
+        {/* Booster: Deep Research — independent progress tracking */}
         <ArtifactCard
           type="booster"
           state={getArtifactState(job, 'booster', selectedVersion)}
@@ -532,7 +763,7 @@ export function ArtifactCardGrid({
           onRetry={onTriggerBooster}
         />
 
-        {/* Iterations / Runs */}
+        {/* Iterations / Runs — independent progress tracking */}
         <ArtifactCard
           type="iteration"
           state={getArtifactState(job, 'iteration', selectedVersion)}

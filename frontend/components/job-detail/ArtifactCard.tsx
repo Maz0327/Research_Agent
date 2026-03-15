@@ -1,7 +1,7 @@
 /**
  * ArtifactCard - Individual card for each artifact type (Doc 0/1/2/3, Booster, Iterations)
- * Displays visual state (not_available, ready, queued, running, completed, failed)
- * with appropriate actions and progress indicators.
+ * Displays visual state (not_available, ready, queued, waiting, running, nearly_ready, completed, failed)
+ * with stage-aware progress indicators and choreographed animations.
  */
 import { motion } from 'framer-motion';
 
@@ -10,7 +10,9 @@ export type ArtifactState =
   | 'not_available'
   | 'ready'
   | 'queued'
+  | 'waiting'
   | 'running'
+  | 'nearly_ready'
   | 'completed'
   | 'failed';
 
@@ -119,7 +121,19 @@ const STATE_STYLES: Record<ArtifactState, {
     text: 'text-yellow-400',
     cursor: 'cursor-wait',
   },
+  waiting: {
+    border: 'border-gray-700 border-dashed',
+    bg: 'bg-gray-900/30',
+    text: 'text-gray-500',
+    cursor: 'cursor-wait',
+  },
   running: {
+    border: 'border-blue-500',
+    bg: 'bg-gray-900',
+    text: 'text-blue-400',
+    cursor: 'cursor-wait',
+  },
+  nearly_ready: {
     border: 'border-blue-500',
     bg: 'bg-gray-900',
     text: 'text-blue-400',
@@ -139,13 +153,20 @@ const STATE_STYLES: Record<ArtifactState, {
   },
 };
 
+/** Non-interactive states that block clicks and hover animations */
+const NON_INTERACTIVE_STATES: ArtifactState[] = [
+  'not_available', 'queued', 'waiting', 'running', 'nearly_ready',
+];
+
 export interface ArtifactCardProps {
   /** Type of artifact */
   type: ArtifactType;
   /** Current state of the artifact */
   state: ArtifactState;
-  /** Progress percentage (0-100) for running state */
+  /** Progress percentage (0-100) for running/nearly_ready state */
   progressPercent?: number;
+  /** Stage-aware description that overrides the default running text */
+  runningDescription?: string;
   /** Error message for failed state */
   error?: string;
   /** Iteration count (for iteration type) */
@@ -162,6 +183,7 @@ export function ArtifactCard({
   type,
   state,
   progressPercent = 0,
+  runningDescription,
   error,
   iterationCount = 0,
   iterationId,
@@ -170,28 +192,30 @@ export function ArtifactCard({
 }: ArtifactCardProps) {
   const config = ARTIFACT_CONFIG[type];
   const styles = STATE_STYLES[state];
+  const isInteractive = !NON_INTERACTIVE_STATES.includes(state);
 
   // Narrated status descriptions for running state
   const getRunningDescription = () => {
+    if (runningDescription) return runningDescription;
     switch (type) {
       case 'doc_0':
-        return 'Cataloging your sources…';
+        return 'Cataloging your sources\u2026';
       case 'doc_1':
-        return 'Finding research directions…';
+        return 'Finding research directions\u2026';
       case 'doc_2':
-        return 'Synthesizing themes and insights…';
+        return 'Synthesizing themes and insights\u2026';
       case 'doc_3':
-        return 'Distilling hooks and core facts…';
+        return 'Distilling hooks and core facts\u2026';
       case 'doc_4':
-        return 'Generating production notes…';
+        return 'Generating production notes\u2026';
       case 'booster':
-        return 'Exploring new directions…';
+        return 'Exploring new directions\u2026';
       case 'iteration':
-        return 'Running additional analysis…';
+        return 'Running additional analysis\u2026';
       case 'claims_doc':
-        return 'Extracting claims…';
+        return 'Extracting claims\u2026';
       default:
-        return 'Processing…';
+        return 'Processing\u2026';
     }
   };
 
@@ -204,8 +228,12 @@ export function ArtifactCard({
         return config.readyLabel;
       case 'queued':
         return 'Queued - waiting to start...';
+      case 'waiting':
+        return 'Waiting\u2026';
       case 'running':
         return `${progressPercent}% - ${getRunningDescription()}`;
+      case 'nearly_ready':
+        return getRunningDescription();
       case 'completed':
         if (type === 'iteration' && iterationCount > 0) {
           return `${iterationCount} iteration${iterationCount > 1 ? 's' : ''}`;
@@ -220,9 +248,7 @@ export function ArtifactCard({
 
   // Handle click based on state
   const handleClick = () => {
-    if (state === 'not_available' || state === 'queued' || state === 'running') {
-      return;
-    }
+    if (!isInteractive) return;
     if (state === 'failed' && onRetry) {
       onRetry();
     } else {
@@ -232,16 +258,17 @@ export function ArtifactCard({
 
   return (
     <motion.div
-      whileHover={state !== 'not_available' && state !== 'queued' && state !== 'running' ? { scale: 1.02 } : {}}
-      whileTap={state !== 'not_available' && state !== 'queued' && state !== 'running' ? { scale: 0.98 } : {}}
+      whileHover={isInteractive ? { scale: 1.02 } : {}}
+      whileTap={isInteractive ? { scale: 0.98 } : {}}
       onClick={handleClick}
       className={`
         relative rounded-xl border-2 overflow-hidden transition-all duration-200
         ${styles.border} ${styles.bg} ${styles.cursor}
+        ${state === 'waiting' ? 'opacity-50' : ''}
       `}
     >
       {/* Left accent bar */}
-      <div className={`absolute top-0 left-0 bottom-0 w-1 ${DOC_ACCENT_COLORS[type]}`} />
+      <div className={`absolute top-0 left-0 bottom-0 w-1 ${DOC_ACCENT_COLORS[type]} ${state === 'waiting' ? 'opacity-30' : ''}`} />
 
       {/* Card content — extra left padding to clear the accent bar */}
       <div className="pl-5 pr-4 pt-4 pb-4">
@@ -256,29 +283,45 @@ export function ArtifactCard({
           {/* Status indicator */}
           <div className="flex-shrink-0">
             {state === 'completed' && (
-              <span className="text-green-400">✓</span>
+              <motion.span
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="text-green-400 inline-block"
+              >
+                ✓
+              </motion.span>
             )}
             {state === 'failed' && (
               <span className="text-red-400">✗</span>
             )}
-            {state === 'running' && (
-              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            {(state === 'running' || state === 'nearly_ready') && (
+              <div className={`w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin ${state === 'nearly_ready' ? 'border-blue-300' : ''}`} />
             )}
             {state === 'queued' && (
               <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
             )}
+            {state === 'waiting' && (
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
+            )}
           </div>
         </div>
 
-        {/* Progress bar for running state */}
-        {state === 'running' && (
+        {/* Progress bar for running and nearly_ready states */}
+        {(state === 'running' || state === 'nearly_ready') && (
           <div className="mt-3">
             <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
-                className="h-full bg-blue-500 rounded-full"
-                transition={{ duration: 0.3 }}
+                animate={{
+                  width: `${progressPercent}%`,
+                  opacity: state === 'nearly_ready' ? [1, 0.5, 1] : 1,
+                }}
+                className={`h-full rounded-full ${state === 'nearly_ready' ? 'bg-blue-400' : 'bg-blue-500'}`}
+                transition={state === 'nearly_ready'
+                  ? { width: { duration: 0.3 }, opacity: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } }
+                  : { duration: 0.3 }
+                }
               />
             </div>
             {iterationId && (
