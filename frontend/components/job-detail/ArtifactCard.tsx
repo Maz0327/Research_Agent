@@ -1,11 +1,17 @@
 /**
- * ArtifactCard - Individual card for each artifact type (Doc 0/1/2/3, Booster, Iterations)
- * Displays visual state (not_available, ready, queued, waiting, running, nearly_ready, completed, failed)
- * with stage-aware progress indicators and choreographed animations.
+ * ArtifactCard - Premium artifact card component
+ *
+ * Design language: Linear/Vercel-inspired dark theme
+ * - Semi-transparent borders (white/[0.06])
+ * - Opacity-based text hierarchy (white, white/60, white/35)
+ * - SVG icons (no emojis)
+ * - Thin gradient progress bar with glow
+ * - Spring animations with proper easing
  */
 import { motion } from 'framer-motion';
 
-/** Artifact card visual states */
+// ─── Types ──────────────────────────────────────────────────────────────────────
+
 export type ArtifactState =
   | 'not_available'
   | 'ready'
@@ -16,7 +22,6 @@ export type ArtifactState =
   | 'completed'
   | 'failed';
 
-/** Artifact types supported by the card */
 export type ArtifactType =
   | 'doc_0'
   | 'doc_1'
@@ -27,157 +32,186 @@ export type ArtifactType =
   | 'iteration'
   | 'claims_doc';
 
-/** Left accent bar color per artifact type */
-const DOC_ACCENT_COLORS: Record<ArtifactType, string> = {
-  doc_0: 'bg-gray-500',
-  doc_1: 'bg-blue-500',
-  doc_2: 'bg-purple-500',
-  doc_3: 'bg-amber-500',
-  doc_4: 'bg-green-500',
-  booster: 'bg-indigo-500',
-  iteration: 'bg-teal-500',
-  claims_doc: 'bg-rose-500',
+// ─── SVG Icons ──────────────────────────────────────────────────────────────────
+
+/** Clean SVG icons for each artifact type */
+function DocIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="2" width="14" height="16" rx="2" />
+      <line x1="6" y1="6" x2="14" y2="6" />
+      <line x1="6" y1="9" x2="14" y2="9" />
+      <line x1="6" y1="12" x2="10" y2="12" />
+    </svg>
+  );
+}
+
+function CompassIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="10" cy="10" r="8" />
+      <polygon points="10,4 12,10 10,16 8,10" fill="currentColor" opacity="0.3" />
+      <circle cx="10" cy="10" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PrismIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <polygon points="10,2 18,16 2,16" />
+      <line x1="10" y1="2" x2="10" y2="16" opacity="0.3" />
+      <line x1="6" y1="9" x2="14" y2="9" opacity="0.3" />
+    </svg>
+  );
+}
+
+function SparkIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M10 2 L12 8 L18 10 L12 12 L10 18 L8 12 L2 10 L8 8 Z" />
+    </svg>
+  );
+}
+
+function FilmIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="3" width="16" height="14" rx="2" />
+      <line x1="2" y1="7" x2="18" y2="7" />
+      <line x1="2" y1="13" x2="18" y2="13" />
+      <line x1="6" y1="3" x2="6" y2="7" />
+      <line x1="14" y1="3" x2="14" y2="7" />
+      <line x1="6" y1="13" x2="6" y2="17" />
+      <line x1="14" y1="13" x2="14" y2="17" />
+    </svg>
+  );
+}
+
+function ScopeIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="10" cy="10" r="7" />
+      <circle cx="10" cy="10" r="3" />
+      <line x1="10" y1="1" x2="10" y2="4" />
+      <line x1="10" y1="16" x2="10" y2="19" />
+      <line x1="1" y1="10" x2="4" y2="10" />
+      <line x1="16" y1="10" x2="19" y2="10" />
+    </svg>
+  );
+}
+
+function LayersIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <polygon points="10,2 18,7 10,12 2,7" />
+      <polyline points="2,10 10,15 18,10" />
+      <polyline points="2,13 10,18 18,13" />
+    </svg>
+  );
+}
+
+function ClipboardIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="4" y="4" width="12" height="14" rx="2" />
+      <path d="M8 2 h4 a1 1 0 0 1 1 1 v1 H7 V3 a1 1 0 0 1 1-1z" />
+      <line x1="7" y1="9" x2="13" y2="9" />
+      <line x1="7" y1="12" x2="11" y2="12" />
+    </svg>
+  );
+}
+
+/** SVG spinner - replaces CSS border hack */
+function Spinner({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin">
+      <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2.5" strokeLinecap="round" opacity="0.15" />
+      <path d="M12 2 a10 10 0 0 1 10 10" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Animated checkmark SVG */
+function CheckIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="9" fill="currentColor" opacity="0.15" />
+      <path d="M6 10 L9 13 L14 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function XIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="10" r="9" fill="currentColor" opacity="0.15" />
+      <path d="M7 7 L13 13 M13 7 L7 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// ─── Configuration ──────────────────────────────────────────────────────────────
+
+/** Accent color per artifact type (used for icon tint and progress bar) */
+const ACCENT_COLORS: Record<ArtifactType, { icon: string; bar: string; glow: string }> = {
+  doc_0: { icon: 'text-gray-400', bar: 'from-gray-500 to-gray-400', glow: 'rgba(156,163,175,0.3)' },
+  doc_1: { icon: 'text-blue-400', bar: 'from-blue-500 to-blue-400', glow: 'rgba(59,130,246,0.3)' },
+  doc_2: { icon: 'text-purple-400', bar: 'from-purple-500 to-purple-400', glow: 'rgba(139,92,246,0.3)' },
+  doc_3: { icon: 'text-amber-400', bar: 'from-amber-500 to-amber-400', glow: 'rgba(245,158,11,0.3)' },
+  doc_4: { icon: 'text-green-400', bar: 'from-green-500 to-green-400', glow: 'rgba(34,197,94,0.3)' },
+  booster: { icon: 'text-indigo-400', bar: 'from-indigo-500 to-indigo-400', glow: 'rgba(99,102,241,0.3)' },
+  iteration: { icon: 'text-teal-400', bar: 'from-teal-500 to-teal-400', glow: 'rgba(20,184,166,0.3)' },
+  claims_doc: { icon: 'text-rose-400', bar: 'from-rose-500 to-rose-400', glow: 'rgba(244,63,94,0.3)' },
 };
 
-/** Configuration for each artifact type */
+/** Icon component per artifact type */
+const ARTIFACT_ICONS: Record<ArtifactType, React.FC<{ className?: string }>> = {
+  doc_0: DocIcon,
+  doc_1: CompassIcon,
+  doc_2: PrismIcon,
+  doc_3: SparkIcon,
+  doc_4: FilmIcon,
+  booster: ScopeIcon,
+  iteration: LayersIcon,
+  claims_doc: ClipboardIcon,
+};
+
 const ARTIFACT_CONFIG: Record<ArtifactType, {
   title: string;
   subtitle: string;
-  icon: string;
   readyLabel: string;
 }> = {
-  doc_0: {
-    title: 'Doc 0',
-    subtitle: 'Source Ledger',
-    icon: '📋',
-    readyLabel: 'View Sources'
-  },
-  doc_1: {
-    title: 'Doc 1',
-    subtitle: 'Jump-Start',
-    icon: '🚀',
-    readyLabel: 'View Directions'
-  },
-  doc_2: {
-    title: 'Doc 2',
-    subtitle: 'Semantic Brief',
-    icon: '📊',
-    readyLabel: 'View Brief'
-  },
-  doc_3: {
-    title: 'Doc 3',
-    subtitle: 'Creator Brief',
-    icon: '✨',
-    readyLabel: 'View Brief'
-  },
-  doc_4: {
-    title: 'Doc 4',
-    subtitle: 'Producer Packet',
-    icon: '🎬',
-    readyLabel: 'Generate'
-  },
-  booster: {
-    title: 'Deep Research',
-    subtitle: 'Expanded Analysis',
-    icon: '🔬',
-    readyLabel: 'Start Analysis'
-  },
-  iteration: {
-    title: 'Iterations',
-    subtitle: 'Additional Passes',
-    icon: '🔄',
-    readyLabel: 'Run New Pass'
-  },
-  claims_doc: {
-    title: 'Claims Document',
-    subtitle: 'Extracted Claims',
-    icon: '📝',
-    readyLabel: 'View Claims'
-  },
+  doc_0: { title: 'Source Ledger', subtitle: 'Cataloged sources', readyLabel: 'View Sources' },
+  doc_1: { title: 'Jump-Start', subtitle: 'Research directions', readyLabel: 'View Directions' },
+  doc_2: { title: 'Semantic Brief', subtitle: 'Themes & insights', readyLabel: 'View Brief' },
+  doc_3: { title: 'Creator Brief', subtitle: 'Production-ready brief', readyLabel: 'Generate' },
+  doc_4: { title: 'Producer Packet', subtitle: 'Production notes', readyLabel: 'Generate' },
+  booster: { title: 'Deep Research', subtitle: 'Expanded analysis', readyLabel: 'Start Analysis' },
+  iteration: { title: 'Iterations', subtitle: 'Additional passes', readyLabel: 'Run New Pass' },
+  claims_doc: { title: 'Claims', subtitle: 'Extracted claims', readyLabel: 'View Claims' },
 };
 
-/** State-based styling */
-const STATE_STYLES: Record<ArtifactState, {
-  border: string;
-  bg: string;
-  text: string;
-  cursor: string;
-}> = {
-  not_available: {
-    border: 'border-gray-700 border-dashed',
-    bg: 'bg-gray-900/50',
-    text: 'text-gray-500',
-    cursor: 'cursor-not-allowed',
-  },
-  ready: {
-    border: 'border-blue-600 hover:border-blue-500',
-    bg: 'bg-gray-900 hover:bg-gray-800',
-    text: 'text-blue-400',
-    cursor: 'cursor-pointer',
-  },
-  queued: {
-    border: 'border-yellow-600 animate-pulse',
-    bg: 'bg-gray-900',
-    text: 'text-yellow-400',
-    cursor: 'cursor-wait',
-  },
-  waiting: {
-    border: 'border-gray-700 border-dashed',
-    bg: 'bg-gray-900/30',
-    text: 'text-gray-500',
-    cursor: 'cursor-wait',
-  },
-  running: {
-    border: 'border-blue-500',
-    bg: 'bg-gray-900',
-    text: 'text-blue-400',
-    cursor: 'cursor-wait',
-  },
-  nearly_ready: {
-    border: 'border-blue-500',
-    bg: 'bg-gray-900',
-    text: 'text-blue-400',
-    cursor: 'cursor-wait',
-  },
-  completed: {
-    border: 'border-green-600 hover:border-green-500',
-    bg: 'bg-gray-900 hover:bg-gray-800',
-    text: 'text-green-400',
-    cursor: 'cursor-pointer',
-  },
-  failed: {
-    border: 'border-red-600 hover:border-red-500',
-    bg: 'bg-red-900/20 hover:bg-red-900/30',
-    text: 'text-red-400',
-    cursor: 'cursor-pointer',
-  },
-};
-
-/** Non-interactive states that block clicks and hover animations */
+/** States that block clicks */
 const NON_INTERACTIVE_STATES: ArtifactState[] = [
   'not_available', 'queued', 'waiting', 'running', 'nearly_ready',
 ];
 
+// ─── Props ──────────────────────────────────────────────────────────────────────
+
 export interface ArtifactCardProps {
-  /** Type of artifact */
   type: ArtifactType;
-  /** Current state of the artifact */
   state: ArtifactState;
-  /** Progress percentage (0-100) for running/nearly_ready state */
   progressPercent?: number;
-  /** Stage-aware description that overrides the default running text */
   runningDescription?: string;
-  /** Error message for failed state */
   error?: string;
-  /** Iteration count (for iteration type) */
   iterationCount?: number;
-  /** Current iteration ID (for iteration type when running) */
   iterationId?: string;
-  /** Click handler for primary action */
   onClick: () => void;
-  /** Retry handler for failed state */
   onRetry?: () => void;
 }
+
+// ─── Component ──────────────────────────────────────────────────────────────────
 
 export function ArtifactCard({
   type,
@@ -191,62 +225,44 @@ export function ArtifactCard({
   onRetry,
 }: ArtifactCardProps) {
   const config = ARTIFACT_CONFIG[type];
-  const styles = STATE_STYLES[state];
+  const accent = ACCENT_COLORS[type];
+  const IconComponent = ARTIFACT_ICONS[type];
   const isInteractive = !NON_INTERACTIVE_STATES.includes(state);
 
-  // Narrated status descriptions for running state
-  const getRunningDescription = () => {
+  const getStatusText = () => {
     if (runningDescription) return runningDescription;
-    switch (type) {
-      case 'doc_0':
-        return 'Cataloging your sources\u2026';
-      case 'doc_1':
-        return 'Finding research directions\u2026';
-      case 'doc_2':
-        return 'Synthesizing themes and insights\u2026';
-      case 'doc_3':
-        return 'Distilling hooks and core facts\u2026';
-      case 'doc_4':
-        return 'Generating production notes\u2026';
-      case 'booster':
-        return 'Exploring new directions\u2026';
-      case 'iteration':
-        return 'Running additional analysis\u2026';
-      case 'claims_doc':
-        return 'Extracting claims\u2026';
-      default:
-        return 'Processing\u2026';
-    }
-  };
-
-  // Determine action label based on state
-  const getActionLabel = () => {
     switch (state) {
       case 'not_available':
-        return 'Not Available';
+        return 'Not available yet';
       case 'ready':
         return config.readyLabel;
       case 'queued':
-        return 'Queued - waiting to start...';
+        return 'Queued';
       case 'waiting':
-        return 'Waiting\u2026';
+        return 'Waiting for pipeline';
       case 'running':
-        return `${progressPercent}% - ${getRunningDescription()}`;
+        return type === 'doc_0' ? 'Cataloging sources' :
+               type === 'doc_1' ? 'Finding directions' :
+               type === 'doc_2' ? 'Synthesizing themes' :
+               type === 'doc_3' ? 'Generating brief' :
+               type === 'booster' ? 'Expanding research' :
+               type === 'iteration' ? 'Running analysis' :
+               type === 'claims_doc' ? 'Extracting claims' :
+               'Processing';
       case 'nearly_ready':
-        return getRunningDescription();
+        return 'Almost done';
       case 'completed':
         if (type === 'iteration' && iterationCount > 0) {
-          return `${iterationCount} iteration${iterationCount > 1 ? 's' : ''}`;
+          return `${iterationCount} pass${iterationCount > 1 ? 'es' : ''} complete`;
         }
-        return 'View';
+        return 'Complete';
       case 'failed':
-        return 'Retry';
+        return 'Failed';
       default:
         return '';
     }
   };
 
-  // Handle click based on state
   const handleClick = () => {
     if (!isInteractive) return;
     if (state === 'failed' && onRetry) {
@@ -256,96 +272,161 @@ export function ArtifactCard({
     }
   };
 
+  // Border + background per state — restrained, no color flooding
+  const cardClasses = (() => {
+    switch (state) {
+      case 'not_available':
+        return 'border-white/[0.04] bg-white/[0.02]';
+      case 'waiting':
+        return 'border-dashed border-white/[0.06] bg-white/[0.02]';
+      case 'queued':
+        return 'border-white/[0.08] bg-white/[0.03]';
+      case 'ready':
+        return 'border-white/[0.08] bg-white/[0.03] hover:border-white/[0.15] hover:bg-white/[0.05]';
+      case 'running':
+        return 'border-white/[0.1] bg-white/[0.03]';
+      case 'nearly_ready':
+        return 'border-white/[0.1] bg-white/[0.03]';
+      case 'completed':
+        return 'border-white/[0.08] bg-white/[0.03] hover:border-white/[0.15] hover:bg-white/[0.05]';
+      case 'failed':
+        return 'border-red-500/20 bg-red-500/[0.03] hover:border-red-500/30 hover:bg-red-500/[0.05]';
+      default:
+        return 'border-white/[0.06] bg-white/[0.03]';
+    }
+  })();
+
+  const showProgress = state === 'running' || state === 'nearly_ready';
+
   return (
     <motion.div
-      whileHover={isInteractive ? { scale: 1.02 } : {}}
-      whileTap={isInteractive ? { scale: 0.98 } : {}}
+      whileHover={isInteractive ? { y: -1 } : {}}
+      whileTap={isInteractive ? { scale: 0.99 } : {}}
       onClick={handleClick}
       className={`
-        relative rounded-xl border-2 overflow-hidden transition-all duration-200
-        ${styles.border} ${styles.bg} ${styles.cursor}
-        ${state === 'waiting' ? 'opacity-50' : ''}
+        relative rounded-lg border overflow-hidden transition-colors duration-200
+        ${cardClasses}
+        ${isInteractive ? 'cursor-pointer' : state === 'not_available' ? 'cursor-default' : 'cursor-default'}
       `}
+      style={state === 'running' ? {
+        boxShadow: `0 0 0 1px rgba(255,255,255,0.04), 0 0 24px -8px ${accent.glow}`,
+      } : undefined}
     >
-      {/* Left accent bar */}
-      <div className={`absolute top-0 left-0 bottom-0 w-1 ${DOC_ACCENT_COLORS[type]} ${state === 'waiting' ? 'opacity-30' : ''}`} />
-
-      {/* Card content — extra left padding to clear the accent bar */}
-      <div className="pl-5 pr-4 pt-4 pb-4">
-        {/* Icon and title */}
+      <div className="p-4">
+        {/* Header: icon + title + status indicator */}
         <div className="flex items-start gap-3">
-          <span className="text-2xl">{config.icon}</span>
+          {/* Icon */}
+          <div className={`
+            flex-shrink-0 mt-0.5 transition-opacity duration-300
+            ${state === 'waiting' || state === 'not_available' ? 'opacity-30' : 'opacity-100'}
+            ${state === 'completed' ? 'text-emerald-400' : state === 'failed' ? 'text-red-400' : accent.icon}
+          `}>
+            <IconComponent className="w-5 h-5" />
+          </div>
+
+          {/* Title + subtitle */}
           <div className="flex-1 min-w-0">
-            <h3 className={`font-semibold ${styles.text}`}>{config.title}</h3>
-            <p className="text-sm text-gray-400 truncate">{config.subtitle}</p>
+            <h3 className={`
+              text-sm font-semibold tracking-tight transition-opacity duration-300
+              ${state === 'waiting' || state === 'not_available' ? 'text-white/30' : 'text-white/90'}
+            `}>
+              {config.title}
+            </h3>
+            <p className={`
+              text-xs mt-0.5 transition-opacity duration-300
+              ${state === 'waiting' || state === 'not_available' ? 'text-white/15' : 'text-white/40'}
+            `}>
+              {config.subtitle}
+            </p>
           </div>
 
           {/* Status indicator */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 mt-0.5">
             {state === 'completed' && (
-              <motion.span
+              <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="text-green-400 inline-block"
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               >
-                ✓
-              </motion.span>
+                <CheckIcon className="w-5 h-5 text-emerald-400" />
+              </motion.div>
             )}
             {state === 'failed' && (
-              <span className="text-red-400">✗</span>
+              <XIcon className="w-5 h-5 text-red-400" />
             )}
             {(state === 'running' || state === 'nearly_ready') && (
-              <div className={`w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin ${state === 'nearly_ready' ? 'border-blue-300' : ''}`} />
+              <Spinner size={16} color={state === 'nearly_ready' ? '#60a5fa' : '#9ca3af'} />
             )}
             {state === 'queued' && (
-              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+              <motion.div
+                animate={{ opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-2 h-2 rounded-full bg-amber-400"
+              />
             )}
             {state === 'waiting' && (
-              <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
+              <div className="w-1.5 h-1.5 rounded-full bg-white/15" />
             )}
           </div>
         </div>
 
-        {/* Progress bar for running and nearly_ready states */}
-        {(state === 'running' || state === 'nearly_ready') && (
+        {/* Progress bar — thin gradient with glow */}
+        {showProgress && (
           <div className="mt-3">
-            <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{
                   width: `${progressPercent}%`,
-                  opacity: state === 'nearly_ready' ? [1, 0.5, 1] : 1,
+                  opacity: state === 'nearly_ready' ? [1, 0.6, 1] : 1,
                 }}
-                className={`h-full rounded-full ${state === 'nearly_ready' ? 'bg-blue-400' : 'bg-blue-500'}`}
                 transition={state === 'nearly_ready'
-                  ? { width: { duration: 0.3 }, opacity: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } }
-                  : { duration: 0.3 }
+                  ? {
+                      width: { type: 'spring', stiffness: 100, damping: 20 },
+                      opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                    }
+                  : { type: 'spring', stiffness: 100, damping: 20 }
                 }
+                className={`h-full rounded-full bg-gradient-to-r ${accent.bar}`}
+                style={{ boxShadow: `0 0 8px ${accent.glow}` }}
               />
             </div>
             {iterationId && (
-              <p className="text-xs text-gray-400 mt-1">{iterationId}</p>
+              <p className="text-[11px] text-white/25 mt-1.5 font-mono">{iterationId}</p>
             )}
           </div>
         )}
 
-        {/* Action area */}
-        <div className="mt-3">
+        {/* Status text / action label */}
+        <div className="mt-3 flex items-center justify-between">
           {state === 'completed' && type !== 'iteration' ? (
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-gray-700 text-sm font-medium text-gray-100 transition-colors">
-              View →
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-white/60 hover:text-white/80 transition-colors">
+              View
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="2">
+                <path d="M6 4 L10 8 L6 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </span>
+          ) : state === 'running' || state === 'nearly_ready' ? (
+            <div className="flex items-center justify-between w-full">
+              <span className="text-xs text-white/40">{getStatusText()}</span>
+              {state === 'running' && (
+                <span className="text-[11px] font-mono text-white/30">{progressPercent}%</span>
+              )}
+            </div>
+          ) : state === 'failed' ? (
+            <span className="text-xs font-medium text-red-400/80">Retry</span>
+          ) : state === 'ready' ? (
+            <span className="text-xs font-medium text-white/60">{config.readyLabel}</span>
           ) : (
-            <span className={`text-sm font-medium ${styles.text}`}>
-              {getActionLabel()}
+            <span className={`text-xs ${state === 'waiting' || state === 'not_available' ? 'text-white/20' : 'text-white/35'}`}>
+              {getStatusText()}
             </span>
           )}
         </div>
 
-        {/* Error preview for failed state */}
+        {/* Error preview */}
         {state === 'failed' && error && (
-          <p className="mt-2 text-xs text-red-300 line-clamp-2">{error}</p>
+          <p className="mt-2 text-[11px] text-red-400/60 line-clamp-2">{error}</p>
         )}
       </div>
     </motion.div>

@@ -16,16 +16,15 @@ import { getAccessToken } from '../../lib/supabase';
 
 // ─── Stage-to-Card Mapping Constants ───────────────────────────────────────────
 
-/** Pipeline stage order (from backend/worker.py) */
+/** Pipeline stage order — matches exact backend/worker.py update_job() calls */
 const STAGE_ORDER = [
-  'source_identity',
-  'semantic_extraction',
-  'semantic_validation',
-  'gap_analysis',
-  'semantic_synthesis',
-  'document_assembly',
-  'creator_brief_assembly',
-  'completion',
+  'source_identity',       // 5%
+  'semantic_extraction',   // 20%
+  'semantic_validation',   // 35%
+  'gap_analysis',          // 50%
+  'semantic_synthesis',    // 65%
+  'document_assembly',     // 80%  (all docs assembled here, including creator brief)
+  'completion',            // 95%
 ] as const;
 
 /** Progress % emitted at each stage boundary */
@@ -36,7 +35,6 @@ const STAGE_PROGRESS: Record<string, number> = {
   gap_analysis: 50,
   semantic_synthesis: 65,
   document_assembly: 80,
-  creator_brief_assembly: 88,
   completion: 95,
 };
 
@@ -45,31 +43,31 @@ const CARD_STAGE_RANGES: Record<string, { start: string; end: string }> = {
   doc_0: { start: 'source_identity', end: 'document_assembly' },
   doc_1: { start: 'gap_analysis', end: 'document_assembly' },
   doc_2: { start: 'semantic_synthesis', end: 'document_assembly' },
-  doc_3: { start: 'creator_brief_assembly', end: 'completion' },
+  doc_3: { start: 'document_assembly', end: 'completion' },
 };
 
 /** Stage-aware descriptions for each card at each pipeline stage */
 const CARD_STAGE_DESCRIPTIONS: Record<string, Record<string, string>> = {
   doc_0: {
-    source_identity: 'Identifying sources\u2026',
-    semantic_extraction: 'Extracting content from sources\u2026',
-    semantic_validation: 'Validating extracted data\u2026',
-    gap_analysis: 'Cataloging source details\u2026',
-    semantic_synthesis: 'Finalizing source catalog\u2026',
-    document_assembly: 'Assembling source ledger\u2026',
+    source_identity: 'Identifying sources',
+    semantic_extraction: 'Extracting content from sources',
+    semantic_validation: 'Validating extracted data',
+    gap_analysis: 'Cataloging source details',
+    semantic_synthesis: 'Finalizing source catalog',
+    document_assembly: 'Assembling source ledger',
   },
   doc_1: {
-    gap_analysis: 'Analyzing research gaps\u2026',
-    semantic_synthesis: 'Connecting themes across sources\u2026',
-    document_assembly: 'Assembling jump-start directions\u2026',
+    gap_analysis: 'Analyzing research gaps',
+    semantic_synthesis: 'Connecting themes across sources',
+    document_assembly: 'Assembling jump-start directions',
   },
   doc_2: {
-    semantic_synthesis: 'Synthesizing semantic brief\u2026',
-    document_assembly: 'Assembling semantic brief\u2026',
+    semantic_synthesis: 'Synthesizing semantic brief',
+    document_assembly: 'Assembling semantic brief',
   },
   doc_3: {
-    creator_brief_assembly: 'Generating creator brief\u2026',
-    completion: 'Finalizing creator brief\u2026',
+    document_assembly: 'Generating creator brief',
+    completion: 'Finalizing creator brief',
   },
 };
 
@@ -604,7 +602,7 @@ export function ArtifactCardGrid({
   if (isClaimExtractionJob) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <ArtifactCard
             type="claims_doc"
             state={getArtifactState(job, 'claims_doc', selectedVersion)}
@@ -614,10 +612,13 @@ export function ArtifactCardGrid({
         </div>
 
         {isLoadingDoc && (
-          <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
-            <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
-              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-              <span className="text-white">Loading document...</span>
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+            <div className="bg-white/[0.05] border border-white/[0.08] rounded-lg px-6 py-4 flex items-center gap-3">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="animate-spin text-white/50">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.12" />
+                <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+              <span className="text-sm text-white/70 font-medium">Loading document</span>
             </div>
           </div>
         )}
@@ -660,98 +661,37 @@ export function ArtifactCardGrid({
       )}
 
       {/* Artifact card grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Doc 0: Source Ledger */}
-        <motion.div
-          animate={{
-            opacity: doc0Props.state === 'waiting' ? 0.5 : 1,
-            scale: doc0Props.state === 'waiting' ? 0.97 : 1,
-            y: doc0Props.state === 'completed' ? [-3, 0] : 0,
-          }}
-          transition={{
-            type: 'spring',
-            stiffness: 200,
-            damping: 25,
-            delay: shouldAnimate ? 0 * CARD_STAGGER_DELAY : 0,
-          }}
-        >
-          <ArtifactCard
-            type="doc_0"
-            state={doc0Props.state}
-            progressPercent={doc0Props.progressPercent}
-            runningDescription={doc0Props.runningDescription}
-            onClick={() => handleCardClick('doc_0')}
-          />
-        </motion.div>
-
-        {/* Doc 1: Jump-Start */}
-        <motion.div
-          animate={{
-            opacity: doc1Props.state === 'waiting' ? 0.5 : 1,
-            scale: doc1Props.state === 'waiting' ? 0.97 : 1,
-            y: doc1Props.state === 'completed' ? [-3, 0] : 0,
-          }}
-          transition={{
-            type: 'spring',
-            stiffness: 200,
-            damping: 25,
-            delay: shouldAnimate ? 1 * CARD_STAGGER_DELAY : 0,
-          }}
-        >
-          <ArtifactCard
-            type="doc_1"
-            state={doc1Props.state}
-            progressPercent={doc1Props.progressPercent}
-            runningDescription={doc1Props.runningDescription}
-            onClick={() => handleCardClick('doc_1')}
-          />
-        </motion.div>
-
-        {/* Doc 2: Semantic Brief */}
-        <motion.div
-          animate={{
-            opacity: doc2Props.state === 'waiting' ? 0.5 : 1,
-            scale: doc2Props.state === 'waiting' ? 0.97 : 1,
-            y: doc2Props.state === 'completed' ? [-3, 0] : 0,
-          }}
-          transition={{
-            type: 'spring',
-            stiffness: 200,
-            damping: 25,
-            delay: shouldAnimate ? 2 * CARD_STAGGER_DELAY : 0,
-          }}
-        >
-          <ArtifactCard
-            type="doc_2"
-            state={doc2Props.state}
-            progressPercent={doc2Props.progressPercent}
-            runningDescription={doc2Props.runningDescription}
-            onClick={() => handleCardClick('doc_2')}
-          />
-        </motion.div>
-
-        {/* Doc 3: Creator Brief */}
-        <motion.div
-          animate={{
-            opacity: doc3Props.state === 'waiting' ? 0.5 : 1,
-            scale: doc3Props.state === 'waiting' ? 0.97 : 1,
-            y: doc3Props.state === 'completed' ? [-3, 0] : 0,
-          }}
-          transition={{
-            type: 'spring',
-            stiffness: 200,
-            damping: 25,
-            delay: shouldAnimate ? 3 * CARD_STAGGER_DELAY : 0,
-          }}
-        >
-          <ArtifactCard
-            type="doc_3"
-            state={doc3Props.state}
-            progressPercent={doc3Props.progressPercent}
-            runningDescription={doc3Props.runningDescription}
-            onClick={() => handleCardClick('doc_3')}
-          />
-        </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {/* Doc cards with stage-aware animations */}
+        {([
+          { key: 'doc_0' as const, props: doc0Props, idx: 0 },
+          { key: 'doc_1' as const, props: doc1Props, idx: 1 },
+          { key: 'doc_2' as const, props: doc2Props, idx: 2 },
+          { key: 'doc_3' as const, props: doc3Props, idx: 3 },
+        ]).map(({ key, props, idx }) => (
+          <motion.div
+            key={key}
+            initial={false}
+            animate={{
+              opacity: props.state === 'waiting' ? 0.5 : 1,
+              scale: props.state === 'waiting' ? 0.98 : 1,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 300,
+              damping: 30,
+              delay: shouldAnimate ? idx * CARD_STAGGER_DELAY : 0,
+            }}
+          >
+            <ArtifactCard
+              type={key}
+              state={props.state}
+              progressPercent={props.progressPercent}
+              runningDescription={props.runningDescription}
+              onClick={() => handleCardClick(key)}
+            />
+          </motion.div>
+        ))}
 
         {/* Booster: Deep Research — independent progress tracking */}
         <ArtifactCard
@@ -778,10 +718,13 @@ export function ArtifactCardGrid({
 
       {/* Loading overlay */}
       {isLoadingDoc && (
-        <div className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center">
-          <div className="bg-gray-800 rounded-lg p-6 flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-white">Loading document...</span>
+        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/[0.05] border border-white/[0.08] rounded-lg px-6 py-4 flex items-center gap-3">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="animate-spin text-white/50">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.12" />
+              <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+            <span className="text-sm text-white/70 font-medium">Loading document</span>
           </div>
         </div>
       )}
