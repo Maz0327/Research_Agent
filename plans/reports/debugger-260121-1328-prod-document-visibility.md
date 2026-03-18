@@ -11,7 +11,7 @@
 ### Frontend Configuration
 - **API URL**: `frontend/lib/constants.ts:44-50`
   - Uses `NEXT_PUBLIC_API_URL` env var
-  - Production: `https://api-production-1c52.up.railway.app`
+  - Production: `https://your-api.up.railway.app`
   - Falls back to `http://localhost:8000`
 
 ### Backend Endpoints
@@ -37,21 +37,21 @@
 
 ### 1.1 List Jobs (check if job appears with artifacts)
 ```bash
-curl -s "https://api-production-1c52.up.railway.app/jobs" \
+curl -s "https://your-api.up.railway.app/jobs" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" | jq '.jobs[] | select(.id == "65c2f5f8-e57a-44f3-8b58-15a0a1b36d15") | {id, status, artifacts}'
 ```
 
 ### 1.2 Get Job Detail (full artifacts dict)
 ```bash
-curl -s "https://api-production-1c52.up.railway.app/jobs/65c2f5f8-e57a-44f3-8b58-15a0a1b36d15" \
+curl -s "https://your-api.up.railway.app/jobs/65c2f5f8-e57a-44f3-8b58-15a0a1b36d15" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" | jq '{status, artifacts}'
 ```
 
 ### 1.3 Test Document Endpoint Directly
 ```bash
-curl -s "https://api-production-1c52.up.railway.app/jobs/65c2f5f8-e57a-44f3-8b58-15a0a1b36d15/documents/doc_0" \
+curl -s "https://your-api.up.railway.app/jobs/65c2f5f8-e57a-44f3-8b58-15a0a1b36d15/documents/doc_0" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" | jq '.'
 ```
@@ -134,7 +134,7 @@ Run these checks to determine root cause:
 |-------|----------------|----------|--------|
 | API returns doc_0_path | Curl 1.2 above | `"doc_0_path": "documents/..."` | ? |
 | API doc endpoint works | Curl 1.3 above | Returns URL or data | ? |
-| Frontend calls correct API | DevTools Network | `api-production-1c52.up.railway.app` | ? |
+| Frontend calls correct API | DevTools Network | `your-api.up.railway.app` | ? |
 | Frontend has doc_0_path check | DevTools Sources search | Found in bundle | ? |
 | Vercel build is recent | Vercel dashboard | Last 24h | ? |
 | Railway deploy is recent | Railway dashboard | Last 24h | ? |

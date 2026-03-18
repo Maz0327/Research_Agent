@@ -15,8 +15,8 @@ AI-powered documentary research assistant that makes long-form video content sca
 
 | Service | Status | URL |
 |---------|--------|-----|
-| **Frontend** | ✅ Live | https://research-agent-kohl.vercel.app |
-| **API** | ✅ Live | https://api-production-1c52.up.railway.app |
+| **Frontend** | ✅ Live | https://your-frontend.vercel.app |
+| **API** | ✅ Live | https://your-api.up.railway.app |
 | **Worker** | ✅ Live | Celery worker (internal) |
 | **Redis** | ✅ Live | redis.railway.internal:6379 |
 

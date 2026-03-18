@@ -52,7 +52,7 @@ api-client.ts:38 → url = `${API_URL}${endpoint}`
 
 | Variable | Default | Production |
 |----------|---------|------------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | `https://api-production-1c52.up.railway.app` |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | `https://your-api.up.railway.app` |
 
 ### HTTPS Enforcement
 
@@ -134,7 +134,7 @@ jobs_data.append({
 
 | Check | Command/URL | Expected |
 |-------|-------------|----------|
-| Health check | `GET https://api-production-1c52.up.railway.app/health` | `{"status": "healthy", "version": "0.1.0", ...}` |
+| Health check | `GET https://your-api.up.railway.app/health` | `{"status": "healthy", "version": "0.1.0", ...}` |
 | Jobs list | `GET /jobs` (authenticated) | Returns `{"jobs": [...]}` with `artifacts` field |
 | Document fetch | `GET /jobs/{id}/documents/doc_0` | Returns `{"url": "..."}` or `{"markdown": "..."}` |
 
@@ -173,7 +173,7 @@ jobs_data.append({
 
 1. **Check artifacts in API response:**
    ```bash
-   curl -H "Authorization: Bearer $TOKEN" https://api-production-1c52.up.railway.app/jobs
+   curl -H "Authorization: Bearer $TOKEN" https://your-api.up.railway.app/jobs
    ```
    Look for `doc_0_path`, `doc_1_path`, `doc_2_path` in artifacts.
 

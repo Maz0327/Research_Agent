@@ -41,7 +41,7 @@ The following files have been created/updated:
 
 ### `.env` (Updated)
 ```bash
-SUPABASE_PROJECT_REF=lmkqozgsrwisozebskzd
+SUPABASE_PROJECT_REF=your-supabase-project-ref
 SUPABASE_ACCESS_TOKEN=<YOUR_PERSONAL_ACCESS_TOKEN_HERE>
 ```
 
@@ -90,7 +90,7 @@ With Supabase MCP connected, Claude Code can:
 ### Authentication errors
 - Verify `SUPABASE_ACCESS_TOKEN` is set correctly
 - Check token hasn't expired
-- Ensure `SUPABASE_PROJECT_REF` matches your project (lmkqozgsrwisozebskzd)
+- Ensure `SUPABASE_PROJECT_REF` matches your project (your-supabase-project-ref)
 
 ### Permission errors
 - Access token needs sufficient permissions

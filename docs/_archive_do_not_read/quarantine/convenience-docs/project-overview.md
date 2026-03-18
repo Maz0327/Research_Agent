@@ -18,8 +18,8 @@ Research Agent is an AI-powered documentary research assistant that replaces hum
 
 | Service | URL |
 |---------|-----|
-| Frontend | https://research-agent-kohl.vercel.app |
-| API | https://api-production-1c52.up.railway.app |
+| Frontend | https://your-frontend.vercel.app |
+| API | https://your-api.up.railway.app |
 
 ## Technology Stack
 

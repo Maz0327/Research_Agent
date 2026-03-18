@@ -40,7 +40,7 @@ def run_migrations():
     print("\n" + "="*80)
     print("IMPORTANT: These migrations must be run manually in Supabase SQL Editor")
     print("="*80)
-    print("\nGo to: https://supabase.com/dashboard/project/lmkqozgsrwisozebskzd/sql/new")
+    print("\nGo to: https://supabase.com/dashboard/project/your-supabase-project-ref/sql/new")
     print("\nRun these files in order:\n")
 
     for migration_file in migration_files:

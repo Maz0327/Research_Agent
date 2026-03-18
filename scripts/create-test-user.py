@@ -24,13 +24,18 @@ load_dotenv(ROOT / ".env")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-# Test user credentials
-TEST_EMAIL = "test@research-agent.dev"
-TEST_PASSWORD = "TestUser2026!"
+# Test user credentials — loaded from env to avoid exposing in repo
+TEST_EMAIL = os.getenv("TEST_USER_EMAIL", "test@research-agent.dev")
+TEST_PASSWORD = os.getenv("TEST_USER_PASSWORD")
 
 
 def create_test_user():
     """Create a test user using Supabase Admin API."""
+    if not TEST_PASSWORD:
+        print("ERROR: Set TEST_USER_PASSWORD in .env or environment")
+        print("  export TEST_USER_PASSWORD='your-test-password'")
+        sys.exit(1)
+
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         print("ERROR: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env")
         sys.exit(1)

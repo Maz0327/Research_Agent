@@ -17,8 +17,8 @@ Research Agent is an AI-powered documentary research assistant that replaces hum
 2. **Documentary Blueprint** - Optimized for video production
 
 **Production Status:** LIVE
-- Frontend: https://research-agent-kohl.vercel.app (Vercel)
-- Backend API: https://api-production-1c52.up.railway.app (Railway)
+- Frontend: https://your-frontend.vercel.app (Vercel)
+- Backend API: https://your-api.up.railway.app (Railway)
 - Database: Supabase (PostgreSQL)
 - Queue: Redis (Railway)
 
@@ -666,14 +666,14 @@ SLACK_SIGNING_SECRET=...
 SLACK_BOT_TOKEN=...
 
 # Frontend
-FRONTEND_ORIGINS=https://research-agent-kohl.vercel.app
+FRONTEND_ORIGINS=https://your-frontend.vercel.app
 ```
 
 ### 10.2 Railway Deployment
 
 ```bash
 # Project ID
-railway link -p 9d40e7f3-4b60-4456-8a56-9ade9a9c3321
+railway link -p your-railway-project-id
 
 # Services
 # - API: Runs FastAPI (default)

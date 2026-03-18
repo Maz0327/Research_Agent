@@ -175,7 +175,7 @@ Research Agent Tool: Full Discussion Summary & Hand-Off Brief for Claude
 Date: December 22, 2025 Prepared for: Claude (Implementation/Refactor Lead) From: Maaz (with input from Grok as lead engineer/business partner) Purpose: This is a complete, chronological/thematic recap of everything discussed in the Grok thread about evolving the Research Agent from live v2 (CLAUDE.md deploy) to a refined v4.2-based system. Use this as the single source of truth for next steps—refactor the existing production system (Railway/Vercel, FastAPI/Celery/Redis/Supabase, Drive exports, Slack notifications) to incorporate v4.2 reliability fixes + niche-focused enhancements. Goal: Make it bulletproof, cheaper, faster, and perfectly tuned for my eclectic YouTube content (mini-docs/live streams on mysteries, controversies, downfalls, history/religion, pop culture, current affairs—inspired by Internet Anarchist, Why Files, Patrick CC, Thoughty2, Alex Bale, Side Projects, Camp Gagnon + offshoots).
 1. Current State & Baseline
 	•	Live v2 (from CLAUDE.md): Functional but painful.
-	◦	Deploy: Railway (backend ID 9d40e7f3-…), Vercel frontend (research-agent-kohl.vercel.app), API (api-production-1c52.up.railway.app).
+	◦	Deploy: Railway (backend ID your-railway-project-id), Vercel frontend (your-frontend.vercel.app), API (your-api.up.railway.app).
 	◦	Arch: FastAPI + Celery workers + Redis + Supabase storage + Next.js UI.
 	◦	Pipeline: 15-stage, heavy on Perplexity/Playwright/OpenAI → slow, costly ($1-3+/job), brittle (hangs, rate limits, no strong fallbacks).
 	◦	Wins: Google Drive exports, Slack notifications, video transcripts, usable outputs when it works.

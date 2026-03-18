@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-14
 **Database:** Supabase (PostgreSQL)
-**Project:** lmkqozgsrwisozebskzd
+**Project:** your-supabase-project-ref
 
 ---
 

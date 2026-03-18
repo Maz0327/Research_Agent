@@ -11,7 +11,7 @@ Research Agent is a cloud-based research backend that aggregates content from Re
 ## Production Deployment Status (December 2024)
 
 ### Railway Project
-- **Project ID:** `9d40e7f3-4b60-4456-8a56-9ade9a9c3321`
+- **Project ID:** `your-railway-project-id`
 - **Project Name:** Research_Agent_Project_v2
 - **Environment:** production
 
@@ -19,8 +19,8 @@ Research Agent is a cloud-based research backend that aggregates content from Re
 
 | Service | Status | URL/Notes |
 |---------|--------|-----------|
-| **Frontend** | ✅ LIVE | https://research-agent-kohl.vercel.app |
-| **API** | ✅ LIVE | https://api-production-1c52.up.railway.app |
+| **Frontend** | ✅ LIVE | https://your-frontend.vercel.app |
+| **API** | ✅ LIVE | https://your-api.up.railway.app |
 | **Worker** | ✅ LIVE | Running Celery worker |
 | **Redis** | ✅ Running | Internal: redis.railway.internal:6379 |
 
@@ -33,7 +33,7 @@ Research Agent is a cloud-based research backend that aggregates content from Re
 ### Key Commands
 ```bash
 # Link to Railway project
-railway link -p 9d40e7f3-4b60-4456-8a56-9ade9a9c3321
+railway link -p your-railway-project-id
 
 # Check status
 railway status

@@ -97,12 +97,12 @@ vercel --version
 
 | Service | Status | URL/Details |
 |---------|--------|-------------|
-| **API** | ✅ Live | https://api-production-1c52.up.railway.app |
+| **API** | ✅ Live | https://your-api.up.railway.app |
 | **Worker** | ✅ Live | Running Celery with 2 concurrent workers |
 | **Redis** | ✅ Live | redis.railway.internal:6379 |
 | **Frontend** | 🔄 Pending | Vercel deployment |
 
-**Railway Project ID:** `9d40e7f3-4b60-4456-8a56-9ade9a9c3321`
+**Railway Project ID:** `your-railway-project-id`
 
 ---
 
@@ -293,14 +293,14 @@ Go to Railway Dashboard → `api` service → **Variables** tab:
 # Required - Copy these values from your local .env
 ENVIRONMENT=production
 REDIS_URL=${REDIS_URL}  # Use Railway reference
-SUPABASE_URL=https://lmkqozgsrwisozebskzd.supabase.co
+SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...  # Your full key
-SUPABASE_JWT_SECRET=puGTEjHQ...  # Your full secret
+SUPABASE_JWT_SECRET=your-jwt-secret  # Your full secret
 OPENAI_API_KEY=sk-proj-...  # Your full key
 PERPLEXITY_API_KEY=pplx-...  # Your full key
-GOOGLE_OAUTH_CLIENT_ID=263123928563-...
-GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-...
-GOOGLE_OAUTH_REFRESH_TOKEN=1//05RU-...
+GOOGLE_OAUTH_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_OAUTH_REFRESH_TOKEN=your-google-oauth-refresh-token
 FRONTEND_ORIGINS=https://your-app.vercel.app  # Update after Vercel deploy
 ```
 
@@ -339,7 +339,7 @@ After deployment completes:
 3. Click **"Generate Domain"**
 4. Copy the URL
 
-**Current Production URL:** `https://api-production-1c52.up.railway.app`
+**Current Production URL:** `https://your-api.up.railway.app`
 
 ---
 
@@ -377,9 +377,9 @@ Go to [Vercel Dashboard](https://vercel.com/dashboard):
 
 | Key | Value | Environment |
 |-----|-------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://lmkqozgsrwisozebskzd.supabase.co` | Production |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://your-project-ref.supabase.co` | Production |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbGci...` (anon key) | Production |
-| `NEXT_PUBLIC_API_URL` | `https://research-agent-api.up.railway.app` | Production |
+| `NEXT_PUBLIC_API_URL` | `https://your-api.up.railway.app` | Production |
 
 ### Step 5.4: Redeploy with Environment Variables
 
@@ -391,7 +391,7 @@ vercel --prod
 ### Step 5.5: Get Frontend URL
 
 After deployment:
-- Your frontend URL will be: `https://research-agent-frontend.vercel.app`
+- Your frontend URL will be: `https://your-frontend.vercel.app`
 - Or a custom domain if configured
 
 ---
@@ -406,7 +406,7 @@ Now that you have the Vercel URL, update Railway:
 2. Update `FRONTEND_ORIGINS`:
 
 ```bash
-FRONTEND_ORIGINS=https://research-agent-frontend.vercel.app
+FRONTEND_ORIGINS=https://your-frontend.vercel.app
 ```
 
 3. Railway will auto-redeploy
@@ -417,15 +417,15 @@ FRONTEND_ORIGINS=https://research-agent-frontend.vercel.app
 ```
 ENVIRONMENT=production
 REDIS_URL=${REDIS_URL}
-SUPABASE_URL=https://lmkqozgsrwisozebskzd.supabase.co
+SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
-SUPABASE_JWT_SECRET=puGTEjHQ...
+SUPABASE_JWT_SECRET=your-jwt-secret
 OPENAI_API_KEY=sk-proj-...
 PERPLEXITY_API_KEY=pplx-...
-GOOGLE_OAUTH_CLIENT_ID=263123928563-...
-GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-...
-GOOGLE_OAUTH_REFRESH_TOKEN=1//05RU-...
-FRONTEND_ORIGINS=https://research-agent-frontend.vercel.app
+GOOGLE_OAUTH_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_OAUTH_REFRESH_TOKEN=your-google-oauth-refresh-token
+FRONTEND_ORIGINS=https://your-frontend.vercel.app
 ```
 
 **Railway Worker Service:**
@@ -435,9 +435,9 @@ FRONTEND_ORIGINS=https://research-agent-frontend.vercel.app
 
 **Vercel Frontend:**
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://lmkqozgsrwisozebskzd.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-NEXT_PUBLIC_API_URL=https://research-agent-api.up.railway.app
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+NEXT_PUBLIC_API_URL=your-api-url
 ```
 
 ---
@@ -448,7 +448,7 @@ NEXT_PUBLIC_API_URL=https://research-agent-api.up.railway.app
 
 ```bash
 # Health check
-curl https://api-production-1c52.up.railway.app/health
+curl https://your-api.up.railway.app/health
 
 # Expected response:
 # {"status":"ok","environment":"production"}
@@ -458,7 +458,7 @@ curl https://api-production-1c52.up.railway.app/health
 
 Open in browser:
 ```
-https://api-production-1c52.up.railway.app/docs
+https://your-api.up.railway.app/docs
 ```
 
 You should see the Swagger documentation.
@@ -467,7 +467,7 @@ You should see the Swagger documentation.
 
 Open in browser:
 ```
-https://research-agent-frontend.vercel.app
+https://your-frontend.vercel.app
 ```
 
 You should see the Research Agent dashboard.
@@ -483,7 +483,7 @@ You should see the Research Agent dashboard.
 
 ```bash
 # Create a test job
-curl -X POST https://api-production-1c52.up.railway.app/jobs \
+curl -X POST https://your-api.up.railway.app/jobs \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -d '{"prompt": "Test research topic", "pipeline": "quick"}'
@@ -638,8 +638,8 @@ curl -X POST https://api-production-1c52.up.railway.app/jobs \
 ## Quick Reference Commands
 
 ```bash
-# Railway (Project ID: 9d40e7f3-4b60-4456-8a56-9ade9a9c3321)
-railway link -p 9d40e7f3-4b60-4456-8a56-9ade9a9c3321  # Link to project
+# Railway (Project ID: your-railway-project-id)
+railway link -p your-railway-project-id  # Link to project
 railway service API              # Switch to API service
 railway service Worker           # Switch to Worker service
 railway logs -n 50               # View last 50 logs
@@ -655,8 +655,8 @@ vercel logs                     # View logs
 vercel env ls                   # List variables
 
 # Testing (Production)
-curl https://api-production-1c52.up.railway.app/health  # Health check
-curl https://api-production-1c52.up.railway.app/docs    # API docs (browser)
+curl https://your-api.up.railway.app/health  # Health check
+curl https://your-api.up.railway.app/docs    # API docs (browser)
 ```
 
 ---
