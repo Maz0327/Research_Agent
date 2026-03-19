@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Agent — Document Viewer (Creator Brief) Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            surface: { 0: '#0a0a0f', 1: '#12121a', 2: '#1a1a25', 3: '#222230', hover: '#2a2a38' },
+            accent: { blue: '#3b82f6', purple: '#8b5cf6', green: '#22c55e', orange: '#f97316', red: '#ef4444', amber: '#f59e0b', cyan: '#06b6d4' },
+            txt: { primary: '#f5f5f5', secondary: '#a1a1aa', muted: '#71717a', disabled: '#52525b' },
+            border: { default: '#27272a', hover: '#3f3f46', accent: '#3b82f6' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #f5f5f5; }
+    .tab-inactive { border-bottom: 2px solid transparent; color: #71717a; }
+    .tab-inactive:hover { color: #a1a1aa; }
+    .section-card { transition: all 0.2s ease; }
+    .section-card:hover { border-color: #3f3f46; }
+    .quote-bar { border-left: 3px solid #8b5cf6; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .inline-edit-btn { opacity: 0; transition: opacity 0.15s; }
+    .section-card:hover .inline-edit-btn { opacity: 1; }
+    .version-pill { transition: all 0.15s; }
+    .version-pill:hover { background: rgba(59,130,246,0.15); }
+  </style>
+</head>
+<body class="bg-surface-0 text-txt-primary font-sans antialiased min-h-screen">
+
+  <!-- Top Bar -->
+  <header class="sticky top-0 z-50 border-b border-border-default bg-surface-0/80 backdrop-blur-md">
+    <div class="flex items-center justify-between px-4 h-12">
+      <div class="flex items-center gap-3">
+        <a href="02-job-detail-3col.html" class="flex items-center gap-1.5 text-txt-muted hover:text-txt-secondary transition-colors text-sm cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          Job Detail
+        </a>
+        <span class="text-txt-disabled">/</span>
+        <span id="breadcrumb-name" class="text-sm font-medium">Creator Brief</span>
+        <span id="breadcrumb-badge" class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent-amber/10 text-accent-amber">Doc 3</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- Version Selector -->
+        <div class="flex items-center gap-1 bg-surface-2 rounded-lg p-0.5">
+          <button class="version-pill px-2 py-1 rounded text-[10px] text-txt-disabled cursor-pointer">v1</button>
+          <button class="version-pill px-2 py-1 rounded bg-accent-blue/10 text-[10px] text-accent-blue font-medium cursor-pointer">v2</button>
+        </div>
+        <!-- Export -->
+        <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-2 border border-border-default text-xs text-txt-secondary hover:bg-surface-3 transition-colors cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+          Export
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Document Tabs (all doc types) -->
+  <div class="sticky top-12 z-10 bg-surface-0/95 backdrop-blur border-b border-border-default px-6">
+    <div class="flex items-center gap-6 text-sm">
+      <button onclick="showDocTab('ledger')" class="doc-tab py-3 tab-inactive transition-colors cursor-pointer" data-tab="ledger">Source Ledger</button>
+      <button onclick="showDocTab('jumpstart')" class="doc-tab py-3 tab-inactive transition-colors cursor-pointer" data-tab="jumpstart">Jump-Start</button>
+      <button onclick="showDocTab('semantic')" class="doc-tab py-3 tab-inactive transition-colors cursor-pointer" data-tab="semantic">Semantic Brief</button>
+      <button onclick="showDocTab('creator')" class="doc-tab py-3 tab-active font-medium transition-colors cursor-pointer" data-tab="creator">Creator Brief</button>
+      <button class="py-3 tab-inactive transition-colors cursor-pointer opacity-40">Producer Packet</button>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- TAB: SOURCE LEDGER (Doc 0)                     -->
+  <!-- ============================================== -->
+  <div id="doc-tab-ledger" class="max-w-4xl mx-auto px-6 py-8 fade-in hidden">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold mb-1">Source Ledger</h1>
+      <p class="text-sm text-txt-muted">Doc 0 &middot; Version 1 &middot; 8 sources collected and scored</p>
+    </div>
+
+    <!-- Source Quality Summary -->
+    <div class="grid grid-cols-4 gap-3 mb-6">
+      <div class="bg-surface-1 border border-border-default rounded-xl p-3 text-center">
+        <p class="text-2xl font-bold">8</p>
+        <p class="text-[10px] text-txt-muted mt-1">Total Sources</p>
+      </div>
+      <div class="bg-surface-1 border border-border-default rounded-xl p-3 text-center">
+        <p class="text-2xl font-bold text-accent-green">5</p>
+        <p class="text-[10px] text-txt-muted mt-1">HIGH Ceiling</p>
+      </div>
+      <div class="bg-surface-1 border border-border-default rounded-xl p-3 text-center">
+        <p class="text-2xl font-bold text-accent-orange">2</p>
+        <p class="text-[10px] text-txt-muted mt-1">MEDIUM Ceiling</p>
+      </div>
+      <div class="bg-surface-1 border border-border-default rounded-xl p-3 text-center">
+        <p class="text-2xl font-bold text-accent-red">1</p>
+        <p class="text-[10px] text-txt-muted mt-1">LOW Ceiling</p>
+      </div>
+    </div>
+
+    <!-- Source Cards (expandable with full data) -->
+    <div class="space-y-3">
+
+      <!-- SRC_1 — Expanded (showing full content) -->
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_1</span>
+            <div class="text-left">
+              <p class="text-sm font-medium">EU AI Act Compliance Guide 2026</p>
+              <p class="text-[10px] text-txt-disabled">europa.eu/ai-act/compliance</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue">Web</span>
+            <span class="text-[10px] text-txt-muted">article_fetched</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform rotate-90" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="border-t border-border-default px-5 py-4 space-y-4">
+          <!-- Metadata -->
+          <div class="grid grid-cols-4 gap-3 text-xs">
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Creator</span><span class="text-txt-muted">European Commission</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Published</span><span class="text-txt-muted">2026-01-15</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Word Count</span><span class="text-txt-muted">3,200 words</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Status</span><span class="text-accent-green">complete</span></div>
+          </div>
+
+          <!-- Skim Summary -->
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Skim Summary</h4>
+            <p class="text-xs text-txt-secondary leading-relaxed bg-surface-2 rounded-lg p-3">Official compliance guide covering requirements for AI providers operating in the EU. Details risk classification tiers, mandatory documentation, and estimated compliance costs by company size. Key data point: pre-Series A startups face $50K-$200K annual compliance burden.</p>
+          </div>
+
+          <!-- Full Text (collapsed by default) -->
+          <div>
+            <button onclick="this.nextElementSibling.classList.toggle('hidden');this.textContent=this.textContent==='Show full text ▸'?'Hide full text ▾':'Show full text ▸'" class="text-[10px] text-accent-blue hover:underline cursor-pointer mb-2">Show full text ▸</button>
+            <div class="hidden bg-surface-2 rounded-lg p-3 max-h-48 overflow-y-auto">
+              <p class="text-[11px] text-txt-muted leading-relaxed font-mono whitespace-pre-wrap">The European Union's Artificial Intelligence Act represents the world's first comprehensive regulatory framework for AI systems. Effective February 2026, all AI providers operating within EU member states must comply with risk-based classification requirements.
+
+HIGH-RISK SYSTEMS (Annex III):
+- Biometric identification and categorization
+- Critical infrastructure management
+- Educational and vocational access
+- Employment and worker management
+- Essential services access
+- Law enforcement applications
+
+COMPLIANCE COST ESTIMATES (by company stage):
+- Pre-seed / Seed: €45,000 - €90,000 annually
+- Series A: €90,000 - €180,000 annually
+- Series B+: €150,000 - €400,000 annually
+
+These estimates include technical documentation, conformity assessment, post-market monitoring systems, and quality management systems required under Articles 9-17.
+
+TIMELINE:
+- February 2025: General-purpose AI obligations
+- August 2025: Prohibited practices enforcement
+- February 2026: Full high-risk compliance
+- August 2027: Product safety integration...</p>
+            </div>
+          </div>
+
+          <!-- Extracted Quotes from this source -->
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Quotes Extracted (2)</h4>
+            <div class="space-y-2">
+              <div class="quote-bar pl-3 py-1.5">
+                <p class="text-xs text-txt-secondary italic">"Pre-Series A companies face an estimated €45,000 to €90,000 in annual compliance costs under the full risk-based framework."</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] font-mono text-accent-purple">QT_4</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Verbatim</span>
+                </div>
+              </div>
+              <div class="quote-bar pl-3 py-1.5">
+                <p class="text-xs text-txt-secondary italic">"Open-source AI providers bear partial liability for downstream applications classified as high-risk under Annex III."</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] font-mono text-accent-purple">QT_5</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Verbatim</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Extracted Claims from this source -->
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Claims Extracted (4)</h4>
+            <div class="space-y-1.5">
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-[10px] font-mono text-accent-green bg-accent-green/10 px-1 py-0.5 rounded shrink-0">CLM_1</span>
+                <p class="text-txt-muted">Compliance costs for pre-Series A startups range €45K-€90K annually</p>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green shrink-0">HIGH</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-[10px] font-mono text-accent-green bg-accent-green/10 px-1 py-0.5 rounded shrink-0">CLM_2</span>
+                <p class="text-txt-muted">Full high-risk compliance deadline is February 2026</p>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green shrink-0">HIGH</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-[10px] font-mono text-accent-green bg-accent-green/10 px-1 py-0.5 rounded shrink-0">CLM_3</span>
+                <p class="text-txt-muted">Six categories of AI systems classified as high-risk under Annex III</p>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green shrink-0">HIGH</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-[10px] font-mono text-accent-green bg-accent-green/10 px-1 py-0.5 rounded shrink-0">CLM_9</span>
+                <p class="text-txt-muted">Open-source providers bear partial liability for downstream high-risk uses</p>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green shrink-0">HIGH</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SRC_2 — Collapsed -->
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_2</span>
+            <div class="text-left">
+              <p class="text-sm font-medium">TechCrunch: AI Startup Compliance Survey</p>
+              <p class="text-[10px] text-txt-disabled">techcrunch.com/2026/02/ai-compliance</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue">Web</span>
+            <span class="text-[10px] text-txt-muted">article_fetched</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+            <span class="text-[10px] text-txt-disabled">3 claims &middot; 1 quote</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-4 space-y-3">
+          <div class="grid grid-cols-4 gap-3 text-xs">
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Creator</span><span class="text-txt-muted">Sarah Chen, TechCrunch</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Published</span><span class="text-txt-muted">2026-02-20</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Word Count</span><span class="text-txt-muted">1,800 words</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Status</span><span class="text-accent-green">complete</span></div>
+          </div>
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Skim Summary</h4>
+            <p class="text-xs text-txt-secondary leading-relaxed bg-surface-2 rounded-lg p-3">Survey of 200+ AI startups examining the impact of EU AI Act compliance costs. Finds YC portfolio companies reporting 2-3 month delays. Contains key quote about two-tier ecosystem forming.</p>
+          </div>
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Key Quote</h4>
+            <div class="quote-bar pl-3 py-1.5">
+              <p class="text-xs text-txt-secondary italic">"We're seeing a two-tier AI ecosystem forming — big tech can afford compliance teams, startups cannot."</p>
+              <div class="flex items-center gap-2 mt-1"><span class="text-[10px] font-mono text-accent-purple">QT_1</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Verbatim</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SRC_3 — Collapsed (YouTube) -->
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_3</span>
+            <div class="text-left">
+              <p class="text-sm font-medium">AI Founders React to EU Regulation</p>
+              <p class="text-[10px] text-txt-disabled">youtube.com/watch?v=xK9mN2 &middot; 18:42</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red">YouTube</span>
+            <span class="text-[10px] text-txt-muted">transcript_grounded</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+            <span class="text-[10px] text-txt-disabled">2 claims &middot; 1 quote</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-4 space-y-3">
+          <div class="grid grid-cols-4 gap-3 text-xs">
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Creator</span><span class="text-txt-muted">AI Insider Podcast</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Published</span><span class="text-txt-muted">2026-02-14</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Duration</span><span class="text-txt-muted">18:42</span></div>
+            <div><span class="text-[10px] text-txt-disabled block mb-0.5">Transcript</span><span class="text-accent-green">supadata &middot; high quality</span></div>
+          </div>
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Skim Summary</h4>
+            <p class="text-xs text-txt-secondary leading-relaxed bg-surface-2 rounded-lg p-3">Panel of 3 EU AI founders discussing compliance experiences. Two have begun relocation process to Singapore. Contains approximate quote about founders preferring Southeast Asia relocation.</p>
+          </div>
+          <div>
+            <h4 class="text-[10px] font-medium text-txt-muted uppercase tracking-wider mb-1.5">Key Quote</h4>
+            <div class="quote-bar pl-3 py-1.5" style="border-left-color: #f97316;">
+              <p class="text-xs text-txt-secondary italic">"Multiple founders mentioned they would rather relocate their AI labs to Southeast Asia than deal with EU compliance paperwork."</p>
+              <div class="flex items-center gap-2 mt-1"><span class="text-[10px] font-mono text-accent-purple">QT_3</span><span class="text-[10px] text-txt-muted">@12:34</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">Approximate</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SRC_4 through SRC_8 — Collapsed summary rows -->
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_4</span>
+            <p class="text-sm font-medium text-left">EU Startup Relocation Survey Data 2026</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue">Web</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">MEDIUM</span>
+            <span class="text-[10px] text-txt-disabled">2 claims</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-3 text-xs text-txt-muted">Survey data from Statista. Key stat: 37% of EU AI startups exploring relocation. article_fetched mode. 1,200 words.</div>
+      </div>
+
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_5</span>
+            <p class="text-sm font-medium text-left">YC Partner: Compliance Is Killing AI Innovation</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red">YouTube</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">MEDIUM</span>
+            <span class="text-[10px] text-txt-disabled">3 claims &middot; caption_grounded</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-3 text-xs text-txt-muted">YC Partner interview, 24:15. Auto-captions (medium quality). Reports 2-3 month launch delays across portfolio companies.</div>
+      </div>
+
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_6</span>
+            <p class="text-sm font-medium text-left">C-SPAN: Senate AI Regulation Hearing</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red">YouTube</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+            <span class="text-[10px] text-txt-disabled">5 claims &middot; 1 quote</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-3 text-xs text-txt-muted">Full Senate hearing, 1:42:30. transcript_grounded via supadata. Bipartisan support for risk-tiered approach. Contains QT_2 verbatim quote.</div>
+      </div>
+
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_7</span>
+            <p class="text-sm font-medium text-left">Reuters: US AI Policy Framework Draft</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue">Web</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+            <span class="text-[10px] text-txt-disabled">3 claims</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-3 text-xs text-txt-muted">Reuters exclusive on draft framework. Safe harbor provisions for open-source. No binding legislation before Q3 2026. 2,100 words.</div>
+      </div>
+
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.chevron').classList.toggle('rotate-90')" class="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">SRC_8</span>
+            <p class="text-sm font-medium text-left">Singapore AI Hub Pitch Deck (uploaded)</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-purple/10 text-accent-purple">Upload</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red">LOW</span>
+            <span class="text-[10px] text-txt-disabled">ocr_extracted &middot; 0 claims</span>
+            <svg class="w-4 h-4 text-txt-muted chevron transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+          </div>
+        </button>
+        <div class="hidden border-t border-border-default px-5 py-3">
+          <div class="text-xs text-txt-muted mb-2">User uploaded PDF, 12 pages. OCR quality: medium. No claims extracted — content was promotional rather than factual.</div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">Warning</span>
+            <span class="text-[10px] text-txt-disabled">Quotes marked as unverified per ocr_extracted mode rules</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Indexes Summary -->
+    <div class="bg-surface-1 border border-border-default rounded-xl p-5 mt-4">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-6 h-6 rounded bg-surface-3 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-txt-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Indexes</h2>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-surface-2 rounded-lg p-3 text-center">
+          <p class="text-lg font-bold text-accent-purple">7</p>
+          <p class="text-[10px] text-txt-muted">Quotes (5 verbatim, 2 approx)</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 text-center">
+          <p class="text-lg font-bold text-accent-green">23</p>
+          <p class="text-[10px] text-txt-muted">Claims (15 HIGH, 8 MEDIUM)</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 text-center">
+          <p class="text-lg font-bold text-accent-blue">0</p>
+          <p class="text-[10px] text-txt-muted">Observations (no video_only)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quality Gate Results -->
+    <div class="bg-surface-1 border border-border-default rounded-xl p-5 mt-4">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-6 h-6 rounded bg-accent-green/10 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Quality Gate</h2>
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">PASSED</span>
+      </div>
+      <div class="grid grid-cols-3 gap-4 text-xs text-txt-muted">
+        <div><span class="text-txt-disabled block text-[10px] mb-0.5">Dedup Check</span>0 duplicates removed</div>
+        <div><span class="text-txt-disabled block text-[10px] mb-0.5">Junk Filtered</span>2 paywalls, 1 ad page removed</div>
+        <div><span class="text-txt-disabled block text-[10px] mb-0.5">Min Score</span>All sources above 0.6 threshold</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- TAB: JUMP-START (Doc 1) — Placeholder          -->
+  <!-- ============================================== -->
+  <div id="doc-tab-jumpstart" class="max-w-4xl mx-auto px-6 py-8 fade-in hidden">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold mb-1">Jump-Start Directions</h1>
+      <p class="text-sm text-txt-muted">Doc 1 &middot; Version 1 &middot; 6 search directions, 4 knowledge gaps</p>
+    </div>
+
+    <!-- Knowledge Gaps -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 rounded bg-accent-orange/10 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-accent-orange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Knowledge Gaps</h2>
+        <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">4 gaps</span>
+      </div>
+      <div class="space-y-3">
+        <div class="flex items-start gap-3 p-3 bg-surface-2 rounded-lg">
+          <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded shrink-0">GAP_1</span>
+          <div>
+            <p class="text-sm text-txt-secondary">No data on actual enforcement actions or penalties applied under the EU AI Act so far.</p>
+            <p class="text-[10px] text-txt-disabled mt-1">Severity: HIGH — Central to assessing real vs theoretical risk</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 p-3 bg-surface-2 rounded-lg">
+          <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded shrink-0">GAP_2</span>
+          <div>
+            <p class="text-sm text-txt-secondary">Missing perspective from Asian regulatory bodies on their strategy to attract AI talent.</p>
+            <p class="text-[10px] text-txt-disabled mt-1">Severity: MEDIUM — Would strengthen regulatory arbitrage narrative</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 p-3 bg-surface-2 rounded-lg">
+          <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded shrink-0">GAP_3</span>
+          <div>
+            <p class="text-sm text-txt-secondary">No founder interviews from companies that chose to stay and comply — survivorship bias in relocation data.</p>
+            <p class="text-[10px] text-txt-disabled mt-1">Severity: HIGH — One-sided narrative without this</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-3 p-3 bg-surface-2 rounded-lg">
+          <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded shrink-0">GAP_4</span>
+          <div>
+            <p class="text-sm text-txt-secondary">Insurance and legal services market forming around AI compliance — costs may drop significantly.</p>
+            <p class="text-[10px] text-txt-disabled mt-1">Severity: MEDIUM — Could undermine the $120K compliance narrative</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Directions -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 rounded bg-accent-blue/10 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Suggested Search Directions</h2>
+        <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">6 directions</span>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <p class="text-xs font-medium mb-1">"EU AI Act enforcement cases 2026"</p>
+          <p class="text-[10px] text-txt-muted">Fills GAP_1 — check EUR-Lex, DG Connect press releases</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <p class="text-xs font-medium mb-1">"Singapore AI startup incentives 2026"</p>
+          <p class="text-[10px] text-txt-muted">Fills GAP_2 — IMDA, EDB official announcements</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <p class="text-xs font-medium mb-1">"AI startups that stayed in EU compliance success"</p>
+          <p class="text-[10px] text-txt-muted">Fills GAP_3 — counter-narrative interviews</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <p class="text-xs font-medium mb-1">"AI compliance-as-a-service startups"</p>
+          <p class="text-[10px] text-txt-muted">Fills GAP_4 — emerging market reducing costs</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <p class="text-xs font-medium mb-1">"UK AI regulation post-Brexit vs EU"</p>
+          <p class="text-[10px] text-txt-muted">Additional angle — UK as alternative regulatory regime</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <p class="text-xs font-medium mb-1">"VC funding AI regulation impact 2025-2026"</p>
+          <p class="text-[10px] text-txt-muted">Funding data to quantify chilling effect on investment</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- TAB: SEMANTIC BRIEF (Doc 2)                    -->
+  <!-- ============================================== -->
+  <div id="doc-tab-semantic" class="max-w-4xl mx-auto px-6 py-8 fade-in hidden">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold mb-1">Semantic Brief</h1>
+      <p class="text-sm text-txt-muted">Doc 2 &middot; Version 2 &middot; 3 themes, 1 tension, 23 claims</p>
+    </div>
+
+    <!-- Themes -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 rounded bg-accent-purple/10 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Cross-Source Themes</h2>
+        <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">3 themes</span>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Theme 1 -->
+        <div class="bg-surface-2 rounded-lg p-4 border border-border-default">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded">THEME_1</span>
+            <h3 class="text-sm font-medium">Regulatory Arbitrage</h3>
+          </div>
+          <p class="text-xs text-txt-muted leading-relaxed mb-2">Divergent regulatory approaches across jurisdictions are creating a global competition for AI talent, where startups relocate to minimize compliance burden.</p>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-txt-disabled">Supported by: KP_1, KP_2, KP_4</span>
+            <span class="text-[10px] text-txt-disabled">&middot; Sources: SRC_1, SRC_2, SRC_3, SRC_4</span>
+          </div>
+        </div>
+
+        <!-- Theme 2 -->
+        <div class="bg-surface-2 rounded-lg p-4 border border-border-default">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded">THEME_2</span>
+            <h3 class="text-sm font-medium">Size-Dependent Compliance Burden</h3>
+          </div>
+          <p class="text-xs text-txt-muted leading-relaxed mb-2">Regulatory costs disproportionately impact small companies, creating a moat that benefits incumbents — the exact opposite of the regulation's intended effect.</p>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-txt-disabled">Supported by: KP_1, KP_5</span>
+            <span class="text-[10px] text-txt-disabled">&middot; Sources: SRC_1, SRC_2, SRC_5</span>
+          </div>
+        </div>
+
+        <!-- Theme 3 -->
+        <div class="bg-surface-2 rounded-lg p-4 border border-border-default">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded">THEME_3</span>
+            <h3 class="text-sm font-medium">Open-Source Regulatory Divergence</h3>
+          </div>
+          <p class="text-xs text-txt-muted leading-relaxed mb-2">The EU and US are taking fundamentally different approaches to regulating open-source AI models, creating uncertainty for the open-source AI community.</p>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-txt-disabled">Supported by: KP_4</span>
+            <span class="text-[10px] text-txt-disabled">&middot; Sources: SRC_1, SRC_3, SRC_6</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tensions -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 rounded bg-accent-orange/10 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-accent-orange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Tensions</h2>
+        <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">1 tension</span>
+      </div>
+
+      <div class="bg-surface-2 rounded-lg p-4 border border-accent-orange/20">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded">TEN_1</span>
+          <h3 class="text-sm font-medium text-accent-orange">Innovation Speed vs Safety Requirements</h3>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-3">
+          <div class="border border-border-default rounded-lg p-3">
+            <p class="text-[10px] font-medium text-accent-green mb-1">Side A: Regulation supporters</p>
+            <p class="text-xs text-txt-muted">AI safety risks are real and growing. Without guardrails, harmful systems will be deployed at scale. Compliance costs are the price of responsible innovation.</p>
+            <p class="text-[10px] text-txt-disabled mt-1.5">Based on: SRC_6, SRC_7</p>
+          </div>
+          <div class="border border-border-default rounded-lg p-3">
+            <p class="text-[10px] font-medium text-accent-red mb-1">Side B: Deregulation advocates</p>
+            <p class="text-xs text-txt-muted">Current regulations are too broad, too expensive, and too early. They protect incumbents, stifle innovation, and drive talent to less regulated jurisdictions.</p>
+            <p class="text-[10px] text-txt-disabled mt-1.5">Based on: SRC_2, SRC_3, SRC_5</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Claims Summary -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 rounded bg-accent-green/10 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-accent-green" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Claims Summary</h2>
+        <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">23 claims</span>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="text-center p-3 bg-surface-2 rounded-lg">
+          <p class="text-xl font-bold text-accent-green">15</p>
+          <p class="text-[10px] text-txt-muted">HIGH confidence</p>
+        </div>
+        <div class="text-center p-3 bg-surface-2 rounded-lg">
+          <p class="text-xl font-bold text-accent-orange">8</p>
+          <p class="text-[10px] text-txt-muted">MEDIUM confidence</p>
+        </div>
+        <div class="text-center p-3 bg-surface-2 rounded-lg">
+          <p class="text-xl font-bold text-accent-red">0</p>
+          <p class="text-[10px] text-txt-muted">LOW confidence</p>
+        </div>
+      </div>
+      <div class="mt-4 text-[10px] text-txt-disabled">
+        Top claims: CLM_1 (compliance cost $50K-$200K, HIGH), CLM_4 ($120K threshold cited, HIGH), CLM_7 (37% relocation survey, MEDIUM), CLM_12 (bipartisan support, HIGH)
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- TAB: CREATOR BRIEF (Doc 3) — existing content  -->
+  <!-- ============================================== -->
+  <div id="doc-tab-creator" class="max-w-4xl mx-auto px-6 py-8 fade-in">
+
+    <!-- Document Title + Meta -->
+    <div class="mb-8">
+      <div class="flex items-start justify-between">
+        <div>
+          <h1 class="text-2xl font-bold mb-1">AI Regulation Impact on Startups 2026</h1>
+          <p class="text-sm text-txt-muted">Creator Brief &middot; Version 2 &middot; Generated from 8 sources, 23 claims</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-txt-muted hover:text-txt-secondary hover:bg-surface-2 transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25" /></svg>
+            Copy
+          </button>
+          <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-txt-muted hover:text-txt-secondary hover:bg-surface-2 transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+            Edit
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== -->
+    <!-- SECTION: Hook -->
+    <!-- ===================== -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4 relative">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-accent-amber/10 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-accent-amber" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+          </div>
+          <h2 class="text-sm font-semibold">Hook</h2>
+        </div>
+        <button class="inline-edit-btn flex items-center gap-1 px-2 py-1 rounded text-[10px] text-txt-muted hover:text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+          Edit section
+        </button>
+      </div>
+      <p class="text-sm text-txt-secondary leading-relaxed">
+        What if the very regulations meant to make AI safer are actually killing the startups that could build the safest AI? As the EU AI Act kicks in and US states pile on their own rules, early-stage founders are facing a brutal choice: <span class="text-accent-amber font-medium">spend $120K on compliance or move to Singapore</span>.
+      </p>
+      <div class="mt-3 flex items-center gap-2">
+        <span class="text-[10px] text-txt-disabled">References: CLM_1, CLM_4, THEME_1</span>
+      </div>
+    </div>
+
+    <!-- ===================== -->
+    <!-- SECTION: Key Findings -->
+    <!-- ===================== -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4 relative">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-accent-blue/10 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
+          </div>
+          <h2 class="text-sm font-semibold">Key Findings</h2>
+          <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">5 points</span>
+        </div>
+        <button class="inline-edit-btn flex items-center gap-1 px-2 py-1 rounded text-[10px] text-txt-muted hover:text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+          Edit section
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Finding 1 -->
+        <div class="flex items-start gap-3">
+          <div class="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span class="text-[9px] font-bold text-accent-green">1</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm text-txt-secondary leading-relaxed">Compliance costs for EU AI Act range from <span class="font-medium text-txt-primary">$50K-$200K annually</span> for startups under Series A, confirmed by three independent sources.</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[10px] font-mono text-accent-blue">KP_1</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+              <span class="text-[10px] text-txt-disabled">SRC_1, SRC_2, SRC_5</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Finding 2 -->
+        <div class="flex items-start gap-3">
+          <div class="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span class="text-[9px] font-bold text-accent-green">2</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm text-txt-secondary leading-relaxed"><span class="font-medium text-txt-primary">37% of EU-based AI startups</span> are actively exploring relocation to less regulated jurisdictions, particularly Singapore and UAE.</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[10px] font-mono text-accent-blue">KP_2</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">MEDIUM</span>
+              <span class="text-[10px] text-txt-disabled">SRC_4</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Finding 3 -->
+        <div class="flex items-start gap-3">
+          <div class="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span class="text-[9px] font-bold text-accent-green">3</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm text-txt-secondary leading-relaxed">US Congressional hearing established <span class="font-medium text-txt-primary">bipartisan support for risk-tiered AI regulation</span>, but no binding legislation expected before Q3 2026.</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[10px] font-mono text-accent-blue">KP_3</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+              <span class="text-[10px] text-txt-disabled">SRC_6, SRC_7</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Finding 4 -->
+        <div class="flex items-start gap-3">
+          <div class="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span class="text-[9px] font-bold text-accent-green">4</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm text-txt-secondary leading-relaxed">Open-source AI models face <span class="font-medium text-txt-primary">divergent regulatory treatment</span> — EU holds providers partially liable, US proposes safe harbor protections.</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[10px] font-mono text-accent-blue">KP_4</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+              <span class="text-[10px] text-txt-disabled">SRC_1, SRC_3, SRC_6</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Finding 5 -->
+        <div class="flex items-start gap-3">
+          <div class="w-5 h-5 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span class="text-[9px] font-bold text-accent-green">5</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm text-txt-secondary leading-relaxed">Y Combinator portfolio companies report <span class="font-medium text-txt-primary">2-3 month delays</span> in product launches due to AI compliance reviews.</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[10px] font-mono text-accent-blue">KP_5</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">MEDIUM</span>
+              <span class="text-[10px] text-txt-disabled">SRC_2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== -->
+    <!-- SECTION: Quotes -->
+    <!-- ===================== -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4 relative">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-accent-purple/10 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+          </div>
+          <h2 class="text-sm font-semibold">Notable Quotes</h2>
+          <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">3 quotes</span>
+        </div>
+        <button class="inline-edit-btn flex items-center gap-1 px-2 py-1 rounded text-[10px] text-txt-muted hover:text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+          Edit section
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div class="quote-bar pl-4 py-2">
+          <p class="text-sm text-txt-secondary italic leading-relaxed">"We're seeing a two-tier AI ecosystem forming — big tech can afford compliance teams, startups cannot."</p>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-[10px] font-mono text-accent-purple">QT_1</span>
+            <span class="text-[10px] text-txt-muted">TechCrunch, SRC_2</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Verbatim</span>
+          </div>
+        </div>
+
+        <div class="quote-bar pl-4 py-2">
+          <p class="text-sm text-txt-secondary italic leading-relaxed">"The AI Act is well-intentioned but the compliance timeline is completely disconnected from startup reality."</p>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-[10px] font-mono text-accent-purple">QT_2</span>
+            <span class="text-[10px] text-txt-muted">C-SPAN Hearing, SRC_6</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Verbatim</span>
+          </div>
+        </div>
+
+        <div class="quote-bar pl-4 py-2" style="border-left-color: #f97316;">
+          <p class="text-sm text-txt-secondary italic leading-relaxed">"Multiple founders mentioned they would rather relocate their AI labs to Southeast Asia than deal with EU compliance paperwork."</p>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-[10px] font-mono text-accent-purple">QT_3</span>
+            <span class="text-[10px] text-txt-muted">YouTube transcript, SRC_3</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">Approximate</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== -->
+    <!-- SECTION: Narrative -->
+    <!-- ===================== -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4 relative">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-accent-cyan/10 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-accent-cyan" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+          </div>
+          <h2 class="text-sm font-semibold">Narrative Arc</h2>
+        </div>
+        <button class="inline-edit-btn flex items-center gap-1 px-2 py-1 rounded text-[10px] text-txt-muted hover:text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+          Edit section
+        </button>
+      </div>
+
+      <div class="prose prose-sm max-w-none">
+        <p class="text-sm text-txt-secondary leading-relaxed mb-3">
+          The AI regulation landscape in 2026 presents a paradox that's reshaping the global startup ecosystem. As governments move to contain the perceived risks of artificial intelligence, they're inadvertently creating a new form of regulatory arbitrage that favors incumbents over innovators.
+        </p>
+        <p class="text-sm text-txt-secondary leading-relaxed mb-3">
+          At the center of this story is the EU AI Act, which imposes the world's most comprehensive AI regulations. While large tech companies can absorb compliance costs, <span class="text-txt-primary font-medium">early-stage startups face an existential choice</span>: invest scarce capital in compliance or risk operating in regulatory gray zones. The data shows this isn't theoretical — real companies are making real decisions to leave.
+        </p>
+        <p class="text-sm text-txt-secondary leading-relaxed">
+          Meanwhile, the US approach remains fragmented. A bipartisan congressional hearing signals eventual federal regulation, but the current patchwork of state-level rules creates its own compliance burden. The tension between innovation speed and safety requirements remains the defining challenge for AI startups worldwide.
+        </p>
+      </div>
+
+      <div class="mt-4 flex items-center gap-2">
+        <span class="text-[10px] text-txt-disabled">References: THEME_1, THEME_2, TEN_1 &middot; Based on KP_1 through KP_5</span>
+      </div>
+    </div>
+
+    <!-- ===================== -->
+    <!-- SECTION: Content Angles -->
+    <!-- ===================== -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4 relative">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-accent-green/10 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-accent-green" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>
+          </div>
+          <h2 class="text-sm font-semibold">Content Angles</h2>
+          <span class="text-[10px] bg-surface-3 text-txt-muted px-1.5 py-0.5 rounded">4 angles</span>
+        </div>
+        <button class="inline-edit-btn flex items-center gap-1 px-2 py-1 rounded text-[10px] text-txt-muted hover:text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+          Edit section
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-bold text-accent-amber bg-accent-amber/10 px-1.5 py-0.5 rounded">Video</span>
+          </div>
+          <h4 class="text-xs font-medium mb-1">"The $120K Question: Why AI Startups Are Fleeing Europe"</h4>
+          <p class="text-[10px] text-txt-muted">Explainer format. Use compliance cost data as hook. Compare EU vs Singapore startup experiences.</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-bold text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">Thread</span>
+          </div>
+          <h4 class="text-xs font-medium mb-1">"I interviewed 15 AI founders about EU regulation. Here's what they said."</h4>
+          <p class="text-[10px] text-txt-muted">Twitter/X thread. Lead with the 37% relocation stat. Thread each quote as a standalone post.</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-bold text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded">Podcast</span>
+          </div>
+          <h4 class="text-xs font-medium mb-1">"The Great AI Regulation Debate"</h4>
+          <p class="text-[10px] text-txt-muted">Panel format. Use the tension (innovation vs safety) as central debate question.</p>
+        </div>
+        <div class="bg-surface-2 rounded-lg p-3 border border-border-default hover:border-border-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[10px] font-bold text-accent-green bg-accent-green/10 px-1.5 py-0.5 rounded">Article</span>
+          </div>
+          <h4 class="text-xs font-medium mb-1">"A Founder's Guide to AI Compliance in 2026"</h4>
+          <p class="text-[10px] text-txt-muted">Practical guide. Break down costs by company stage. Include compliance checklist from SRC_1.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== -->
+    <!-- SECTION: Provenance -->
+    <!-- ===================== -->
+    <div class="section-card bg-surface-1 border border-border-default rounded-xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-6 h-6 rounded bg-surface-3 flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-txt-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.386-3.04l4.5-4.5a4.5 4.5 0 00-6.364-6.364L8.257 6.257" /></svg>
+        </div>
+        <h2 class="text-sm font-semibold">Provenance Chain</h2>
+      </div>
+      <div class="text-[11px] text-txt-muted font-mono leading-relaxed bg-surface-2 rounded-lg p-3 overflow-x-auto">
+        <p>Doc 3 (Creator Brief v2)</p>
+        <p class="ml-4">-> Doc 2 (Semantic Brief v2): THEME_1, THEME_2, THEME_3, TEN_1</p>
+        <p class="ml-8">-> Doc 0 (Source Ledger v1): SRC_1..SRC_8</p>
+        <p class="ml-4">-> Claims: CLM_1..CLM_23 (23 total, 15 HIGH, 8 MEDIUM)</p>
+        <p class="ml-4">-> Quotes: QT_1..QT_7 (5 verbatim, 2 approximate)</p>
+        <p class="mt-2 text-accent-green">All chains valid. No orphaned references.</p>
+      </div>
+    </div>
+
+  </div> <!-- /doc-tab-creator -->
+
+  <script>
+    window.showDocTab = function(name) {
+      document.querySelectorAll('[id^="doc-tab-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById('doc-tab-' + name).classList.remove('hidden');
+      document.querySelectorAll('.doc-tab').forEach(btn => {
+        btn.classList.remove('tab-active', 'font-medium');
+        btn.classList.add('tab-inactive');
+      });
+      const activeBtn = document.querySelector('.doc-tab[data-tab="' + name + '"]');
+      if (activeBtn) {
+        activeBtn.classList.remove('tab-inactive');
+        activeBtn.classList.add('tab-active', 'font-medium');
+      }
+      const names = { ledger: 'Source Ledger', jumpstart: 'Jump-Start', semantic: 'Semantic Brief', creator: 'Creator Brief' };
+      const badges = { ledger: 'Doc 0', jumpstart: 'Doc 1', semantic: 'Doc 2', creator: 'Doc 3' };
+      document.getElementById('breadcrumb-name').textContent = names[name] || name;
+      document.getElementById('breadcrumb-badge').textContent = badges[name] || '';
+      window.scrollTo(0, 0);
+    };
+  </script>
+</body>
+</html>

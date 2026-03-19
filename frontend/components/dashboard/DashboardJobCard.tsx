@@ -1,154 +1,88 @@
+'use client';
+
 /**
- * DashboardJobCard - Compact job status card for dashboard overview.
- * Shows job status, progress, ETA, and elapsed time.
- * Clicks navigate to appropriate tab in Jobs page.
+ * DashboardJobCard — compact job card matching the mockup design.
+ * Shows title, mode badge, source count, progress bar (running), status badge with pulse dot.
+ * Navigates to /jobs/[id] on click.
  */
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { motion } from 'framer-motion';
-import { statusConfig, pipelineLabels } from '../job-card/job-card-config';
-import type { Job } from '../../store/jobs';
-import { getStageLabel } from '../../lib/constants';
-import { formatRelativeTime, formatElapsedTime, estimateETA } from '../../lib/time-utils';
+import { useRouter } from 'next/navigation';
+import { pipelineLabels } from '@/components/job-card/job-card-config';
+import { formatRelativeTime } from '@/lib/time-utils';
+import type { Job } from '@/store/jobs';
 
 interface DashboardJobCardProps {
   job: Job;
-  /** Animation delay for staggered entrance */
-  delay?: number;
 }
 
-export function DashboardJobCard({ job, delay = 0 }: DashboardJobCardProps) {
+// Per-status badge styling matching mockup token palette
+const STATUS_BADGE: Record<string, { label: string; className: string; pulse?: boolean }> = {
+  running:                { label: 'Running',       className: 'text-[#22c55e] bg-[#22c55e]/10', pulse: true },
+  queued:                 { label: 'Queued',         className: 'text-[#71717a] bg-[#222230]' },
+  completed:              { label: 'Completed',      className: 'text-[#3b82f6] bg-[#3b82f6]/10' },
+  completed_with_warnings:{ label: 'With Warnings',  className: 'text-[#f59e0b] bg-[#f59e0b]/10' },
+  failed:                 { label: 'Failed',         className: 'text-[#ef4444] bg-[#ef4444]/10' },
+  failed_insufficient:    { label: 'Insufficient',   className: 'text-[#f97316] bg-[#f97316]/10' },
+  cancelled:              { label: 'Cancelled',      className: 'text-[#f97316] bg-[#f97316]/10' },
+  disambiguating:         { label: 'Needs Input',    className: 'text-[#f59e0b] bg-[#f59e0b]/10' },
+};
+
+export function DashboardJobCard({ job }: DashboardJobCardProps) {
   const router = useRouter();
-  const [elapsedTime, setElapsedTime] = useState(formatElapsedTime(job.stage_started_at || job.created_at));
-  const [eta, setEta] = useState(estimateETA(job.progress_percent, job.stage_started_at || job.created_at));
-  
-  const config = statusConfig[job.status as keyof typeof statusConfig] || statusConfig.queued;
-  const isActive = job.status === 'running' || job.status === 'queued';
-  const isCompleted = job.status === 'completed' || job.status === 'completed_with_warnings';
-  const isFailed = job.status === 'failed' || job.status === 'failed_insufficient' || job.status === 'cancelled';
-  
-  // Update elapsed time every second for running jobs
-  useEffect(() => {
-    if (!isActive) return;
-    
-    const interval = setInterval(() => {
-      setElapsedTime(formatElapsedTime(job.stage_started_at || job.created_at));
-      setEta(estimateETA(job.progress_percent, job.stage_started_at || job.created_at));
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [isActive, job.progress_percent, job.stage_started_at, job.created_at]);
+  const isRunning = job.status === 'running';
+  const isFailed = job.status === 'failed' || job.status === 'failed_insufficient';
+  const title = job.title || job.prompt || 'Untitled Job';
+  const modeLabel = pipelineLabels[job.pipeline] ?? job.pipeline;
+  const sourceCount = job.artifacts?.doc_urls?.length ?? 0;
 
-  // Always navigate to job detail page
-  const handleClick = () => {
-    router.push(`/jobs/${job.id}`);
-  };
-
-  // Left accent border color by status
-  const leftBorder = isActive
-    ? job.status === 'running' ? 'border-l-blue-500' : 'border-l-yellow-500'
-    : isCompleted ? 'border-l-green-500'
-    : 'border-l-red-600';
+  const badge = STATUS_BADGE[job.status] ?? STATUS_BADGE.queued;
+  const borderClass = isFailed ? 'border-[#ef4444]/20 hover:border-[#ef4444]/40' : 'border-[#27272a] hover:border-[#3f3f46]';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * 0.05, duration: 0.2 }}
-      onClick={handleClick}
-      className={`relative py-3.5 px-3 bg-gray-900 rounded-lg border border-l-2 ${leftBorder} ${config.borderColor} hover:border-gray-600 cursor-pointer transition-all group`}
+    <div
+      onClick={() => router.push(`/jobs/${job.id}`)}
+      className={`bg-[#12121a] border ${borderClass} rounded-xl p-4 cursor-pointer transition-all hover:shadow-[0_0_24px_rgba(59,130,246,0.08)]`}
     >
-      <div className="flex items-center gap-3">
-        {/* Status indicator */}
-        <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${config.bgColor} flex items-center justify-center`}>
-          {isActive ? (
-            <div className={`w-3 h-3 rounded-full ${config.dotColor} ${job.status === 'running' ? 'animate-pulse' : ''}`} />
-          ) : isCompleted ? (
-            <svg className={`w-4 h-4 ${config.textColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          ) : (
-            <svg className={`w-4 h-4 ${config.textColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          )}
-        </div>
-        
-        {/* Job info */}
+      {/* Title row + status badge */}
+      <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4 className="text-sm font-medium text-gray-100 truncate">
-              {job.title || job.prompt || 'Untitled Job'}
-            </h4>
-            <span className={`flex-shrink-0 px-1.5 py-0.5 text-xs rounded ${config.bgColor} ${config.textColor}`}>
-              {config.label}
-            </span>
-          </div>
-          
-          {/* Progress details for active jobs */}
-          {isActive && (
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-              <span>{job.pass_detail || getStageLabel(job.stage)}</span>
-            </div>
-          )}
-          
-          {/* Time info for completed jobs */}
-          {isCompleted && (
-            <div className="text-xs text-gray-500 mt-0.5">
-              {formatRelativeTime(job.created_at)}
-              {job.status === 'completed_with_warnings' && job.warning_count && (
-                <span className="ml-2 text-yellow-400">
-                  {job.warning_count} warning{job.warning_count > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          )}
-          
-          {/* Error for failed jobs */}
-          {isFailed && job.error && (
-            <p className="text-xs text-red-400 truncate mt-0.5">{job.error}</p>
-          )}
+          <h3 className="text-sm font-semibold text-[#f5f5f5] truncate">{title}</h3>
+          <p className="text-xs text-[#71717a] mt-0.5">
+            {modeLabel}
+            {sourceCount > 0 && <> &middot; {sourceCount} source{sourceCount !== 1 ? 's' : ''}</>}
+          </p>
         </div>
-        
-        {/* Progress/time info */}
-        <div className="flex-shrink-0 text-right">
-          {isActive && (
-            <div className="text-right">
-              <span className={`text-sm font-mono ${config.textColor}`}>{job.progress_percent}%</span>
-              <div className="text-xs text-gray-500 mt-0.5">
-                {job.status === 'running' && job.progress_percent > 0 ? (
-                  <span>ETA: {eta}</span>
-                ) : (
-                  <span>{elapsedTime}</span>
-                )}
-              </div>
-            </div>
+        <span className={`flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${badge.className}`}>
+          {badge.pulse && (
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
           )}
-          
-          {/* Arrow indicator */}
-          <svg
-            className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors mt-1"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
+          {badge.label}
+        </span>
       </div>
-      
-      {/* Progress bar for active jobs */}
-      {isActive && (
-        <div className="mt-2 h-1 bg-gray-800 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${job.progress_percent}%` }}
-            transition={{ duration: 0.5 }}
-            className={`h-full rounded-full ${job.status === 'running' ? 'bg-blue-500' : 'bg-yellow-500'}`}
-          />
+
+      {/* Progress bar — running jobs only */}
+      {isRunning && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between text-[10px] text-[#71717a] mb-1">
+            <span>{job.stage ?? 'Processing'}</span>
+            <span>{job.progress_percent ?? 0}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-[#222230] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-all duration-500"
+              style={{ width: `${job.progress_percent ?? 0}%` }}
+            />
+          </div>
         </div>
       )}
-    </motion.div>
+
+      {/* Error message — failed jobs */}
+      {isFailed && job.error && (
+        <p className="text-xs text-[#ef4444]/80 mb-2 line-clamp-1">{job.error}</p>
+      )}
+
+      {/* Footer: time ago */}
+      <p className="text-[10px] text-[#71717a]">{formatRelativeTime(job.created_at)}</p>
+    </div>
   );
 }
 

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Local UI preferences store with localStorage persistence.
  * These preferences are client-side only and don't sync with backend.

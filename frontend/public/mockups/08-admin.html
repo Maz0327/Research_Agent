@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Agent — Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'] },
+        colors: {
+          surface: { 0: '#0a0a0f', 1: '#12121a', 2: '#1a1a25', 3: '#222230', hover: '#2a2a38' },
+          accent: { blue: '#3b82f6', purple: '#8b5cf6', green: '#22c55e', orange: '#f97316', red: '#ef4444' },
+          txt: { primary: '#f5f5f5', secondary: '#a1a1aa', muted: '#71717a', disabled: '#52525b' },
+          border: { default: '#27272a', hover: '#3f3f46' }
+        }
+      }}
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    .tab-active { background: rgba(59,130,246,0.1); color: #3b82f6; border-color: #3b82f6; }
+  </style>
+</head>
+<body class="bg-surface-0 text-txt-primary font-sans antialiased min-h-screen">
+
+  <!-- Header with Admin Badge -->
+  <header class="sticky top-0 z-50 border-b border-border-default bg-surface-0/80 backdrop-blur-md">
+    <div class="flex items-center justify-between px-6 h-14">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-red to-accent-orange flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+        </div>
+        <span class="text-sm font-semibold">Admin Panel</span>
+        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red">Admin</span>
+      </div>
+      <a href="01-dashboard.html" class="text-xs text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer">Back to Dashboard</a>
+    </div>
+  </header>
+
+  <div class="flex">
+    <!-- Admin Sidebar -->
+    <aside class="w-48 border-r border-border-default min-h-[calc(100vh-3.5rem)] p-3 flex flex-col gap-1">
+      <button onclick="showTab('jobs')" class="admin-tab flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors cursor-pointer tab-active border border-transparent">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25" /></svg>
+        Jobs
+      </button>
+      <button onclick="showTab('users')" class="admin-tab flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer border border-transparent">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+        Users
+      </button>
+      <button onclick="showTab('errors')" class="admin-tab flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left text-txt-secondary hover:bg-surface-hover transition-colors cursor-pointer border border-transparent">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+        Errors
+        <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded-full bg-accent-red text-white font-bold">3</span>
+      </button>
+    </aside>
+
+    <!-- Content -->
+    <main class="flex-1 p-6">
+
+      <!-- JOBS TAB -->
+      <div id="tab-jobs">
+        <div class="flex items-center justify-between mb-6">
+          <h1 class="text-lg font-bold">All Jobs</h1>
+          <div class="flex items-center gap-2">
+            <input type="text" placeholder="Search jobs..." class="bg-surface-2 text-xs rounded-lg px-3 py-1.5 border border-border-default focus:border-accent-blue focus:outline-none w-48" />
+            <select class="bg-surface-2 text-xs rounded-lg px-3 py-1.5 border border-border-default cursor-pointer">
+              <option>All Status</option>
+              <option>Running</option>
+              <option>Completed</option>
+              <option>Failed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-border-default">
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">ID</th>
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Title</th>
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">User</th>
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Status</th>
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Cost</th>
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Created</th>
+                  <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3 w-20"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+                  <td class="px-4 py-3 text-[11px] font-mono text-txt-muted">j_8a3f</td>
+                  <td class="px-4 py-3 text-sm text-txt-secondary truncate max-w-[200px]">AI Regulation Impact on Startups</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">maz@...</td>
+                  <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">Running</span></td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">$0.31</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">2h ago</td>
+                  <td class="px-4 py-3">
+                    <button class="text-[10px] text-txt-muted hover:text-accent-red transition-colors cursor-pointer">Cancel</button>
+                  </td>
+                </tr>
+                <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+                  <td class="px-4 py-3 text-[11px] font-mono text-txt-muted">j_7b2e</td>
+                  <td class="px-4 py-3 text-sm text-txt-secondary truncate max-w-[200px]">MrBeast Production Strategy</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">maz@...</td>
+                  <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">Running</span></td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">$0.18</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">3h ago</td>
+                  <td class="px-4 py-3">
+                    <button class="text-[10px] text-txt-muted hover:text-accent-red transition-colors cursor-pointer">Cancel</button>
+                  </td>
+                </tr>
+                <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+                  <td class="px-4 py-3 text-[11px] font-mono text-txt-muted">j_6c1d</td>
+                  <td class="px-4 py-3 text-sm text-txt-secondary truncate max-w-[200px]">Tesla FSD Accidents Timeline</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">maz@...</td>
+                  <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue font-medium">Completed</span></td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">$0.42</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">1d ago</td>
+                  <td class="px-4 py-3">
+                    <button class="text-[10px] text-txt-muted hover:text-accent-red transition-colors cursor-pointer">Delete</button>
+                  </td>
+                </tr>
+                <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+                  <td class="px-4 py-3 text-[11px] font-mono text-txt-muted">j_5a0c</td>
+                  <td class="px-4 py-3 text-sm text-txt-secondary truncate max-w-[200px]">Flat Earth Movement Deep Dive</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">maz@...</td>
+                  <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red font-medium">Failed</span></td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">$0.05</td>
+                  <td class="px-4 py-3 text-xs text-txt-muted">2d ago</td>
+                  <td class="px-4 py-3">
+                    <button class="text-[10px] text-accent-blue hover:text-accent-blue/80 transition-colors cursor-pointer">Retry</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS TAB -->
+      <div id="tab-users" class="hidden">
+        <div class="flex items-center justify-between mb-6">
+          <h1 class="text-lg font-bold">Users</h1>
+          <button class="px-3 py-1.5 rounded-lg text-xs bg-accent-blue hover:bg-accent-blue/90 text-white font-medium transition-colors cursor-pointer">Invite User</button>
+        </div>
+        <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-border-default">
+                <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">User</th>
+                <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Role</th>
+                <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Jobs</th>
+                <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Spend</th>
+                <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Last Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-border-default hover:bg-surface-hover transition-colors">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-accent-blue/20 flex items-center justify-center text-[10px] font-bold text-accent-blue">MA</div>
+                    <div>
+                      <p class="text-sm font-medium">Mazen Abdulrahman</p>
+                      <p class="text-[10px] text-txt-muted">maz@example.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red font-medium">Admin</span></td>
+                <td class="px-4 py-3 text-xs text-txt-muted">47</td>
+                <td class="px-4 py-3 text-xs text-txt-muted">$14.20</td>
+                <td class="px-4 py-3 text-xs text-txt-muted">Now</td>
+              </tr>
+              <tr class="border-b border-border-default hover:bg-surface-hover transition-colors">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-accent-purple/20 flex items-center justify-center text-[10px] font-bold text-accent-purple">JD</div>
+                    <div>
+                      <p class="text-sm font-medium">Jane Doe</p>
+                      <p class="text-[10px] text-txt-muted">jane@example.com</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted font-medium">User</span></td>
+                <td class="px-4 py-3 text-xs text-txt-muted">12</td>
+                <td class="px-4 py-3 text-xs text-txt-muted">$3.80</td>
+                <td class="px-4 py-3 text-xs text-txt-muted">3h ago</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ERRORS TAB -->
+      <div id="tab-errors" class="hidden">
+        <div class="flex items-center justify-between mb-6">
+          <h1 class="text-lg font-bold">Errors</h1>
+          <button class="px-3 py-1.5 rounded-lg text-xs bg-surface-2 border border-border-default text-txt-secondary hover:bg-surface-3 transition-colors cursor-pointer">Clear All</button>
+        </div>
+        <div class="space-y-3">
+          <div class="bg-surface-1 border border-accent-red/20 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-accent-red/10 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4 text-accent-red" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="text-sm font-medium text-accent-red">Gemini API Rate Limit</h3>
+                  <span class="text-[10px] text-txt-disabled">15 min ago</span>
+                </div>
+                <p class="text-xs text-txt-muted mb-2">429 Too Many Requests — extraction stage for job j_5a0c. Retry count: 3/3 (exhausted).</p>
+                <pre class="text-[10px] bg-surface-2 rounded-lg p-2 text-txt-disabled overflow-x-auto">google.api_core.exceptions.ResourceExhausted: 429 Resource has been exhausted</pre>
+                <div class="flex items-center gap-2 mt-2">
+                  <button class="text-[10px] text-accent-blue hover:underline cursor-pointer">Retry Job</button>
+                  <button class="text-[10px] text-txt-muted hover:underline cursor-pointer">Dismiss</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface-1 border border-accent-orange/20 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-accent-orange/10 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4 text-accent-orange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="text-sm font-medium text-accent-orange">Transcript Fallback Used</h3>
+                  <span class="text-[10px] text-txt-disabled">2h ago</span>
+                </div>
+                <p class="text-xs text-txt-muted">youtube-transcript-api failed for SRC_3 (cloud IP block). Fell back to Supadata. Quality may be reduced.</p>
+                <button class="text-[10px] text-txt-muted hover:underline cursor-pointer mt-2">Dismiss</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface-1 border border-accent-orange/20 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-accent-orange/10 flex items-center justify-center shrink-0 mt-0.5">
+                <svg class="w-4 h-4 text-accent-orange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="text-sm font-medium text-accent-orange">Confidence Ceiling Override</h3>
+                  <span class="text-[10px] text-txt-disabled">3h ago</span>
+                </div>
+                <p class="text-xs text-txt-muted">2 key points in job j_8a3f had confidence exceeding ceiling (VIDEO_ONLY mode). Auto-corrected to LOW.</p>
+                <button class="text-[10px] text-txt-muted hover:underline cursor-pointer mt-2">Dismiss</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    function showTab(name) {
+      document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById('tab-' + name).classList.remove('hidden');
+      document.querySelectorAll('.admin-tab').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-txt-secondary', 'hover:bg-surface-hover');
+      });
+      event.currentTarget.classList.add('tab-active');
+      event.currentTarget.classList.remove('text-txt-secondary', 'hover:bg-surface-hover');
+    }
+  </script>
+
+</body>
+</html>

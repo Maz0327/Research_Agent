@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Admin state management for users, jobs, and error logs.
  */

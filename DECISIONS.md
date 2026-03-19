@@ -685,6 +685,62 @@ All follow the established pattern: POST endpoint → Celery task → LLM stage 
 
 ---
 
+## ADR-022: Complete Frontend Overhaul — App Router + shadcn/ui
+
+**Date:** 2026-03-18 (updated 2026-03-19)
+**Status:** IMPLEMENTED
+**Deciders:** Project Owner
+
+### Context
+Current frontend uses Next.js Pages Router with inline Tailwind, no design system, and inconsistent component patterns. Dashboard is overloaded (945-line dashboard.tsx). Job detail page (510 lines) mixes document rendering with controls. No mobile optimization.
+
+Owner found design inspiration in okara.ai's AI CMO dashboard: multi-column layout, left sidebar, center analytics, right feed panel, dark terminal aesthetic.
+
+### Decision
+**Complete frontend overhaul with:**
+
+1. **App Router migration** — Replace `pages/` with `app/` directory entirely (big-bang, no incremental)
+2. **shadcn/ui** — Copy-paste component library with CSS variable theming
+3. **Dark-only theme** — 5 surface levels (`#0a0a0f` → `#2a2a38`), CSS vars structured for future light mode
+4. **3-column job detail** — Left (job meta + nav), center (documents), right (activity + chat Sheet)
+5. **Multi-step wizard** — Replaces single-page job creation form
+6. **TanStack Query** — Replaces manual Zustand polling for data fetching
+7. **Zustand retained** — UI state only (drawer open, active tab, etc.)
+8. **next-themes** — Replaces custom ThemeContext.tsx
+9. **Framer Motion** — Page transitions only; Tailwind for micro-interactions
+10. **Document output fidelity** — All Doc 0-7 content rendered at full detail, no simplification
+
+### Design System
+- **Surfaces:** surface-0 (#0a0a0f), surface-1 (#12121a), surface-2 (#1a1a25), surface-3 (#222230), surface-hover (#2a2a38)
+- **Accents:** blue (primary), purple (AI/synthesis), green (success/HIGH), orange (warning/MEDIUM), red (error), amber (Creator Brief)
+- **Text:** primary (#f5f5f5), secondary (#a1a1aa), muted (#71717a), disabled (#52525b)
+- **Font:** Inter (all weights), monospace for entity IDs
+- **Icons:** Lucide (outline style), no emojis
+- **Borders:** default (#27272a), hover (#3f3f46)
+
+### Mockups
+10 interactive HTML mockups at `frontend/public/mockups/`:
+01-dashboard, 02-job-detail-3col, 03-job-creation-wizard, 04-document-viewer, 05-login, 06-queue, 07-settings, 08-admin, 09-transcripts-shared, 10-component-library
+
+### Rationale
+1. Pages Router limits server-component adoption and layout composition
+2. No design system → inconsistent UI across 14 pages
+3. Manual polling → stale data, unnecessary re-renders
+4. Dashboard overload → progressive disclosure (ADR-018) needs proper 3-column layout
+5. Mobile experience poor — sidebar + bottom nav pattern is standard
+6. shadcn/ui provides accessible, customizable components without vendor lock-in
+
+### Consequences
+- 14 pages migrated to `app/` directory
+- 27 component directories refactored
+- 6 Zustand stores adapted for client/server boundary
+- All existing Tailwind classes remapped to CSS variable tokens
+- ~44h estimated effort across 7 phases
+- No backend changes required (API stays identical)
+- E2E tests deferred to separate effort
+
+---
+
 ## Decision Index
 
 | ADR | Title | Status |
@@ -710,6 +766,7 @@ All follow the established pattern: POST endpoint → Celery task → LLM stage 
 | 019 | Tier 5 Content Generation — Three User-Triggered Documents | Accepted |
 | 020 | Voice Mimicry via Profile Analysis | Accepted |
 | 021 | Inline Edit as Iterate Mode | Accepted |
+| 022 | Complete Frontend Overhaul — App Router + shadcn/ui | Accepted |
 
 ---
 

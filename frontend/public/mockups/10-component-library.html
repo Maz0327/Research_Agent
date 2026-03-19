@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Agent — Component Library</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'] },
+        colors: {
+          surface: { 0: '#0a0a0f', 1: '#12121a', 2: '#1a1a25', 3: '#222230', hover: '#2a2a38' },
+          accent: { blue: '#3b82f6', purple: '#8b5cf6', green: '#22c55e', orange: '#f97316', red: '#ef4444', amber: '#f59e0b', cyan: '#06b6d4' },
+          txt: { primary: '#f5f5f5', secondary: '#a1a1aa', muted: '#71717a', disabled: '#52525b' },
+          border: { default: '#27272a', hover: '#3f3f46' }
+        }
+      }}
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    .status-pulse { animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .section { scroll-margin-top: 80px; }
+    .skeleton { animation: shimmer 2s infinite linear; background: linear-gradient(90deg, #1a1a25 25%, #222230 50%, #1a1a25 75%); background-size: 200% 100%; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .toggle-dot { transition: transform 0.2s; }
+    .toast-enter { animation: slideUp 0.3s ease-out; }
+    @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .glow-card:hover { box-shadow: 0 0 24px rgba(59,130,246,0.08); }
+  </style>
+</head>
+<body class="bg-surface-0 text-txt-primary font-sans antialiased">
+
+  <!-- Sticky Nav -->
+  <header class="sticky top-0 z-50 border-b border-border-default bg-surface-0/90 backdrop-blur-md">
+    <div class="flex items-center justify-between px-6 h-14">
+      <h1 class="text-sm font-bold">Component Library — Research Agent Design System</h1>
+      <div class="flex items-center gap-4 text-[11px] text-txt-muted">
+        <a href="#colors" class="hover:text-txt-secondary cursor-pointer">Colors</a>
+        <a href="#typography" class="hover:text-txt-secondary cursor-pointer">Type</a>
+        <a href="#buttons" class="hover:text-txt-secondary cursor-pointer">Buttons</a>
+        <a href="#inputs" class="hover:text-txt-secondary cursor-pointer">Inputs</a>
+        <a href="#cards" class="hover:text-txt-secondary cursor-pointer">Cards</a>
+        <a href="#badges" class="hover:text-txt-secondary cursor-pointer">Badges</a>
+        <a href="#feedback" class="hover:text-txt-secondary cursor-pointer">Feedback</a>
+        <a href="#skeletons" class="hover:text-txt-secondary cursor-pointer">Skeletons</a>
+        <a href="#navigation" class="hover:text-txt-secondary cursor-pointer">Nav</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-5xl mx-auto px-6 py-10 space-y-16">
+
+    <!-- ===== COLORS ===== -->
+    <section id="colors" class="section">
+      <h2 class="text-lg font-bold mb-1">Colors</h2>
+      <p class="text-xs text-txt-muted mb-6">CSS variables mapped from Tailwind config. Dark-only.</p>
+
+      <div class="grid grid-cols-2 gap-6">
+        <!-- Surfaces -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Surfaces</h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-surface-0 border border-border-default"></div><div><p class="text-xs font-medium">surface-0</p><p class="text-[10px] text-txt-disabled">#0a0a0f — Page background</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-surface-1 border border-border-default"></div><div><p class="text-xs font-medium">surface-1</p><p class="text-[10px] text-txt-disabled">#12121a — Cards, panels</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-surface-2 border border-border-default"></div><div><p class="text-xs font-medium">surface-2</p><p class="text-[10px] text-txt-disabled">#1a1a25 — Inputs, elevated</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-surface-3 border border-border-default"></div><div><p class="text-xs font-medium">surface-3</p><p class="text-[10px] text-txt-disabled">#222230 — Disabled, muted bg</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-surface-hover border border-border-default"></div><div><p class="text-xs font-medium">surface-hover</p><p class="text-[10px] text-txt-disabled">#2a2a38 — Hover state</p></div></div>
+          </div>
+        </div>
+
+        <!-- Accents -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Accents</h3>
+          <div class="space-y-2">
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-accent-blue"></div><div><p class="text-xs font-medium">accent-blue</p><p class="text-[10px] text-txt-disabled">#3b82f6 — Primary, links, active</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-accent-purple"></div><div><p class="text-xs font-medium">accent-purple</p><p class="text-[10px] text-txt-disabled">#8b5cf6 — AI, iterate, synthesis</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-accent-green"></div><div><p class="text-xs font-medium">accent-green</p><p class="text-[10px] text-txt-disabled">#22c55e — Success, HIGH confidence</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-accent-orange"></div><div><p class="text-xs font-medium">accent-orange</p><p class="text-[10px] text-txt-disabled">#f97316 — Warning, MEDIUM confidence</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-accent-red"></div><div><p class="text-xs font-medium">accent-red</p><p class="text-[10px] text-txt-disabled">#ef4444 — Error, destructive</p></div></div>
+            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-accent-amber"></div><div><p class="text-xs font-medium">accent-amber</p><p class="text-[10px] text-txt-disabled">#f59e0b — Creator Brief, hooks</p></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Text Colors -->
+      <div class="mt-6">
+        <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Text Hierarchy</h3>
+        <div class="flex items-center gap-8">
+          <div><p class="text-sm text-txt-primary font-medium">Primary</p><p class="text-[10px] text-txt-disabled">#f5f5f5 · 15.4:1</p></div>
+          <div><p class="text-sm text-txt-secondary">Secondary</p><p class="text-[10px] text-txt-disabled">#a1a1aa · 7.5:1</p></div>
+          <div><p class="text-sm text-txt-muted">Muted</p><p class="text-[10px] text-txt-disabled">#71717a · 4.6:1</p></div>
+          <div><p class="text-sm text-txt-disabled">Disabled</p><p class="text-[10px] text-txt-disabled">#52525b · 3.1:1</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TYPOGRAPHY ===== -->
+    <section id="typography" class="section">
+      <h2 class="text-lg font-bold mb-1">Typography</h2>
+      <p class="text-xs text-txt-muted mb-6">Inter for all text. System font stack fallback.</p>
+
+      <div class="space-y-4 bg-surface-1 border border-border-default rounded-xl p-6">
+        <div class="flex items-baseline gap-4"><span class="text-[10px] text-txt-disabled w-16 shrink-0">2xl/bold</span><p class="text-2xl font-bold">Page Titles</p></div>
+        <div class="flex items-baseline gap-4"><span class="text-[10px] text-txt-disabled w-16 shrink-0">lg/bold</span><p class="text-lg font-bold">Section Headers</p></div>
+        <div class="flex items-baseline gap-4"><span class="text-[10px] text-txt-disabled w-16 shrink-0">sm/semi</span><p class="text-sm font-semibold">Card Titles</p></div>
+        <div class="flex items-baseline gap-4"><span class="text-[10px] text-txt-disabled w-16 shrink-0">sm/reg</span><p class="text-sm text-txt-secondary">Body text for reading — claims, descriptions, narrative</p></div>
+        <div class="flex items-baseline gap-4"><span class="text-[10px] text-txt-disabled w-16 shrink-0">xs/med</span><p class="text-xs font-medium text-txt-secondary">Labels, metadata</p></div>
+        <div class="flex items-baseline gap-4"><span class="text-[10px] text-txt-disabled w-16 shrink-0">10px/mono</span><p class="text-[10px] font-mono text-accent-blue">KP_1 CLM_2 SRC_3 THEME_4</p></div>
+      </div>
+    </section>
+
+    <!-- ===== BUTTONS ===== -->
+    <section id="buttons" class="section">
+      <h2 class="text-lg font-bold mb-1">Buttons</h2>
+      <p class="text-xs text-txt-muted mb-6">All interactive elements use cursor-pointer. 150-200ms transitions.</p>
+
+      <div class="space-y-6">
+        <!-- Primary -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Primary</h3>
+          <div class="flex items-center gap-3">
+            <button class="px-5 py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white text-sm font-medium transition-colors cursor-pointer">Primary Action</button>
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-accent-blue to-accent-purple hover:opacity-90 text-white text-sm font-medium transition-opacity cursor-pointer shadow-lg shadow-accent-blue/20">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5" /></svg>
+              Start Research
+            </button>
+            <button class="px-5 py-2.5 rounded-lg bg-accent-blue/50 text-white/50 text-sm font-medium cursor-not-allowed">Disabled</button>
+          </div>
+        </div>
+
+        <!-- Secondary -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Secondary / Ghost</h3>
+          <div class="flex items-center gap-3">
+            <button class="px-4 py-2 rounded-lg bg-surface-2 border border-border-default text-txt-secondary hover:bg-surface-3 hover:border-border-hover text-sm transition-colors cursor-pointer">Secondary</button>
+            <button class="px-4 py-2 rounded-lg text-txt-muted hover:text-txt-secondary hover:bg-surface-hover text-sm transition-colors cursor-pointer">Ghost</button>
+            <button class="px-4 py-2 rounded-lg bg-accent-red/10 text-accent-red hover:bg-accent-red/20 text-sm font-medium transition-colors cursor-pointer">Destructive</button>
+          </div>
+        </div>
+
+        <!-- Icon Buttons -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Icon Buttons</h3>
+          <div class="flex items-center gap-2">
+            <button class="w-9 h-9 rounded-lg bg-surface-2 border border-border-default hover:bg-surface-3 flex items-center justify-center transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-txt-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+            </button>
+            <button class="w-9 h-9 rounded-lg hover:bg-surface-hover flex items-center justify-center transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-txt-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <button class="w-9 h-9 rounded-lg bg-accent-purple/10 hover:bg-accent-purple/20 flex items-center justify-center transition-colors cursor-pointer">
+              <svg class="w-4 h-4 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== INPUTS ===== -->
+    <section id="inputs" class="section">
+      <h2 class="text-lg font-bold mb-1">Form Inputs</h2>
+      <p class="text-xs text-txt-muted mb-6">All inputs: bg-surface-2, border-border-default, focus:border-accent-blue. Labels always visible.</p>
+
+      <div class="grid grid-cols-2 gap-6 bg-surface-1 border border-border-default rounded-xl p-6">
+        <div>
+          <label class="block text-xs font-medium text-txt-secondary mb-1.5">Text Input</label>
+          <input type="text" placeholder="Enter topic..." class="w-full bg-surface-2 text-sm rounded-lg px-3 py-2 border border-border-default focus:border-accent-blue focus:outline-none transition-colors placeholder:text-txt-disabled" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-txt-secondary mb-1.5">Select</label>
+          <select class="w-full bg-surface-2 text-sm rounded-lg px-3 py-2 border border-border-default focus:border-accent-blue focus:outline-none cursor-pointer">
+            <option>Full Research</option>
+            <option>Quick Brief</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-txt-secondary mb-1.5">Search</label>
+          <div class="relative">
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-txt-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input type="text" placeholder="Search..." class="w-full bg-surface-2 text-sm rounded-lg pl-9 pr-3 py-2 border border-border-default focus:border-accent-blue focus:outline-none transition-colors placeholder:text-txt-disabled" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-txt-secondary mb-1.5">Textarea</label>
+          <textarea rows="2" placeholder="Describe your research..." class="w-full bg-surface-2 text-sm rounded-lg px-3 py-2 border border-border-default focus:border-accent-blue focus:outline-none transition-colors placeholder:text-txt-disabled resize-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-txt-secondary mb-1.5">Toggle</label>
+          <div class="flex items-center gap-3">
+            <button onclick="this.classList.toggle('bg-accent-blue');this.classList.toggle('bg-border-default');this.querySelector('span').style.transform=this.classList.contains('bg-accent-blue')?'translateX(16px)':'translateX(0)'" class="w-9 h-5 rounded-full bg-accent-blue relative cursor-pointer transition-colors">
+              <span class="toggle-dot absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow" style="transform:translateX(16px)"></span>
+            </button>
+            <span class="text-xs text-txt-secondary">Auto-approve sources</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-txt-secondary mb-1.5">Error State</label>
+          <input type="text" value="invalid@" class="w-full bg-surface-2 text-sm rounded-lg px-3 py-2 border border-accent-red focus:border-accent-red focus:outline-none" />
+          <p class="text-[10px] text-accent-red mt-1">Invalid email format</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CARDS ===== -->
+    <section id="cards" class="section">
+      <h2 class="text-lg font-bold mb-1">Cards</h2>
+      <p class="text-xs text-txt-muted mb-6">bg-surface-1, border-border-default, rounded-xl. Hover: border-border-hover.</p>
+
+      <div class="grid grid-cols-3 gap-4">
+        <!-- Stat Card -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4 glow-card transition-shadow cursor-pointer">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-txt-muted font-medium uppercase tracking-wider">Stat Card</span>
+            <div class="w-8 h-8 rounded-lg bg-accent-blue/10 flex items-center justify-center">
+              <svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75z" /></svg>
+            </div>
+          </div>
+          <p class="text-2xl font-bold">47</p>
+          <p class="text-xs text-txt-muted mt-1">+3 this week</p>
+        </div>
+
+        <!-- GlowCard (kept from old design) -->
+        <div class="bg-surface-1 border border-accent-blue/30 rounded-xl p-4 shadow-[0_0_24px_rgba(59,130,246,0.08)] cursor-pointer">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-6 h-6 rounded bg-accent-blue/10 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25" /></svg>
+            </div>
+            <span class="text-xs font-semibold">GlowCard</span>
+          </div>
+          <p class="text-xs text-txt-muted">Accent glow border + shadow. Used for highlighted metrics.</p>
+        </div>
+
+        <!-- Section Card -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4 hover:border-border-hover transition-colors cursor-pointer">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-6 h-6 rounded bg-accent-purple/10 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
+            </div>
+            <span class="text-xs font-semibold">Section Card</span>
+          </div>
+          <p class="text-xs text-txt-muted">Document section renderer. Inline edit button on hover.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BADGES ===== -->
+    <section id="badges" class="section">
+      <h2 class="text-lg font-bold mb-1">Badges &amp; Status</h2>
+      <p class="text-xs text-txt-muted mb-6">Status indicators, confidence levels, pipeline stages, document badges.</p>
+
+      <div class="space-y-6 bg-surface-1 border border-border-default rounded-xl p-6">
+        <!-- Status -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Job Status</h3>
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1.5 text-[10px] font-medium text-accent-green bg-accent-green/10 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-accent-green status-pulse"></span>Running</span>
+            <span class="text-[10px] font-medium text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded-full">Completed</span>
+            <span class="text-[10px] font-medium text-accent-red bg-accent-red/10 px-2 py-0.5 rounded-full">Failed</span>
+            <span class="text-[10px] font-medium text-txt-muted bg-surface-3 px-2 py-0.5 rounded-full">Queued</span>
+          </div>
+        </div>
+
+        <!-- Confidence -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Confidence Levels</h3>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">HIGH</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange font-medium">MEDIUM</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red font-medium">LOW</span>
+          </div>
+        </div>
+
+        <!-- Pipeline Stages -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Pipeline Stages</h3>
+          <div class="flex items-center gap-1 text-[10px]">
+            <span class="px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Ingestion</span>
+            <svg class="w-3 h-3 text-txt-disabled" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            <span class="px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">Extraction</span>
+            <svg class="w-3 h-3 text-txt-disabled" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            <span class="px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue font-medium">Synthesis</span>
+            <svg class="w-3 h-3 text-txt-disabled" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            <span class="px-1.5 py-0.5 rounded bg-surface-3 text-txt-disabled">Assembly</span>
+          </div>
+        </div>
+
+        <!-- Document Badges -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Document Badges</h3>
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded bg-gray-500/20 text-[9px] flex items-center justify-center text-txt-muted border border-border-default">S0</span>
+            <span class="w-6 h-6 rounded bg-blue-500/20 text-[9px] flex items-center justify-center text-accent-blue border border-border-default">S1</span>
+            <span class="w-6 h-6 rounded bg-purple-500/20 text-[9px] flex items-center justify-center text-accent-purple border border-border-default">S2</span>
+            <span class="w-6 h-6 rounded bg-amber-500/20 text-[9px] flex items-center justify-center text-amber-400 border border-border-default">S3</span>
+            <span class="w-6 h-6 rounded bg-cyan-500/20 text-[9px] flex items-center justify-center text-accent-cyan border border-border-default">S4</span>
+          </div>
+        </div>
+
+        <!-- IDs -->
+        <div>
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Entity IDs (mono)</h3>
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-mono text-accent-blue bg-accent-blue/10 px-1.5 py-0.5 rounded">KP_1</span>
+            <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded">THEME_2</span>
+            <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded">TEN_1</span>
+            <span class="text-[10px] font-mono text-accent-green bg-accent-green/10 px-1.5 py-0.5 rounded">CLM_5</span>
+            <span class="text-[10px] font-mono text-txt-muted bg-surface-3 px-1.5 py-0.5 rounded">SRC_3</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FEEDBACK ===== -->
+    <section id="feedback" class="section">
+      <h2 class="text-lg font-bold mb-1">Feedback &amp; Alerts</h2>
+      <p class="text-xs text-txt-muted mb-6">Toasts, alerts, progress bars, loading spinners.</p>
+
+      <div class="space-y-4">
+        <!-- Toast -->
+        <div class="bg-surface-1 border border-accent-green/30 rounded-xl p-4 flex items-center gap-3 toast-enter max-w-md">
+          <div class="w-8 h-8 rounded-lg bg-accent-green/10 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium">Job completed</p>
+            <p class="text-xs text-txt-muted">AI Regulation Impact — 4 documents ready</p>
+          </div>
+          <button class="text-txt-disabled hover:text-txt-muted cursor-pointer"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+        </div>
+
+        <!-- Error Alert -->
+        <div class="bg-surface-1 border border-accent-red/30 rounded-xl p-4 flex items-center gap-3 max-w-md">
+          <div class="w-8 h-8 rounded-lg bg-accent-red/10 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-accent-red" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-accent-red">Extraction failed</p>
+            <p class="text-xs text-txt-muted">Gemini rate limit exceeded. Retry in 30s.</p>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="max-w-md">
+          <div class="flex items-center justify-between text-xs text-txt-muted mb-1">
+            <span>Synthesis</span><span>72%</span>
+          </div>
+          <div class="h-2 rounded-full bg-surface-3 overflow-hidden">
+            <div class="h-full rounded-full bg-gradient-to-r from-accent-blue to-accent-purple" style="width:72%"></div>
+          </div>
+        </div>
+
+        <!-- Spinners -->
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-2">
+            <div class="w-5 h-5 rounded-full border-2 border-accent-blue border-t-transparent animate-spin"></div>
+            <span class="text-xs text-txt-muted">Loading</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-accent-green status-pulse"></span>
+            <span class="text-xs text-txt-muted">Live indicator</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1">
+              <div class="w-1.5 h-1.5 rounded-full bg-accent-purple animate-bounce" style="animation-delay:0ms"></div>
+              <div class="w-1.5 h-1.5 rounded-full bg-accent-purple animate-bounce" style="animation-delay:150ms"></div>
+              <div class="w-1.5 h-1.5 rounded-full bg-accent-purple animate-bounce" style="animation-delay:300ms"></div>
+            </div>
+            <span class="text-xs text-txt-muted">AI typing</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SKELETONS ===== -->
+    <section id="skeletons" class="section">
+      <h2 class="text-lg font-bold mb-1">Skeleton Loaders</h2>
+      <p class="text-xs text-txt-muted mb-6">Shimmer animation. Match layout of target component.</p>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Job Card Skeleton -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1">
+              <div class="h-4 w-3/4 rounded skeleton"></div>
+              <div class="mt-2 flex gap-2">
+                <div class="h-3 w-16 rounded skeleton"></div>
+                <div class="h-3 w-20 rounded skeleton"></div>
+              </div>
+            </div>
+            <div class="h-5 w-16 rounded-full skeleton"></div>
+          </div>
+          <div class="h-1.5 rounded-full skeleton mt-3"></div>
+        </div>
+
+        <!-- Stat Card Skeleton -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="h-3 w-20 rounded skeleton"></div>
+            <div class="w-8 h-8 rounded-lg skeleton"></div>
+          </div>
+          <div class="h-7 w-16 rounded skeleton"></div>
+          <div class="h-3 w-24 rounded skeleton mt-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== NAVIGATION ===== -->
+    <section id="navigation" class="section">
+      <h2 class="text-lg font-bold mb-1">Navigation Patterns</h2>
+      <p class="text-xs text-txt-muted mb-6">Sidebar, tabs, breadcrumbs, mobile bottom nav.</p>
+
+      <div class="grid grid-cols-2 gap-6">
+        <!-- Sidebar Item States -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4">
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Sidebar States</h3>
+          <div class="space-y-1">
+            <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-accent-blue/10 text-accent-blue text-sm font-medium">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25" /></svg>
+              Active
+            </div>
+            <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-txt-secondary hover:bg-surface-hover text-sm cursor-pointer transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5" /></svg>
+              Default
+            </div>
+            <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-hover text-txt-primary text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625" /></svg>
+              Hovered
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab States -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4">
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Tab States</h3>
+          <div class="border-b border-border-default">
+            <div class="flex gap-6 text-sm">
+              <button class="py-2.5 text-txt-primary font-medium border-b-2 border-accent-blue cursor-pointer">Active</button>
+              <button class="py-2.5 text-txt-muted border-b-2 border-transparent cursor-pointer hover:text-txt-secondary">Inactive</button>
+              <button class="py-2.5 text-txt-muted border-b-2 border-transparent cursor-pointer relative">
+                With Badge
+                <span class="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full bg-accent-blue"></span>
+              </button>
+              <button class="py-2.5 text-txt-disabled border-b-2 border-transparent cursor-not-allowed opacity-40">Disabled</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Breadcrumbs -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4">
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Breadcrumbs</h3>
+          <div class="flex items-center gap-1.5 text-sm">
+            <a class="text-txt-muted hover:text-txt-secondary cursor-pointer">Dashboard</a>
+            <span class="text-txt-disabled">/</span>
+            <a class="text-txt-muted hover:text-txt-secondary cursor-pointer">AI Regulation...</a>
+            <span class="text-txt-disabled">/</span>
+            <span class="text-txt-primary font-medium">Creator Brief</span>
+          </div>
+        </div>
+
+        <!-- Mobile Bottom Nav -->
+        <div class="bg-surface-1 border border-border-default rounded-xl p-4">
+          <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Mobile Bottom Nav</h3>
+          <div class="flex items-center justify-around bg-surface-0 border border-border-default rounded-xl py-2">
+            <button class="flex flex-col items-center gap-0.5 text-accent-blue cursor-pointer">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25" /></svg>
+              <span class="text-[9px] font-medium">Home</span>
+            </button>
+            <button class="flex flex-col items-center gap-0.5 text-txt-muted cursor-pointer">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5" /></svg>
+              <span class="text-[9px]">Queue</span>
+            </button>
+            <button class="flex flex-col items-center gap-0.5 cursor-pointer">
+              <div class="w-10 h-10 -mt-4 rounded-full bg-accent-blue flex items-center justify-center shadow-lg shadow-accent-blue/30">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              </div>
+              <span class="text-[9px] text-accent-blue font-medium">New</span>
+            </button>
+            <button class="flex flex-col items-center gap-0.5 text-txt-muted cursor-pointer">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625" /></svg>
+              <span class="text-[9px]">Docs</span>
+            </button>
+            <button class="flex flex-col items-center gap-0.5 text-txt-muted cursor-pointer">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593" /></svg>
+              <span class="text-[9px]">Settings</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="text-center text-[10px] text-txt-disabled pt-8 border-t border-border-default">
+      Research Agent Design System &middot; 10 mockup pages &middot; Dark-only &middot; Inter &middot; Tailwind CSS &middot; shadcn/ui compatible
+    </div>
+
+  </div>
+
+</body>
+</html>

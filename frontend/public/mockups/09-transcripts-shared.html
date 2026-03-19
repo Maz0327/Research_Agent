@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Agent — Transcripts &amp; Shared View</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'] },
+        colors: {
+          surface: { 0: '#0a0a0f', 1: '#12121a', 2: '#1a1a25', 3: '#222230', hover: '#2a2a38' },
+          accent: { blue: '#3b82f6', purple: '#8b5cf6', green: '#22c55e', orange: '#f97316', red: '#ef4444' },
+          txt: { primary: '#f5f5f5', secondary: '#a1a1aa', muted: '#71717a', disabled: '#52525b' },
+          border: { default: '#27272a', hover: '#3f3f46' }
+        }
+      }}
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    .view-toggle .active { background: rgba(59,130,246,0.1); color: #3b82f6; }
+  </style>
+</head>
+<body class="bg-surface-0 text-txt-primary font-sans antialiased min-h-screen">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 border-b border-border-default bg-surface-0/80 backdrop-blur-md">
+    <div class="flex items-center justify-between px-6 h-14">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5" /></svg>
+        </div>
+        <span class="text-sm font-semibold">Research Agent</span>
+      </div>
+      <div class="w-8 h-8 rounded-full bg-surface-3 border border-border-default flex items-center justify-center text-xs font-semibold text-txt-secondary">MA</div>
+    </div>
+  </header>
+
+  <div class="flex">
+    <!-- Sidebar -->
+    <aside class="w-56 border-r border-border-default min-h-[calc(100vh-3.5rem)] p-3 flex flex-col gap-1">
+      <a href="01-dashboard.html" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-txt-secondary hover:bg-surface-hover text-sm transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6z" /></svg>
+        Dashboard
+      </a>
+      <a href="06-queue.html" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-txt-secondary hover:bg-surface-hover text-sm transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>
+        Queue
+      </a>
+      <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-accent-blue/10 text-accent-blue text-sm font-medium">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+        Transcripts
+      </a>
+      <a href="07-settings.html" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-txt-secondary hover:bg-surface-hover text-sm transition-colors cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281" /></svg>
+        Settings
+      </a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6">
+
+      <!-- Page Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-lg font-bold">Transcripts</h1>
+          <p class="text-xs text-txt-muted mt-0.5">Cached transcripts from YouTube, uploaded text, and OCR results</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="view-toggle flex items-center bg-surface-2 rounded-lg p-0.5">
+            <button class="active px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer">List</button>
+            <button class="px-3 py-1 rounded text-xs text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer">Grid</button>
+          </div>
+          <input type="text" placeholder="Search transcripts..." class="bg-surface-2 text-xs rounded-lg px-3 py-1.5 border border-border-default focus:border-accent-blue focus:outline-none w-48" />
+        </div>
+      </div>
+
+      <!-- Transcript List -->
+      <div class="bg-surface-1 border border-border-default rounded-xl overflow-hidden mb-10">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-border-default">
+              <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Source</th>
+              <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Type</th>
+              <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Mode</th>
+              <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Length</th>
+              <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Job</th>
+              <th class="text-left text-[10px] font-medium text-txt-muted uppercase tracking-wider px-4 py-3">Cached</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-6 h-6 rounded bg-accent-red/10 flex items-center justify-center shrink-0">
+                    <svg class="w-3 h-3 text-accent-red" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" /></svg>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm text-txt-secondary truncate max-w-[250px]">AI Startup Compliance Costs Survey</p>
+                    <p class="text-[10px] text-txt-disabled truncate">youtube.com/watch?v=abc123</p>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-red/10 text-accent-red">YouTube</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">transcript_grounded</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">12:34</span></td>
+              <td class="px-4 py-3"><span class="text-[11px] font-mono text-accent-blue">j_8a3f</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">2h ago</span></td>
+            </tr>
+            <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-6 h-6 rounded bg-accent-blue/10 flex items-center justify-center shrink-0">
+                    <svg class="w-3 h-3 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747" /></svg>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm text-txt-secondary truncate max-w-[250px]">EU AI Act Implementation Timeline</p>
+                    <p class="text-[10px] text-txt-disabled truncate">reuters.com/technology/...</p>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-blue/10 text-accent-blue">Web</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">article_fetched</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">2,400 words</span></td>
+              <td class="px-4 py-3"><span class="text-[11px] font-mono text-accent-blue">j_8a3f</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">2h ago</span></td>
+            </tr>
+            <tr class="border-b border-border-default hover:bg-surface-hover transition-colors cursor-pointer">
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-6 h-6 rounded bg-accent-purple/10 flex items-center justify-center shrink-0">
+                    <svg class="w-3 h-3 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5" /></svg>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm text-txt-secondary truncate max-w-[250px]">User uploaded: internal_memo.pdf</p>
+                    <p class="text-[10px] text-txt-disabled">OCR extracted, 3 pages</p>
+                  </div>
+                </div>
+              </td>
+              <td class="px-4 py-3"><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-purple/10 text-accent-purple">Upload</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">ocr_extracted</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">1,800 words</span></td>
+              <td class="px-4 py-3"><span class="text-[11px] font-mono text-accent-blue">j_7b2e</span></td>
+              <td class="px-4 py-3"><span class="text-xs text-txt-muted">3h ago</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- SHARED / PUBLIC VIEW PREVIEW -->
+      <!-- ========================================= -->
+      <div class="border-t border-border-default pt-10">
+        <div class="flex items-center gap-2 mb-6">
+          <h2 class="text-lg font-bold">Shared View Preview</h2>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green font-medium">Public Link</span>
+        </div>
+
+        <!-- Shared View Card -->
+        <div class="bg-surface-1 border border-border-default rounded-2xl overflow-hidden max-w-2xl">
+          <!-- Public Header -->
+          <div class="bg-gradient-to-r from-accent-blue/10 to-accent-purple/10 px-6 py-5 border-b border-border-default">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5" /></svg>
+              </div>
+              <div>
+                <h1 class="text-lg font-bold">AI Regulation Impact on Startups 2026</h1>
+                <p class="text-xs text-txt-muted">Research Agent &middot; Shared by Mazen A. &middot; March 18, 2026</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="px-2 py-0.5 rounded bg-surface-0/50 text-txt-secondary">8 sources</span>
+              <span class="px-2 py-0.5 rounded bg-surface-0/50 text-txt-secondary">23 claims</span>
+              <span class="px-2 py-0.5 rounded bg-surface-0/50 text-txt-secondary">4 documents</span>
+            </div>
+          </div>
+
+          <!-- Document Tabs -->
+          <div class="px-6 border-b border-border-default">
+            <div class="flex gap-6 text-sm">
+              <button class="py-3 text-accent-blue font-medium border-b-2 border-accent-blue cursor-pointer">Creator Brief</button>
+              <button class="py-3 text-txt-muted border-b-2 border-transparent cursor-pointer">Semantic Brief</button>
+              <button class="py-3 text-txt-muted border-b-2 border-transparent cursor-pointer">Source Ledger</button>
+            </div>
+          </div>
+
+          <!-- Content Preview -->
+          <div class="px-6 py-5">
+            <div class="mb-4">
+              <h3 class="text-sm font-semibold text-accent-amber mb-2">Hook</h3>
+              <p class="text-sm text-txt-secondary leading-relaxed">What if the very regulations meant to make AI safer are actually killing the startups that could build the safest AI?</p>
+            </div>
+            <div class="mb-4">
+              <h3 class="text-sm font-semibold mb-2">Key Findings</h3>
+              <div class="space-y-2">
+                <div class="flex items-start gap-2">
+                  <span class="w-4 h-4 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold text-accent-green">1</span>
+                  <p class="text-xs text-txt-muted">Compliance costs range from $50K-$200K for startups under Series A</p>
+                </div>
+                <div class="flex items-start gap-2">
+                  <span class="w-4 h-4 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold text-accent-green">2</span>
+                  <p class="text-xs text-txt-muted">37% of EU AI startups exploring relocation to less regulated jurisdictions</p>
+                </div>
+                <div class="flex items-start gap-2">
+                  <span class="w-4 h-4 rounded-full bg-accent-green/10 flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold text-accent-green">3</span>
+                  <p class="text-xs text-txt-muted">Bipartisan US support for risk-tiered regulation, no legislation before Q3 2026</p>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pt-3 border-t border-border-default">
+              <button class="flex items-center gap-1.5 text-xs text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                Download PDF
+              </button>
+              <button class="flex items-center gap-1.5 text-xs text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08" /></svg>
+                Copy Link
+              </button>
+              <span class="text-[10px] text-txt-disabled ml-auto">Link expires in 7 days</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+</html>

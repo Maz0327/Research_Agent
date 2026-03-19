@@ -1,71 +1,38 @@
 /**
- * Skeleton loading component for content placeholders.
- * Dark mode styling with shimmer effect.
+ * shadcn/ui Skeleton component — extended for backward compatibility.
+ * Original pages/ components pass height/width props as inline styles;
+ * the shadcn version accepts className only. This version supports both.
  */
-import { motion } from 'framer-motion';
+import { cn } from "@/lib/utils"
 
-interface SkeletonProps {
-  className?: string;
-  width?: string | number;
-  height?: string | number;
-  rounded?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
+  /** Height in pixels (number) or any CSS value (string) — backward compat */
+  height?: number | string;
+  /** Width in pixels (number) or any CSS value (string) — backward compat */
+  width?: number | string;
 }
 
-const roundedClasses = {
-  none: '',
-  sm: 'rounded-sm',
-  md: 'rounded-md',
-  lg: 'rounded-lg',
-  full: 'rounded-full',
-};
+function Skeleton({ className, height, width, style, ...props }: SkeletonProps) {
+  const inlineStyle: React.CSSProperties = {
+    ...(height !== undefined
+      ? { height: typeof height === 'number' ? `${height}px` : height }
+      : {}),
+    ...(width !== undefined
+      ? { width: typeof width === 'number' ? `${width}px` : width }
+      : {}),
+    ...style,
+  };
 
-export default function Skeleton({
-  className = '',
-  width,
-  height,
-  rounded = 'md',
-}: SkeletonProps) {
   return (
-    <motion.div
-      className={`bg-gray-800 ${roundedClasses[rounded]} ${className}`}
-      style={{ width, height }}
-      animate={{ opacity: [0.4, 0.7, 0.4] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+    <div
+      className={cn("animate-pulse rounded-md bg-primary/10", className)}
+      style={Object.keys(inlineStyle).length ? inlineStyle : undefined}
+      {...props}
     />
-  );
+  )
 }
 
-export function SkeletonText({ lines = 3 }: { lines?: number }) {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: lines }).map((_, i) => (
-        <Skeleton
-          key={i}
-          height={16}
-          width={i === lines - 1 ? '60%' : '100%'}
-        />
-      ))}
-    </div>
-  );
-}
+export { Skeleton }
 
-export function SkeletonCard() {
-  return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <Skeleton height={24} width="70%" className="mb-2" />
-          <Skeleton height={16} width="40%" />
-        </div>
-        <Skeleton height={28} width={80} rounded="full" />
-      </div>
-      <div className="mt-4">
-        <Skeleton height={8} className="mb-2" rounded="full" />
-        <div className="flex justify-between">
-          <Skeleton height={14} width={60} />
-          <Skeleton height={14} width={40} />
-        </div>
-      </div>
-    </div>
-  );
-}
+// Default export for backward compatibility with components/ui/index.ts
+export default Skeleton

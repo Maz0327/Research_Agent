@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-03-15
-**Current Phase:** Tier 5 — Content Generation (COMPLETE)
-**Current Task:** All pushed, needs live testing + migration 027
+**Last Updated:** 2026-03-19
+**Current Phase:** Frontend Overhaul — Visual Polish Complete
+**Current Task:** Commit + merge preparation
 **Branch:** feature/kimi-visual-analysis-and-optimizations
 
 ---
@@ -27,7 +27,59 @@ MAINT:     🔄 ONGOING — Bug Fixes & UI Polish
 Phase 4*:  ✅ COMPLETE — Frontend Document Layer Model & UI Overhaul (17 commits)
 Phase 5*:  ✅ COMPLETE — Search/Discovery Flow (backend + frontend + audit)
 Tier 5:    ✅ COMPLETE — Content Generation: Doc 5/6/7 + Voice Mimicry + Inline Edit (6 commits, 39 tests)
+FE-OVHL:   ✅ COMPLETE — Frontend Overhaul: App Router + shadcn/ui + Visual Polish (7 phases + polish)
 ```
+
+---
+
+## Frontend Overhaul (2026-03-18)
+
+**Status:** ✅ COMPLETE — All 7 phases + visual polish done
+**Plan:** `plans/260318-0003-frontend-overhaul/`
+**ADR:** ADR-022
+**Actual Effort:** ~44h across 7 phases + polish pass
+
+### Design Phase (COMPLETE)
+- [x] Reference UI analysis (okara.ai AI CMO dashboard inspiration)
+- [x] 2 research reports (App Router migration, dashboard UI patterns)
+- [x] 10 interactive HTML mockups created (`frontend/public/mockups/01-10`)
+- [x] Design system defined: dark-only, 5 surface levels, 6 accent colors, Inter font
+- [x] Component library documented (colors, typography, buttons, inputs, cards, badges, feedback, skeletons, navigation)
+- [x] Plan validated with 7 questions
+
+### Implementation Phases
+| # | Phase | Effort | Status |
+|---|-------|--------|--------|
+| 1 | Foundation: App Router + shadcn/ui | 5h | ✅ Complete |
+| 2 | Layout System: Sidebar + 3-Column | 5h | ✅ Complete |
+| 3 | Core Pages: Dashboard + Queue + TanStack Query | 8h | ✅ Complete |
+| 4 | Job Detail: Hero Page | 8h | ✅ Complete |
+| 5 | Document Renderers: All 7 Types | 6h | ✅ Complete |
+| 6 | Supporting Pages | 5h | ✅ Complete |
+| 7 | Auth, Shared, Polish | 5h | ✅ Complete |
+| 8 | Visual Polish Pass (mockup parity) | 3h | ✅ Complete |
+
+### Visual Polish (2026-03-19)
+6 parallel agents applied mockup-accurate styling to all pages:
+- Sidebar: flask logo icon, gradient "New Research" CTA, user avatar
+- Dashboard: stat card icons with accent backgrounds, search bar, filter tabs
+- Queue: worker status cards with pulse indicators, 7-column table, progress bars
+- Settings: tabbed interface (General/Usage/API Keys/Notifications), custom toggles
+- Admin: shield logo, error cards with red/orange borders, stack traces, user avatars
+- Transcripts: source type badges (YouTube/Web/Upload), shared view gradient header
+- TypeScript: 0 errors after all changes
+
+### Key Design Decisions
+- Big-bang rollout (no incremental migration)
+- Dark-only theme (CSS vars structured for future light mode)
+- shadcn/ui + next-themes + TanStack Query
+- 3-column layout for job detail (left meta, center docs, right activity/chat)
+- Multi-step wizard for job creation
+- Document output rendered at full detail (no simplification)
+- Zustand kept for UI state, TanStack Query for data fetching
+
+### Mockups Created
+01-dashboard, 02-job-detail-3col, 03-job-creation-wizard, 04-document-viewer, 05-login, 06-queue, 07-settings, 08-admin, 09-transcripts-shared, 10-component-library
 
 ---
 

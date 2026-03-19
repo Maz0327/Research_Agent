@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Voice Profiles Zustand store — follows style-guides.ts pattern.
  * CRUD operations for voice profiles used in script generation.

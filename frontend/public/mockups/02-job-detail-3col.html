@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Agent — Job Detail (3-Column) Mockup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            surface: { 0: '#0a0a0f', 1: '#12121a', 2: '#1a1a25', 3: '#222230', hover: '#2a2a38' },
+            accent: { blue: '#3b82f6', purple: '#8b5cf6', green: '#22c55e', orange: '#f97316', red: '#ef4444', amber: '#f59e0b' },
+            txt: { primary: '#f5f5f5', secondary: '#a1a1aa', muted: '#71717a', disabled: '#52525b' },
+            border: { default: '#27272a', hover: '#3f3f46', accent: '#3b82f6' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    .status-pulse { animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #f5f5f5; }
+    .tab-inactive { border-bottom: 2px solid transparent; color: #71717a; }
+    .tab-inactive:hover { color: #a1a1aa; }
+    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    .accordion-content.open { max-height: 600px; }
+    .chat-panel { transform: translateX(100%); transition: transform 0.3s ease; }
+    .chat-panel.open { transform: translateX(0); }
+  </style>
+</head>
+<body class="bg-surface-0 text-txt-primary font-sans antialiased min-h-screen">
+
+  <!-- Top Bar (compact) -->
+  <header class="sticky top-0 z-50 border-b border-border-default bg-surface-0/80 backdrop-blur-md">
+    <div class="flex items-center justify-between px-4 h-12">
+      <div class="flex items-center gap-3">
+        <a href="01-dashboard.html" class="flex items-center gap-1.5 text-txt-muted hover:text-txt-secondary transition-colors text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+          Dashboard
+        </a>
+        <span class="text-txt-disabled">/</span>
+        <span class="text-sm font-medium truncate max-w-[300px]">AI Regulation Impact on Startups 2026</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1.5 text-xs font-medium text-accent-green">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent-green status-pulse"></span>
+          Running &middot; Synthesis
+        </span>
+        <button onclick="toggleChat()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-purple/10 text-accent-purple text-xs font-medium hover:bg-accent-purple/20 transition-colors cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+          Iterate
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3-Column Layout -->
+  <div class="flex h-[calc(100vh-3rem)]">
+
+    <!-- LEFT COLUMN: Job Meta + Sources (280px) -->
+    <aside class="w-[280px] border-r border-border-default overflow-y-auto p-4 shrink-0">
+
+      <!-- Job Info Card -->
+      <div class="bg-surface-1 border border-border-default rounded-xl p-4 mb-4">
+        <h2 class="text-sm font-semibold mb-3">Job Info</h2>
+        <div class="space-y-2.5 text-xs">
+          <div class="flex justify-between">
+            <span class="text-txt-muted">Mode</span>
+            <span class="text-txt-secondary font-medium">Full Research</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-txt-muted">Category</span>
+            <span class="text-txt-secondary font-medium">Political</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-txt-muted">Sources</span>
+            <span class="text-txt-secondary font-medium">8 collected</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-txt-muted">Created</span>
+            <span class="text-txt-secondary font-medium">2h ago</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-txt-muted">Cost</span>
+            <span class="text-txt-secondary font-medium">$0.31</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Nav -->
+      <div class="mb-4">
+        <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-2 px-1">Documents</h3>
+        <div class="space-y-1">
+          <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left hover:bg-surface-hover transition-colors cursor-pointer group">
+            <span class="w-5 h-5 rounded bg-gray-500/20 text-[9px] flex items-center justify-center text-txt-muted shrink-0 group-hover:bg-gray-500/30">0</span>
+            <span class="text-txt-secondary group-hover:text-txt-primary truncate">Source Ledger</span>
+            <svg class="w-3.5 h-3.5 text-accent-green ml-auto shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          </button>
+          <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left hover:bg-surface-hover transition-colors cursor-pointer group">
+            <span class="w-5 h-5 rounded bg-blue-500/20 text-[9px] flex items-center justify-center text-accent-blue shrink-0 group-hover:bg-blue-500/30">1</span>
+            <span class="text-txt-secondary group-hover:text-txt-primary truncate">Jump-Start</span>
+            <svg class="w-3.5 h-3.5 text-accent-green ml-auto shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          </button>
+          <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-accent-blue/10 text-sm text-left cursor-pointer group">
+            <span class="w-5 h-5 rounded bg-purple-500/20 text-[9px] flex items-center justify-center text-accent-purple shrink-0">2</span>
+            <span class="text-txt-primary font-medium truncate">Semantic Brief</span>
+            <svg class="w-3.5 h-3.5 text-accent-green ml-auto shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+          </button>
+          <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left hover:bg-surface-hover transition-colors cursor-pointer group">
+            <span class="w-5 h-5 rounded bg-amber-500/20 text-[9px] flex items-center justify-center text-accent-amber shrink-0 group-hover:bg-amber-500/30">3</span>
+            <span class="text-txt-secondary group-hover:text-txt-primary truncate">Creator Brief</span>
+            <div class="ml-auto shrink-0">
+              <div class="w-3.5 h-3.5 rounded-full border-2 border-accent-blue border-t-transparent animate-spin"></div>
+            </div>
+          </button>
+          <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left opacity-40 cursor-not-allowed group">
+            <span class="w-5 h-5 rounded bg-surface-3 text-[9px] flex items-center justify-center text-txt-disabled shrink-0">4</span>
+            <span class="text-txt-disabled truncate">Producer Packet</span>
+            <span class="text-[9px] text-txt-disabled ml-auto">Locked</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sources List -->
+      <div>
+        <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-2 px-1">Sources (8)</h3>
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] text-txt-secondary truncate">EU AI Act Implementation Timeline</p>
+              <p class="text-[10px] text-txt-disabled">reuters.com &middot; HIGH</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] text-txt-secondary truncate">YC Startups Navigate AI Compliance</p>
+              <p class="text-[10px] text-txt-disabled">techcrunch.com &middot; HIGH</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-orange shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] text-txt-secondary truncate">AI Startup Compliance Costs Survey</p>
+              <p class="text-[10px] text-txt-disabled">youtube.com &middot; MEDIUM</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] text-txt-secondary truncate">Congressional Hearing: AI Safety</p>
+              <p class="text-[10px] text-txt-disabled">c-span.org &middot; HIGH</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-hover transition-colors cursor-pointer">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-orange shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] text-txt-secondary truncate">r/startups Discussion on AI Law</p>
+              <p class="text-[10px] text-txt-disabled">reddit.com &middot; MEDIUM</p>
+            </div>
+          </div>
+        </div>
+        <button class="w-full mt-2 text-[11px] text-accent-blue hover:text-accent-blue/80 transition-colors cursor-pointer">Show 3 more...</button>
+      </div>
+    </aside>
+
+    <!-- CENTER COLUMN: Document Content (flex-1) -->
+    <main class="flex-1 overflow-y-auto">
+
+      <!-- Document Tab Strip -->
+      <div class="sticky top-0 z-10 bg-surface-0/95 backdrop-blur border-b border-border-default px-6">
+        <div class="flex items-center gap-6 text-sm">
+          <button class="py-3 tab-inactive transition-colors cursor-pointer">Source Ledger</button>
+          <button class="py-3 tab-inactive transition-colors cursor-pointer">Jump-Start</button>
+          <button class="py-3 tab-active font-medium transition-colors cursor-pointer">Semantic Brief</button>
+          <button class="py-3 tab-inactive transition-colors cursor-pointer relative">
+            Creator Brief
+            <span class="absolute -top-0.5 -right-2 w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Document Content Area -->
+      <div class="p-6 max-w-4xl">
+
+        <!-- Document Header -->
+        <div class="mb-8">
+          <div class="flex items-center gap-3 mb-2">
+            <h1 class="text-xl font-bold">Semantic Brief</h1>
+            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-surface-3 text-txt-muted">v2</span>
+          </div>
+          <p class="text-sm text-txt-muted">AI Regulation Impact on Startups 2026 &middot; 8 sources analyzed &middot; 23 claims extracted</p>
+          <div class="flex items-center gap-3 mt-3">
+            <button class="flex items-center gap-1.5 text-xs text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              Export PDF
+            </button>
+            <button class="flex items-center gap-1.5 text-xs text-txt-muted hover:text-txt-secondary transition-colors cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25m11.9-3.664A2.251 2.251 0 0015 2.25h-1.5a2.251 2.251 0 00-2.15 1.586m5.8 0c.065.21.1.433.1.664v.75h-6V4.5c0-.231.035-.454.1-.664M6.75 7.5H4.875c-.621 0-1.125.504-1.125 1.125v12c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V16.5a9 9 0 00-9-9z" /></svg>
+              Copy Link
+            </button>
+            <span class="text-xs text-txt-disabled ml-auto">Updated 12 min ago</span>
+          </div>
+        </div>
+
+        <!-- Key Themes Section (Accordion) -->
+        <section class="mb-6">
+          <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between py-3 border-b border-border-default cursor-pointer group">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-accent-purple transition-transform accordion-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+              <h2 class="text-sm font-semibold">Key Themes</h2>
+              <span class="text-[10px] text-txt-disabled bg-surface-3 px-1.5 py-0.5 rounded">4 themes</span>
+            </div>
+          </button>
+          <div class="accordion-content open">
+            <div class="pt-3 space-y-3">
+              <!-- Theme Card -->
+              <div class="bg-surface-1 border border-border-default rounded-lg p-3.5 hover:border-border-hover transition-colors">
+                <div class="flex items-start gap-3">
+                  <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">THEME_1</span>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-medium mb-1">Compliance costs disproportionately burden early-stage startups</h3>
+                    <p class="text-xs text-txt-muted leading-relaxed">Multiple sources indicate that EU AI Act compliance costs range from $50K-$200K annually, with startups under Series A facing the highest relative burden. Three sources independently confirm this pattern.</p>
+                    <div class="flex items-center gap-2 mt-2">
+                      <span class="text-[10px] text-txt-disabled">Sources: SRC_1, SRC_2, SRC_5</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Theme Card 2 -->
+              <div class="bg-surface-1 border border-border-default rounded-lg p-3.5 hover:border-border-hover transition-colors">
+                <div class="flex items-start gap-3">
+                  <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">THEME_2</span>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-medium mb-1">Regulatory arbitrage driving AI talent migration</h3>
+                    <p class="text-xs text-txt-muted leading-relaxed">EU-based AI startups increasingly relocating R&D to jurisdictions with less restrictive frameworks, particularly Singapore and UAE.</p>
+                    <div class="flex items-center gap-2 mt-2">
+                      <span class="text-[10px] text-txt-disabled">Sources: SRC_2, SRC_4, SRC_7</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green">HIGH</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Theme Card 3 -->
+              <div class="bg-surface-1 border border-border-default rounded-lg p-3.5 hover:border-border-hover transition-colors">
+                <div class="flex items-start gap-3">
+                  <span class="text-[10px] font-mono text-accent-purple bg-accent-purple/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">THEME_3</span>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-sm font-medium mb-1">Open-source AI models face uncertain regulatory status</h3>
+                    <p class="text-xs text-txt-muted leading-relaxed">Disagreement between EU and US approaches on whether open-source model providers bear downstream liability.</p>
+                    <div class="flex items-center gap-2 mt-2">
+                      <span class="text-[10px] text-txt-disabled">Sources: SRC_1, SRC_3, SRC_6</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange">MEDIUM</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tensions Section -->
+        <section class="mb-6">
+          <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between py-3 border-b border-border-default cursor-pointer group">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-accent-orange transition-transform accordion-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+              <h2 class="text-sm font-semibold">Tensions</h2>
+              <span class="text-[10px] text-txt-disabled bg-surface-3 px-1.5 py-0.5 rounded">2 tensions</span>
+            </div>
+          </button>
+          <div class="accordion-content">
+            <div class="pt-3 space-y-3">
+              <div class="bg-surface-1 border border-accent-orange/20 rounded-lg p-3.5">
+                <div class="flex items-start gap-3">
+                  <span class="text-[10px] font-mono text-accent-orange bg-accent-orange/10 px-1.5 py-0.5 rounded shrink-0 mt-0.5">TEN_1</span>
+                  <div>
+                    <h3 class="text-sm font-medium mb-1">Innovation speed vs. safety requirements</h3>
+                    <p class="text-xs text-txt-muted">SRC_1 (Reuters) argues regulation enables trust; SRC_5 (Reddit) claims it kills innovation velocity</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Claims Section -->
+        <section class="mb-6">
+          <button onclick="toggleAccordion(this)" class="w-full flex items-center justify-between py-3 border-b border-border-default cursor-pointer group">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-accent-blue transition-transform accordion-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+              <h2 class="text-sm font-semibold">Claims</h2>
+              <span class="text-[10px] text-txt-disabled bg-surface-3 px-1.5 py-0.5 rounded">23 claims</span>
+            </div>
+          </button>
+          <div class="accordion-content">
+            <div class="pt-3 space-y-2">
+              <div class="bg-surface-1 border border-border-default rounded-lg p-3 text-xs">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-mono text-[10px] text-accent-blue">CLM_1</span>
+                  <span class="px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green text-[10px]">HIGH</span>
+                </div>
+                <p class="text-txt-secondary">"EU AI Act compliance costs average $120K/year for seed-stage startups" — SRC_1, SRC_2</p>
+              </div>
+              <div class="bg-surface-1 border border-border-default rounded-lg p-3 text-xs">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-mono text-[10px] text-accent-blue">CLM_2</span>
+                  <span class="px-1.5 py-0.5 rounded bg-accent-orange/10 text-accent-orange text-[10px]">MEDIUM</span>
+                </div>
+                <p class="text-txt-secondary">"37% of EU AI startups are considering relocating to the US or APAC" — SRC_4</p>
+              </div>
+              <div class="bg-surface-1 border border-border-default rounded-lg p-3 text-xs">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-mono text-[10px] text-accent-blue">CLM_3</span>
+                  <span class="px-1.5 py-0.5 rounded bg-accent-green/10 text-accent-green text-[10px]">HIGH</span>
+                </div>
+                <p class="text-txt-secondary">"Congressional AI Safety hearing established bipartisan support for risk-tiered regulation" — SRC_6</p>
+              </div>
+              <button class="text-accent-blue text-[11px] hover:underline cursor-pointer mt-1">Show 20 more claims...</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- RIGHT COLUMN: Activity Feed (320px) -->
+    <aside class="w-[320px] border-l border-border-default overflow-y-auto shrink-0">
+
+      <!-- Pipeline Progress -->
+      <div class="p-4 border-b border-border-default">
+        <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Pipeline Progress</h3>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center">
+              <svg class="w-3 h-3 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs font-medium text-txt-secondary">Ingestion</p>
+              <p class="text-[10px] text-txt-disabled">8 sources collected</p>
+            </div>
+            <span class="text-[10px] text-txt-disabled">2m</span>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center">
+              <svg class="w-3 h-3 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs font-medium text-txt-secondary">Extraction</p>
+              <p class="text-[10px] text-txt-disabled">8/8 sources extracted</p>
+            </div>
+            <span class="text-[10px] text-txt-disabled">8m</span>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-accent-green/20 flex items-center justify-center">
+              <svg class="w-3 h-3 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs font-medium text-txt-secondary">Validation</p>
+              <p class="text-[10px] text-txt-disabled">23 claims, 2 ceiling corrections</p>
+            </div>
+            <span class="text-[10px] text-txt-disabled">1m</span>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center">
+              <div class="w-3 h-3 rounded-full border-2 border-accent-blue border-t-transparent animate-spin"></div>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs font-medium text-accent-blue">Synthesis</p>
+              <p class="text-[10px] text-txt-disabled">Generating themes...</p>
+            </div>
+            <span class="text-[10px] text-accent-blue">Now</span>
+          </div>
+          <div class="flex items-center gap-2.5 opacity-40">
+            <div class="w-6 h-6 rounded-full bg-surface-3 flex items-center justify-center">
+              <span class="text-[10px] text-txt-disabled">5</span>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs text-txt-disabled">Assembly</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Feed -->
+      <div class="p-4 border-b border-border-default">
+        <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Activity</h3>
+        <div class="space-y-3">
+          <div class="flex gap-2.5">
+            <div class="w-1 rounded-full bg-accent-blue shrink-0 mt-1" style="height:calc(100% - 4px)"></div>
+            <div>
+              <p class="text-xs text-txt-secondary">Doc 2 (Semantic Brief) regenerated</p>
+              <p class="text-[10px] text-txt-disabled">Version v2 &middot; 12 min ago</p>
+            </div>
+          </div>
+          <div class="flex gap-2.5">
+            <div class="w-1 rounded-full bg-accent-purple shrink-0 mt-1" style="height:calc(100% - 4px)"></div>
+            <div>
+              <p class="text-xs text-txt-secondary">Iteration: <span class="text-accent-purple">deeper</span> completed</p>
+              <p class="text-[10px] text-txt-disabled">Re-extracted 3 sources &middot; 25 min ago</p>
+            </div>
+          </div>
+          <div class="flex gap-2.5">
+            <div class="w-1 rounded-full bg-accent-green shrink-0 mt-1" style="height:calc(100% - 4px)"></div>
+            <div>
+              <p class="text-xs text-txt-secondary">Doc 0 + Doc 1 generated</p>
+              <p class="text-[10px] text-txt-disabled">First pass complete &middot; 1h ago</p>
+            </div>
+          </div>
+          <div class="flex gap-2.5">
+            <div class="w-1 rounded-full bg-txt-disabled shrink-0 mt-1" style="height:calc(100% - 4px)"></div>
+            <div>
+              <p class="text-xs text-txt-secondary">Job created</p>
+              <p class="text-[10px] text-txt-disabled">Full Research mode &middot; 2h ago</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Suggestions -->
+      <div class="p-4">
+        <h3 class="text-xs font-semibold text-txt-muted uppercase tracking-wider mb-3">Suggested Actions</h3>
+        <div class="space-y-2">
+          <button class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-surface-1 border border-border-default hover:border-border-hover text-left transition-colors cursor-pointer group">
+            <div class="w-7 h-7 rounded-lg bg-accent-purple/10 flex items-center justify-center shrink-0">
+              <svg class="w-3.5 h-3.5 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-medium text-txt-secondary group-hover:text-txt-primary">Deep dive on compliance costs</p>
+              <p class="text-[10px] text-txt-disabled">Explore gap: exact cost ranges vary across sources</p>
+            </div>
+          </button>
+          <button class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-surface-1 border border-border-default hover:border-border-hover text-left transition-colors cursor-pointer group">
+            <div class="w-7 h-7 rounded-lg bg-accent-blue/10 flex items-center justify-center shrink-0">
+              <svg class="w-3.5 h-3.5 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-medium text-txt-secondary group-hover:text-txt-primary">Expand sources (+4 legal experts)</p>
+              <p class="text-[10px] text-txt-disabled">Add legal analysis from law firm reports</p>
+            </div>
+          </button>
+          <button class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-surface-1 border border-border-default hover:border-border-hover text-left transition-colors cursor-pointer group">
+            <div class="w-7 h-7 rounded-lg bg-accent-orange/10 flex items-center justify-center shrink-0">
+              <svg class="w-3.5 h-3.5 text-accent-orange" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-medium text-txt-secondary group-hover:text-txt-primary">Different angle: startup founder POV</p>
+              <p class="text-[10px] text-txt-disabled">Reframe analysis from founder perspective</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Chat Panel (Sheet overlay from right) -->
+  <div id="chatOverlay" class="fixed inset-0 bg-black/40 z-40 hidden" onclick="toggleChat()"></div>
+  <div id="chatPanel" class="fixed top-0 right-0 w-[400px] h-full z-50 bg-surface-1 border-l border-border-default chat-panel flex flex-col">
+    <div class="flex items-center justify-between px-4 h-12 border-b border-border-default shrink-0">
+      <h3 class="text-sm font-semibold">Iterate / Brainstorm</h3>
+      <button onclick="toggleChat()" class="w-7 h-7 rounded-lg hover:bg-surface-hover flex items-center justify-center transition-colors cursor-pointer">
+        <svg class="w-4 h-4 text-txt-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <!-- Chat Messages -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-4">
+      <div class="flex gap-3">
+        <div class="w-7 h-7 rounded-lg bg-accent-purple/20 flex items-center justify-center shrink-0">
+          <svg class="w-3.5 h-3.5 text-accent-purple" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+        </div>
+        <div class="bg-surface-2 rounded-lg rounded-tl-none p-3 text-xs text-txt-secondary leading-relaxed max-w-[300px]">
+          I can help you iterate on this research. Try:<br/><br/>
+          <span class="text-accent-purple font-medium">deep_dive</span> — Explore gaps<br/>
+          <span class="text-accent-blue font-medium">expand_sources</span> — Add more sources<br/>
+          <span class="text-accent-orange font-medium">different_angle</span> — New perspective<br/>
+          <span class="text-accent-green font-medium">deeper</span> — Re-extract with depth
+        </div>
+      </div>
+    </div>
+    <!-- Chat Input -->
+    <div class="p-3 border-t border-border-default shrink-0">
+      <div class="flex items-center gap-2 bg-surface-2 rounded-lg border border-border-default focus-within:border-accent-purple px-3 py-2">
+        <input type="text" placeholder="Ask to iterate, brainstorm, or refine..." class="flex-1 bg-transparent text-sm text-txt-primary placeholder:text-txt-disabled focus:outline-none" />
+        <button class="w-7 h-7 rounded-lg bg-accent-purple hover:bg-accent-purple/80 flex items-center justify-center transition-colors cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleAccordion(btn) {
+      const content = btn.nextElementSibling;
+      const arrow = btn.querySelector('.accordion-arrow');
+      content.classList.toggle('open');
+      arrow.style.transform = content.classList.contains('open') ? 'rotate(90deg)' : 'rotate(0deg)';
+    }
+    function toggleChat() {
+      const panel = document.getElementById('chatPanel');
+      const overlay = document.getElementById('chatOverlay');
+      panel.classList.toggle('open');
+      overlay.classList.toggle('hidden');
+    }
+    // Open first accordion by default
+    document.querySelectorAll('.accordion-content.open').forEach(el => {
+      const arrow = el.previousElementSibling.querySelector('.accordion-arrow');
+      if (arrow) arrow.style.transform = 'rotate(90deg)';
+    });
+  </script>
+
+</body>
+</html>

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Zustand store for managing research jobs.
  */

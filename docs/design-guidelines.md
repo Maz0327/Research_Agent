@@ -434,8 +434,93 @@ Use [Heroicons](https://heroicons.com/) (outline style by default)
 
 ---
 
+## 13. Frontend Overhaul Design System (v2.0)
+
+> **ADR-022** — This section documents the new design system adopted 2026-03-18.
+> Replaces inline Tailwind classes with CSS variable tokens via shadcn/ui.
+
+### Surface Palette (Dark-Only)
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `surface-0` | `#0a0a0f` | Page background |
+| `surface-1` | `#12121a` | Cards, panels |
+| `surface-2` | `#1a1a25` | Inputs, elevated |
+| `surface-3` | `#222230` | Disabled, muted bg |
+| `surface-hover` | `#2a2a38` | Hover state |
+
+### Accent Colors (Semantic)
+
+| Token | Hex | Meaning |
+|-------|-----|---------|
+| `accent-blue` | `#3b82f6` | Primary, links, active state |
+| `accent-purple` | `#8b5cf6` | AI, iterate, synthesis |
+| `accent-green` | `#22c55e` | Success, HIGH confidence |
+| `accent-orange` | `#f97316` | Warning, MEDIUM confidence |
+| `accent-red` | `#ef4444` | Error, destructive, LOW confidence |
+| `accent-amber` | `#f59e0b` | Creator Brief, hooks |
+
+### Text Hierarchy
+
+| Token | Hex | Contrast | Usage |
+|-------|-----|----------|-------|
+| `txt-primary` | `#f5f5f5` | 15.4:1 | Headings, body |
+| `txt-secondary` | `#a1a1aa` | 7.5:1 | Labels, descriptions |
+| `txt-muted` | `#71717a` | 4.6:1 | Timestamps, captions |
+| `txt-disabled` | `#52525b` | 3.1:1 | Placeholder, inactive |
+
+### Border Colors
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `border-default` | `#27272a` | Card borders, dividers |
+| `border-hover` | `#3f3f46` | Hover borders |
+
+### Component Library
+
+Components defined in interactive mockup `frontend/public/mockups/10-component-library.html`:
+- **Buttons:** Primary (gradient), secondary, ghost, destructive, icon buttons
+- **Inputs:** Text, select, search, textarea, toggle, error state
+- **Cards:** Stat card, glow card, section card
+- **Badges:** Job status (running/completed/failed/queued), confidence (HIGH/MEDIUM/LOW), pipeline stages, document badges (S0-S4), entity IDs (KP/THEME/TEN/CLM/SRC)
+- **Feedback:** Success toast, error alert, progress bar, spinners, AI typing indicator
+- **Skeletons:** Shimmer animation matching target layout
+- **Navigation:** Sidebar states, tab states, breadcrumbs, mobile bottom nav
+
+### Layout Patterns
+
+| Page | Layout | Columns |
+|------|--------|---------|
+| Dashboard | Sidebar + main | 1-col grid |
+| Job Detail | Sidebar + 3-col | left meta, center docs, right activity |
+| Job Creation | Sidebar + centered wizard | 1-col stepper |
+| Document Viewer | Full-width | Scrollable sections |
+| Settings | Sidebar + form | 1-col tabs |
+| Admin | Admin sidebar + table | 1-col tabbed |
+| Login | Centered card | No sidebar |
+| Shared/Public | Public header + content | 1-col |
+
+### Mockups Reference
+
+All at `frontend/public/mockups/`:
+| # | File | Coverage |
+|---|------|----------|
+| 01 | `01-dashboard.html` | Stats, job grid, pipeline progress |
+| 02 | `02-job-detail-3col.html` | 3-column, document tabs, chat Sheet |
+| 03 | `03-job-creation-wizard.html` | Multi-step wizard |
+| 04 | `04-document-viewer.html` | Creator Brief, quotes, provenance |
+| 05 | `05-login.html` | Google OAuth, email, magic link |
+| 06 | `06-queue.html` | Workers, drag-reorder table |
+| 07 | `07-settings.html` | Profile, defaults, usage charts |
+| 08 | `08-admin.html` | Jobs/users/errors tabs |
+| 09 | `09-transcripts-shared.html` | Transcript list, public share |
+| 10 | `10-component-library.html` | Full component library |
+
+---
+
 ## Changelog
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.0.0 | 2026-03-18 | Complete design system overhaul — ADR-022, dark-only surfaces, shadcn/ui, 10 mockups |
 | 1.0.0 | 2025-12-26 | Initial design system |

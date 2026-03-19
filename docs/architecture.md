@@ -148,5 +148,61 @@ If you see docs or code suggesting these exist, treat it as drift.
 
 ---
 
+## 10) Frontend Architecture (v2 — ADR-022)
+
+**Migration:** Pages Router → App Router (big-bang, no incremental)
+
+### Stack
+- **Next.js App Router** — RSC, layouts, route groups
+- **shadcn/ui** — Copy-paste components, Radix UI primitives, CSS variable theming
+- **next-themes** — Dark mode management (dark-only for now)
+- **TanStack Query** — Data fetching, replaces Zustand polling
+- **Zustand** — UI-only state (drawer, active tab, wizard step)
+- **Framer Motion** — Page transitions only
+- **Tailwind CSS** — Utility classes mapped to CSS variable tokens
+
+### Directory Structure
+```
+app/
+├── layout.tsx              # Root: ThemeProvider + QueryClientProvider
+├── (dashboard)/            # Route group: sidebar layout
+│   ├── layout.tsx          # Sidebar + main wrapper
+│   ├── page.tsx            # Dashboard (stats, job grid)
+│   ├── queue/page.tsx
+│   ├── transcripts/page.tsx
+│   ├── settings/page.tsx
+│   └── usage/page.tsx
+├── jobs/
+│   ├── [id]/page.tsx       # Job detail (3-column hero)
+│   └── new/page.tsx        # Job creation wizard
+├── admin/                  # Admin route group
+│   ├── layout.tsx
+│   ├── page.tsx            # Admin dashboard
+│   ├── jobs/page.tsx
+│   ├── users/page.tsx
+│   └── errors/page.tsx
+├── login/page.tsx          # Auth (no sidebar)
+└── shared/[token]/page.tsx # Public share (no auth)
+```
+
+### Layout Patterns
+- **Dashboard shell:** Sidebar (w-56) + main content area
+- **Job detail:** 3-column grid — left (job meta, 280px), center (documents, flex), right (activity/chat Sheet, 320px)
+- **Login/shared:** Centered, no sidebar
+- **Admin:** Admin sidebar (w-48) + content
+
+### Client/Server Boundary
+- RSCs: layouts, pages that only read data
+- Client components: forms, interactive elements, Zustand consumers
+- Zustand stores: `'use client'` directive, never in RSCs
+- Data flow: Server fetches → passes as props → client components use for interaction
+
+### Design Tokens (CSS Variables)
+All defined in `globals.css` under `:root` / `.dark` selectors. Referenced via Tailwind config `extend.colors`.
+
+See `docs/design-guidelines.md` Section 13 for full token reference.
+
+---
+
 **END**
 

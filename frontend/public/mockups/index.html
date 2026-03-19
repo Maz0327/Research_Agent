@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Agent — Design System Mockups</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'] },
+        colors: {
+          surface: { 0: '#0a0a0f', 1: '#12121a', 2: '#1a1a25', 3: '#222230', hover: '#2a2a38' },
+          accent: { blue: '#3b82f6', purple: '#8b5cf6', green: '#22c55e', orange: '#f97316', red: '#ef4444', amber: '#f59e0b' },
+          txt: { primary: '#f5f5f5', secondary: '#a1a1aa', muted: '#71717a', disabled: '#52525b' },
+          border: { default: '#27272a', hover: '#3f3f46' }
+        }
+      }}
+    }
+  </script>
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    .card-glow:hover { box-shadow: 0 0 30px rgba(59,130,246,0.12); border-color: #3f3f46; transform: translateY(-2px); }
+    .bg-grid { background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0); background-size: 40px 40px; }
+    .gradient-text { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .iframe-preview { pointer-events: none; transform: scale(0.22); transform-origin: top left; width: 454%; height: 454%; }
+    .card-container:hover .iframe-preview { opacity: 0.8; }
+    .tag { font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 500; }
+  </style>
+</head>
+<body class="bg-surface-0 text-txt-primary font-sans antialiased min-h-screen bg-grid">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 border-b border-border-default bg-surface-0/90 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-blue to-accent-purple flex items-center justify-center shadow-lg shadow-accent-blue/20">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 14.5M14.25 3.104c.251.023.501.05.75.082M19.8 14.5l-2.147 2.146a2.25 2.25 0 01-1.591.659H7.938a2.25 2.25 0 01-1.591-.659L4.2 14.5" /></svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold">Research Agent</h1>
+          <p class="text-[10px] text-txt-muted">Design System — 10 Interactive Mockups</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="text-txt-muted">Dark-only</span>
+        <span class="text-txt-disabled">•</span>
+        <span class="text-txt-muted">Inter</span>
+        <span class="text-txt-disabled">•</span>
+        <span class="text-txt-muted">Tailwind</span>
+        <span class="text-txt-disabled">•</span>
+        <span class="text-txt-muted">shadcn/ui</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-10">
+
+    <!-- Hero -->
+    <div class="text-center mb-12">
+      <h2 class="text-3xl font-bold mb-3">Frontend Overhaul <span class="gradient-text">Mockups</span></h2>
+      <p class="text-sm text-txt-muted max-w-lg mx-auto">Click any card to open the interactive mockup. Every button, toggle, tab, and form element is functional. Cross-linked navigation between pages.</p>
+    </div>
+
+    <!-- Color Palette Bar -->
+    <div class="flex items-center justify-center gap-2 mb-10">
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-[#0a0a0f] border border-border-default cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">surface-0</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-[#12121a] border border-border-default cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">surface-1</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-[#1a1a25] border border-border-default cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">surface-2</span>
+      </div>
+      <div class="w-px h-6 bg-border-default mx-1"></div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-accent-blue cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">blue</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-accent-purple cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">purple</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-accent-green cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">green</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-accent-orange cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">orange</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-accent-red cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">red</span>
+      </div>
+      <div class="group relative">
+        <div class="w-8 h-8 rounded-lg bg-accent-amber cursor-pointer"></div>
+        <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] text-txt-disabled opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">amber</span>
+      </div>
+    </div>
+
+    <!-- Pages Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <!-- 01 Dashboard -->
+      <a href="01-dashboard.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="01-dashboard.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">01</span>
+            <h3 class="text-sm font-semibold">Dashboard</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Stats cards, job grid, pipeline progress, sidebar nav, status badges</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-blue/10 text-accent-blue">Stats</span>
+            <span class="tag bg-accent-purple/10 text-accent-purple">Grid</span>
+            <span class="tag bg-accent-green/10 text-accent-green">Sidebar</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 02 Job Detail -->
+      <a href="02-job-detail-3col.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="02-job-detail-3col.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">02</span>
+            <h3 class="text-sm font-semibold">Job Detail (3-Col)</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">3-column layout, document tabs, accordions, activity feed, chat Sheet</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-blue/10 text-accent-blue">3-Col</span>
+            <span class="tag bg-accent-purple/10 text-accent-purple">Tabs</span>
+            <span class="tag bg-accent-orange/10 text-accent-orange">Chat</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 03 Job Creation -->
+      <a href="03-job-creation-wizard.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="03-job-creation-wizard.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">03</span>
+            <h3 class="text-sm font-semibold">Job Creation Wizard</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Multi-step stepper, smart input, mode cards, source config, cost estimate</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-blue/10 text-accent-blue">Stepper</span>
+            <span class="tag bg-accent-green/10 text-accent-green">Cards</span>
+            <span class="tag bg-accent-amber/10 text-accent-amber">Form</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 04 Document Viewer -->
+      <a href="04-document-viewer.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="04-document-viewer.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">04</span>
+            <h3 class="text-sm font-semibold">Document Viewer</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Creator Brief renderer, section cards, inline edit, quotes, provenance</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-amber/10 text-accent-amber">Brief</span>
+            <span class="tag bg-accent-purple/10 text-accent-purple">Sections</span>
+            <span class="tag bg-accent-blue/10 text-accent-blue">Versions</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 05 Login -->
+      <a href="05-login.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="05-login.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">05</span>
+            <h3 class="text-sm font-semibold">Login</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Google OAuth, email/password, magic link, centered card, grid background</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-blue/10 text-accent-blue">OAuth</span>
+            <span class="tag bg-accent-green/10 text-accent-green">Auth</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 06 Queue -->
+      <a href="06-queue.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="06-queue.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">06</span>
+            <h3 class="text-sm font-semibold">Queue</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Worker status cards, drag-reorderable table, progress bars, job actions</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-green/10 text-accent-green">Workers</span>
+            <span class="tag bg-accent-blue/10 text-accent-blue">Table</span>
+            <span class="tag bg-accent-orange/10 text-accent-orange">Drag</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 07 Settings -->
+      <a href="07-settings.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="07-settings.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">07</span>
+            <h3 class="text-sm font-semibold">Settings &amp; Usage</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Profile, research defaults, toggles, Usage tab with bar chart + cost table</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-blue/10 text-accent-blue">Forms</span>
+            <span class="tag bg-accent-purple/10 text-accent-purple">Toggles</span>
+            <span class="tag bg-accent-green/10 text-accent-green">Charts</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 08 Admin -->
+      <a href="08-admin.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="08-admin.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">08</span>
+            <h3 class="text-sm font-semibold">Admin Panel</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Admin jobs table, users table, error log with stack traces, tab navigation</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-red/10 text-accent-red">Admin</span>
+            <span class="tag bg-accent-blue/10 text-accent-blue">Tables</span>
+            <span class="tag bg-accent-orange/10 text-accent-orange">Errors</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 09 Transcripts & Shared -->
+      <a href="09-transcripts-shared.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="09-transcripts-shared.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">09</span>
+            <h3 class="text-sm font-semibold">Transcripts &amp; Shared</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Transcript list with source types, Shared/Public view preview, gradient header</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-purple/10 text-accent-purple">Sources</span>
+            <span class="tag bg-accent-green/10 text-accent-green">Public</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 10 Component Library -->
+      <a href="10-component-library.html" class="card-container bg-surface-1 border border-border-default rounded-2xl overflow-hidden transition-all duration-200 cursor-pointer card-glow block">
+        <div class="h-40 bg-surface-2 overflow-hidden relative">
+          <iframe src="10-component-library.html" class="iframe-preview" tabindex="-1"></iframe>
+        </div>
+        <div class="p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-mono text-txt-disabled">10</span>
+            <h3 class="text-sm font-semibold">Component Library</h3>
+          </div>
+          <p class="text-xs text-txt-muted mb-3">Colors, typography, buttons, inputs, cards, badges, feedback, skeletons, nav</p>
+          <div class="flex flex-wrap gap-1">
+            <span class="tag bg-accent-blue/10 text-accent-blue">System</span>
+            <span class="tag bg-accent-amber/10 text-accent-amber">Tokens</span>
+            <span class="tag bg-accent-purple/10 text-accent-purple">All</span>
+          </div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-12 pt-6 border-t border-border-default">
+      <p class="text-[10px] text-txt-disabled">Research Agent Design System &middot; 10 pages &middot; All interactive &middot; Dark-only &middot; Tailwind CSS</p>
+      <p class="text-[10px] text-txt-disabled mt-1">Plan: <span class="font-mono">260318-0003-frontend-overhaul</span> &middot; Phase 2: Design System</p>
+    </div>
+
+  </main>
+
+</body>
+</html>

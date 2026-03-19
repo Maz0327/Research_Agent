@@ -1,14 +1,18 @@
+'use client';
+
 /**
  * Theme toggle component for switching between light/dark/system modes.
+ * Uses next-themes (already configured in app/providers.tsx).
  */
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from 'next-themes';
 
 export default function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
 
   const cycleTheme = () => {
     const themes: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system'];
-    const currentIndex = themes.indexOf(theme);
+    const currentTheme = (theme ?? 'dark') as 'light' | 'dark' | 'system';
+    const currentIndex = themes.indexOf(currentTheme);
     const nextIndex = (currentIndex + 1) % themes.length;
     setTheme(themes[nextIndex]);
   };
