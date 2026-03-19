@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SidebarNav } from './sidebar-nav';
 import { UserMenu } from './user-menu';
+import { ThemeToggleButton } from './theme-toggle-button';
 
 interface SidebarProps {
   /** User email for UserMenu initials */
@@ -73,7 +74,12 @@ export function Sidebar({ email, showAdmin = false, onSignOut }: SidebarProps) {
 
         <Separator />
 
-        <UserMenu email={email} onSignOut={onSignOut} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <UserMenu email={email} onSignOut={onSignOut} />
+          </div>
+          <ThemeToggleButton />
+        </div>
       </div>
     </aside>
   );

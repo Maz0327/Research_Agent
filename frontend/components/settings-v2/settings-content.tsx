@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { useSettingsStore, PipelineType } from '@/store/settings';
 import { supabase } from '@/lib/supabase';
 import { SettingsGeneralTab } from './settings-general-tab';
-import { SettingsToggleRow } from './settings-toggle-row';
+import { SettingsNotificationsTab } from './settings-notifications-tab';
 
 type Tab = 'general' | 'usage' | 'api-keys' | 'notifications';
 
@@ -168,30 +168,18 @@ export function SettingsContent() {
         </div>
       )}
       {activeTab === 'notifications' && (
-        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold">Notification Preferences</h2>
-          <SettingsToggleRow
-            label="Email on job complete"
-            description="Receive email when a research job finishes"
-            checked={emailOnComplete}
-            onChange={setEmailOnComplete}
-          />
-          <SettingsToggleRow
-            label="Email on job failure"
-            description="Receive email when a research job fails"
-            checked={emailOnFailure}
-            onChange={setEmailOnFailure}
-          />
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-5 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </div>
+        <SettingsNotificationsTab
+          isSaving={isSaving}
+          onSave={(prefs) => {
+            setEmailOnComplete(prefs.jobCompleted);
+            setEmailOnFailure(prefs.jobFailed);
+            handleSave();
+          }}
+          initialPrefs={{
+            jobCompleted: emailOnComplete,
+            jobFailed: emailOnFailure,
+          }}
+        />
       )}
     </div>
   );
