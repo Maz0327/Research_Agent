@@ -76,12 +76,12 @@ export function TranscriptsContent() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-foreground">Transcripts</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Cached transcripts from YouTube, uploaded text, and OCR results</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <div className="flex items-center bg-secondary rounded-lg p-0.5">
             {(['list', 'grid'] as ViewMode[]).map((mode) => (
               <button
@@ -101,7 +101,7 @@ export function TranscriptsContent() {
               placeholder="Search transcripts..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-secondary text-xs rounded-lg pl-7 pr-3 py-1.5 border border-border focus:border-accent-blue focus:outline-none w-48 text-foreground placeholder:text-muted-foreground"
+              className="bg-secondary text-xs rounded-lg pl-7 pr-3 py-1.5 border border-border focus:border-accent-blue focus:outline-none w-40 sm:w-48 text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -109,7 +109,8 @@ export function TranscriptsContent() {
 
       {/* Transcript table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead>
             <tr className="border-b border-border">
               {['Source', 'Type', 'Mode', 'Length', 'Job', 'Cached'].map((h) => (
@@ -151,6 +152,7 @@ export function TranscriptsContent() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Extract form */}
