@@ -18,16 +18,16 @@ interface StatCardProps {
 
 function StatCard({ label, value, sub, subAccent, icon, iconBg }: StatCardProps) {
   return (
-    <div className="bg-[#12121a] border border-[#27272a] rounded-xl p-4 hover:shadow-[0_0_24px_rgba(59,130,246,0.08)] transition-shadow cursor-pointer">
+    <div className="bg-card border border-border rounded-xl p-4 hover:shadow-[0_0_24px_rgba(59,130,246,0.08)] transition-shadow cursor-pointer">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-medium text-[#71717a] uppercase tracking-wider">{label}</span>
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-[#f5f5f5]">{value}</p>
+      <p className="text-2xl font-bold text-foreground">{value}</p>
       {sub && (
-        <p className={`text-xs mt-1 ${subAccent ? 'text-[#22c55e]' : 'text-[#71717a]'}`}>{sub}</p>
+        <p className={`text-xs mt-1 ${subAccent ? 'text-green-500' : 'text-muted-foreground'}`}>{sub}</p>
       )}
     </div>
   );
@@ -48,8 +48,8 @@ export function DashboardStats() {
         label="Total Jobs"
         value={total}
         sub={total > 0 ? `${total} total` : 'No jobs yet'}
-        icon={<Briefcase className="w-4 h-4 text-[#3b82f6]" />}
-        iconBg="bg-[#3b82f6]/10"
+        icon={<Briefcase className="w-4 h-4 text-primary" />}
+        iconBg="bg-primary/10"
       />
       <StatCard
         label="Running"
@@ -58,26 +58,26 @@ export function DashboardStats() {
         subAccent={running > 0}
         icon={
           running > 0 ? (
-            <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e] animate-pulse" />
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
           ) : (
-            <Activity className="w-4 h-4 text-[#22c55e]" />
+            <Activity className="w-4 h-4 text-green-500" />
           )
         }
-        iconBg="bg-[#22c55e]/10"
+        iconBg="bg-green-500/10"
       />
       <StatCard
         label="Completed"
         value={completed}
         sub="All time"
-        icon={<CheckCircle className="w-4 h-4 text-[#8b5cf6]" />}
-        iconBg="bg-[#8b5cf6]/10"
+        icon={<CheckCircle className="w-4 h-4 text-purple-500" />}
+        iconBg="bg-purple-500/10"
       />
       <StatCard
         label="API Spend"
         value="—"
         sub="Coming soon"
-        icon={<DollarSign className="w-4 h-4 text-[#f97316]" />}
-        iconBg="bg-[#f97316]/10"
+        icon={<DollarSign className="w-4 h-4 text-orange-500" />}
+        iconBg="bg-orange-500/10"
       />
     </div>
   );

@@ -6,6 +6,7 @@
  * Avatar: colored circle with initials. Role badge: red for admin, gray for user.
  */
 import { useEffect, useState } from 'react';
+import { AlertCircle, Users } from 'lucide-react';
 import { useAdminStore, type AdminUser } from '@/store/admin';
 
 const AVATAR_COLORS = [
@@ -88,10 +89,36 @@ function UserRow({ user, onBan, onUnban }: { user: AdminUser; onBan: () => Promi
 }
 
 export function UserManagementTable() {
-  const { users, isLoadingUsers, usersPage, totalUsers, pageSize, fetchUsers, banUser, unbanUser } = useAdminStore();
+  const { users, isLoadingUsers, usersPage, totalUsers, pageSize, fetchUsers, banUser, unbanUser, error } = useAdminStore();
   const totalPages = Math.ceil(totalUsers / pageSize);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  if (error && !isLoadingUsers && users.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center p-6">
+        <AlertCircle className="h-8 w-8 text-destructive mb-3" />
+        <p className="text-sm font-medium text-foreground">Failed to load users</p>
+        <p className="text-xs text-muted-foreground mt-1">{error}</p>
+        <button
+          onClick={() => fetchUsers()}
+          className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (isLoadingUsers && users.length === 0) {
+    return (
+      <div className="p-6 space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-10 rounded-lg bg-muted motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -105,6 +132,7 @@ export function UserManagementTable() {
 
       {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
@@ -121,15 +149,19 @@ export function UserManagementTable() {
                 <tr key={i} className="border-b border-border">
                   {[...Array(6)].map((_, j) => (
                     <td key={j} className="px-4 py-3">
-                      <div className="h-3 rounded bg-muted animate-pulse" />
+                      <div className="h-3 rounded bg-muted motion-safe:animate-pulse" />
                     </td>
                   ))}
                 </tr>
               ))
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No users found
+                <td colSpan={6}>
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Users className="h-8 w-8 text-muted-foreground/40 mb-3" />
+                    <p className="text-sm text-muted-foreground">No users found</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">Users will appear here when they sign up</p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -144,6 +176,7 @@ export function UserManagementTable() {
             )}
           </tbody>
         </table>
+        </div>
 
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 p-4 border-t border-border">

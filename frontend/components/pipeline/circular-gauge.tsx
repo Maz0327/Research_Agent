@@ -40,9 +40,9 @@ const TEXT_CLASSES: Record<GaugeColor, string> = {
   blue:   'text-accent-blue',
   purple: 'text-accent-purple',
   green:  'text-accent-green',
-  orange: 'fill-[#f97316]',
-  red:    'fill-[#ef4444]',
-  amber:  'fill-[#f59e0b]',
+  orange: 'fill-orange-500',
+  red:    'fill-destructive',
+  amber:  'fill-amber-500',
 };
 
 // SVG constants — radius 16, centre 18,18

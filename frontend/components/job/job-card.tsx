@@ -27,22 +27,22 @@ export function JobCard({ job }: JobCardProps) {
   return (
     <Card
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className="cursor-pointer bg-[#12121a] border-[#27272a] hover:border-[#3f3f46] transition-colors"
+      className="cursor-pointer bg-card border-border hover:border-border transition-colors"
     >
       <CardContent className="p-4 flex flex-col gap-3">
         {/* Title */}
-        <p className="text-sm font-medium text-[#f5f5f5] line-clamp-2 leading-snug">
+        <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
           {title}
         </p>
 
         {/* Status + mode row */}
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={job.status} />
-          <Badge variant="outline" className="text-xs text-[#a1a1aa] border-[#27272a]">
+          <Badge variant="outline" className="text-xs text-muted-foreground border-border">
             {modeLabel}
           </Badge>
           {sourceCount > 0 && (
-            <span className="text-xs text-[#71717a]">{sourceCount} source{sourceCount !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-muted-foreground">{sourceCount} source{sourceCount !== 1 ? 's' : ''}</span>
           )}
         </div>
 
@@ -52,7 +52,7 @@ export function JobCard({ job }: JobCardProps) {
         )}
 
         {/* Date */}
-        <p className="text-xs text-[#71717a]">
+        <p className="text-xs text-muted-foreground">
           {formatRelativeTime(job.created_at)}
         </p>
       </CardContent>

@@ -101,7 +101,8 @@ export function TranscriptsContent() {
               placeholder="Search transcripts..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-secondary text-xs rounded-lg pl-7 pr-3 py-1.5 border border-border focus:border-accent-blue focus:outline-none w-40 sm:w-48 text-foreground placeholder:text-muted-foreground"
+              aria-label="Search transcripts"
+              className="bg-secondary text-xs rounded-lg pl-7 pr-3 py-1.5 border border-border focus:border-accent-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-40 sm:w-48 text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -163,7 +164,8 @@ export function TranscriptsContent() {
             rows={4}
             value={videoUrls}
             onChange={(e) => setVideoUrls(e.target.value)}
-            className="w-full rounded-lg border border-border bg-secondary px-4 py-3 text-foreground placeholder:text-muted-foreground font-mono text-sm focus:border-accent-blue focus:outline-none"
+            aria-label="YouTube video URLs"
+            className="w-full rounded-lg border border-border bg-secondary px-4 py-3 text-foreground placeholder:text-muted-foreground font-mono text-sm focus:border-accent-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             placeholder={"https://www.youtube.com/watch?v=...\nhttps://youtu.be/..."}
           />
           <div className="flex items-center justify-between">

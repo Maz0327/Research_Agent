@@ -49,38 +49,38 @@ export function WizardStepMode({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-base font-semibold text-[#f5f5f5] mb-1">Choose research mode</h2>
-        <p className="text-sm text-[#71717a]">Controls depth, speed, and document types generated.</p>
+        <h2 className="text-base font-semibold text-foreground mb-1">Choose research mode</h2>
+        <p className="text-sm text-muted-foreground">Controls depth, speed, and document types generated.</p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-xs text-[#a1a1aa]">Mode</label>
+        <label className="text-xs text-muted-foreground">Mode</label>
         <Select value={pipeline} onValueChange={onPipelineChange}>
-          <SelectTrigger className="bg-[#1a1a25] border-[#27272a] text-[#f5f5f5]">
+          <SelectTrigger className="bg-secondary border-border text-foreground">
             <SelectValue placeholder="Select mode…" />
           </SelectTrigger>
-          <SelectContent className="bg-[#1a1a25] border-[#27272a]">
+          <SelectContent className="bg-secondary border-border">
             {PIPELINE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value} className="text-[#f5f5f5]">
+              <SelectItem key={opt.value} value={opt.value} className="text-foreground">
                 {opt.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {selected && (
-          <p className="text-xs text-[#71717a] mt-1">{selected.description}</p>
+          <p className="text-xs text-muted-foreground mt-1">{selected.description}</p>
         )}
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-xs text-[#a1a1aa]">Niche (optional)</label>
+        <label className="text-xs text-muted-foreground">Niche (optional)</label>
         <Select value={niche || ''} onValueChange={onNicheChange}>
-          <SelectTrigger className="bg-[#1a1a25] border-[#27272a] text-[#f5f5f5]">
+          <SelectTrigger className="bg-secondary border-border text-foreground">
             <SelectValue placeholder="Auto-detect" />
           </SelectTrigger>
-          <SelectContent className="bg-[#1a1a25] border-[#27272a]">
+          <SelectContent className="bg-secondary border-border">
             {NICHE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value || '__auto'} value={opt.value || '__auto'} className="text-[#f5f5f5]">
+              <SelectItem key={opt.value || '__auto'} value={opt.value || '__auto'} className="text-foreground">
                 {opt.label}
               </SelectItem>
             ))}

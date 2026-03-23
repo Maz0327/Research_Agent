@@ -120,7 +120,7 @@ export function SharedJobView({ document }: SharedJobViewProps) {
           <div className="px-6 py-5">
             {hook && (
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-[#f59e0b] mb-2">Hook</h3>
+                <h3 className="text-sm font-semibold text-amber-500 mb-2">Hook</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{hook}</p>
               </div>
             )}

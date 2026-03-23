@@ -7,7 +7,7 @@
  * Each card shows: icon, title, timestamp, description, stack trace (pre), Retry Job + Dismiss.
  */
 import { useEffect, useState } from 'react';
-import { AlertCircle, AlertTriangle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAdminStore, type ErrorLog } from '@/store/admin';
 
 const CRITICAL_CATEGORIES = new Set(['api_error', 'memory', 'database', 'auth']);
@@ -120,7 +120,7 @@ function ErrorCard({ error, onResolve }: { error: ErrorLog; onResolve: () => Pro
 }
 
 export function ErrorLogTable({ initialResolvedFilter = '' }: { initialResolvedFilter?: string }) {
-  const { errorLogs, isLoadingErrors, errorsPage, totalErrors, pageSize, fetchErrorLogs, resolveError } = useAdminStore();
+  const { errorLogs, isLoadingErrors, errorsPage, totalErrors, pageSize, fetchErrorLogs, resolveError, error } = useAdminStore();
   const [resolvedFilter, setResolvedFilter] = useState(initialResolvedFilter);
 
   useEffect(() => {
@@ -129,7 +129,33 @@ export function ErrorLogTable({ initialResolvedFilter = '' }: { initialResolvedF
     fetchErrorLogs(1, filters);
   }, [fetchErrorLogs, resolvedFilter]);
 
+  if (error && !isLoadingErrors && errorLogs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center p-6">
+        <AlertCircle className="h-8 w-8 text-destructive mb-3" />
+        <p className="text-sm font-medium text-foreground">Failed to load error logs</p>
+        <p className="text-xs text-muted-foreground mt-1">{error}</p>
+        <button
+          onClick={() => fetchErrorLogs(1, {})}
+          className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   const totalPages = Math.ceil(totalErrors / pageSize);
+
+  if (isLoadingErrors && errorLogs.length === 0) {
+    return (
+      <div className="p-6 space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-10 rounded-lg bg-muted motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -140,7 +166,7 @@ export function ErrorLogTable({ initialResolvedFilter = '' }: { initialResolvedF
           <select
             value={resolvedFilter}
             onChange={(e) => setResolvedFilter(e.target.value)}
-            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border cursor-pointer focus:outline-none"
+            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">All</option>
             <option value="false">Unresolved</option>
@@ -156,7 +182,7 @@ export function ErrorLogTable({ initialResolvedFilter = '' }: { initialResolvedF
       {isLoadingErrors ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
+            <div key={i} className="bg-card border border-border rounded-xl p-4 motion-safe:animate-pulse">
               <div className="flex gap-3">
                 <div className="w-8 h-8 rounded-lg bg-muted" />
                 <div className="flex-1 space-y-2">
@@ -168,7 +194,11 @@ export function ErrorLogTable({ initialResolvedFilter = '' }: { initialResolvedF
           ))}
         </div>
       ) : errorLogs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-12">No error logs found</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <CheckCircle className="h-8 w-8 text-muted-foreground/40 mb-3" />
+          <p className="text-sm text-muted-foreground">No errors — all clear!</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Error logs will appear here when issues occur</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {errorLogs.map((error) => (

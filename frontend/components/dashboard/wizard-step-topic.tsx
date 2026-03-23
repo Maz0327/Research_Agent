@@ -19,18 +19,18 @@ export function WizardStepTopic({ topic, onChange }: WizardStepTopicProps) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-base font-semibold text-[#f5f5f5] mb-1">What would you like to research?</h2>
-        <p className="text-sm text-[#71717a]">Enter a topic, question, or subject to investigate.</p>
+        <h2 className="text-base font-semibold text-foreground mb-1">What would you like to research?</h2>
+        <p className="text-sm text-muted-foreground">Enter a topic, question, or subject to investigate.</p>
       </div>
       <Input
         value={topic}
         onChange={(e) => onChange(e.target.value)}
         placeholder="e.g. The impact of AI on journalism"
         maxLength={VALIDATION_LIMITS.MAX_PROMPT_LENGTH}
-        className="bg-[#1a1a25] border-[#27272a] text-[#f5f5f5] placeholder:text-[#3f3f46]"
+        className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
         autoFocus
       />
-      <p className={`text-xs text-right ${isNearLimit ? 'text-orange-400' : 'text-[#71717a]'}`}>
+      <p className={`text-xs text-right ${isNearLimit ? 'text-orange-400' : 'text-muted-foreground'}`}>
         {topic.length} / {VALIDATION_LIMITS.MAX_PROMPT_LENGTH}
       </p>
     </div>

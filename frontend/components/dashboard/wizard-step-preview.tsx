@@ -59,21 +59,21 @@ export function WizardStepPreview({
     return (
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-base font-semibold text-[#f5f5f5] mb-1">Topic needs clarification</h2>
-          <p className="text-sm text-[#71717a]">Which interpretation did you mean?</p>
+          <h2 className="text-base font-semibold text-foreground mb-1">Topic needs clarification</h2>
+          <p className="text-sm text-muted-foreground">Which interpretation did you mean?</p>
         </div>
         {preview.interpretations.map((interp: Interpretation) => (
           <Card
             key={interp.topic}
-            className="bg-[#1a1a25] border-[#27272a] hover:border-[#3f3f46] cursor-pointer transition-colors"
+            className="bg-secondary border-border hover:border-border cursor-pointer transition-colors"
             onClick={() => onSelectInterpretation(interp.topic)}
           >
             <CardContent className="p-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium text-[#f5f5f5]">{interp.label}</p>
-                <p className="text-xs text-[#71717a] mt-1">{interp.description}</p>
+                <p className="text-sm font-medium text-foreground">{interp.label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{interp.description}</p>
               </div>
-              <Button size="sm" variant="outline" className="shrink-0 border-[#27272a]">
+              <Button size="sm" variant="outline" className="shrink-0 border-border">
                 Select
               </Button>
             </CardContent>
@@ -86,30 +86,30 @@ export function WizardStepPreview({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-base font-semibold text-[#f5f5f5] mb-1">Ready to start research</h2>
-        <p className="text-sm text-[#71717a]">Review and confirm your research job.</p>
+        <h2 className="text-base font-semibold text-foreground mb-1">Ready to start research</h2>
+        <p className="text-sm text-muted-foreground">Review and confirm your research job.</p>
       </div>
 
-      <Card className="bg-[#1a1a25] border-[#27272a]">
+      <Card className="bg-secondary border-border">
         <CardContent className="p-4 flex flex-col gap-2 text-sm">
           <div className="flex gap-2">
-            <span className="text-[#71717a] w-20 shrink-0">Topic</span>
-            <span className="text-[#f5f5f5]">{effectiveTopic}</span>
+            <span className="text-muted-foreground w-20 shrink-0">Topic</span>
+            <span className="text-foreground">{effectiveTopic}</span>
           </div>
           <div className="flex gap-2">
-            <span className="text-[#71717a] w-20 shrink-0">Mode</span>
-            <span className="text-[#f5f5f5]">{modeLabel}</span>
+            <span className="text-muted-foreground w-20 shrink-0">Mode</span>
+            <span className="text-foreground">{modeLabel}</span>
           </div>
           <div className="flex gap-2">
-            <span className="text-[#71717a] w-20 shrink-0">Sources</span>
-            <span className="text-[#f5f5f5]">
+            <span className="text-muted-foreground w-20 shrink-0">Sources</span>
+            <span className="text-foreground">
               {sourceUrls.length > 0 ? `${sourceUrls.length} provided` : 'Auto-discover'}
             </span>
           </div>
           {niche && niche !== '__auto' && (
             <div className="flex gap-2">
-              <span className="text-[#71717a] w-20 shrink-0">Niche</span>
-              <span className="text-[#f5f5f5]">{niche}</span>
+              <span className="text-muted-foreground w-20 shrink-0">Niche</span>
+              <span className="text-foreground">{niche}</span>
             </div>
           )}
         </CardContent>

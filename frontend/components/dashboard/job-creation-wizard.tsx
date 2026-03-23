@@ -77,11 +77,11 @@ export function JobCreationWizard({ onClose }: JobCreationWizardProps) {
     <div className="flex flex-col gap-6 p-1">
       {/* Step indicator */}
       <div className="flex flex-col gap-2">
-        <div className="flex justify-between text-xs text-[#71717a]">
+        <div className="flex justify-between text-xs text-muted-foreground">
           {STEP_LABELS.map((label, i) => (
             <span
               key={label}
-              className={i + 1 === state.step ? 'text-[#f5f5f5] font-medium' : ''}
+              className={i + 1 === state.step ? 'text-foreground font-medium' : ''}
             >
               {label}
             </span>
@@ -125,7 +125,7 @@ export function JobCreationWizard({ onClose }: JobCreationWizardProps) {
             variant="outline"
             size="sm"
             onClick={state.step === 1 ? onClose : handleBack}
-            className="border-[#27272a] text-[#a1a1aa]"
+            className="border-border text-muted-foreground"
           >
             {state.step === 1 ? 'Cancel' : 'Back'}
           </Button>

@@ -26,10 +26,10 @@ const STAGE_LABEL: Record<string, string> = {
 
 function StageCell({ stage, status }: { stage?: string; status: Job['status'] }) {
   if (status === 'completed' || status === 'completed_with_warnings') {
-    return <span className="text-xs text-[#52525b]">Done</span>;
+    return <span className="text-xs text-muted-foreground/60">Done</span>;
   }
   if (!stage || status === 'queued') {
-    return <span className="text-xs text-[#52525b]">—</span>;
+    return <span className="text-xs text-muted-foreground/60">—</span>;
   }
   const label = STAGE_LABEL[stage.toLowerCase()] ?? stage;
   return <span className="text-xs text-accent-blue font-medium">{label}</span>;
@@ -46,7 +46,7 @@ function ProgressCell({
   const isRunning = job.status === 'running';
 
   if (job.status === 'queued') {
-    return <span className="text-[10px] text-[#52525b]">Position #{queuePosition}</span>;
+    return <span className="text-[10px] text-muted-foreground/60">Position #{queuePosition}</span>;
   }
 
   if (isCompleted) {
@@ -69,7 +69,7 @@ function ProgressCell({
             style={{ width: `${job.progress_percent ?? 0}%` }}
           />
         </div>
-        <span className="text-[10px] text-[#71717a] w-8">{job.progress_percent ?? 0}%</span>
+        <span className="text-[10px] text-muted-foreground w-8">{job.progress_percent ?? 0}%</span>
       </div>
     );
   }
@@ -81,13 +81,13 @@ function StatusCell({ status }: { status: Job['status'] }) {
   if (status === 'running') {
     return (
       <span className="flex items-center gap-1.5 text-[10px] font-medium text-accent-green">
-        <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+        <span className="w-1.5 h-1.5 rounded-full bg-accent-green motion-safe:animate-pulse" />
         Running
       </span>
     );
   }
   if (status === 'queued') {
-    return <span className="text-[10px] font-medium text-[#71717a]">Queued</span>;
+    return <span className="text-[10px] font-medium text-muted-foreground">Queued</span>;
   }
   if (status === 'completed' || status === 'completed_with_warnings') {
     return <span className="text-[10px] font-medium text-accent-green">Completed</span>;
@@ -96,9 +96,9 @@ function StatusCell({ status }: { status: Job['status'] }) {
     return <span className="text-[10px] font-medium text-accent-red">Failed</span>;
   }
   if (status === 'cancelled') {
-    return <span className="text-[10px] font-medium text-[#71717a]">Cancelled</span>;
+    return <span className="text-[10px] font-medium text-muted-foreground">Cancelled</span>;
   }
-  return <span className="text-[10px] font-medium text-[#71717a]">{status}</span>;
+  return <span className="text-[10px] font-medium text-muted-foreground">{status}</span>;
 }
 
 export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
@@ -114,19 +114,19 @@ export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
   return (
     <tr
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`border-b border-border hover:bg-[#2a2a38] transition-colors cursor-pointer ${rowOpacity}`}
+      className={`border-b border-border hover:bg-accent transition-colors cursor-pointer ${rowOpacity}`}
     >
       {/* Drag handle */}
       <td className="px-4 py-3 w-8">
         {!isCompleted && (
-          <GripVertical className="w-4 h-4 text-[#52525b] cursor-grab" />
+          <GripVertical className="w-4 h-4 text-muted-foreground/60 cursor-grab" />
         )}
       </td>
 
       {/* Job title + meta */}
       <td className="px-4 py-3">
         <p className="text-sm font-medium truncate max-w-[250px]">{title}</p>
-        <p className="text-[10px] text-[#71717a]">
+        <p className="text-[10px] text-muted-foreground">
           {modeLabel}
           {job.status === 'running' || job.status === 'completed' || job.status === 'completed_with_warnings'
             ? ''
@@ -136,7 +136,7 @@ export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
 
       {/* Mode */}
       <td className="px-4 py-3">
-        <span className="text-xs text-[#a1a1aa]">{modeLabel}</span>
+        <span className="text-xs text-muted-foreground">{modeLabel}</span>
       </td>
 
       {/* Stage */}
@@ -157,12 +157,12 @@ export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
       {/* Action */}
       <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
         {isRunning && (
-          <button className="text-[#52525b] hover:text-accent-red transition-colors">
+          <button className="text-muted-foreground/60 hover:text-accent-red transition-colors">
             <Square className="w-4 h-4" />
           </button>
         )}
         {isQueued && (
-          <button className="text-[#52525b] hover:text-accent-red transition-colors">
+          <button className="text-muted-foreground/60 hover:text-accent-red transition-colors">
             <X className="w-4 h-4" />
           </button>
         )}

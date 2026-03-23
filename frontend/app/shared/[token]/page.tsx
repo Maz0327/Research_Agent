@@ -92,8 +92,8 @@ export default async function SharedDocumentPage({ params }: PageProps) {
             <div className="bg-card rounded-xl border border-border p-8">
               {error.status === 410 ? (
                 <>
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#f59e0b]/10 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-[#f59e0b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>

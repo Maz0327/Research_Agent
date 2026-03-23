@@ -5,6 +5,7 @@
  * Columns: ID (mono) | Title | User | Status | Cost | Created | Action (Cancel/Delete/Retry)
  */
 import { useEffect, useState } from 'react';
+import { AlertCircle, FileText } from 'lucide-react';
 import { useAdminStore, type AdminJob } from '@/store/admin';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -90,7 +91,7 @@ function JobRow({ job, onCancel, onDelete }: { job: AdminJob; onCancel: () => Pr
 }
 
 export function JobManagementTable({ initialStatusFilter = '' }: { initialStatusFilter?: string }) {
-  const { jobs, isLoadingJobs, jobsPage, totalJobs, pageSize, fetchJobs, cancelJob, deleteJob } = useAdminStore();
+  const { jobs, isLoadingJobs, jobsPage, totalJobs, pageSize, fetchJobs, cancelJob, deleteJob, error } = useAdminStore();
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [search, setSearch] = useState('');
 
@@ -100,9 +101,35 @@ export function JobManagementTable({ initialStatusFilter = '' }: { initialStatus
 
   const totalPages = Math.ceil(totalJobs / pageSize);
 
+  if (error && !isLoadingJobs && jobs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center p-6">
+        <AlertCircle className="h-8 w-8 text-destructive mb-3" />
+        <p className="text-sm font-medium text-foreground">Failed to load jobs</p>
+        <p className="text-xs text-muted-foreground mt-1">{error}</p>
+        <button
+          onClick={() => fetchJobs(1, { status: statusFilter || undefined })}
+          className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   const visible = search
     ? jobs.filter((j) => j.prompt.toLowerCase().includes(search.toLowerCase()) || j.user_email.includes(search))
     : jobs;
+
+  if (isLoadingJobs && jobs.length === 0) {
+    return (
+      <div className="p-6 space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-10 rounded-lg bg-muted motion-safe:animate-pulse" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -113,14 +140,16 @@ export function JobManagementTable({ initialStatusFilter = '' }: { initialStatus
           <input
             type="text"
             placeholder="Search jobs…"
+            aria-label="Search jobs"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border focus:border-blue-500 focus:outline-none w-48"
+            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border focus:border-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-48"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border cursor-pointer focus:outline-none"
+            aria-label="Filter by status"
+            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">All Status</option>
             <option value="running">Running</option>
@@ -151,15 +180,19 @@ export function JobManagementTable({ initialStatusFilter = '' }: { initialStatus
                   <tr key={i} className="border-b border-border">
                     {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-4 py-3">
-                        <div className="h-3 rounded bg-muted animate-pulse" />
+                        <div className="h-3 rounded bg-muted motion-safe:animate-pulse" />
                       </td>
                     ))}
                   </tr>
                 ))
               ) : visible.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No jobs found
+                  <td colSpan={7}>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <FileText className="h-8 w-8 text-muted-foreground/40 mb-3" />
+                      <p className="text-sm text-muted-foreground">No jobs found</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">Jobs will appear here when created</p>
+                    </div>
                   </td>
                 </tr>
               ) : (

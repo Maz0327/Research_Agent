@@ -34,17 +34,17 @@ export function WizardStepSources({ sources, onChange }: WizardStepSourcesProps)
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-base font-semibold text-[#f5f5f5] mb-1">Add sources (optional)</h2>
-        <p className="text-sm text-[#71717a]">Leave empty to let the system auto-discover sources.</p>
+        <h2 className="text-base font-semibold text-foreground mb-1">Add sources (optional)</h2>
+        <p className="text-sm text-muted-foreground">Leave empty to let the system auto-discover sources.</p>
       </div>
 
       {sources.map((src) => (
-        <div key={src.id} className="flex flex-col gap-2 p-3 rounded-lg border border-[#27272a] bg-[#1a1a25]">
+        <div key={src.id} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-secondary">
           <div className="flex items-center gap-2">
             <select
               value={src.type}
               onChange={(e) => update(src.id, { type: e.target.value as SourceEntry['type'] })}
-              className="text-xs bg-[#12121a] border border-[#27272a] text-[#a1a1aa] rounded px-2 py-1"
+              className="text-xs bg-card border border-border text-muted-foreground rounded px-2 py-1"
             >
               <option value="youtube">YouTube</option>
               <option value="article">Article</option>
@@ -52,7 +52,7 @@ export function WizardStepSources({ sources, onChange }: WizardStepSourcesProps)
             </select>
             <button
               onClick={() => remove(src.id)}
-              className="ml-auto text-xs text-[#71717a] hover:text-red-400 transition-colors cursor-pointer"
+              className="ml-auto text-xs text-muted-foreground hover:text-red-400 transition-colors cursor-pointer"
               aria-label="Remove source"
             >
               Remove
@@ -65,20 +65,20 @@ export function WizardStepSources({ sources, onChange }: WizardStepSourcesProps)
               onChange={(e) => update(src.id, { text: e.target.value })}
               placeholder="Paste text content here…"
               rows={3}
-              className="text-sm bg-[#12121a] border border-[#27272a] text-[#f5f5f5] placeholder:text-[#3f3f46] rounded px-3 py-2 resize-none"
+              className="text-sm bg-card border border-border text-foreground placeholder:text-muted-foreground rounded px-3 py-2 resize-none"
             />
           ) : (
             <Input
               value={src.url}
               onChange={(e) => update(src.id, { url: e.target.value })}
               placeholder={src.type === 'youtube' ? 'https://youtube.com/watch?v=…' : 'https://example.com/article'}
-              className="bg-[#12121a] border-[#27272a] text-[#f5f5f5] placeholder:text-[#3f3f46]"
+              className="bg-card border-border text-foreground placeholder:text-muted-foreground"
             />
           )}
         </div>
       ))}
 
-      <Button variant="outline" size="sm" onClick={add} className="self-start border-[#27272a] text-[#a1a1aa]">
+      <Button variant="outline" size="sm" onClick={add} className="self-start border-border text-muted-foreground">
         + Add source
       </Button>
     </div>

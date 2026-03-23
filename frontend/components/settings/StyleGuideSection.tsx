@@ -191,7 +191,8 @@ export function StyleGuideSection() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Guide name (e.g., 'My YouTube Style')"
-                className="flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2 text-[14px] text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
+                aria-label="Style guide name"
+                className="flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2 text-[14px] text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/50 focus-visible:ring-2 focus-visible:ring-ring"
                 maxLength={100}
               />
               <button
