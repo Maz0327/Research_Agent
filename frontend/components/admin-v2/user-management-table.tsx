@@ -62,7 +62,7 @@ function UserRow({ user, onBan, onUnban }: { user: AdminUser; onBan: () => Promi
       </td>
       <td className="px-4 py-3">
         {user.is_admin ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 font-medium">Admin</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">Admin</span>
         ) : (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">User</span>
         )}
@@ -76,7 +76,7 @@ function UserRow({ user, onBan, onUnban }: { user: AdminUser; onBan: () => Promi
             onClick={() => handle(user.is_banned ? onUnban : onBan)}
             disabled={busy}
             className={`text-[10px] transition-colors disabled:opacity-50 ${
-              user.is_banned ? 'text-green-400 hover:text-green-300' : 'text-muted-foreground hover:text-red-400'
+              user.is_banned ? 'text-green-500 hover:text-green-400' : 'text-muted-foreground hover:text-destructive'
             }`}
           >
             {busy ? '…' : user.is_banned ? 'Unban' : 'Ban'}
@@ -125,7 +125,7 @@ export function UserManagementTable() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-bold">Users</h1>
-        <button className="px-3 py-1.5 rounded-lg text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors">
+        <button className="px-3 py-1.5 rounded-lg text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium transition-colors">
           Invite User
         </button>
       </div>

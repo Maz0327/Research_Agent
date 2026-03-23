@@ -145,7 +145,7 @@ export function RecentJobsList({ jobs, isLoading, onNewJob, error }: RecentJobsL
         <div className="text-center">
           <Link
             href="/queue"
-            className="text-xs text-muted-foreground hover:text-muted-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-primary transition-colors"
           >
             View all {jobs.length} jobs →
           </Link>

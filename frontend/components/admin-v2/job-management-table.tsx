@@ -1,94 +1,13 @@
 'use client';
 
 /**
- * JobManagementTable — mockup-aligned jobs table with status badges and action buttons.
- * Columns: ID (mono) | Title | User | Status | Cost | Created | Action (Cancel/Delete/Retry)
+ * JobManagementTable — admin jobs table with status filter, search, and pagination.
+ * Delegates row rendering to JobRow component.
  */
 import { useEffect, useState } from 'react';
 import { AlertCircle, FileText } from 'lucide-react';
-import { useAdminStore, type AdminJob } from '@/store/admin';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  queued:                  { label: 'Queued',     className: 'bg-zinc-700/40 text-zinc-300' },
-  running:                 { label: 'Running',    className: 'bg-green-500/10 text-green-400' },
-  completed:               { label: 'Completed',  className: 'bg-blue-500/10 text-blue-400' },
-  completed_with_warnings: { label: 'Completed',  className: 'bg-blue-500/10 text-blue-400' },
-  failed:                  { label: 'Failed',     className: 'bg-red-500/10 text-red-400' },
-  failed_insufficient:     { label: 'Failed',     className: 'bg-red-500/10 text-red-400' },
-  cancelled:               { label: 'Cancelled',  className: 'bg-zinc-700/40 text-zinc-400' },
-};
-
-function actionLabel(status: string) {
-  if (status === 'running' || status === 'queued') return 'cancel';
-  if (status === 'failed' || status === 'failed_insufficient') return 'retry';
-  return 'delete';
-}
-
-function JobRow({ job, onCancel, onDelete }: { job: AdminJob; onCancel: () => Promise<void>; onDelete: () => Promise<void> }) {
-  const [busy, setBusy] = useState<string | null>(null);
-  const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.queued;
-  const act = actionLabel(job.status);
-
-  const run = async (fn: () => Promise<void>, key: string) => {
-    if (act === 'delete' && !confirm('Delete this job?')) return;
-    setBusy(key);
-    try { await fn(); } finally { setBusy(null); }
-  };
-
-  // Short ID like j_8a3f
-  const shortId = 'j_' + job.id.replace(/-/g, '').slice(0, 4);
-  const title = job.prompt.length > 40 ? job.prompt.slice(0, 40) + '…' : job.prompt;
-  const userShort = job.user_email.length > 12 ? job.user_email.slice(0, 10) + '…' : job.user_email;
-  const created = (() => {
-    const diff = Date.now() - new Date(job.created_at).getTime();
-    const h = Math.floor(diff / 3600000);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.floor(h / 24)}d ago`;
-  })();
-
-  return (
-    <tr className="border-b border-border hover:bg-accent/30 transition-colors cursor-pointer">
-      <td className="px-4 py-3 text-[11px] font-mono text-muted-foreground">{shortId}</td>
-      <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">{title}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{userShort}</td>
-      <td className="px-4 py-3">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${cfg.className}`}>
-          {cfg.label}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">—</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{created}</td>
-      <td className="px-4 py-3">
-        {act === 'cancel' && (
-          <button
-            onClick={() => run(onCancel, 'cancel')}
-            disabled={busy !== null}
-            className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-50"
-          >
-            {busy === 'cancel' ? '…' : 'Cancel'}
-          </button>
-        )}
-        {act === 'delete' && (
-          <button
-            onClick={() => run(onDelete, 'delete')}
-            disabled={busy !== null}
-            className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-50"
-          >
-            {busy === 'delete' ? '…' : 'Delete'}
-          </button>
-        )}
-        {act === 'retry' && (
-          <button
-            disabled
-            className="text-[10px] text-blue-400 opacity-70 cursor-not-allowed"
-          >
-            Retry
-          </button>
-        )}
-      </td>
-    </tr>
-  );
-}
+import { useAdminStore } from '@/store/admin';
+import { JobRow } from './job-row';
 
 export function JobManagementTable({ initialStatusFilter = '' }: { initialStatusFilter?: string }) {
   const { jobs, isLoadingJobs, jobsPage, totalJobs, pageSize, fetchJobs, cancelJob, deleteJob, error } = useAdminStore();
@@ -143,7 +62,7 @@ export function JobManagementTable({ initialStatusFilter = '' }: { initialStatus
             aria-label="Search jobs"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border focus:border-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-48"
+            className="bg-muted/40 text-xs rounded-lg px-3 py-1.5 border border-border focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring w-48"
           />
           <select
             value={statusFilter}

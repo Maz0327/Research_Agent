@@ -5,6 +5,7 @@
  * Shows title, mode badge, source count, progress bar (running), status badge with pulse dot.
  * Navigates to /jobs/[id] on click.
  */
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { pipelineLabels } from '@/components/job-card/job-card-config';
 import { formatRelativeTime } from '@/lib/time-utils';
@@ -37,10 +38,20 @@ export function DashboardJobCard({ job }: DashboardJobCardProps) {
   const badge = STATUS_BADGE[job.status] ?? STATUS_BADGE.queued;
   const borderClass = isFailed ? 'border-destructive/20 hover:border-destructive/40' : 'border-border hover:border-border';
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      router.push(`/jobs/${job.id}`);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`bg-card border ${borderClass} rounded-xl p-4 cursor-pointer transition-all hover:shadow-[0_0_24px_rgba(59,130,246,0.08)]`}
+      onKeyDown={handleKeyDown}
+      className={`bg-card border ${borderClass} rounded-xl p-4 cursor-pointer transition-all hover:shadow-[0_0_24px_rgba(59,130,246,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
     >
       {/* Title row + status badge */}
       <div className="flex items-start justify-between gap-2 mb-3">

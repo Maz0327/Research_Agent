@@ -104,7 +104,7 @@ export function QueueContent() {
           <button
             onClick={handlePause}
             disabled={isPausing || isClearing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-surface-2 border border-border text-muted-foreground hover:bg-surface-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-secondary border border-border text-muted-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPausing ? (
               <><Loader2 className="h-3 w-3 motion-safe:animate-spin" /> Pausing...</>
@@ -115,7 +115,7 @@ export function QueueContent() {
           <button
             onClick={handleClearCompleted}
             disabled={isPausing || isClearing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-surface-2 border border-border text-muted-foreground hover:bg-surface-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-secondary border border-border text-muted-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isClearing ? (
               <><Loader2 className="h-3 w-3 motion-safe:animate-spin" /> Clearing...</>
@@ -150,7 +150,7 @@ export function QueueContent() {
           </div>
 
           {/* Queue table */}
-          <div className="bg-surface-1 border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             {tableJobs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-8 w-8 text-muted-foreground/40 mb-3" />

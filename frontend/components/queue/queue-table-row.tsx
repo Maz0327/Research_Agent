@@ -6,6 +6,7 @@
  * Queued: opacity-60, X button, position number.
  * Completed: opacity-40, green progress bar, no action.
  */
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { GripVertical, Square, X } from 'lucide-react';
 import { pipelineLabels } from '@/components/job-card/job-card-config';
@@ -63,7 +64,7 @@ function ProgressCell({
   if (isRunning) {
     return (
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 rounded-full bg-surface-3 overflow-hidden">
+        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-accent-blue"
             style={{ width: `${job.progress_percent ?? 0}%` }}
@@ -93,7 +94,7 @@ function StatusCell({ status }: { status: Job['status'] }) {
     return <span className="text-[10px] font-medium text-accent-green">Completed</span>;
   }
   if (status === 'failed' || status === 'failed_insufficient') {
-    return <span className="text-[10px] font-medium text-accent-red">Failed</span>;
+    return <span className="text-[10px] font-medium text-destructive">Failed</span>;
   }
   if (status === 'cancelled') {
     return <span className="text-[10px] font-medium text-muted-foreground">Cancelled</span>;
@@ -111,10 +112,20 @@ export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
 
   const rowOpacity = isCompleted ? 'opacity-40' : isQueued ? 'opacity-60' : '';
 
+  const handleRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      router.push(`/jobs/${job.id}`);
+    }
+  };
+
   return (
     <tr
       onClick={() => router.push(`/jobs/${job.id}`)}
-      className={`border-b border-border hover:bg-accent transition-colors cursor-pointer ${rowOpacity}`}
+      onKeyDown={handleRowKeyDown}
+      role="button"
+      tabIndex={0}
+      className={`border-b border-border hover:bg-accent transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${rowOpacity}`}
     >
       {/* Drag handle */}
       <td className="px-4 py-3 w-8">
@@ -157,12 +168,18 @@ export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
       {/* Action */}
       <td className="px-4 py-3 w-10" onClick={(e) => e.stopPropagation()}>
         {isRunning && (
-          <button className="text-muted-foreground/60 hover:text-accent-red transition-colors">
+          <button
+            aria-label="Stop job"
+            className="text-muted-foreground/60 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
             <Square className="w-4 h-4" />
           </button>
         )}
         {isQueued && (
-          <button className="text-muted-foreground/60 hover:text-accent-red transition-colors">
+          <button
+            aria-label="Remove from queue"
+            className="text-muted-foreground/60 hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
             <X className="w-4 h-4" />
           </button>
         )}
