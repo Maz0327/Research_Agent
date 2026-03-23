@@ -26,7 +26,7 @@ interface SidebarProps {
 export function Sidebar({ email, showAdmin = false, onSignOut }: SidebarProps) {
   return (
     <aside
-      className="hidden md:flex flex-col fixed inset-y-0 left-0 z-30 w-56 border-r border-border bg-surface-0"
+      className="hidden md:flex flex-col fixed inset-y-0 left-0 z-30 w-56 border-r border-border bg-background"
       aria-label="Sidebar navigation"
     >
       {/* Logo */}

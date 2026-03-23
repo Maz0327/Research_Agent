@@ -70,7 +70,7 @@ export function DocumentNav({ artifacts, selectedDoc, onSelectDoc }: DocumentNav
               'w-full text-left rounded-md px-3 py-2 transition-colors',
               isActive
                 ? 'bg-blue-600/20 border border-blue-600/40'
-                : 'hover:bg-surface-2 border border-transparent'
+                : 'hover:bg-secondary border border-transparent'
             )}
           >
             <div className="flex items-center justify-between gap-2">

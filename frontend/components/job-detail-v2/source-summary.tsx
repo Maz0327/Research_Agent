@@ -66,7 +66,7 @@ export function SourceSummary({ job }: SourceSummaryProps) {
           const typeKey = (src.type ?? '').toLowerCase();
           const typeClass = TYPE_COLORS[typeKey] ?? 'bg-zinc-800 text-zinc-300 border-zinc-700';
           return (
-            <li key={src.id} className="rounded-md border border-border bg-surface-2 px-2 py-1.5 space-y-1">
+            <li key={src.id} className="rounded-md border border-border bg-secondary px-2 py-1.5 space-y-1">
               <p className="text-xs text-foreground truncate" title={src.title}>
                 {src.title ?? src.id}
               </p>

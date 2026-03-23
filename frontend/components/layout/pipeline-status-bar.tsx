@@ -46,7 +46,7 @@ export function PipelineStatusBar({
   return (
     <div
       className={cn(
-        'flex items-center gap-3 px-4 py-2 bg-surface-1 font-mono text-xs',
+        'flex items-center gap-3 px-4 py-2 bg-card font-mono text-xs',
         className
       )}
       role="status"
@@ -92,7 +92,7 @@ export function PipelineStatusBar({
       {status === 'running' && (
         <>
           <div
-            className="flex-1 h-1 rounded-full bg-surface-3 overflow-hidden min-w-[60px] max-w-[200px]"
+            className="flex-1 h-1 rounded-full bg-muted overflow-hidden min-w-[60px] max-w-[200px]"
             aria-hidden="true"
           >
             <div

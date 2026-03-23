@@ -79,13 +79,13 @@ export function ChatSheet({ open, onOpenChange, job }: ChatSheetProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-80 p-0 bg-surface-1 border-border flex flex-col">
+      <SheetContent side="right" className="w-80 p-0 bg-card border-border flex flex-col">
         <SheetHeader className="px-4 py-3 border-b border-border flex-shrink-0">
           <SheetTitle className="text-sm text-foreground">AI Actions</SheetTitle>
         </SheetHeader>
 
         <Tabs defaultValue="iterate" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-3 grid grid-cols-2 flex-shrink-0 bg-surface-2">
+          <TabsList className="mx-4 mt-3 grid grid-cols-2 flex-shrink-0 bg-secondary">
             <TabsTrigger value="iterate" className="text-xs">Iterate</TabsTrigger>
             <TabsTrigger value="brainstorm" className="text-xs">Brainstorm</TabsTrigger>
           </TabsList>
@@ -95,10 +95,10 @@ export function ChatSheet({ open, onOpenChange, job }: ChatSheetProps) {
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Mode</label>
               <Select value={iterateMode} onValueChange={setIterateMode}>
-                <SelectTrigger className="h-8 text-xs bg-surface-2 border-border text-foreground">
+                <SelectTrigger className="h-8 text-xs bg-secondary border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-surface-1 border-border">
+                <SelectContent className="bg-card border-border">
                   {ITERATE_MODES.map((m) => (
                     <SelectItem key={m.value} value={m.value} className="text-xs">
                       {m.label}
@@ -115,7 +115,7 @@ export function ChatSheet({ open, onOpenChange, job }: ChatSheetProps) {
                 onChange={(e) => setIteratePrompt(e.target.value)}
                 placeholder="Describe what you want to change or explore…"
                 rows={5}
-                className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-600 resize-none"
+                className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none"
               />
             </div>
 
@@ -146,7 +146,7 @@ export function ChatSheet({ open, onOpenChange, job }: ChatSheetProps) {
                 onChange={(e) => setBrainstormPrompt(e.target.value)}
                 placeholder="What angles do you want to explore?"
                 rows={4}
-                className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-600 resize-none"
+                className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
               />
             </div>
 

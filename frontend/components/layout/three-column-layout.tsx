@@ -94,7 +94,7 @@ export function ThreeColumnLayout({
                   {rightPanelLabel}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-80 p-0 bg-surface-1 border-border">
+              <SheetContent side="right" className="w-80 p-0 bg-card border-border">
                 <SheetHeader className="px-4 py-3 border-b border-border">
                   <SheetTitle className="text-sm">{rightPanelLabel}</SheetTitle>
                 </SheetHeader>
@@ -123,7 +123,7 @@ export function ThreeColumnLayout({
               size="sm"
               className={cn(
                 'w-full justify-between rounded-none border-b border-border px-4 py-3 text-sm font-medium',
-                leftOpen && 'bg-surface-1'
+                leftOpen && 'bg-card'
               )}
             >
               <span className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export function ThreeColumnLayout({
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="border-b border-border bg-surface-1 p-4">
+            <div className="border-b border-border bg-card p-4">
               {leftPanel}
             </div>
           </CollapsibleContent>
@@ -163,7 +163,7 @@ export function ThreeColumnLayout({
               {rightPanelLabel}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-[60vh] p-0 bg-surface-1 border-border">
+          <SheetContent side="bottom" className="h-[60vh] p-0 bg-card border-border">
             <SheetHeader className="px-4 py-3 border-b border-border">
               <SheetTitle className="text-sm">{rightPanelLabel}</SheetTitle>
             </SheetHeader>

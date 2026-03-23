@@ -52,7 +52,7 @@ export function SidebarMobile({
         </button>
       </SheetTrigger>
 
-      <SheetContent side="left" className="w-56 p-0 bg-surface-0 border-border flex flex-col">
+      <SheetContent side="left" className="w-56 p-0 bg-background border-border flex flex-col">
         <SheetHeader className="flex h-14 flex-row items-center px-4 border-b border-border space-y-0">
           <SheetTitle asChild>
             <Link

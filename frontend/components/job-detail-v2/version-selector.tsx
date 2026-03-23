@@ -34,10 +34,10 @@ export function VersionSelector({ versions, selectedVersion, onSelectVersion }: 
         Version
       </p>
       <Select value={selectedVersion} onValueChange={onSelectVersion}>
-        <SelectTrigger className="h-8 text-xs bg-surface-2 border-border text-foreground">
+        <SelectTrigger className="h-8 text-xs bg-secondary border-border text-foreground">
           <SelectValue placeholder="Select version" />
         </SelectTrigger>
-        <SelectContent className="bg-surface-1 border-border">
+        <SelectContent className="bg-card border-border">
           {versions.map((v) => (
             <SelectItem key={v.version} value={v.version} className="text-xs">
               <span className="font-mono font-medium">{v.version}</span>

@@ -18,7 +18,7 @@ export function JobMetaCard({ job }: JobMetaCardProps) {
   const pipeline = job.pipeline?.replace(/_/g, ' ') ?? 'Standard';
 
   return (
-    <Card className="bg-surface-1 border-border">
+    <Card className="bg-card border-border">
       <CardHeader className="pb-3 pt-4 px-4">
         <h1 className="text-base font-bold text-foreground leading-snug line-clamp-3">
           {title}

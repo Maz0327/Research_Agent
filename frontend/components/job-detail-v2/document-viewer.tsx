@@ -95,14 +95,14 @@ export function DocumentViewer({ docType, job }: DocumentViewerProps) {
       </div>
 
       {/* Content area */}
-      <Card className="flex-1 bg-surface-1 border-border">
+      <Card className="flex-1 bg-card border-border">
         <ScrollArea className="h-[calc(100vh-280px)] min-h-[300px]">
           <CardContent className="p-4">
             {content ? (
               <DocRenderer docType={docType} content={content} />
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="h-10 w-10 rounded-full bg-surface-2 flex items-center justify-center mb-3">
+                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center mb-3">
                   <span className="text-lg text-muted-foreground">📄</span>
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">{meta.label} not yet generated</p>

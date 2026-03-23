@@ -35,7 +35,7 @@ export function AppShell({
       {/* Right side: mobile header + main content */}
       <div className="flex flex-1 flex-col md:ml-56">
         {/* Mobile top header — visible below md only */}
-        <header className="flex md:hidden h-14 items-center justify-between px-4 border-b border-border bg-surface-0/80 backdrop-blur-md sticky top-0 z-20">
+        <header className="flex md:hidden h-14 items-center justify-between px-4 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-20">
           <SidebarMobile
             email={email}
             showAdmin={showAdmin}

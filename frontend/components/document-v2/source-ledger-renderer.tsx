@@ -29,7 +29,7 @@ function SourceCard({ source }: { source: SourceEntry }) {
   const status = STATUS_STYLES[source.status] ?? STATUS_STYLES.ingested;
 
   return (
-    <Card className="bg-surface-1 border-border">
+    <Card className="bg-card border-border">
       <CardContent className="p-4 space-y-2">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
