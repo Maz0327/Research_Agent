@@ -23,8 +23,9 @@ WORKDIR /app
 # Copy requirements first (for layer caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (use lockfile if available for reproducible builds)
+COPY requirements.lock* ./
+RUN pip install --no-cache-dir -r requirements.lock 2>/dev/null || pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY backend/ ./backend/
@@ -38,6 +39,10 @@ EXPOSE 8000
 
 # Default to API service (set SERVICE_TYPE=worker for Celery)
 ENV SERVICE_TYPE=api
+
+# Run as non-root user for security
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
 
 # Use unified entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

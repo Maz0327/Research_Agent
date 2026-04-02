@@ -1,6 +1,9 @@
 """Web content capture and text extraction from URLs."""
+import ipaddress
 import re
+import socket
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -14,6 +17,59 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
+
+# Private/reserved IP ranges to block (SSRF prevention)
+_BLOCKED_IP_RANGES = [
+    ipaddress.ip_network("10.0.0.0/8"),        # Private class A
+    ipaddress.ip_network("172.16.0.0/12"),      # Private class B
+    ipaddress.ip_network("192.168.0.0/16"),     # Private class C
+    ipaddress.ip_network("127.0.0.0/8"),        # Loopback
+    ipaddress.ip_network("169.254.0.0/16"),     # Link-local / AWS metadata
+    ipaddress.ip_network("0.0.0.0/8"),          # Reserved
+    ipaddress.ip_network("100.64.0.0/10"),      # Shared address space (RFC 6598)
+    ipaddress.ip_network("::1/128"),            # IPv6 loopback
+    ipaddress.ip_network("fe80::/10"),          # IPv6 link-local
+    ipaddress.ip_network("fc00::/7"),           # IPv6 unique local
+]
+
+
+def is_safe_url(url: str) -> bool:
+    """
+    Validate that a URL does not point to a private/internal IP address (SSRF prevention).
+
+    Resolves the hostname and checks whether the resulting IP address falls within
+    any reserved or private range. Only http/https schemes are permitted.
+
+    Args:
+        url: URL string to validate
+
+    Returns:
+        True if the URL is safe to fetch, False if it should be blocked
+    """
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            logger.warning(f"SSRF block: non-http(s) scheme in URL: {url}")
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            logger.warning(f"SSRF block: no hostname in URL: {url}")
+            return False
+        # Resolve hostname → IP (uses system DNS)
+        resolved_ip = socket.gethostbyname(hostname)
+        ip_obj = ipaddress.ip_address(resolved_ip)
+        for blocked_range in _BLOCKED_IP_RANGES:
+            if ip_obj in blocked_range:
+                logger.warning(
+                    f"SSRF block: URL {url!r} resolved to private IP {resolved_ip} "
+                    f"(blocked range {blocked_range})"
+                )
+                return False
+        return True
+    except Exception as exc:
+        # Resolution failure — treat as unsafe to avoid DNS-rebinding tricks
+        logger.warning(f"SSRF block: could not validate URL {url!r}: {exc}")
+        return False
 
 # Request timeout in seconds
 FETCH_TIMEOUT = 30.0
@@ -141,13 +197,17 @@ def _fetch_url_content(url: str) -> tuple[Optional[str], Optional[int], Optional
         If successful: (html_content, status_code, None)
         If failed: (None, status_code, error_message)
     """
+    # Block requests to private/internal IPs before making any network call
+    if not is_safe_url(url):
+        return None, None, "URL blocked: resolves to private or reserved IP address"
+
     try:
         headers = {
             "User-Agent": USER_AGENT,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
-        
+
         with httpx.Client(timeout=FETCH_TIMEOUT, follow_redirects=True) as client:
             response = client.get(url, headers=headers)
             
