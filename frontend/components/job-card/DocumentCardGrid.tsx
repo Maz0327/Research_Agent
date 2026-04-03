@@ -3,7 +3,8 @@
  * Replaces cramped inline accordion approach with cards → modal flow.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { authFetch, parseJsonResponse } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/supabase';
 import { exportToPdf } from '@/lib/pdf-export';
@@ -201,13 +202,7 @@ export function DocumentCardGrid({
   // Iteration modal state
   const [iterationModalOpen, setIterationModalOpen] = useState(false);
 
-  // Escape key handler for iteration modal
-  useEffect(() => {
-    if (!iterationModalOpen) return;
-    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') setIterationModalOpen(false); };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [iterationModalOpen]);
+  // Radix Dialog handles Escape and focus trap for iteration modal
   const [iterationMode, setIterationMode] = useState<'more_sources' | 'deeper' | 'different_angle' | 'custom'>('more_sources');
   const [iterationPrompt, setIterationPrompt] = useState('');
   const [iterationMaxSources, setIterationMaxSources] = useState(4);
@@ -678,15 +673,28 @@ export function DocumentCardGrid({
         />
       )}
 
-      {/* Iteration Configuration Modal */}
-      {iterationModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="iteration-modal-title">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl"
-          >
+      {/* Iteration Configuration Modal — Radix Dialog for focus trap + Escape */}
+      <DialogPrimitive.Root open={iterationModalOpen} onOpenChange={setIterationModalOpen}>
+        <DialogPrimitive.Portal>
+          <AnimatePresence>
+            {iterationModalOpen && (
+              <>
+                <DialogPrimitive.Overlay asChild>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+                  />
+                </DialogPrimitive.Overlay>
+                <DialogPrimitive.Content asChild aria-labelledby="iteration-modal-title">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl pointer-events-auto"
+                  >
             <h3 id="iteration-modal-title" className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
               <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -789,9 +797,14 @@ export function DocumentCardGrid({
                 Start Iteration
               </button>
             </div>
-          </motion.div>
-        </div>
-      )}
+                  </motion.div>
+                  </div>
+                </DialogPrimitive.Content>
+              </>
+            )}
+          </AnimatePresence>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </>
   );
 }

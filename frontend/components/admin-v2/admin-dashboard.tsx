@@ -47,7 +47,7 @@ export function AdminDashboard() {
       value: stats?.total_users ?? '-',
       colorBorder: 'border-blue-800',
       colorBg: 'bg-blue-900/20',
-      iconColor: 'text-blue-600',
+      iconColor: 'text-blue-400',
       href: '/admin/users',
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@ export function AdminDashboard() {
       value: stats?.total_jobs ?? '-',
       colorBorder: 'border-green-800',
       colorBg: 'bg-green-900/20',
-      iconColor: 'text-green-600',
+      iconColor: 'text-green-400',
       href: '/admin/jobs',
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,7 +73,7 @@ export function AdminDashboard() {
       value: stats?.jobs_today ?? '-',
       colorBorder: 'border-purple-800',
       colorBg: 'bg-purple-900/20',
-      iconColor: 'text-purple-600',
+      iconColor: 'text-purple-400',
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -85,7 +85,7 @@ export function AdminDashboard() {
       value: stats?.jobs_running ?? '-',
       colorBorder: 'border-yellow-800',
       colorBg: 'bg-yellow-900/20',
-      iconColor: 'text-yellow-600',
+      iconColor: 'text-yellow-400',
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -97,7 +97,7 @@ export function AdminDashboard() {
       value: stats?.jobs_failed_today ?? '-',
       colorBorder: 'border-red-800',
       colorBg: 'bg-red-900/20',
-      iconColor: 'text-red-600',
+      iconColor: 'text-red-400',
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -109,7 +109,7 @@ export function AdminDashboard() {
       value: stats?.unresolved_errors ?? '-',
       colorBorder: 'border-orange-800',
       colorBg: 'bg-orange-900/20',
-      iconColor: 'text-orange-600',
+      iconColor: 'text-orange-400',
       href: '/admin/errors',
       icon: (
         <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

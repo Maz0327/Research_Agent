@@ -18,7 +18,7 @@ interface StatCardProps {
 
 function StatCard({ label, value, sub, subAccent, icon, iconBg }: StatCardProps) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 hover:shadow-[0_0_24px_rgba(59,130,246,0.08)] transition-shadow cursor-pointer">
+    <div className="bg-card border border-border rounded-xl p-4 hover:shadow-[0_0_24px_rgba(59,130,246,0.08)] transition-shadow">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>

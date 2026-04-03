@@ -79,7 +79,7 @@ export function RecentJobsList({ jobs, isLoading, onNewJob, error }: RecentJobsL
             <button
               key={btn.value}
               onClick={() => setStatusFilter(btn.value)}
-              className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 statusFilter === btn.value
                   ? 'bg-secondary text-muted-foreground border-border'
                   : 'text-muted-foreground border-transparent hover:bg-secondary'
@@ -122,15 +122,30 @@ export function RecentJobsList({ jobs, isLoading, onNewJob, error }: RecentJobsL
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-          <p className="text-muted-foreground text-sm">No jobs found</p>
-          {onNewJob && jobs.length === 0 && (
-            <button
-              onClick={onNewJob}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-purple-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Start your first research
-            </button>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          {jobs.length === 0 ? (
+            // First-run empty state — no jobs exist yet
+            <>
+              <Search className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Start Your First Research
+              </h3>
+              <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                Extract insights from YouTube videos, web articles, and documents.
+                Paste a URL or text to begin.
+              </p>
+              {onNewJob && (
+                <button
+                  onClick={onNewJob}
+                  className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-primary to-purple-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                >
+                  New Research
+                </button>
+              )}
+            </>
+          ) : (
+            // Filter/search produced no results
+            <p className="text-muted-foreground text-sm">No jobs match your filter</p>
           )}
         </div>
       ) : (

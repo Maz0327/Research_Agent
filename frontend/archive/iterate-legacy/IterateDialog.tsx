@@ -11,7 +11,8 @@
  * Submits to POST /jobs/{job_id}/iterate via store.iterateJob().
  */
 import { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { IterateMode, IterateRequest } from '../../types/run';
 import { ITERATE_MODE_CONFIG } from '../../types/run';
 import { useJobsStore } from '../../store/jobs';
@@ -72,6 +73,7 @@ export function IterateDialog({
   const [error, setError] = useState<string | null>(null);
 
   const iterateJob = useJobsStore((s) => s.iterateJob);
+  const prefersReducedMotion = useReducedMotion();
 
   // Reset form when dialog opens
   const resetForm = useCallback(() => {
@@ -88,17 +90,12 @@ export function IterateDialog({
     if (isOpen) resetForm();
   }, [isOpen, resetForm]);
 
-  // Escape key + body scroll lock
+  // Body scroll lock (Radix handles Escape and focus trap)
   useEffect(() => {
     if (!isOpen) return;
     document.body.style.overflow = 'hidden';
-    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
   // Build request based on selected mode
   const buildRequest = (): IterateRequest | null => {
@@ -163,29 +160,31 @@ export function IterateDialog({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[55]"
-            onClick={onClose}
-          />
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              {/* Backdrop */}
+              <DialogPrimitive.Overlay asChild>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 z-[55]"
+                  onClick={onClose}
+                />
+              </DialogPrimitive.Overlay>
 
-          {/* Dialog */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] max-h-[min(85vh,calc(100vh-48px))] overflow-y-auto"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="iterate-dialog-title"
-          >
+              {/* Dialog */}
+              <DialogPrimitive.Content asChild aria-labelledby="iterate-dialog-title">
+                <motion.div
+                  initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95, y: 20 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
+                  className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] max-h-[min(85vh,calc(100vh-48px))] overflow-y-auto"
+                >
             {/* Header */}
             <div className="sticky top-0 bg-gray-900 border-b border-gray-800 px-6 py-4 rounded-t-2xl z-10">
               <div className="flex items-center justify-between">
@@ -194,7 +193,7 @@ export function IterateDialog({
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-2.5 -mr-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-3 -mr-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   aria-label="Close"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -379,10 +378,13 @@ export function IterateDialog({
                 </button>
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+                </motion.div>
+              </DialogPrimitive.Content>
+            </>
+          )}
+        </AnimatePresence>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

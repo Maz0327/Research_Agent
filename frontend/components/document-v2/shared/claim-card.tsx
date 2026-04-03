@@ -23,7 +23,7 @@ export function ClaimCard({ statement, confidence, verified, sourceIds, classNam
           <p className="text-sm text-zinc-200 leading-relaxed flex-1">{statement}</p>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {verified !== undefined && (
-              <span className={cn('text-[11px]', verified ? 'text-green-400' : 'text-zinc-600')}>
+              <span className={cn('text-[11px]', verified ? 'text-green-400' : 'text-zinc-400')}>
                 {verified ? '✓' : '—'}
               </span>
             )}

@@ -9,8 +9,8 @@
  * Clicking navigates to /jobs/[id] detail page for full view.
  */
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/router';
-import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Job } from '../store/jobs';
 import useETA from '../hooks/useETA';
 import {
@@ -47,6 +47,7 @@ const formatDate = (dateStr: string) => {
 export default function JobCard({ job, onRefresh, isEditMode = false, isSelected = false, onToggleSelect }: JobCardProps) {
   const router = useRouter();
   const [expansionLevel, setExpansionLevel] = useState<ExpansionLevel>(0);
+  const prefersReducedMotion = useReducedMotion();
   const canSelect = !['running', 'queued'].includes(job.status);
 
   // Handle card header click - toggle Level 0/1 or navigate
@@ -79,8 +80,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
 
   return (
     <motion.div
-      layout
-      className={`rounded-xl border ${config.borderColor} bg-gray-900 shadow-lg transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/5`}
+      layout={!prefersReducedMotion}
+      className={`rounded-xl border ${config.borderColor} bg-card shadow-lg transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/5`}
     >
       {/* Header - Always visible, touch-optimized */}
       <div
@@ -109,23 +110,23 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
                 checked={isSelected}
                 onChange={onToggleSelect}
                 disabled={!canSelect}
-                className="h-5 w-5 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-5 w-5 rounded border-border bg-secondary text-blue-600 focus:ring-blue-500 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           )}
 
           <div className="flex-1 min-w-0">
             {/* Title - responsive text size */}
-            <h3 className="text-base sm:text-lg font-semibold text-gray-100 truncate">
+            <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">
               {displayTitle}
             </h3>
 
             {/* Meta info - stack on mobile, inline on desktop */}
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-gray-400">
-              <span className="rounded-md bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-300">
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm text-muted-foreground">
+              <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
                 {pipelineLabel}
               </span>
-              <span className="hidden sm:inline text-gray-600">&middot;</span>
+              <span className="hidden sm:inline text-muted-foreground/40">&middot;</span>
               <span>{formatDate(job.created_at)}</span>
               {job.status === 'running' && eta && (
                 <>
@@ -137,7 +138,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
 
             {/* Stage description for queued jobs only (running jobs show in progress bar) */}
             {job.status === 'queued' && (
-              <p className="mt-2 text-sm text-gray-500">{stageDescription}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{stageDescription}</p>
             )}
 
             {/* Error preview for failed jobs */}
@@ -172,8 +173,8 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
 
             <motion.svg
               animate={{ rotate: expansionLevel > 0 ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-              className="h-5 w-5 text-gray-500 flex-shrink-0"
+              transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+              className="h-5 w-5 text-muted-foreground flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -214,6 +215,12 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
         )}
       </div>
 
+      {/* Screen-reader announcement for job status changes */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {job.status === 'completed' && `Research complete: ${displayTitle}`}
+        {job.status === 'failed' && `Research failed: ${displayTitle}`}
+        {job.status === 'running' && job.stage ? `Processing: ${displayTitle}` : ''}
+      </div>
     </motion.div>
   );
 }

@@ -13,6 +13,32 @@ jest.mock('next/router', () => ({
   }),
 }));
 
+// Mock next/navigation (App Router)
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+  }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+
+// Mock framer-motion
+jest.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }) => require('react').createElement('div', props, children),
+    svg: ({ children, ...props }) => require('react').createElement('svg', props, children),
+    button: ({ children, ...props }) => require('react').createElement('button', props, children),
+  },
+  AnimatePresence: ({ children }) => children,
+  useReducedMotion: () => false,
+}));
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

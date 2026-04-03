@@ -88,14 +88,14 @@ function CollapsibleDetails({ children, ...props }: DetailedHTMLProps<HTMLAttrib
   });
 
   return (
-    <div className="collapsible-section my-4 border border-gray-700 rounded-lg overflow-hidden">
+    <div className="collapsible-section my-4 border border-border rounded-lg overflow-hidden">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm font-medium text-blue-300 bg-gray-800/80 hover:bg-gray-700/80 transition cursor-pointer"
+        className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm font-medium text-blue-300 bg-secondary/80 hover:bg-secondary transition cursor-pointer"
       >
         <span
-          className="text-gray-500 transition-transform duration-200"
+          className="text-muted-foreground transition-transform duration-200"
           style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
         >
           &#9654;
@@ -103,7 +103,7 @@ function CollapsibleDetails({ children, ...props }: DetailedHTMLProps<HTMLAttrib
         <span>{summaryContent}</span>
       </button>
       {isOpen && (
-        <div className="bg-gray-900/50 border-t border-gray-700">
+        <div className="bg-card/50 border-t border-border">
           <div className="p-4 max-h-[600px] overflow-y-auto">
             {bodyChildren}
           </div>
@@ -129,16 +129,16 @@ function buildComponents(compact: boolean) {
   // Heading sizes by level
   const headingStyles = compact
     ? {
-        h1: 'text-xl font-bold text-white mt-5 mb-3 pb-2 border-b-2 border-gray-600',
-        h2: 'text-lg font-bold text-gray-50 mt-5 mb-2 pb-1 border-b border-gray-700',
-        h3: 'text-base font-semibold text-gray-100 mt-4 mb-2 pb-1 border-b border-gray-800',
-        h4: 'text-sm font-semibold text-gray-200 mt-3 mb-1',
+        h1: 'text-xl font-bold text-foreground mt-5 mb-3 pb-2 border-b-2 border-border',
+        h2: 'text-lg font-bold text-foreground mt-5 mb-2 pb-1 border-b border-border',
+        h3: 'text-base font-semibold text-foreground mt-4 mb-2 pb-1 border-b border-border',
+        h4: 'text-sm font-semibold text-foreground mt-3 mb-1',
       }
     : {
-        h1: 'text-2xl font-bold text-white mt-8 mb-5 pb-3 border-b-2 border-gray-600',
-        h2: 'text-xl font-bold text-gray-50 mt-10 mb-4 pb-2 border-b border-gray-700',
-        h3: 'text-base font-semibold text-gray-100 mt-7 mb-3',
-        h4: 'text-base font-semibold text-gray-200 mt-5 mb-2',
+        h1: 'text-2xl font-bold text-foreground mt-8 mb-5 pb-3 border-b-2 border-border',
+        h2: 'text-xl font-bold text-foreground mt-10 mb-4 pb-2 border-b border-border',
+        h3: 'text-base font-semibold text-foreground mt-7 mb-3',
+        h4: 'text-base font-semibold text-foreground mt-5 mb-2',
       };
 
   const components: Record<string, any> = {
@@ -183,7 +183,7 @@ function buildComponents(compact: boolean) {
 
     // ----- Code blocks — prose detection for source text -----
     pre: ({ children }: { children?: ReactNode }) => (
-      <pre className={`bg-gray-800/80 rounded-lg ${compact ? 'p-3 my-2' : 'p-4 my-4'} border border-gray-700/50 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden`}>
+      <pre className={`bg-secondary/80 rounded-lg ${compact ? 'p-3 my-2' : 'p-4 my-4'} border border-border/50 text-sm leading-relaxed whitespace-pre-wrap break-words overflow-x-hidden`}>
         {children}
       </pre>
     ),
@@ -192,14 +192,14 @@ function buildComponents(compact: boolean) {
       const isBlock = className?.startsWith('language-');
       if (isBlock) {
         return (
-          <code className="text-gray-300 whitespace-pre-wrap break-words" {...props}>
+          <code className="text-muted-foreground whitespace-pre-wrap break-words" {...props}>
             {children}
           </code>
         );
       }
       // Inline code
       return (
-        <code className="bg-gray-800 px-1.5 py-0.5 rounded text-blue-300 text-sm" {...props}>
+        <code className="bg-secondary px-1.5 py-0.5 rounded text-blue-300 text-sm" {...props}>
           {children}
         </code>
       );
@@ -209,29 +209,29 @@ function buildComponents(compact: boolean) {
     table: ({ children }: { children?: ReactNode }) => {
       tableRowIndex = 0; // reset on each table
       return (
-        <div className={`overflow-x-auto ${compact ? 'my-3' : 'my-5'} rounded-lg border border-gray-700/50`}>
+        <div className={`overflow-x-auto ${compact ? 'my-3' : 'my-5'} rounded-lg border border-border/50`}>
           <table className="w-full text-sm border-collapse">{children}</table>
         </div>
       );
     },
     thead: ({ children }: { children?: ReactNode }) => (
-      <thead className="bg-gray-800/60">{children}</thead>
+      <thead className="bg-secondary/60">{children}</thead>
     ),
     th: ({ children }: { children?: ReactNode }) => (
-      <th className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-xs'} text-left font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-600`}>
+      <th className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-xs'} text-left font-semibold text-muted-foreground uppercase tracking-wider border-b border-border`}>
         {children}
       </th>
     ),
     td: ({ children }: { children?: ReactNode }) => (
-      <td className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'} text-gray-200 border-b border-gray-800/50`}>
+      <td className={`${compact ? 'px-2 py-1.5 text-xs' : 'px-4 py-3 text-sm'} text-foreground border-b border-border/50`}>
         {children}
       </td>
     ),
     tr: ({ children }: { children?: ReactNode }) => {
       const idx = tableRowIndex++;
-      const bg = idx % 2 === 0 ? 'bg-gray-800/30' : 'bg-gray-800/10';
+      const bg = idx % 2 === 0 ? 'bg-secondary/30' : 'bg-secondary/10';
       return (
-        <tr className={`${bg} hover:bg-gray-700/30 transition-colors`}>{children}</tr>
+        <tr className={`${bg} hover:bg-secondary/40 transition-colors`}>{children}</tr>
       );
     },
 
@@ -243,30 +243,30 @@ function buildComponents(compact: boolean) {
       <ol className={`${compact ? 'my-2 space-y-0.5' : 'my-4 space-y-2'} list-decimal`}>{children}</ol>
     ),
     li: ({ children }: { children?: ReactNode }) => (
-      <li className="ml-4 pl-1 list-disc text-gray-300 leading-[1.7]">{children}</li>
+      <li className="ml-4 pl-1 list-disc text-muted-foreground leading-[1.7]">{children}</li>
     ),
 
     // ----- Blockquotes — remove italic, improve readability -----
     blockquote: ({ children }: { children?: ReactNode }) => (
-      <blockquote className="border-l-4 border-gray-600 pl-5 py-2 my-4 text-gray-300 leading-relaxed">
+      <blockquote className="border-l-4 border-border pl-5 py-2 my-4 text-muted-foreground leading-relaxed">
         {children}
       </blockquote>
     ),
 
     // ----- Horizontal rule -----
-    hr: () => <hr className={`border-gray-700/50 ${compact ? 'my-4' : 'my-8'}`} />,
+    hr: () => <hr className={`border-border/50 ${compact ? 'my-4' : 'my-8'}`} />,
 
     // ----- Strong / emphasis -----
     strong: ({ children }: { children?: ReactNode }) => (
-      <strong className="font-semibold text-gray-100">{children}</strong>
+      <strong className="font-semibold text-foreground">{children}</strong>
     ),
     em: ({ children }: { children?: ReactNode }) => (
-      <em className="italic text-gray-300">{children}</em>
+      <em className="italic text-muted-foreground">{children}</em>
     ),
 
     // ----- Images -----
     img: ({ src, alt }: { src?: string; alt?: string }) => (
-      <img src={src} alt={alt || ''} className="rounded-lg max-w-full h-auto my-3 border border-gray-700" loading="lazy" />
+      <img src={src} alt={alt || ''} className="rounded-lg max-w-full h-auto my-3 border border-border" loading="lazy" />
     ),
 
     // ----- Collapsible sections (from backend's <details>/<summary>) -----
@@ -292,7 +292,7 @@ export function MarkdownRenderer({ content, compact = false }: MarkdownRendererP
   const components = useCallback(() => buildComponents(compact), [compact])();
 
   return (
-    <div className={`text-gray-300 leading-relaxed ${compact ? 'text-sm' : ''}`}>
+    <div className={`text-muted-foreground leading-relaxed ${compact ? 'text-sm' : ''}`}>
       <Markdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}

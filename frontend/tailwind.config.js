@@ -44,22 +44,7 @@ module.exports = {
   			},
   			accent: {
   				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))',
-  				blue: {
-  					DEFAULT: '#3b82f6',
-  					light: '#60a5fa',
-  					dark: '#2563eb'
-  				},
-  				purple: {
-  					DEFAULT: '#8b5cf6',
-  					light: '#a78bfa',
-  					dark: '#7c3aed'
-  				},
-  				green: {
-  					DEFAULT: '#22c55e',
-  					light: '#4ade80',
-  					dark: '#16a34a'
-  				}
+  				foreground: 'hsl(var(--accent-foreground))'
   			},
   			popover: {
   				DEFAULT: 'hsl(var(--popover))',
@@ -75,34 +60,22 @@ module.exports = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			},
-  			dark: {
-  				bg: {
-  					primary: '#121212',
-  					secondary: '#1a1a1a',
-  					tertiary: '#262626',
-  					hover: '#2d2d2d'
-  				},
-  				border: {
-  					primary: '#333333',
-  					secondary: '#404040',
-  					accent: '#4a5568'
-  				},
-  				text: {
-  					primary: '#f5f5f5',
-  					secondary: '#d1d5db',
-  					muted: '#9ca3af',
-  					disabled: '#6b7280'
-  				},
-  				primary: '#121212',
-  				secondary: '#1a1a1a',
-  				tertiary: '#262626'
   			}
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
+  		},
+  		zIndex: {
+  			base: '0',
+  			sticky: '10',
+  			sidebar: '20',
+  			header: '30',
+  			overlay: '40',
+  			modal: '50',
+  			toast: '60',
+  			'skip-link': '100'
   		},
   		animation: {
   			shimmer: 'shimmer 2s infinite linear',

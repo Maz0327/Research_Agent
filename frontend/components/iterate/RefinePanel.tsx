@@ -9,10 +9,12 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import type { IterateRequest } from '../../types/run';
 import { useJobsStore } from '../../store/jobs';
 import { inferIterateMode, generateSuggestions } from '../../lib/iterate-intent';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface RefinePanelProps {
   isOpen: boolean;
@@ -35,6 +37,7 @@ export function RefinePanel({
   const [error, setError] = useState<string | null>(null);
 
   const iterateJob = useJobsStore((s) => s.iterateJob);
+  const prefersReducedMotion = useReducedMotion();
 
   // Generate contextual suggestions
   const suggestions = job ? generateSuggestions(job) : [
@@ -52,17 +55,12 @@ export function RefinePanel({
     }
   }, [isOpen]);
 
-  // Escape key + body scroll lock
+  // Body scroll lock (Radix handles Escape and focus trap)
   useEffect(() => {
     if (!isOpen) return;
     document.body.style.overflow = 'hidden';
-    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = userInput.trim();
@@ -100,29 +98,31 @@ export function RefinePanel({
   const inferred = userInput.trim() ? inferIterateMode(userInput.trim()) : null;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[55]"
-            onClick={onClose}
-          />
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              {/* Backdrop */}
+              <DialogPrimitive.Overlay asChild>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 z-[55]"
+                  onClick={onClose}
+                />
+              </DialogPrimitive.Overlay>
 
-          {/* Dialog */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="refine-panel-title"
-          >
+              {/* Dialog */}
+              <DialogPrimitive.Content asChild aria-labelledby="refine-panel-title">
+                <motion.div
+                  initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95, y: 20 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
+                  className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] overflow-hidden"
+                >
             {/* Header */}
             <div className="border-b border-gray-800 px-6 py-4">
               <div className="flex items-center justify-between">
@@ -223,7 +223,7 @@ export function RefinePanel({
                 >
                   {submitting ? (
                     <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <Spinner size="sm" />
                       Starting...
                     </span>
                   ) : (
@@ -232,10 +232,13 @@ export function RefinePanel({
                 </button>
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+                </motion.div>
+              </DialogPrimitive.Content>
+            </>
+          )}
+        </AnimatePresence>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

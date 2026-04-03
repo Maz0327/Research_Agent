@@ -5,10 +5,10 @@
 export const statusConfig = {
   queued: {
     label: 'Queued',
-    bgColor: 'bg-gray-800',
-    textColor: 'text-gray-300',
-    dotColor: 'bg-gray-400',
-    borderColor: 'border-gray-700',
+    bgColor: 'bg-secondary',
+    textColor: 'text-secondary-foreground',
+    dotColor: 'bg-muted-foreground',
+    borderColor: 'border-border',
   },
   running: {
     label: 'Running',

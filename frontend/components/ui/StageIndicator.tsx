@@ -85,7 +85,7 @@ export default function StageIndicator({
                   transition={{ duration: 1, repeat: Infinity }}
                 />
               ) : (
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                <span className="text-xs font-medium text-gray-300 dark:text-gray-200">
                   {index + 1}
                 </span>
               )}

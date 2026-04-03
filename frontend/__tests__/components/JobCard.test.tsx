@@ -28,6 +28,7 @@ jest.mock('framer-motion', () => ({
     }),
   },
   AnimatePresence: ({ children }: React.PropsWithChildren<object>) => children,
+  useReducedMotion: () => false,
 }));
 
 // Mock useETA hook

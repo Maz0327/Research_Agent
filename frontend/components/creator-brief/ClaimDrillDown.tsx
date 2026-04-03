@@ -4,9 +4,12 @@
  * Triggered when the user clicks a core fact in CreatorBriefView.
  * Shows the claim from Doc 2, speaker attribution, rhetorical framing,
  * significance, related claims, and source link to Doc 0.
+ *
+ * Uses Radix Dialog primitives for focus trapping and Escape handling (WCAG 2.4.3, 2.1.1).
  */
 import { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   SignificanceIndicator,
   SourceCitation,
@@ -48,56 +51,45 @@ export function ClaimDrillDown({
   onClose,
   onNavigateToDoc,
 }: ClaimDrillDownProps) {
+  // useRef kept for potential future use but focus is now handled by Radix
   const panelRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
-  // Close on Escape + body scroll lock
+  // Body scroll lock (Radix handles Escape and focus trap)
   useEffect(() => {
     if (!isOpen) return;
     document.body.style.overflow = 'hidden';
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
-  // Focus trap
-  useEffect(() => {
-    if (isOpen && panelRef.current) {
-      panelRef.current.focus();
-    }
+    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   return (
-    <AnimatePresence>
-      {isOpen && fact && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={onClose}
-          />
+    <DialogPrimitive.Root open={isOpen && !!fact} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <AnimatePresence>
+          {isOpen && fact && (
+            <>
+              {/* Backdrop — Radix overlay for semantics, motion.div for animation */}
+              <DialogPrimitive.Overlay asChild>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+                  className="fixed inset-0 bg-black/50 z-40"
+                  onClick={onClose}
+                />
+              </DialogPrimitive.Overlay>
 
-          {/* Slide-over panel */}
-          <motion.div
-            ref={panelRef}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-full sm:w-[480px] bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="claim-drilldown-title"
-            tabIndex={-1}
-          >
+              {/* Slide-over panel */}
+              <DialogPrimitive.Content asChild aria-labelledby="claim-drilldown-title">
+                <motion.div
+                  ref={panelRef}
+                  initial={{ x: prefersReducedMotion ? 0 : '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: prefersReducedMotion ? 0 : '100%' }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 300 }}
+                  className="fixed right-0 top-0 bottom-0 w-full sm:w-[480px] bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
+                >
             {/* Header */}
             <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4 z-10">
               <div className="flex items-center justify-between">
@@ -231,10 +223,13 @@ export function ClaimDrillDown({
                 </section>
               )}
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+                </motion.div>
+              </DialogPrimitive.Content>
+            </>
+          )}
+        </AnimatePresence>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

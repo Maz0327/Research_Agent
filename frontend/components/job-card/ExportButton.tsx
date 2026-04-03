@@ -5,6 +5,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAccessToken } from '../../lib/supabase';
+import { API_URL } from '../../lib/constants';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface ExportButtonProps {
   jobId: string;
@@ -31,10 +33,6 @@ export function ExportButton({ jobId, onExportStart, onExportComplete }: ExportB
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getApiUrl = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  };
-
   const handleExportToGoogleDocs = async () => {
     setStatus('exporting');
     setStatusMessage('Creating Google Doc...');
@@ -42,7 +40,7 @@ export function ExportButton({ jobId, onExportStart, onExportComplete }: ExportB
 
     try {
       const token = await getAccessToken();
-      const response = await fetch(`${getApiUrl()}/jobs/${jobId}/export/google-docs`, {
+      const response = await fetch(`${API_URL}/jobs/${jobId}/export/google-docs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +84,7 @@ export function ExportButton({ jobId, onExportStart, onExportComplete }: ExportB
     try {
       const token = await getAccessToken();
       const response = await fetch(
-        `${getApiUrl()}/jobs/${jobId}/export/markdown?download=true`,
+        `${API_URL}/jobs/${jobId}/export/markdown?download=true`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -125,7 +123,7 @@ export function ExportButton({ jobId, onExportStart, onExportComplete }: ExportB
 
     try {
       const token = await getAccessToken();
-      const response = await fetch(`${getApiUrl()}/jobs/${jobId}/export/markdown`, {
+      const response = await fetch(`${API_URL}/jobs/${jobId}/export/markdown`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -165,10 +163,7 @@ export function ExportButton({ jobId, onExportStart, onExportComplete }: ExportB
       >
         {status === 'exporting' ? (
           <>
-            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+            <Spinner size="sm" />
             {statusMessage}
           </>
         ) : status === 'success' ? (

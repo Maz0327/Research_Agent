@@ -20,6 +20,7 @@ import { ShareButton } from './ShareButton';
 import { ExportToolbar } from '@/components/document/ExportToolbar';
 import { API_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/supabase';
+import { Spinner } from '@/components/ui/Spinner';
 
 interface VersionMeta {
   version: number;
@@ -416,12 +417,7 @@ export function DocumentViewerModal({
                     </option>
                   ))}
                 </select>
-                {isLoadingVersion && (
-                  <svg className="animate-spin h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.12" />
-                    <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                )}
+                {isLoadingVersion && <Spinner size="sm" />}
                 {activeVersion !== null && !isLoadingVersion && (
                   <span className="text-[11px] text-gray-500">
                     {versions.find(v => v.version === activeVersion)?.created_at
@@ -461,7 +457,7 @@ export function DocumentViewerModal({
               {hasContent ? (
                 <button
                   onClick={() => setShowDetails(!showDetails)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 min-h-[40px] touch-manipulation ${
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 min-h-[44px] touch-manipulation ${
                     showDetails
                       ? 'bg-blue-600/30 text-blue-300 border border-blue-600/50'
                       : 'bg-gray-700/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700'
@@ -493,7 +489,7 @@ export function DocumentViewerModal({
                 <div className="relative">
                   <button
                     onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-emerald-300 bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/50 transition min-h-[40px] touch-manipulation"
+                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-emerald-300 bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/50 transition min-h-[44px] touch-manipulation"
                     title="Download document"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

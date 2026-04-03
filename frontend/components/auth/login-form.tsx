@@ -100,7 +100,7 @@ export function LoginForm() {
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
           Research Agent
         </h1>
-        <p className="mt-2 text-gray-400">Sign in to your account</p>
+        <p className="mt-2 text-gray-300">Sign in to your account</p>
       </div>
 
       {/* Google OAuth */}
@@ -115,14 +115,14 @@ export function LoginForm() {
 
       <div className="my-6 flex items-center">
         <div className="flex-grow border-t border-gray-700" />
-        <span className="mx-4 text-sm text-gray-500">or</span>
+        <span className="mx-4 text-sm text-gray-400">or</span>
         <div className="flex-grow border-t border-gray-700" />
       </div>
 
       {/* Email Form */}
       <form onSubmit={handleEmailLogin}>
         <div className="mb-4">
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-400">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
             Email address
           </label>
           <input
@@ -131,14 +131,15 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            autoComplete="email"
+            className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             disabled={loading}
           />
         </div>
 
         {usePassword && (
           <div className="mb-4">
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-400">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
               Password
             </label>
             <input
@@ -147,7 +148,8 @@ export function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              autoComplete="current-password"
+              className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={loading}
             />
           </div>
@@ -180,21 +182,30 @@ export function LoginForm() {
         </button>
       </form>
 
-      {/* Message */}
-      {message && (
-        <div
-          className={`mt-4 rounded-xl p-4 text-sm ${
-            message.type === 'success'
-              ? 'border border-green-500/30 bg-green-900/30 text-green-300'
-              : 'border border-red-500/30 bg-red-900/30 text-red-300'
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
+      {/* Message — role="alert" announces errors immediately to screen readers */}
+      <div
+        role="alert"
+        aria-live={message?.type === 'error' ? 'assertive' : 'polite'}
+        aria-atomic="true"
+      >
+        {message && (
+          <div
+            className={`mt-4 rounded-xl p-4 text-sm ${
+              message.type === 'success'
+                ? 'border border-green-500/30 bg-green-900/30 text-green-300'
+                : 'border border-red-500/30 bg-red-900/30 text-red-300'
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+      </div>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
-        By signing in, you agree to our Terms of Service and Privacy Policy.
+      <p className="mt-6 text-center text-sm text-gray-400">
+        By signing in, you agree to our{' '}
+        <a href="/terms" className="underline hover:text-gray-200 transition-colors">Terms of Service</a>
+        {' '}and{' '}
+        <a href="/privacy" className="underline hover:text-gray-200 transition-colors">Privacy Policy</a>.
       </p>
     </div>
   );

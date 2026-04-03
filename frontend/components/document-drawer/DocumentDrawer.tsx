@@ -7,7 +7,8 @@
  * Mobile: full overlay with swipe-to-close. Desktop: toggleable sidebar.
  */
 import { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 // =============================================================================
 // Types
@@ -71,17 +72,9 @@ export function DocumentDrawer({
   onOpenVersions,
 }: DocumentDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
-  // Close on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  // Radix handles Escape key and focus trap; no manual keydown listener needed
 
   // Separate core and optional documents
   const coreDocs = documents.filter((d) =>
@@ -95,31 +88,33 @@ export function DocumentDrawer({
   ];
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-            onClick={onClose}
-          />
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              {/* Backdrop (mobile only) */}
+              <DialogPrimitive.Overlay asChild>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+                  className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+                  onClick={onClose}
+                />
+              </DialogPrimitive.Overlay>
 
-          {/* Drawer panel */}
-          <motion.div
-            ref={drawerRef}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-80 bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Document navigation"
-          >
+              {/* Drawer panel */}
+              <DialogPrimitive.Content asChild aria-label="Document navigation">
+                <motion.div
+                  ref={drawerRef}
+                  initial={{ x: prefersReducedMotion ? 0 : '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: prefersReducedMotion ? 0 : '100%' }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 300 }}
+                  className="fixed right-0 top-0 bottom-0 w-80 bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
+                >
             {/* Header */}
             <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-5 py-4 z-10">
               <div className="flex items-center justify-between">
@@ -190,10 +185,13 @@ export function DocumentDrawer({
                 ))}
               </div>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+                </motion.div>
+              </DialogPrimitive.Content>
+            </>
+          )}
+        </AnimatePresence>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

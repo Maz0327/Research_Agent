@@ -40,7 +40,7 @@ export function QuickActions({ jobId, status, driveFolderUrl, onExpandDetails }:
         <button
           onClick={handleCancel}
           disabled={isCancelling}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-400 bg-red-900/20 border border-red-700/50 hover:bg-red-900/40 disabled:opacity-50 transition touch-manipulation"
+          className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-red-400 bg-red-900/20 border border-red-700/50 hover:bg-red-900/40 disabled:opacity-50 transition touch-manipulation min-h-[44px] min-w-[44px]"
         >
           {isCancelling ? (
             <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
@@ -62,7 +62,7 @@ export function QuickActions({ jobId, status, driveFolderUrl, onExpandDetails }:
           href={driveFolderUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-400 bg-blue-900/20 border border-blue-700/50 hover:bg-blue-900/40 transition touch-manipulation"
+          className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-blue-400 bg-blue-900/20 border border-blue-700/50 hover:bg-blue-900/40 transition touch-manipulation min-h-[44px] min-w-[44px]"
         >
           <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -77,7 +77,7 @@ export function QuickActions({ jobId, status, driveFolderUrl, onExpandDetails }:
           e.stopPropagation();
           onExpandDetails();
         }}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-400 bg-gray-800 border border-gray-700 hover:bg-gray-700 hover:text-gray-300 transition touch-manipulation"
+        className="inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-medium text-gray-400 bg-gray-800 border border-gray-700 hover:bg-gray-700 hover:text-gray-300 transition touch-manipulation min-h-[44px] min-w-[44px]"
       >
         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

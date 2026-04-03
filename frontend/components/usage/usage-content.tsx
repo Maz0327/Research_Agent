@@ -31,11 +31,6 @@ interface UsageStats {
 // Daily spend data — placeholder until backend exposes per-day breakdown
 const DAILY_DATA = [20, 35, 15, 55, 40, 75, 25, 30, 90, 50, 18, 38, 65, 35, 48, 80, 42, 110];
 
-const MODEL_ROWS = [
-  { model: 'Gemini 2.5 Flash', calls: '1,102', tokens: '4.2M', cost: null as number | null, costKey: 'openai' as const },
-  { model: 'Gemini 2.5 Pro', calls: '182', tokens: '1.1M', cost: null as number | null, costKey: 'perplexity' as const },
-];
-
 export function UsageContent() {
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);

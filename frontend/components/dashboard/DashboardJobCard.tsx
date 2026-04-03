@@ -7,7 +7,7 @@
  */
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { pipelineLabels } from '@/components/job-card/job-card-config';
+import { pipelineLabels, statusConfig } from '@/components/job-card/job-card-config';
 import { formatRelativeTime } from '@/lib/time-utils';
 import type { Job } from '@/store/jobs';
 
@@ -15,17 +15,18 @@ interface DashboardJobCardProps {
   job: Job;
 }
 
-// Per-status badge styling matching mockup token palette
-const STATUS_BADGE: Record<string, { label: string; className: string; pulse?: boolean }> = {
-  running:                { label: 'Running',       className: 'text-green-500 bg-green-500/10', pulse: true },
-  queued:                 { label: 'Queued',         className: 'text-muted-foreground bg-muted' },
-  completed:              { label: 'Completed',      className: 'text-primary bg-primary/10' },
-  completed_with_warnings:{ label: 'With Warnings',  className: 'text-amber-500 bg-amber-500/10' },
-  failed:                 { label: 'Failed',         className: 'text-destructive bg-destructive/10' },
-  failed_insufficient:    { label: 'Insufficient',   className: 'text-orange-500 bg-orange-500/10' },
-  cancelled:              { label: 'Cancelled',      className: 'text-orange-500 bg-orange-500/10' },
-  disambiguating:         { label: 'Needs Input',    className: 'text-amber-500 bg-amber-500/10' },
-};
+// Derive compact badge styles from canonical statusConfig (single source of truth).
+// running = blue (in-progress standard), completed = green.
+const STATUS_BADGE: Record<string, { label: string; className: string; pulse?: boolean }> = Object.fromEntries(
+  Object.entries(statusConfig).map(([key, cfg]) => [
+    key,
+    {
+      label: cfg.label,
+      className: `${cfg.textColor} ${cfg.bgColor}`,
+      pulse: key === 'running',
+    },
+  ])
+);
 
 export function DashboardJobCard({ job }: DashboardJobCardProps) {
   const router = useRouter();
@@ -64,7 +65,7 @@ export function DashboardJobCard({ job }: DashboardJobCardProps) {
         </div>
         <span className={`flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${badge.className}`}>
           {badge.pulse && (
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 motion-safe:animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 motion-safe:animate-pulse" />
           )}
           {badge.label}
         </span>

@@ -94,13 +94,13 @@ export function SettingsContent() {
       <p className="text-xs text-muted-foreground mb-6">Manage your account, API keys, and preferences</p>
 
       {/* Tab bar */}
-      <div className="border-b border-border mb-6">
-        <div className="flex items-center gap-6 text-sm">
+      <div className="border-b border-border mb-6 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-4 sm:gap-6 text-sm min-w-max">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-3 transition-colors cursor-pointer ${
+              className={`py-3 whitespace-nowrap transition-colors cursor-pointer min-h-[44px] ${
                 activeTab === tab.id
                   ? 'border-b-2 border-accent-blue text-foreground font-medium'
                   : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground'

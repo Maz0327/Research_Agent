@@ -84,13 +84,13 @@ export function CircularGauge({
         className="block"
         aria-hidden="true"
       >
-        {/* Track ring */}
+        {/* Track ring — uses muted token via CSS variable */}
         <circle
           cx={CX}
           cy={CY}
           r={R}
           fill="none"
-          stroke="#222230"
+          stroke="hsl(var(--muted))"
           strokeWidth="3"
         />
 

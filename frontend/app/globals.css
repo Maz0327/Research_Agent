@@ -78,6 +78,12 @@
    *   accent-blue #3b82f6 → primary / ring
    */
   .dark {
+    /* Surface hierarchy tokens — referenced by .bg-surface-N utilities below */
+    --surface-0: 240 10% 4%;    /* #0a0a0f */
+    --surface-1: 240 14% 9%;    /* #12121a */
+    --surface-2: 240 14% 13%;   /* #1a1a25 */
+    --surface-3: 240 14% 16%;   /* #222230 */
+    --surface-hover: 240 14% 20%; /* #2a2a38 */
     /* Backgrounds */
     --background: 240 6% 6%;       /* #0f0f14 — close to surface-0 */
     --foreground: 0 0% 96%;        /* #f5f5f5 — text-primary */
@@ -151,12 +157,12 @@
      Custom accent colors (preserved from design system)
      ============================================ */
 
-  /* Surface hierarchy utilities */
-  .bg-surface-0 { background-color: #0a0a0f; }
-  .bg-surface-1 { background-color: #12121a; }
-  .bg-surface-2 { background-color: #1a1a25; }
-  .bg-surface-3 { background-color: #222230; }
-  .bg-surface-hover { background-color: #2a2a38; }
+  /* Surface hierarchy utilities — driven by CSS variables defined in .dark */
+  .bg-surface-0 { background-color: hsl(var(--surface-0)); }
+  .bg-surface-1 { background-color: hsl(var(--surface-1)); }
+  .bg-surface-2 { background-color: hsl(var(--surface-2)); }
+  .bg-surface-3 { background-color: hsl(var(--surface-3)); }
+  .bg-surface-hover { background-color: hsl(var(--surface-hover)); }
 
   /* Accent color utilities */
   .text-accent-blue   { color: #3b82f6; }
@@ -197,28 +203,28 @@
   }
   .tree-list li {
     padding: 5px 0 5px 14px;
-    border-left: 2px solid #333333;
+    border-left: 2px solid hsl(var(--border));
     margin-left: 8px;
-    color: #d1d5db;
+    color: hsl(var(--muted-foreground));
     line-height: 1.65;
   }
-  .tree-list li em  { color: #6b7280; font-style: italic; }
-  .tree-list li strong { color: #f3f4f6; }
+  .tree-list li em  { color: hsl(var(--muted-foreground)); font-style: italic; }
+  .tree-list li strong { color: hsl(var(--foreground)); }
 }
 
 /* ============================================
    Accessibility
    ============================================ */
 
-/* Keyboard focus ring using accent-blue */
+/* Keyboard focus ring using CSS variable ring token */
 :focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
@@ -226,14 +232,14 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 1px hsl(var(--ring));
 }
 
 /* Navigation focus states */
 .nav-item:focus-visible {
-  background: rgba(59, 130, 246, 0.2);
-  outline: 2px solid #3b82f6;
+  background: hsl(var(--primary) / 0.2);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: -2px;
 }
 
@@ -261,10 +267,10 @@ select:focus-visible {
   }
 }
 
-/* Mobile: tap highlight using accent-blue */
+/* Mobile: tap highlight using primary token */
 @media (hover: none) {
   a,
   button {
-    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+    -webkit-tap-highlight-color: hsl(var(--primary) / 0.1);
   }
 }
