@@ -2,7 +2,6 @@
  * Tests for the JobCard component.
  */
 import React from 'react';
-// @ts-expect-error — @testing-library/react v16 type export issue
 import { render, screen, fireEvent } from '@testing-library/react';
 import JobCard from '../../components/JobCard';
 import { Job } from '../../store/jobs';
