@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { Fish, Zap, TrendingUp, CheckCircle, Target } from 'lucide-react';
 
 interface StoryArc {
   hook: string;
@@ -49,12 +50,12 @@ const DEPTH_LABELS: Record<string, string> = {
 };
 
 const ARC_LABELS = [
-  { key: 'hook', label: 'Hook', icon: '🎣' },
-  { key: 'conflict', label: 'Conflict', icon: '⚡' },
-  { key: 'build', label: 'Build', icon: '📈' },
-  { key: 'resolution', label: 'Resolution', icon: '✅' },
-  { key: 'cta', label: 'CTA', icon: '🎯' },
-] as const;
+  { key: 'hook', label: 'Hook', icon: <Fish className="w-3 h-3" /> },
+  { key: 'conflict', label: 'Conflict', icon: <Zap className="w-3 h-3" /> },
+  { key: 'build', label: 'Build', icon: <TrendingUp className="w-3 h-3" /> },
+  { key: 'resolution', label: 'Resolution', icon: <CheckCircle className="w-3 h-3" /> },
+  { key: 'cta', label: 'CTA', icon: <Target className="w-3 h-3" /> },
+];
 
 export function AngleCard({ angle, isSelected, onToggle }: AngleCardProps) {
   const [showArc, setShowArc] = useState(false);

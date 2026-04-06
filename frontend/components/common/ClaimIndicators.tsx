@@ -98,7 +98,7 @@ type SignificanceLevel = 'high' | 'medium' | 'low';
 const SIGNIFICANCE_CONFIG: Record<SignificanceLevel, { label: string; color: string; bgColor: string; bars: number }> = {
   high: { label: 'High', color: 'text-green-400', bgColor: 'bg-green-500', bars: 3 },
   medium: { label: 'Medium', color: 'text-yellow-400', bgColor: 'bg-yellow-500', bars: 2 },
-  low: { label: 'Low', color: 'text-muted-foreground', bgColor: 'bg-gray-500', bars: 1 },
+  low: { label: 'Low', color: 'text-muted-foreground', bgColor: 'bg-muted-foreground/50', bars: 1 },
 };
 
 export interface SignificanceIndicatorProps {

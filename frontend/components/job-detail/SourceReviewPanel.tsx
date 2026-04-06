@@ -33,7 +33,7 @@ function getScoreWidth(score: number): string {
 function getScoreBarColor(score: number): string {
   if (score >= 0.7) return 'bg-green-500';
   if (score >= 0.5) return 'bg-yellow-500';
-  return 'bg-gray-500';
+  return 'bg-muted-foreground/50';
 }
 
 /** Source type badge from provider */

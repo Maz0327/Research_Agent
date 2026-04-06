@@ -10,6 +10,12 @@ import { CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-react';
 import { STAGE_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
+/** Resolve stage description from STAGE_LABELS */
+function resolveDescription(stage: string): string | null {
+  const entry = STAGE_LABELS[stage as keyof typeof STAGE_LABELS];
+  return entry?.description ?? null;
+}
+
 type PipelineStatus = 'running' | 'completed' | 'failed' | 'queued';
 
 interface PipelineStatusBarProps {
@@ -41,6 +47,7 @@ export function PipelineStatusBar({
   className,
 }: PipelineStatusBarProps) {
   const label = resolveLabel(stage);
+  const description = resolveDescription(stage);
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   return (
@@ -61,7 +68,14 @@ export function PipelineStatusBar({
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-green" />
           </span>
-          <span className="text-foreground font-medium truncate">{label}</span>
+          <span className="flex flex-col min-w-0">
+            <span className="text-foreground font-medium truncate">{label}</span>
+            {description && (
+              <span className="text-muted-foreground font-normal truncate" style={{ fontSize: '0.65rem', lineHeight: '1rem' }}>
+                {description}
+              </span>
+            )}
+          </span>
         </>
       )}
 

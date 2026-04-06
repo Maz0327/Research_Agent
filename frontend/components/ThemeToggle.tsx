@@ -20,7 +20,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={cycleTheme}
-      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground/60 transition hover:bg-gray-100 dark:text-muted-foreground dark:hover:bg-card"
+      className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-card"
       title={`Current: ${theme} (${resolvedTheme})`}
     >
       {resolvedTheme === 'dark' ? (

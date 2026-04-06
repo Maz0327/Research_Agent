@@ -6,6 +6,7 @@
  */
 
 import { formatTimestamp } from '../../lib/document-formatters';
+import { BarChart2 } from 'lucide-react';
 
 /** Document type color configuration */
 const DOC_COLORS: Record<string, {
@@ -140,7 +141,7 @@ export function DocumentHeader({
           )}
           {claimCount != null && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="text-muted-foreground/70">📊</span>
+              <BarChart2 className="w-3.5 h-3.5 text-muted-foreground/70" />
               <span>{claimCount} claim{claimCount !== 1 ? 's' : ''}</span>
             </div>
           )}

@@ -1,9 +1,9 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-03-19
-**Current Phase:** Frontend Overhaul — Visual Polish Complete
-**Current Task:** Commit + merge preparation
-**Branch:** feature/kimi-visual-analysis-and-optimizations
+**Last Updated:** 2026-04-06
+**Current Phase:** Product Viability Overhaul — Pre-Prep UX Foundation (3/7 complete)
+**Current Task:** Update plan docs + next session is PP-4, PP-5, PP-6, PP-7
+**Branch:** feature/product-viability-overhaul
 
 ---
 
@@ -29,6 +29,57 @@ Phase 5*:  ✅ COMPLETE — Search/Discovery Flow (backend + frontend + audit)
 Tier 5:    ✅ COMPLETE — Content Generation: Doc 5/6/7 + Voice Mimicry + Inline Edit (6 commits, 39 tests)
 FE-OVHL:   ✅ COMPLETE — Frontend Overhaul: App Router + shadcn/ui + Visual Polish (7 phases + polish)
 ```
+
+---
+
+## Product Viability Overhaul — Pre-Prep UX Foundation (2026-04-06)
+
+**Status:** 🔄 IN PROGRESS — 3/7 phases complete, next 4 unblocked
+**Plans:**
+- Main: `plans/260406-1304-product-viability-overhaul/`
+- Pre-Prep: `plans/260406-1337-pre-prep-ux-foundation/`
+**Branch:** `feature/product-viability-overhaul`
+
+### Completed This Session
+
+#### PP-1: Design Token Migration
+- Replaced 1464 hardcoded colors across 100 files
+- Converted emoji to Lucide icons (7 files)
+- Zero hardcoded `text-zinc-*`, `bg-zinc-*`, `text-gray-*`, `bg-gray-*` remaining
+- Commit: `a2e3b63`
+
+#### PP-2: Font & Type Scale
+- Inter → Plus Jakarta Sans as primary
+- Type scale defined: caption, body-sm, body, body-lg
+- 66 files updated with new font stack
+- Commit: `a2e3b63`
+
+#### PP-3: Creator Copy Rewrite
+- 22 files rewritten from engineer-speak to creator language
+- All user-facing strings updated (doc names, stage labels, mode descriptions, dashboard copy, wizard copy)
+- Positioning statement added to login page
+- Commit: `d51cc18`
+
+### Ready to Start Next Session
+- PP-4: Citation Pills & Source Links (unblocked)
+- PP-5: Progress UX Polish (unblocked)
+- PP-6: Iteration UX Redesign (unblocked)
+- PP-7: First Impressions & Onboarding (unblocked)
+
+### Research & Planning Completed (Not Yet Implemented)
+- Brainstorm validation report: `plans/reports/researcher-260406-1233-brainstorm-validation.md`
+- Business viability analysis: `plans/reports/researcher-260406-1252-business-viability-analysis.md`
+- UX patterns research: `plans/reports/researcher-260405-1552-ai-research-product-ux-patterns.md`
+- Pipeline optimization research: `plans/reports/researcher-260405-1533-multi-model-pipeline-optimization.md`
+- UI/UX audit (scored 5.2/10): `plans/reports/ui-ux-audit-260406-1329-current-state.md`
+
+### Key Decisions Locked In
+- Positioning: "Turn any collection of videos and articles into a verified, source-cited script — with the angle nobody else covered"
+- Differentiators: verified, source-cited, untold angle
+- MVP approach: single-screen input + hero doc + Sonnet editorial pass + $19 paywall
+- SSE streaming via Redis pub/sub
+- Sonnet 4.6 for editorial at ~$0.045/pass
+- Breakeven at ~6 paid users, 65-70% gross margin at scale
 
 ---
 

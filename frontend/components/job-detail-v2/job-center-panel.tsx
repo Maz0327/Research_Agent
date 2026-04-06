@@ -6,6 +6,7 @@
 import { PipelineStatusBar } from '@/components/layout/pipeline-status-bar';
 import { ExportToolbar } from './export-toolbar';
 import { DocumentViewer } from './document-viewer';
+import { getPipelineEta } from '@/lib/constants';
 import type { Job } from '@/store/jobs';
 
 type PipelineStatus = 'running' | 'completed' | 'failed' | 'queued';

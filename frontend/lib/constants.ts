@@ -159,3 +159,21 @@ export function getStageDescription(stage: string | null | undefined): string | 
   if (!stage) return null;
   return STAGE_LABELS[stage]?.description || null;
 }
+
+/**
+ * Rough ETA strings per pipeline mode — shown to users during pipeline execution.
+ * These are intentionally approximate: users want a ballpark, not a promise.
+ */
+export const PIPELINE_ETA: Record<string, string> = {
+  quick: '~1 min',
+  full: '~3 min',
+  investigation: '~8 min',
+} as const;
+
+/**
+ * Get rough ETA label for a pipeline mode
+ */
+export function getPipelineEta(pipeline: string | null | undefined): string | null {
+  if (!pipeline) return null;
+  return PIPELINE_ETA[pipeline] ?? null;
+}

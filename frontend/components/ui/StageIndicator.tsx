@@ -143,7 +143,7 @@ export function StageIndicatorCompact({
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
       />
-      <span className="text-sm text-muted-foreground/60 dark:text-muted-foreground">
+      <span className="text-sm text-muted-foreground">
         {stage?.label || currentStage} ({progress}%)
       </span>
     </div>

@@ -4,12 +4,13 @@
  * Split layout: Quick Brief preview (left/top) + source candidate cards (right/bottom).
  * User selects/deselects sources, then clicks "Run Full Research" to create a job.
  */
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/router';
 import QuickBriefPreview from './QuickBriefPreview';
 import { useJobsStore } from '../../store/jobs';
 import type { SearchCandidate } from '../../types/run';
+import { Video, MessageSquare, Smartphone, GraduationCap, Newspaper, Globe } from 'lucide-react';
 
 interface SearchApprovalViewProps {
   onBack: () => void;
@@ -44,14 +45,14 @@ function getProviderBadge(provider: string): { label: string; color: string } {
 }
 
 /** Badge for source type */
-function getSourceTypeBadge(type?: string): { label: string; icon: string } {
+function getSourceTypeBadge(type?: string): { label: string; icon: React.ReactNode } {
   switch (type) {
-    case 'video': return { label: 'Video', icon: '🎬' };
-    case 'reddit': return { label: 'Reddit', icon: '💬' };
-    case 'social': return { label: 'Social', icon: '📱' };
-    case 'academic': return { label: 'Academic', icon: '🎓' };
-    case 'news': return { label: 'News', icon: '📰' };
-    default: return { label: 'Web', icon: '🌐' };
+    case 'video': return { label: 'Video', icon: <Video className="w-3 h-3" /> };
+    case 'reddit': return { label: 'Reddit', icon: <MessageSquare className="w-3 h-3" /> };
+    case 'social': return { label: 'Social', icon: <Smartphone className="w-3 h-3" /> };
+    case 'academic': return { label: 'Academic', icon: <GraduationCap className="w-3 h-3" /> };
+    case 'news': return { label: 'News', icon: <Newspaper className="w-3 h-3" /> };
+    default: return { label: 'Web', icon: <Globe className="w-3 h-3" /> };
   }
 }
 

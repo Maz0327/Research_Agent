@@ -161,7 +161,7 @@ export function ErrorToast({
           clipRule="evenodd"
         />
       </svg>
-      <p className="text-sm text-gray-900 dark:text-foreground">{message}</p>
+      <p className="text-sm text-foreground">{message}</p>
       <button
         onClick={onDismiss}
         className="ml-2 text-muted-foreground hover:text-muted-foreground/60 dark:hover:text-foreground"

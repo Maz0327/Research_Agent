@@ -10,7 +10,8 @@ import { SectionHeader } from './shared/SectionHeader';
 import { CardWrapper } from './shared/CardWrapper';
 import { SectionActions } from './SectionActions';
 import { formatInternalId } from '@/lib/document-formatters';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Youtube, FileText, MessageSquare, Image, AlignLeft } from 'lucide-react';
 
 interface SourceLedgerRendererProps {
   data: SourceLedgerData;
@@ -23,18 +24,18 @@ const statusStyles: Record<string, { dot: string; label: string }> = {
   failed: { dot: 'bg-red-400', label: 'Failed' },
 };
 
-const typeIcons: Record<string, string> = {
-  youtube: '📺',
-  article: '📄',
-  reddit: '💬',
-  screenshot: '🖼️',
-  text: '📝',
+const typeIconMap: Record<string, React.ReactNode> = {
+  youtube: <Youtube className="w-4 h-4" />,
+  article: <FileText className="w-4 h-4" />,
+  reddit: <MessageSquare className="w-4 h-4" />,
+  screenshot: <Image className="w-4 h-4" />,
+  text: <AlignLeft className="w-4 h-4" />,
 };
 
 function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails: boolean }) {
   const [showFullText, setShowFullText] = useState(false);
   const status = statusStyles[source.status] || statusStyles.ingested;
-  const icon = typeIcons[source.source_type?.toLowerCase()] || '📄';
+  const icon = typeIconMap[source.source_type?.toLowerCase()] ?? <FileText className="w-4 h-4" />;
   const sourceText = [source.title, ...(source.skim_summary || [])].join('\n');
   return (
     <div className="group">
@@ -45,7 +46,7 @@ function SourceCard({ source, showDetails }: { source: SourceEntry; showDetails:
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg flex-shrink-0">{icon}</span>
+          <span className="flex-shrink-0 text-muted-foreground">{icon}</span>
           {showDetails && (
             <span className="text-caption font-medium text-muted-foreground/70 uppercase tracking-wider flex-shrink-0">
               {formatInternalId(source.source_id)} ({source.source_id})
@@ -181,7 +182,7 @@ export function SourceLedgerRenderer({ data, showDetails = false }: SourceLedger
         <SectionHeader
           title="Sources Analyzed"
           count={totalSources}
-          accentColor="bg-gray-500"
+          accentColor="bg-muted-foreground/50"
         />
         <div className="mt-4 space-y-4">
           {data.sources?.map((source) => (

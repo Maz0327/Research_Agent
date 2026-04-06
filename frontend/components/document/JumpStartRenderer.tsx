@@ -120,7 +120,7 @@ function BoosterDirectionItem({ item, type }: { item: BoosterItem; type: string 
     important: 'bg-yellow-500',
     nice_to_have: 'bg-green-500',
   };
-  const impactDot = impactColors[item.impact_level || ''] || 'bg-gray-500';
+  const impactDot = impactColors[item.impact_level || ''] || 'bg-muted-foreground/50';
   const prefixLabels: Record<string, string> = {
     search: 'Search',
     question: 'Research Q',

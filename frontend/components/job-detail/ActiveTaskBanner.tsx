@@ -3,6 +3,8 @@
  * Shows when booster, iteration, or producer is running.
  */
 import { motion } from 'framer-motion';
+import { Microscope, RefreshCw, Video } from 'lucide-react';
+import React from 'react';
 
 /** Task types that can be shown in the banner */
 export type TaskType = 'booster' | 'iteration' | 'producer';
@@ -13,22 +15,22 @@ export type TaskStatus = 'queued' | 'running';
 /** Configuration for each task type */
 const TASK_CONFIG: Record<TaskType, {
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
 }> = {
   booster: {
     label: 'Deep Research',
-    icon: '🔬',
+    icon: <Microscope className="w-5 h-5" />,
     color: 'blue',
   },
   iteration: {
     label: 'Iteration',
-    icon: '🔄',
+    icon: <RefreshCw className="w-5 h-5" />,
     color: 'purple',
   },
   producer: {
     label: 'Producer Packet',
-    icon: '🎬',
+    icon: <Video className="w-5 h-5" />,
     color: 'green',
   },
 };
@@ -95,7 +97,7 @@ export function ActiveTaskBanner({
       <div className="flex items-center justify-between gap-4">
         {/* Task info */}
         <div className="flex items-center gap-3">
-          <span className="text-xl">{config.icon}</span>
+          <span className={`flex-shrink-0 ${colorClasses.text}`}>{config.icon}</span>
           <div>
             <p className={`font-medium ${colorClasses.text}`}>
               {config.label} {status === 'running' ? 'in progress...' : 'starting...'}

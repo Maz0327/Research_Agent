@@ -74,7 +74,7 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
             ? 'bg-red-400'
             : status === 'cancelled'
             ? 'bg-orange-400'
-            : 'bg-zinc-400'
+            : 'bg-muted-foreground'
         }`}
       />
       {config.label}
