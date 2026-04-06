@@ -22,7 +22,7 @@ export type SourceMap = Record<string, SourceInfo>;
 export function buildSourceMap(doc0Content: Record<string, unknown> | null | undefined): SourceMap {
   if (!doc0Content) return {};
 
-  const data = doc0Content as SourceLedgerData;
+  const data = doc0Content as unknown as SourceLedgerData;
   const sources = data?.sources;
 
   if (!Array.isArray(sources)) return {};
