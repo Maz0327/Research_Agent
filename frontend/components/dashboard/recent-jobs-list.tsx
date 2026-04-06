@@ -128,18 +128,17 @@ export function RecentJobsList({ jobs, isLoading, onNewJob, error }: RecentJobsL
             <>
               <Search className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-2">
-                Start Your First Research
+                What&apos;s your next video about?
               </h3>
               <p className="text-sm text-muted-foreground mb-6 max-w-md">
-                Extract insights from YouTube videos, web articles, and documents.
-                Paste a URL or text to begin.
+                Drop some links, get the story
               </p>
               {onNewJob && (
                 <button
                   onClick={onNewJob}
                   className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-primary to-purple-500 text-white text-sm font-medium hover:opacity-90 transition-opacity"
                 >
-                  New Research
+                  New Project
                 </button>
               )}
             </>

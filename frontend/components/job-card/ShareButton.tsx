@@ -22,10 +22,10 @@ interface ShareButtonProps {
 type ShareStatus = 'idle' | 'creating' | 'success' | 'error';
 
 const DOC_TYPE_NAMES: Record<string, string> = {
-  doc_0: 'Source Ledger',
-  doc_1: 'Jump-Start Directions',
-  doc_2: 'Semantic Brief',
-  doc_3: 'Creator Brief',
+  doc_0: 'Your Sources',
+  doc_1: 'Research Gaps',
+  doc_2: 'Key Findings',
+  doc_3: 'Story Angles',
   all: 'All Documents',
 };
 

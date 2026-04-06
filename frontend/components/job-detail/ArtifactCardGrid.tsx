@@ -650,17 +650,17 @@ export function ArtifactCardGrid({
           break;
         case 'doc_0':
           if (state === 'completed') {
-            openDocViewer(0, 'Source Ledger');
+            openDocViewer(0, 'Your Sources');
           }
           break;
         case 'doc_1':
           if (state === 'completed') {
-            openDocViewer(1, 'Jump-Start Directions');
+            openDocViewer(1, 'Research Gaps');
           }
           break;
         case 'doc_2':
           if (state === 'completed') {
-            openDocViewer(2, 'Semantic Brief');
+            openDocViewer(2, 'Key Findings');
           }
           break;
         case 'doc_3':

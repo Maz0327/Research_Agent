@@ -17,14 +17,14 @@ export interface DocNavItem {
 }
 
 const DOC_DEFINITIONS: DocNavItem[] = [
-  { docType: 0, label: 'Source Ledger',   subtitle: 'What was analyzed',      accentClass: 'text-muted-foreground' },
-  { docType: 1, label: 'Jump-Start',      subtitle: 'Where to go next',       accentClass: 'text-blue-400' },
-  { docType: 2, label: 'Semantic Brief',  subtitle: 'What sources reveal',     accentClass: 'text-purple-400' },
-  { docType: 3, label: 'Creator Brief',   subtitle: 'Your hero document',      accentClass: 'text-amber-400' },
-  { docType: 4, label: 'Producer Packet', subtitle: 'Production-ready package', accentClass: 'text-green-400' },
-  { docType: 5, label: 'Script',          subtitle: 'Script draft',            accentClass: 'text-sky-400' },
-  { docType: 6, label: 'Social Kit',      subtitle: 'Social media content',    accentClass: 'text-pink-400' },
-  { docType: 7, label: 'Blog Post',       subtitle: 'Long-form article',       accentClass: 'text-teal-400' },
+  { docType: 0, label: 'Your Sources',    subtitle: 'What was analyzed',       accentClass: 'text-muted-foreground' },
+  { docType: 1, label: 'Research Gaps',   subtitle: 'Where to go next',        accentClass: 'text-blue-400' },
+  { docType: 2, label: 'Key Findings',    subtitle: 'What sources reveal',      accentClass: 'text-purple-400' },
+  { docType: 3, label: 'Story Angles',    subtitle: 'Your hero document',       accentClass: 'text-amber-400' },
+  { docType: 4, label: 'Producer Guide',  subtitle: 'Production-ready package', accentClass: 'text-green-400' },
+  { docType: 5, label: 'Script',          subtitle: 'Script draft',             accentClass: 'text-sky-400' },
+  { docType: 6, label: 'Social Kit',      subtitle: 'Social media content',     accentClass: 'text-pink-400' },
+  { docType: 7, label: 'Blog Post',       subtitle: 'Long-form article',        accentClass: 'text-teal-400' },
 ];
 
 /** Check whether a doc type exists in artifacts */

@@ -56,7 +56,7 @@ export function AdminDashboard() {
       ),
     },
     {
-      label: 'Total Jobs',
+      label: 'Total Projects',
       value: stats?.total_jobs ?? '-',
       colorBorder: 'border-green-800',
       colorBg: 'bg-green-900/20',

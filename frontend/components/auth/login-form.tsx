@@ -100,7 +100,9 @@ export function LoginForm() {
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
           Research Agent
         </h1>
-        <p className="mt-2 text-muted-foreground">Sign in to your account</p>
+        <p className="mt-2 text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
+          Turn videos and articles into source-cited scripts — with the angle nobody else covered.
+        </p>
       </div>
 
       {/* Google OAuth */}

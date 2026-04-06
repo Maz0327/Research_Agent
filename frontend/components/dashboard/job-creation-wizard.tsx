@@ -14,7 +14,7 @@ import { WizardStepPreview } from './wizard-step-preview';
 import { usePreviewJob } from '@/hooks/use-preview-job';
 import type { JobPreview } from '@/store/jobs';
 
-const STEP_LABELS = ['Topic', 'Sources', 'Mode', 'Preview'];
+const STEP_LABELS = ['What are you researching?', 'Paste your links', 'How deep?', 'Review & start'];
 const TOTAL_STEPS = STEP_LABELS.length;
 
 interface WizardState {

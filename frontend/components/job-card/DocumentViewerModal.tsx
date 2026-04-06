@@ -113,15 +113,15 @@ const docStyles: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B', { headerBg: string;
 
 // Document titles for breadcrumbs
 const docTitles: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B', string> = {
-  0: 'Source Ledger',
-  1: 'Jump-Start Directions',
-  2: 'Semantic Brief',
-  3: 'Creator Brief',
-  4: 'Producer Packet',
+  0: 'Your Sources',
+  1: 'Research Gaps',
+  2: 'Key Findings',
+  3: 'Story Angles',
+  4: 'Producer Guide',
   5: 'Script',
   6: 'Social Media Kit',
   7: 'Blog Post',
-  'B': 'Deep Research',
+  'B': 'Find What\'s Missing',
 };
 
 export function DocumentViewerModal({

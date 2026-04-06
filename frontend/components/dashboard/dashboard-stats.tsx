@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Dashboard stats bar — 4 quick-look stat cards with accent icons.
+ * Dashboard stats bar — 3 quick-look stat cards with accent icons.
  * Data derived from the useJobs hook output.
  */
-import { Briefcase, Activity, CheckCircle, DollarSign } from 'lucide-react';
+import { Briefcase, Activity, CheckCircle } from 'lucide-react';
 import { useJobs } from '@/hooks/use-jobs';
 
 interface StatCardProps {
@@ -43,18 +43,18 @@ export function DashboardStats() {
   ).length;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-3 gap-4">
       <StatCard
-        label="Total Jobs"
+        label="Projects"
         value={total}
-        sub={total > 0 ? `${total} total` : 'No jobs yet'}
+        sub={total > 0 ? `${total} total` : 'No projects yet'}
         icon={<Briefcase className="w-4 h-4 text-primary" />}
         iconBg="bg-primary/10"
       />
       <StatCard
-        label="Running"
+        label="In Progress"
         value={running}
-        sub={running > 0 ? 'Pipeline active' : 'None active'}
+        sub={running > 0 ? 'Researching now' : 'None active'}
         subAccent={running > 0}
         icon={
           running > 0 ? (
@@ -66,18 +66,11 @@ export function DashboardStats() {
         iconBg="bg-green-500/10"
       />
       <StatCard
-        label="Completed"
+        label="Done"
         value={completed}
         sub="All time"
         icon={<CheckCircle className="w-4 h-4 text-purple-500" />}
         iconBg="bg-purple-500/10"
-      />
-      <StatCard
-        label="API Spend"
-        value="—"
-        sub="Coming soon"
-        icon={<DollarSign className="w-4 h-4 text-orange-500" />}
-        iconBg="bg-orange-500/10"
       />
     </div>
   );

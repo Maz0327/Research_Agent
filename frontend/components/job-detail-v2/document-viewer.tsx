@@ -18,11 +18,11 @@ import { BlogPostRenderer } from '@/components/document-v2/blog-post-renderer';
 import type { Job } from '@/store/jobs';
 
 const DOC_META: Record<number, { label: string; subtitle: string }> = {
-  0: { label: 'Source Ledger',   subtitle: 'What was analyzed' },
-  1: { label: 'Jump-Start',      subtitle: 'Where to go next' },
-  2: { label: 'Semantic Brief',  subtitle: 'What sources reveal' },
-  3: { label: 'Creator Brief',   subtitle: 'Your hero document' },
-  4: { label: 'Producer Packet', subtitle: 'Production-ready package' },
+  0: { label: 'Your Sources',    subtitle: 'What was analyzed' },
+  1: { label: 'Research Gaps',   subtitle: 'Where to go next' },
+  2: { label: 'Key Findings',    subtitle: 'What sources reveal' },
+  3: { label: 'Story Angles',    subtitle: 'Your hero document' },
+  4: { label: 'Producer Guide',  subtitle: 'Production-ready package' },
   5: { label: 'Script',          subtitle: 'Script draft' },
   6: { label: 'Social Kit',      subtitle: 'Social media content' },
   7: { label: 'Blog Post',       subtitle: 'Long-form article' },

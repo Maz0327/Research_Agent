@@ -28,11 +28,11 @@ interface SharedJobViewProps {
   document: SharedDocument;
 }
 
-const DOC_TABS = ['Creator Brief', 'Semantic Brief', 'Source Ledger'] as const;
+const DOC_TABS = ['Story Angles', 'Key Findings', 'Your Sources'] as const;
 type DocTab = typeof DOC_TABS[number];
 
 export function SharedJobView({ document }: SharedJobViewProps) {
-  const [activeTab, setActiveTab] = useState<DocTab>('Creator Brief');
+  const [activeTab, setActiveTab] = useState<DocTab>('Story Angles');
   const [copied, setCopied] = useState(false);
 
   const hook = extractHook(document.markdown);

@@ -427,17 +427,17 @@ export interface DocumentMeta {
 
 export const DOCUMENT_META: Record<string, DocumentMeta> = {
   doc_0: {
-    title: 'Source Ledger',
+    title: 'Your Sources',
     subtitle: 'What was analyzed',
     description: 'Complete record of all sources examined, with confidence levels and transcript quality indicators.',
   },
   doc_1: {
-    title: 'Jump-Start',
+    title: 'Research Gaps',
     subtitle: 'Where to go next',
     description: 'Key takeaways and suggested research directions based on the analysis.',
   },
   doc_2: {
-    title: 'Semantic Brief',
+    title: 'Key Findings',
     subtitle: 'What sources reveal',
     description: 'Cross-source analysis showing common themes, tensions, and verified claims.',
   },

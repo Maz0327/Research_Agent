@@ -34,8 +34,8 @@ export function WizardStepSources({ sources, onChange }: WizardStepSourcesProps)
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-base font-semibold text-foreground mb-1">Add sources (optional)</h2>
-        <p className="text-sm text-muted-foreground">Leave empty to let the system auto-discover sources.</p>
+        <h2 className="text-base font-semibold text-foreground mb-1">Paste your links</h2>
+        <p className="text-sm text-muted-foreground">YouTube videos, articles, anything. Leave empty to auto-discover sources.</p>
       </div>
 
       {sources.map((src) => (

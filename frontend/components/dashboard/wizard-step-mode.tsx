@@ -49,7 +49,7 @@ export function WizardStepMode({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-base font-semibold text-foreground mb-1">Choose research mode</h2>
+        <h2 className="text-base font-semibold text-foreground mb-1">How deep?</h2>
         <p className="text-sm text-muted-foreground">Controls depth, speed, and document types generated.</p>
       </div>
 

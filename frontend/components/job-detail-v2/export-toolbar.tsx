@@ -32,11 +32,11 @@ function getDocMarkdown(job: Job, docType: number): string | null {
 }
 
 const DOC_NAMES: Record<number, string> = {
-  0: 'Source-Ledger',
-  1: 'Jump-Start',
-  2: 'Semantic-Brief',
-  3: 'Creator-Brief',
-  4: 'Producer-Packet',
+  0: 'Your-Sources',
+  1: 'Research-Gaps',
+  2: 'Key-Findings',
+  3: 'Story-Angles',
+  4: 'Producer-Guide',
 };
 
 export function ExportToolbar({ job, activeDocument, activeVersion }: ExportToolbarProps) {

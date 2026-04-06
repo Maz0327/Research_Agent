@@ -228,11 +228,11 @@ const ARTIFACT_CONFIG: Record<ArtifactType, {
   subtitle: string;
   readyLabel: string;
 }> = {
-  doc_0: { title: 'Source Ledger', subtitle: 'Cataloged sources', readyLabel: 'View Sources' },
-  doc_1: { title: 'Jump-Start', subtitle: 'Research directions', readyLabel: 'View Directions' },
-  doc_2: { title: 'Semantic Brief', subtitle: 'Themes & insights', readyLabel: 'View Brief' },
-  doc_3: { title: 'Creator Brief', subtitle: 'Production-ready brief', readyLabel: 'Generate' },
-  doc_4: { title: 'Producer Packet', subtitle: 'Production notes', readyLabel: 'Generate' },
+  doc_0: { title: 'Your Sources', subtitle: 'Cataloged sources', readyLabel: 'View Sources' },
+  doc_1: { title: 'Research Gaps', subtitle: 'Research directions', readyLabel: 'View Gaps' },
+  doc_2: { title: 'Key Findings', subtitle: 'Themes & insights', readyLabel: 'View Findings' },
+  doc_3: { title: 'Story Angles', subtitle: 'Production-ready brief', readyLabel: 'Generate' },
+  doc_4: { title: 'Producer Guide', subtitle: 'Production notes', readyLabel: 'Generate' },
   doc_5: { title: 'Script', subtitle: 'Video script', readyLabel: 'Generate' },
   doc_6: { title: 'Social Kit', subtitle: 'Social media posts', readyLabel: 'Generate' },
   doc_7: { title: 'Blog Post', subtitle: 'SEO article', readyLabel: 'Generate' },

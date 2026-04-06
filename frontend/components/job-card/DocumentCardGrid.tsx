@@ -30,7 +30,7 @@ const coreDocConfigs: DocConfig[] = [
   {
     key: 'doc_0',
     docNumber: 0,
-    title: 'Source Ledger',
+    title: 'Your Sources',
     subtitle: 'What was analyzed',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,7 +47,7 @@ const coreDocConfigs: DocConfig[] = [
   {
     key: 'doc_1',
     docNumber: 1,
-    title: 'Jump-Start',
+    title: 'Research Gaps',
     subtitle: 'Where to go next',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,7 +64,7 @@ const coreDocConfigs: DocConfig[] = [
   {
     key: 'doc_2',
     docNumber: 2,
-    title: 'Semantic Brief',
+    title: 'Key Findings',
     subtitle: 'What sources reveal',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

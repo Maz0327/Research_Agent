@@ -20,12 +20,12 @@ import { useJobsStore } from '@/store/jobs';
 import type { Job } from '@/store/jobs';
 
 const ITERATE_MODES = [
-  { value: 'deep_dive',       label: 'Deep Dive' },
-  { value: 'expand_sources',  label: 'Expand Sources' },
-  { value: 'deeper',          label: 'Go Deeper' },
-  { value: 'different_angle', label: 'Different Angle' },
-  { value: 'custom',          label: 'Custom' },
-  { value: 'inline_edit',     label: 'Inline Edit' },
+  { value: 'deep_dive',       label: "Find What's Missing" },
+  { value: 'expand_sources',  label: 'Add More Sources' },
+  { value: 'deeper',          label: 'Dig Deeper' },
+  { value: 'different_angle', label: 'Try a New Angle' },
+  { value: 'custom',          label: 'Custom Request' },
+  { value: 'inline_edit',     label: 'Edit Section' },
 ];
 
 interface ChatSheetProps {

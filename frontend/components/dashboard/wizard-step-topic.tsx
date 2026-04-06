@@ -19,8 +19,8 @@ export function WizardStepTopic({ topic, onChange }: WizardStepTopicProps) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-base font-semibold text-foreground mb-1">What would you like to research?</h2>
-        <p className="text-sm text-muted-foreground">Enter a topic, question, or subject to investigate.</p>
+        <h2 className="text-base font-semibold text-foreground mb-1">What are you researching?</h2>
+        <p className="text-sm text-muted-foreground">Enter a topic, question, or angle you want to cover.</p>
       </div>
       <Input
         value={topic}

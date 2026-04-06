@@ -162,7 +162,7 @@ export function ClaimDrillDown({
                       {fact.claim_id}
                     </p>
                     <p className="text-xs text-muted-foreground/70 mt-0.5">
-                      From Doc 2 (Semantic Brief)
+                      From Key Findings (Doc 2)
                     </p>
                   </div>
 
@@ -174,7 +174,7 @@ export function ClaimDrillDown({
                       onClick={onNavigateToDoc ? () => onNavigateToDoc('doc_0') : undefined}
                     />
                     <p className="text-xs text-muted-foreground/70 mt-0.5">
-                      From Doc 0 (Source Ledger)
+                      From Your Sources (Doc 0)
                     </p>
                   </div>
                 </div>
@@ -199,7 +199,7 @@ export function ClaimDrillDown({
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground/70 mt-2">
-                  Creator Brief → Semantic Brief → Source Ledger
+                  Story Angles → Key Findings → Your Sources
                 </p>
               </section>
 
@@ -211,13 +211,13 @@ export function ClaimDrillDown({
                       onClick={() => onNavigateToDoc('doc_2')}
                       className="w-full px-4 py-2.5 rounded-lg bg-purple-900/20 border border-purple-700/50 text-purple-300 text-sm font-medium hover:bg-purple-900/30 transition-colors text-left"
                     >
-                      📊 View claim in Semantic Brief
+                      View claim in Key Findings
                     </button>
                     <button
                       onClick={() => onNavigateToDoc('doc_0')}
                       className="w-full px-4 py-2.5 rounded-lg bg-card border border-border text-muted-foreground text-sm font-medium hover:bg-muted transition-colors text-left"
                     >
-                      📋 View source in Source Ledger
+                      View source in Your Sources
                     </button>
                   </div>
                 </section>

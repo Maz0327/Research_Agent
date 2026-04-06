@@ -89,7 +89,7 @@ function resolveStageList(pipeline: string, stage?: string): Array<{ key: string
 
 const WHILE_YOU_WAIT_TIPS = [
   'Pro tip: Start with the Creator Brief when results are ready — it has your hooks and story angles.',
-  'The Semantic Brief (Doc 2) has the deep analysis. Great for fact-checking your script.',
+  'Key Findings (Doc 2) has the deep analysis. Great for fact-checking your script.',
   'You can iterate on results after they are done. Try "Different angle" for fresh perspectives.',
 ];
 

@@ -40,13 +40,13 @@ function buildEvents(job: Job): FeedEvent[] {
   const a = job.artifacts;
   if (a) {
     if (a.doc_0_path || a.source_ledger) {
-      events.push({ id: 'doc0', icon: <FileText className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Source Ledger generated' });
+      events.push({ id: 'doc0', icon: <FileText className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Your Sources ready' });
     }
     if (a.doc_1_path || a.jump_start) {
-      events.push({ id: 'doc1', icon: <FileText className="h-3.5 w-3.5 text-blue-400" />, label: 'Jump-Start generated' });
+      events.push({ id: 'doc1', icon: <FileText className="h-3.5 w-3.5 text-blue-400" />, label: 'Research Gaps ready' });
     }
     if (a.doc_2_path || a.semantic_brief) {
-      events.push({ id: 'doc2', icon: <FileText className="h-3.5 w-3.5 text-purple-400" />, label: 'Semantic Brief generated' });
+      events.push({ id: 'doc2', icon: <FileText className="h-3.5 w-3.5 text-purple-400" />, label: 'Key Findings ready' });
     }
     if (a.doc_3_path || a.creator_brief_md) {
       events.push({ id: 'doc3', icon: <FileText className="h-3.5 w-3.5 text-amber-400" />, label: 'Creator Brief generated' });
