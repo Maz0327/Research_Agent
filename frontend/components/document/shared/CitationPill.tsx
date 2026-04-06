@@ -19,7 +19,7 @@ export function CitationPill({ sourceId, showDetails = false }: CitationPillProp
 
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-700/60 text-gray-400 border border-gray-600/40 whitespace-nowrap"
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-caption font-medium bg-muted/60 text-muted-foreground border border-border/40 whitespace-nowrap"
       title={showDetails ? sourceId : friendlyLabel}
     >
       {label}

@@ -57,7 +57,7 @@ export default function StageIndicator({
                 ? 'bg-blue-50 dark:bg-blue-900/20'
                 : isCompleted
                 ? 'bg-green-50 dark:bg-green-900/20'
-                : 'bg-gray-50 dark:bg-gray-800'
+                : 'bg-card'
             }`}
           >
             {/* Status icon */}
@@ -67,7 +67,7 @@ export default function StageIndicator({
                   ? 'bg-green-500 text-white'
                   : isCurrent
                   ? 'bg-blue-500 text-white'
-                  : 'bg-gray-300 dark:bg-gray-600'
+                  : 'bg-secondary'
               }`}
             >
               {isCompleted ? (
@@ -85,7 +85,7 @@ export default function StageIndicator({
                   transition={{ duration: 1, repeat: Infinity }}
                 />
               ) : (
-                <span className="text-xs font-medium text-gray-300 dark:text-gray-200">
+                <span className="text-xs font-medium text-muted-foreground">
                   {index + 1}
                 </span>
               )}
@@ -96,16 +96,16 @@ export default function StageIndicator({
               <p
                 className={`text-sm font-medium ${
                   isCurrent
-                    ? 'text-blue-700 dark:text-blue-300'
+                    ? 'text-blue-300'
                     : isCompleted
-                    ? 'text-green-700 dark:text-green-300'
-                    : 'text-gray-500 dark:text-gray-400'
+                    ? 'text-green-300'
+                    : 'text-muted-foreground'
                 }`}
               >
                 {stage.label}
               </p>
               {isCurrent && stage.description && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                <p className="text-xs text-muted-foreground truncate">
                   {stage.description}
                 </p>
               )}
@@ -143,7 +143,7 @@ export function StageIndicatorCompact({
         animate={{ rotate: 360 }}
         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
       />
-      <span className="text-sm text-gray-600 dark:text-gray-400">
+      <span className="text-sm text-muted-foreground/60 dark:text-muted-foreground">
         {stage?.label || currentStage} ({progress}%)
       </span>
     </div>

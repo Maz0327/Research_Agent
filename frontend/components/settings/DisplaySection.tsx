@@ -36,7 +36,7 @@ export function DisplaySection({
       <div className="space-y-4">
         {/* Jobs per page */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             Jobs per page
           </label>
           <div className="mt-1.5 flex items-center gap-3">
@@ -46,21 +46,21 @@ export function DisplaySection({
               max={25}
               value={jobsPerPage}
               onChange={(e) => handleJobsPerPageChange(e.target.value)}
-              className="w-24 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-24 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <span className="text-sm text-gray-500">(5-25)</span>
+            <span className="text-sm text-muted-foreground/70">(5-25)</span>
           </div>
         </div>
 
         {/* Default sort */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             Default sort
           </label>
           <select
             value={defaultSort}
             onChange={(e) => setDefaultSort(e.target.value as SortOrder)}
-            className="mt-1.5 w-48 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="mt-1.5 w-48 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {SORT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -77,11 +77,11 @@ export function DisplaySection({
             id="showProgressDetails"
             checked={showProgressDetails}
             onChange={(e) => setShowProgressDetails(e.target.checked)}
-            className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+            className="h-4 w-4 rounded bg-card border-border text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
           />
           <label
             htmlFor="showProgressDetails"
-            className="ml-3 text-sm text-gray-300"
+            className="ml-3 text-sm text-muted-foreground"
           >
             Show detailed progress during jobs
           </label>

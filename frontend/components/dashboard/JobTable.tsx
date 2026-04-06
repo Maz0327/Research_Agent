@@ -63,8 +63,8 @@ function JobTableRow({
     <>
       <tr
         onClick={onToggleExpand}
-        className={`border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer transition-colors ${
-          isExpanded ? 'bg-gray-800/30' : ''
+        className={`border-b border-border hover:bg-card/50 cursor-pointer transition-colors ${
+          isExpanded ? 'bg-card/30' : ''
         }`}
       >
         {/* Checkbox (edit mode) */}
@@ -75,7 +75,7 @@ function JobTableRow({
               checked={isSelected}
               onChange={onToggleSelect}
               disabled={!canSelect}
-              className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              className="h-4 w-4 rounded border-border bg-card text-blue-600 focus:ring-blue-500 disabled:opacity-50"
             />
           </td>
         )}
@@ -86,14 +86,14 @@ function JobTableRow({
             <motion.svg
               animate={{ rotate: isExpanded ? 90 : 0 }}
               transition={{ duration: 0.2 }}
-              className="h-4 w-4 text-gray-500 flex-shrink-0"
+              className="h-4 w-4 text-muted-foreground/70 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </motion.svg>
-            <span className="text-sm font-medium text-gray-100 truncate">{displayTitle}</span>
+            <span className="text-sm font-medium text-foreground truncate">{displayTitle}</span>
           </div>
         </td>
 
@@ -103,7 +103,7 @@ function JobTableRow({
         </td>
 
         {/* Created */}
-        <td className="px-3 py-3 w-32 text-sm text-gray-400 hidden sm:table-cell">
+        <td className="px-3 py-3 w-32 text-sm text-muted-foreground hidden sm:table-cell">
           {formatDate(job.created_at)}
         </td>
 
@@ -115,7 +115,7 @@ function JobTableRow({
         {/* Progress (visual) */}
         <td className="px-3 py-3 w-24 hidden lg:table-cell">
           {job.status === 'running' && (
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all"
                 style={{ width: `${job.progress_percent}%` }}
@@ -137,18 +137,18 @@ function JobTableRow({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className={`p-4 border-b ${config.borderColor} bg-gray-900/50`}>
+                <div className={`p-4 border-b ${config.borderColor} bg-background/50`}>
                   {/* Full prompt */}
                   <div className="mb-3">
-                    <p className="text-xs text-gray-500 mb-1">Prompt</p>
-                    <p className="text-sm text-gray-300">{job.prompt}</p>
+                    <p className="text-xs text-muted-foreground/70 mb-1">Prompt</p>
+                    <p className="text-sm text-muted-foreground">{job.prompt}</p>
                   </div>
 
                   {/* Stage description */}
                   {(job.status === 'running' || job.status === 'queued') && stageDescription && (
                     <div className="mb-3">
-                      <p className="text-xs text-gray-500 mb-1">Stage</p>
-                      <p className="text-sm text-gray-300">{stageDescription}</p>
+                      <p className="text-xs text-muted-foreground/70 mb-1">Stage</p>
+                      <p className="text-sm text-muted-foreground">{stageDescription}</p>
                     </div>
                   )}
 
@@ -162,7 +162,7 @@ function JobTableRow({
                   {/* Error for failed jobs */}
                   {(job.status === 'failed' || job.status === 'failed_insufficient') && job.error && (
                     <div className="mb-3">
-                      <p className="text-xs text-gray-500 mb-1">Error</p>
+                      <p className="text-xs text-muted-foreground/70 mb-1">Error</p>
                       <p className="text-sm text-red-400">{job.error}</p>
                     </div>
                   )}
@@ -204,25 +204,25 @@ export function JobTable({
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden">
+    <div className="rounded-xl border border-border bg-background overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-800/50 border-b border-gray-700">
+          <thead className="bg-card/50 border-b border-border">
             <tr>
               {isEditMode && <th className="px-3 py-3 w-10" />}
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Title
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-28">
+              <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">
                 Status
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-32 hidden sm:table-cell">
+              <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32 hidden sm:table-cell">
                 Created
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-20 hidden md:table-cell">
+              <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-20 hidden md:table-cell">
                 ETA
               </th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24 hidden lg:table-cell">
+              <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24 hidden lg:table-cell">
                 Progress
               </th>
             </tr>

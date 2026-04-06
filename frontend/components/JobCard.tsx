@@ -130,7 +130,7 @@ export default function JobCard({ job, onRefresh, isEditMode = false, isSelected
               <span>{formatDate(job.created_at)}</span>
               {job.status === 'running' && eta && (
                 <>
-                  <span className="hidden sm:inline text-gray-600">&middot;</span>
+                  <span className="hidden sm:inline text-muted-foreground/60">&middot;</span>
                   <span className="text-blue-400">ETA: {eta}</span>
                 </>
               )}

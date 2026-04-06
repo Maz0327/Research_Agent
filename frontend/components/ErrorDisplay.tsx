@@ -148,7 +148,7 @@ export function ErrorToast({
       initial={{ opacity: 0, y: 50, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 50, scale: 0.9 }}
-      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border border-red-200 bg-white px-4 py-3 shadow-lg dark:border-red-800 dark:bg-gray-800"
+      className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg border border-red-200 bg-white px-4 py-3 shadow-lg dark:border-red-800 dark:bg-card"
     >
       <svg
         className="h-5 w-5 flex-shrink-0 text-red-500"
@@ -161,10 +161,10 @@ export function ErrorToast({
           clipRule="evenodd"
         />
       </svg>
-      <p className="text-sm text-gray-900 dark:text-gray-100">{message}</p>
+      <p className="text-sm text-gray-900 dark:text-foreground">{message}</p>
       <button
         onClick={onDismiss}
-        className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+        className="ml-2 text-muted-foreground hover:text-muted-foreground/60 dark:hover:text-foreground"
       >
         <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
           <path

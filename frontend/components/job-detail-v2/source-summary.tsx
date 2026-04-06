@@ -43,7 +43,7 @@ const TYPE_COLORS: Record<string, string> = {
   youtube: 'bg-red-900/40 text-red-300 border-red-700/40',
   article: 'bg-blue-900/40 text-blue-300 border-blue-700/40',
   reddit: 'bg-orange-900/40 text-orange-300 border-orange-700/40',
-  text: 'bg-zinc-800 text-zinc-300 border-zinc-700',
+  text: 'bg-card text-muted-foreground border-border',
   screenshot: 'bg-purple-900/40 text-purple-300 border-purple-700/40',
 };
 
@@ -64,7 +64,7 @@ export function SourceSummary({ job }: SourceSummaryProps) {
       <ul className="space-y-1.5">
         {visible.map((src) => {
           const typeKey = (src.type ?? '').toLowerCase();
-          const typeClass = TYPE_COLORS[typeKey] ?? 'bg-zinc-800 text-zinc-300 border-zinc-700';
+          const typeClass = TYPE_COLORS[typeKey] ?? 'bg-card text-muted-foreground border-border';
           return (
             <li key={src.id} className="rounded-md border border-border bg-secondary px-2 py-1.5 space-y-1">
               <p className="text-xs text-foreground truncate" title={src.title}>
@@ -72,12 +72,12 @@ export function SourceSummary({ job }: SourceSummaryProps) {
               </p>
               <div className="flex flex-wrap gap-1">
                 {src.type && (
-                  <Badge variant="outline" className={`text-[10px] px-1 py-0 ${typeClass}`}>
+                  <Badge variant="outline" className={`text-caption px-1 py-0 ${typeClass}`}>
                     {src.type}
                   </Badge>
                 )}
                 {src.confidence_ceiling && (
-                  <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground border-border">
+                  <Badge variant="outline" className="text-caption px-1 py-0 text-muted-foreground border-border">
                     {src.confidence_ceiling}
                   </Badge>
                 )}

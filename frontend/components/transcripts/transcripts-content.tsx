@@ -115,7 +115,7 @@ export function TranscriptsContent() {
           <thead>
             <tr className="border-b border-border">
               {['Source', 'Type', 'Mode', 'Length', 'Job', 'Cached'].map((h) => (
-                <th key={h} className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">{h}</th>
+                <th key={h} className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">{h}</th>
               ))}
             </tr>
           </thead>
@@ -137,16 +137,16 @@ export function TranscriptsContent() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm text-foreground truncate max-w-[250px]">{t.title}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{t.url}</p>
+                        <p className="text-caption text-muted-foreground truncate">{t.url}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
+                    <span className={`text-caption px-1.5 py-0.5 rounded font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
                   </td>
                   <td className="px-4 py-3"><span className="text-xs text-muted-foreground">{t.mode}</span></td>
                   <td className="px-4 py-3"><span className="text-xs text-muted-foreground">{t.length}</span></td>
-                  <td className="px-4 py-3"><span className="text-[11px] font-mono text-accent-blue">{t.job_id}</span></td>
+                  <td className="px-4 py-3"><span className="text-caption font-mono text-accent-blue">{t.job_id}</span></td>
                   <td className="px-4 py-3"><span className="text-xs text-muted-foreground">{t.cached_at}</span></td>
                 </tr>
               );

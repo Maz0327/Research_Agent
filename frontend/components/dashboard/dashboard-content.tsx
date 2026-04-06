@@ -111,8 +111,7 @@ export function DashboardContent() {
       {/* Header row */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Your research hub</p>
+          <h1 className="text-xl font-bold text-foreground">Your Projects</h1>
         </div>
         <button
           onClick={handleNewResearch}
@@ -124,7 +123,7 @@ export function DashboardContent() {
           ) : (
             <span className="text-base leading-none">+</span>
           )}
-          New Research
+          New Project
         </button>
       </div>
 
@@ -143,7 +142,7 @@ export function DashboardContent() {
       <Dialog open={wizardOpen} onOpenChange={setWizardOpen}>
         <DialogContent className="bg-card border-border max-w-lg w-full">
           <DialogHeader>
-            <DialogTitle className="text-foreground">New Research Job</DialogTitle>
+            <DialogTitle className="text-foreground">New Project</DialogTitle>
           </DialogHeader>
           <JobCreationWizard onClose={() => setWizardOpen(false)} />
         </DialogContent>

@@ -22,8 +22,8 @@ export function CitationPill({ id, label, onClick, className }: CitationPillProp
       variant="outline"
       onClick={onClick}
       className={cn(
-        'text-[11px] px-1.5 py-0 font-mono text-zinc-300 border-zinc-600/40 bg-zinc-800/60',
-        onClick && 'cursor-pointer hover:text-zinc-200 hover:border-zinc-500/60',
+        'text-caption px-1.5 py-0 font-mono text-muted-foreground border-border/40 bg-card/60',
+        onClick && 'cursor-pointer hover:text-foreground hover:border-border/60',
         className,
       )}
       title={id}

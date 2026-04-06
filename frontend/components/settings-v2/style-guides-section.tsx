@@ -49,14 +49,14 @@ export function StyleGuidesSection() {
   const templateEntries = Object.entries(templates) as [string, TemplateInfo][];
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+    <div className="rounded-xl border border-border bg-background p-6">
       <div className="flex items-center gap-2 mb-4">
         <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <h2 className="text-lg font-semibold text-gray-100">Style Guides</h2>
+        <h2 className="text-lg font-semibold text-foreground">Style Guides</h2>
       </div>
-      <p className="text-sm text-gray-400 mb-5">
+      <p className="text-sm text-muted-foreground mb-5">
         Choose a content style that shapes your hooks, tone, and narrative structure.
       </p>
 
@@ -69,12 +69,12 @@ export function StyleGuidesSection() {
               className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
                 guide.is_default
                   ? 'border-blue-500/40 bg-blue-900/10'
-                  : 'border-gray-700/40 bg-gray-800/30'
+                  : 'border-border/40 bg-card/30'
               }`}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm font-medium text-gray-200 truncate">{guide.name}</span>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-500 flex-shrink-0">
+                <span className="text-sm font-medium text-foreground truncate">{guide.name}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground/70 flex-shrink-0">
                   {guide.template_base.replace(/_/g, ' ')}
                 </span>
                 {guide.is_default && (
@@ -87,7 +87,7 @@ export function StyleGuidesSection() {
                 {!guide.is_default && (
                   <button
                     onClick={() => setDefault(guide.id)}
-                    className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-300 hover:bg-gray-700/40 transition"
+                    className="text-xs px-2 py-1 rounded text-muted-foreground/70 hover:text-muted-foreground hover:bg-muted/40 transition"
                   >
                     Set default
                   </button>
@@ -109,17 +109,17 @@ export function StyleGuidesSection() {
         <button
           onClick={() => setShowCreate(true)}
           disabled={guides.length >= 10}
-          className="w-full rounded-lg border border-dashed border-gray-700 p-4 text-sm text-gray-500 hover:text-gray-300 hover:border-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground/70 hover:text-muted-foreground hover:border-border transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {guides.length >= 10 ? 'Maximum 10 style guides reached' : '+ Create a new style guide'}
         </button>
       ) : (
-        <div className="rounded-lg border border-gray-700/50 bg-gray-800/30 p-4 space-y-4">
+        <div className="rounded-lg border border-border/50 bg-card/30 p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Choose a template</p>
+            <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wider">Choose a template</p>
             <button
               onClick={() => { setShowCreate(false); setSelectedTemplate(''); setNewName(''); }}
-              className="text-xs text-gray-500 hover:text-gray-400 transition"
+              className="text-xs text-muted-foreground/70 hover:text-muted-foreground transition"
             >
               Cancel
             </button>
@@ -133,11 +133,11 @@ export function StyleGuidesSection() {
                 className={`w-full text-left rounded-lg border p-3 transition-all ${
                   selectedTemplate === key
                     ? 'border-blue-500/60 ring-1 ring-blue-500/30 bg-blue-900/10'
-                    : 'border-gray-700/50 bg-gray-800/40 hover:border-gray-600/60'
+                    : 'border-border/50 bg-card/40 hover:border-border/60'
                 }`}
               >
-                <p className="text-sm font-semibold text-gray-100">{tmpl.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{tmpl.description}</p>
+                <p className="text-sm font-semibold text-foreground">{tmpl.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{tmpl.description}</p>
               </button>
             ))}
             <button
@@ -145,11 +145,11 @@ export function StyleGuidesSection() {
               className={`w-full text-left rounded-lg border p-3 transition-all ${
                 selectedTemplate === 'custom'
                   ? 'border-blue-500/60 ring-1 ring-blue-500/30 bg-blue-900/10'
-                  : 'border-gray-700/50 bg-gray-800/40 hover:border-gray-600/60'
+                  : 'border-border/50 bg-card/40 hover:border-border/60'
               }`}
             >
-              <p className="text-sm font-semibold text-gray-100">Custom</p>
-              <p className="text-xs text-gray-400 mt-0.5">Start from scratch with your own voice and style.</p>
+              <p className="text-sm font-semibold text-foreground">Custom</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Start from scratch with your own voice and style.</p>
             </button>
           </div>
 
@@ -160,7 +160,7 @@ export function StyleGuidesSection() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Guide name (e.g., 'My YouTube Style')"
-                className="flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
+                className="flex-1 rounded-lg border border-border bg-card/60 px-3 py-2 text-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
                 maxLength={100}
               />
               <button

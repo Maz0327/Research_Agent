@@ -163,11 +163,11 @@ export function QueueContent() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="w-8" />
-                    <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Job</th>
-                    <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Mode</th>
-                    <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Stage</th>
-                    <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Progress</th>
-                    <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
+                    <th className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Job</th>
+                    <th className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Mode</th>
+                    <th className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Stage</th>
+                    <th className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Progress</th>
+                    <th className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
                     <th className="w-10" />
                   </tr>
                 </thead>

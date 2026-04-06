@@ -34,9 +34,9 @@ export function NotificationsSection({
             id="emailOnComplete"
             checked={emailOnComplete}
             onChange={(e) => setEmailOnComplete(e.target.checked)}
-            className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+            className="h-4 w-4 rounded bg-card border-border text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
           />
-          <label htmlFor="emailOnComplete" className="ml-3 text-sm text-gray-300">
+          <label htmlFor="emailOnComplete" className="ml-3 text-sm text-muted-foreground">
             Email me when a job completes
           </label>
         </div>
@@ -47,9 +47,9 @@ export function NotificationsSection({
             id="emailOnFailure"
             checked={emailOnFailure}
             onChange={(e) => setEmailOnFailure(e.target.checked)}
-            className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+            className="h-4 w-4 rounded bg-card border-border text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
           />
-          <label htmlFor="emailOnFailure" className="ml-3 text-sm text-gray-300">
+          <label htmlFor="emailOnFailure" className="ml-3 text-sm text-muted-foreground">
             Email me when a job fails
           </label>
         </div>
@@ -60,9 +60,9 @@ export function NotificationsSection({
             id="emailSummary"
             checked={emailSummary}
             onChange={(e) => setEmailSummary(e.target.checked)}
-            className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+            className="h-4 w-4 rounded bg-card border-border text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
           />
-          <label htmlFor="emailSummary" className="ml-3 text-sm text-gray-300">
+          <label htmlFor="emailSummary" className="ml-3 text-sm text-muted-foreground">
             Send daily summary of completed jobs
           </label>
         </div>

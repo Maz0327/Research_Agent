@@ -136,19 +136,19 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-72 rounded-lg bg-gray-800 border border-gray-700 shadow-xl z-50"
+            className="absolute right-0 mt-2 w-72 rounded-lg bg-card border border-border shadow-xl z-50"
           >
             <div className="p-4">
-              <h3 className="text-sm font-medium text-gray-200 mb-3">
+              <h3 className="text-sm font-medium text-foreground mb-3">
                 Share {docTitle || DOC_TYPE_NAMES[docType]}
               </h3>
 
               {status === 'success' && shareUrl ? (
                 /* Success state - show URL and copy button */
                 <div className="space-y-3">
-                  <div className="bg-gray-900 rounded-lg p-3">
-                    <p className="text-xs text-gray-400 mb-1">Share Link</p>
-                    <p className="text-sm text-gray-200 break-all font-mono">
+                  <div className="bg-background rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Share Link</p>
+                    <p className="text-sm text-foreground break-all font-mono">
                       {shareUrl}
                     </p>
                   </div>
@@ -174,7 +174,7 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
                     )}
                   </button>
 
-                  <p className="text-xs text-gray-500 text-center">
+                  <p className="text-xs text-muted-foreground/70 text-center">
                     Link expires in {formatExpiration(expiresInHours)}
                     {maxViews && ` or after ${maxViews} views`}
                   </p>
@@ -184,7 +184,7 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
                       setShareUrl('');
                       setStatus('idle');
                     }}
-                    className="w-full text-xs text-gray-500 hover:text-gray-400 transition"
+                    className="w-full text-xs text-muted-foreground/70 hover:text-muted-foreground transition"
                   >
                     Create another link
                   </button>
@@ -195,7 +195,7 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
                   <p className="text-sm text-red-400 mb-2">{statusMessage}</p>
                   <button
                     onClick={() => setStatus('idle')}
-                    className="text-xs text-gray-400 hover:text-gray-300"
+                    className="text-xs text-muted-foreground hover:text-muted-foreground"
                   >
                     Try again
                   </button>
@@ -205,13 +205,13 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
                 <div className="space-y-4">
                   {/* Expiration selector */}
                   <div>
-                    <label className="text-xs text-gray-400 block mb-1">
+                    <label className="text-xs text-muted-foreground block mb-1">
                       Expires in
                     </label>
                     <select
                       value={expiresInHours}
                       onChange={(e) => setExpiresInHours(Number(e.target.value))}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value={1}>1 hour</option>
                       <option value={6}>6 hours</option>
@@ -224,13 +224,13 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
 
                   {/* Max views (optional) */}
                   <div>
-                    <label className="text-xs text-gray-400 block mb-1">
+                    <label className="text-xs text-muted-foreground block mb-1">
                       View limit (optional)
                     </label>
                     <select
                       value={maxViews || ''}
                       onChange={(e) => setMaxViews(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Unlimited</option>
                       <option value={1}>1 view</option>
@@ -264,7 +264,7 @@ export function ShareButton({ jobId, docType, docTitle }: ShareButtonProps) {
                     )}
                   </button>
 
-                  <p className="text-xs text-gray-500 text-center">
+                  <p className="text-xs text-muted-foreground/70 text-center">
                     Anyone with the link can view this document
                   </p>
                 </div>

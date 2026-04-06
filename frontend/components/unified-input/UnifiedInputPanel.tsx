@@ -194,7 +194,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
     <div className="space-y-5">
       {/* Research Topic */}
       <div>
-        <label htmlFor="researchTopic" className="mb-1.5 block text-sm font-medium text-gray-300">
+        <label htmlFor="researchTopic" className="mb-1.5 block text-sm font-medium text-muted-foreground">
           Research Topic <span className="text-red-400">*</span>
         </label>
         <input
@@ -203,11 +203,11 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           placeholder="What are you researching? e.g., AI safety concerns, SpaceX Starship development"
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           disabled={isSubmitting}
           maxLength={500}
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground/70">
           This topic will be used to focus analysis across all sources.
         </p>
       </div>
@@ -215,10 +215,10 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
       {/* Sources List */}
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-300">
+          <label className="text-sm font-medium text-muted-foreground">
             Sources
             {totalSources > 0 && (
-              <span className="ml-2 text-gray-500">({totalSources})</span>
+              <span className="ml-2 text-muted-foreground/70">({totalSources})</span>
             )}
           </label>
           {totalSources >= 20 && (
@@ -227,8 +227,8 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
         </div>
 
         {sources.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-700 p-6 text-center">
-            <p className="text-sm text-gray-500">
+          <div className="rounded-lg border border-dashed border-border p-6 text-center">
+            <p className="text-sm text-muted-foreground/70">
               No sources added yet. Click below to add videos, text, or articles.
             </p>
           </div>
@@ -251,7 +251,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
           type="button"
           onClick={() => setIsModalOpen(true)}
           disabled={isSubmitting}
-          className="w-full rounded-lg border border-dashed border-gray-600 py-3 text-sm font-medium text-gray-400 hover:border-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-lg border border-dashed border-border py-3 text-sm font-medium text-muted-foreground hover:border-border hover:text-muted-foreground hover:bg-card/50 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="inline-flex items-center gap-2">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -264,7 +264,7 @@ export function UnifiedInputPanel({ onSubmit, isSubmitting = false }: UnifiedInp
 
       {/* Submit Section - stack on mobile */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 sm:pt-2">
-        <div className="text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
+        <div className="text-xs sm:text-sm text-muted-foreground/70 order-2 sm:order-1">
           {totalSources > 0 ? (
             <>
               <span className="text-purple-400">{sourceData.videoUrls.length}</span> video

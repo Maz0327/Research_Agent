@@ -87,7 +87,7 @@ export function JobManagementTable({ initialStatusFilter = '' }: { initialStatus
             <thead>
               <tr className="border-b border-border">
                 {['ID', 'Title', 'User', 'Status', 'Cost', 'Created', ''].map((h) => (
-                  <th key={h} className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">
+                  <th key={h} className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">
                     {h}
                   </th>
                 ))}

@@ -34,11 +34,11 @@ export function JobDetailHeader({
   actionsDisabled = false,
 }: JobDetailHeaderProps) {
   return (
-    <header className="border-b border-gray-800 pb-6 mb-6">
+    <header className="border-b border-border pb-6 mb-6">
       {/* Back navigation */}
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition-colors"
+        className="inline-flex items-center gap-2 text-muted-foreground hover:text-white mb-4 transition-colors"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -54,7 +54,7 @@ export function JobDetailHeader({
           </h1>
           <div className="flex items-center gap-3 mt-2">
             <StatusBadge status={status} />
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-muted-foreground">
               Created {formatRelativeTime(createdAt)}
             </span>
           </div>
@@ -65,7 +65,7 @@ export function JobDetailHeader({
           <button
             onClick={onArchive}
             disabled={actionsDisabled}
-            className="px-3 py-2.5 text-sm text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
+            className="px-3 py-2.5 text-sm text-muted-foreground hover:text-white hover:bg-card rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation"
           >
             Archive
           </button>

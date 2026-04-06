@@ -98,7 +98,7 @@ type SignificanceLevel = 'high' | 'medium' | 'low';
 const SIGNIFICANCE_CONFIG: Record<SignificanceLevel, { label: string; color: string; bgColor: string; bars: number }> = {
   high: { label: 'High', color: 'text-green-400', bgColor: 'bg-green-500', bars: 3 },
   medium: { label: 'Medium', color: 'text-yellow-400', bgColor: 'bg-yellow-500', bars: 2 },
-  low: { label: 'Low', color: 'text-gray-400', bgColor: 'bg-gray-500', bars: 1 },
+  low: { label: 'Low', color: 'text-muted-foreground', bgColor: 'bg-gray-500', bars: 1 },
 };
 
 export interface SignificanceIndicatorProps {
@@ -124,7 +124,7 @@ export function SignificanceIndicator({ level, showLabel = true, className = '' 
           <span
             key={bar}
             className={`w-1 rounded-sm ${
-              bar <= config.bars ? config.bgColor : 'bg-gray-700'
+              bar <= config.bars ? config.bgColor : 'bg-muted'
             }`}
             style={{ height: `${bar * 4 + 4}px` }}
           />
@@ -171,7 +171,7 @@ export function SourceCitation({ sourceId, title, onClick, className = '' }: Sou
       className={`inline-flex items-center gap-1 text-xs ${
         onClick
           ? 'text-blue-400 hover:text-blue-300 cursor-pointer transition-colors'
-          : 'text-gray-400'
+          : 'text-muted-foreground'
       } ${className}`}
       onClick={handleClick}
       role={onClick ? 'button' : undefined}
@@ -183,7 +183,7 @@ export function SourceCitation({ sourceId, title, onClick, className = '' }: Sou
         }
       }}
     >
-      <span className="text-gray-500" aria-hidden="true">📎</span>
+      <span className="text-muted-foreground/70" aria-hidden="true">📎</span>
       {title || displayId}
     </span>
   );
@@ -210,7 +210,7 @@ const CONFIDENCE_CONFIG: Record<string, { label: string; color: string; bgColor:
  * Badge showing confidence level with color coding.
  */
 export function ConfidenceBadge({ level, className = '' }: ConfidenceBadgeProps) {
-  const config = CONFIDENCE_CONFIG[level?.toLowerCase()] || { label: level, color: 'text-gray-400', bgColor: 'bg-gray-900/30' };
+  const config = CONFIDENCE_CONFIG[level?.toLowerCase()] || { label: level, color: 'text-muted-foreground', bgColor: 'bg-background/30' };
 
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${config.bgColor} ${config.color} ${className}`}>

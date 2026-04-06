@@ -158,7 +158,7 @@ function buildComponents(compact: boolean) {
 
     // ----- Paragraph — improved line-height and spacing -----
     p: ({ children }: { children?: ReactNode }) => (
-      <p className={compact ? 'my-1.5 leading-relaxed text-sm' : 'my-3 leading-[1.75] text-[15px]'}>{children}</p>
+      <p className={compact ? 'my-1.5 leading-relaxed text-sm' : 'my-3 leading-[1.75] text-body-lg'}>{children}</p>
     ),
 
     // ----- Links with external indicator -----

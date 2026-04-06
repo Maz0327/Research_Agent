@@ -23,10 +23,10 @@ function StatCard({ label, value, icon, colorBorder, colorBg, iconColor, href }:
     <div className={`rounded-lg border p-6 transition-shadow hover:shadow-md ${colorBorder} ${colorBg}`}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-400">{label}</p>
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
           <p className="mt-1 text-3xl font-bold text-white">{value}</p>
         </div>
-        <div className={`rounded-full bg-gray-800/80 p-3 ${iconColor}`}>{icon}</div>
+        <div className={`rounded-full bg-card/80 p-3 ${iconColor}`}>{icon}</div>
       </div>
     </div>
   );
@@ -124,9 +124,9 @@ export function AdminDashboard() {
       {isLoadingStats ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="rounded-lg border border-gray-700 bg-gray-800 p-6 animate-pulse">
-              <div className="h-4 w-24 rounded bg-gray-700 mb-3" />
-              <div className="h-9 w-16 rounded bg-gray-700" />
+            <div key={i} className="rounded-lg border border-border bg-card p-6 animate-pulse">
+              <div className="h-4 w-24 rounded bg-muted mb-3" />
+              <div className="h-9 w-16 rounded bg-muted" />
             </div>
           ))}
         </div>

@@ -78,7 +78,7 @@ export function CreatorAnalysisInput({
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -88,8 +88,8 @@ export function CreatorAnalysisInput({
 
       {/* Header */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-100">Creator Style Analysis</h3>
-        <p className="text-sm text-gray-400 mt-1">
+        <h3 className="text-lg font-semibold text-foreground">Creator Style Analysis</h3>
+        <p className="text-sm text-muted-foreground mt-1">
           Paste 3-5 YouTube video URLs from the creator you want to analyze.
           We&apos;ll extract their style patterns, hooks, vocabulary, and narrative structure.
         </p>
@@ -97,7 +97,7 @@ export function CreatorAnalysisInput({
 
       {/* Creator name */}
       <div>
-        <label htmlFor="creatorName" className="mb-1.5 block text-sm font-medium text-gray-400">
+        <label htmlFor="creatorName" className="mb-1.5 block text-sm font-medium text-muted-foreground">
           Creator Name
         </label>
         <input
@@ -106,7 +106,7 @@ export function CreatorAnalysisInput({
           value={creatorName}
           onChange={(e) => setCreatorName(e.target.value)}
           placeholder="e.g., Johnny Harris, Veritasium, Coffeezilla"
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-gray-500 transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           disabled={isLoading}
           autoFocus
         />
@@ -114,9 +114,9 @@ export function CreatorAnalysisInput({
 
       {/* YouTube URLs */}
       <div>
-        <label htmlFor="videoUrls" className="mb-1.5 block text-sm font-medium text-gray-400">
+        <label htmlFor="videoUrls" className="mb-1.5 block text-sm font-medium text-muted-foreground">
           YouTube Video URLs
-          <span className="ml-2 text-gray-500">({MIN_URLS}-{MAX_URLS} required)</span>
+          <span className="ml-2 text-muted-foreground/70">({MIN_URLS}-{MAX_URLS} required)</span>
           {youtubeUrls.length > 0 && (
             <span className="ml-2 text-purple-400">
               ({youtubeUrls.length} video{youtubeUrls.length !== 1 ? 's' : ''})
@@ -129,7 +129,7 @@ export function CreatorAnalysisInput({
           onChange={(e) => setUrlText(e.target.value)}
           placeholder={`Paste YouTube URLs (one per line):\nhttps://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=...`}
           rows={5}
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 font-mono text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-gray-500 font-mono text-sm transition focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           disabled={isLoading}
         />
         {nonYoutubeUrls.length > 0 && (
@@ -147,9 +147,9 @@ export function CreatorAnalysisInput({
       )}
 
       {/* Info */}
-      <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-        <p className="text-xs text-gray-400">
-          <strong className="text-gray-300">How it works:</strong> We fetch transcripts from each video,
+      <div className="rounded-lg border border-border bg-card/50 p-3">
+        <p className="text-xs text-muted-foreground">
+          <strong className="text-muted-foreground">How it works:</strong> We fetch transcripts from each video,
           then analyze them to identify the creator&apos;s unique hook patterns, narrative structure,
           vocabulary fingerprint, and tone. The result can be saved as a personal style guide.
         </p>

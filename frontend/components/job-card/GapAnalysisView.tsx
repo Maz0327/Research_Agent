@@ -77,7 +77,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
       className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition ${
         copied
           ? 'bg-green-600 text-white'
-          : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+          : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-muted-foreground'
       }`}
       title={copied ? 'Copied!' : label || 'Copy'}
     >
@@ -105,9 +105,9 @@ function MissingPerspectiveCard({ perspective }: { perspective: MissingPerspecti
       <div className="flex items-start justify-between gap-2 mb-2">
         <h6 className="font-medium text-red-300">{perspective.perspective}</h6>
       </div>
-      <p className="text-sm text-gray-400 mb-2">{perspective.why_important}</p>
-      <div className="flex items-center gap-2 bg-gray-800/50 rounded px-2 py-1.5">
-        <span className="text-xs text-gray-500">Search:</span>
+      <p className="text-sm text-muted-foreground mb-2">{perspective.why_important}</p>
+      <div className="flex items-center gap-2 bg-card/50 rounded px-2 py-1.5">
+        <span className="text-xs text-muted-foreground/70">Search:</span>
         <code className="text-xs text-blue-400 flex-1">{perspective.suggested_search}</code>
         <CopyButton text={perspective.suggested_search} label="Copy search query" />
       </div>
@@ -124,20 +124,20 @@ function ContradictionCard({ contradiction }: { contradiction: Contradiction }) 
             <span className="text-xs text-blue-400">A</span>
           </div>
           <div>
-            <p className="text-sm text-gray-300">&ldquo;{contradiction.claim_a}&rdquo;</p>
-            <p className="text-xs text-gray-500">- {contradiction.source_a}</p>
+            <p className="text-sm text-muted-foreground">&ldquo;{contradiction.claim_a}&rdquo;</p>
+            <p className="text-xs text-muted-foreground/70">- {contradiction.source_a}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 pl-9">
-          <span className="text-gray-600">vs</span>
+          <span className="text-muted-foreground/60">vs</span>
         </div>
         <div className="flex gap-3">
           <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-900/50 flex items-center justify-center">
             <span className="text-xs text-purple-400">B</span>
           </div>
           <div>
-            <p className="text-sm text-gray-300">&ldquo;{contradiction.claim_b}&rdquo;</p>
-            <p className="text-xs text-gray-500">- {contradiction.source_b}</p>
+            <p className="text-sm text-muted-foreground">&ldquo;{contradiction.claim_b}&rdquo;</p>
+            <p className="text-xs text-muted-foreground/70">- {contradiction.source_b}</p>
           </div>
         </div>
       </div>
@@ -161,8 +161,8 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-gray-300">Gap Analysis</h4>
-          <p className="text-xs text-gray-500">Identifying gaps...</p>
+          <h4 className="text-sm font-medium text-muted-foreground">Gap Analysis</h4>
+          <p className="text-xs text-muted-foreground/70">Identifying gaps...</p>
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
@@ -181,15 +181,15 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
   if (!hasContent) {
     return (
       <div 
-        className="text-center py-8 px-4 rounded-lg border border-dashed border-gray-700"
+        className="text-center py-8 px-4 rounded-lg border border-dashed border-border"
         role="status"
         aria-label="No gaps identified"
       >
-        <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="mx-auto h-12 w-12 text-muted-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
-        <h5 className="mt-3 text-sm font-medium text-gray-400">Comprehensive Coverage</h5>
-        <p className="mt-1 text-xs text-gray-500">
+        <h5 className="mt-3 text-sm font-medium text-muted-foreground">Comprehensive Coverage</h5>
+        <p className="mt-1 text-xs text-muted-foreground/70">
           The analyzed videos appear to cover the topic well. No significant gaps detected.
         </p>
       </div>
@@ -228,13 +228,13 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
       
       {/* Header - M-006: ARIA labels */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-300">Gap Analysis</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Gap Analysis</h4>
         <button
           onClick={handleCopyAll}
           className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition ${
             copied
               ? 'bg-green-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              : 'bg-muted text-muted-foreground hover:bg-secondary'
           }`}
           aria-label={copied ? 'Gap analysis copied to clipboard' : 'Copy all gap analysis as Markdown'}
         >
@@ -245,7 +245,7 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
       {/* Missing Perspectives */}
       {gapAnalysis.missing_perspectives.length > 0 && (
         <div>
-          <h5 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-2">
             <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
             </svg>
@@ -262,7 +262,7 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
       {/* Unanswered Questions */}
       {gapAnalysis.unanswered_questions.length > 0 && (
         <div>
-          <h5 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-2">
             <svg className="h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -272,7 +272,7 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
             {gapAnalysis.unanswered_questions.map((question, idx) => (
               <li key={idx} className="flex items-start gap-3 text-sm">
                 <span className="text-blue-500 flex-shrink-0">?</span>
-                <span className="text-gray-300">{question}</span>
+                <span className="text-muted-foreground">{question}</span>
                 <CopyButton text={question} />
               </li>
             ))}
@@ -283,7 +283,7 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
       {/* Mentioned But Unexplored */}
       {gapAnalysis.mentioned_but_unexplored.length > 0 && (
         <div>
-          <h5 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-2">
             <svg className="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
@@ -295,10 +295,10 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h6 className="font-medium text-amber-300">{topic.topic}</h6>
-                    <p className="text-xs text-gray-500 mt-0.5">Mentioned in: {topic.where_mentioned}</p>
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">Mentioned in: {topic.where_mentioned}</p>
                   </div>
                 </div>
-                <p className="text-sm text-gray-400 mt-2">{topic.why_explore}</p>
+                <p className="text-sm text-muted-foreground mt-2">{topic.why_explore}</p>
               </div>
             ))}
           </div>
@@ -308,7 +308,7 @@ export function GapAnalysisView({ gapAnalysis, isLoading }: GapAnalysisViewProps
       {/* Contradictions */}
       {gapAnalysis.contradictions.length > 0 && (
         <div>
-          <h5 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-2">
             <svg className="h-4 w-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>

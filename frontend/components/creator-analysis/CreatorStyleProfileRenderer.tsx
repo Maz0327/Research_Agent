@@ -62,7 +62,7 @@ interface CreatorStyleProfileRendererProps {
 const FREQUENCY_COLORS: Record<string, string> = {
   very_common: 'text-green-400 bg-green-900/30 border-green-700/50',
   common: 'text-blue-400 bg-blue-900/30 border-blue-700/50',
-  occasional: 'text-gray-400 bg-gray-800/50 border-gray-700/50',
+  occasional: 'text-muted-foreground bg-card/50 border-border/50',
 };
 
 const HOOK_TYPE_COLORS: Record<string, string> = {
@@ -114,17 +114,17 @@ export function CreatorStyleProfileRenderer({
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors mb-3"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Back
           </button>
-          <h2 className="text-xl font-bold text-gray-100">
+          <h2 className="text-xl font-bold text-foreground">
             {profile.creator_name} — Style Profile
           </h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Analyzed from {videoCount} video{videoCount !== 1 ? 's' : ''} &middot; {profile.content_niche}
           </p>
         </div>
@@ -172,31 +172,31 @@ export function CreatorStyleProfileRenderer({
 
       {/* Style Summary */}
       <CardWrapper accentColor="bg-purple-500">
-        <p className="text-[11px] font-medium text-purple-400 uppercase tracking-wider mb-2">Style Summary</p>
-        <p className="text-[15px] text-gray-200 leading-relaxed">{profile.style_summary}</p>
-        <p className="text-[13px] text-gray-400 mt-3 italic">{profile.channel_description}</p>
+        <p className="text-caption font-medium text-purple-400 uppercase tracking-wider mb-2">Style Summary</p>
+        <p className="text-body-lg text-foreground leading-relaxed">{profile.style_summary}</p>
+        <p className="text-body-sm text-muted-foreground mt-3 italic">{profile.channel_description}</p>
       </CardWrapper>
 
       {/* Hook Patterns */}
       <div>
-        <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <p className="text-body-sm font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">
           Hook Patterns ({profile.hook_patterns.length})
         </p>
         <div className="space-y-2">
           {profile.hook_patterns.map((hook, i) => (
             <div
               key={i}
-              className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3"
+              className="rounded-lg border border-border/50 bg-card/40 p-3"
             >
               <div className="flex items-center gap-2 mb-1.5">
-                <span className={`text-[12px] font-semibold ${HOOK_TYPE_COLORS[hook.hook_type] || 'text-gray-400'}`}>
+                <span className={`text-body-sm font-semibold ${HOOK_TYPE_COLORS[hook.hook_type] || 'text-muted-foreground'}`}>
                   {formatLabel(hook.hook_type)}
                 </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${FREQUENCY_COLORS[hook.frequency] || FREQUENCY_COLORS.occasional}`}>
+                <span className={`text-caption px-1.5 py-0.5 rounded border ${FREQUENCY_COLORS[hook.frequency] || FREQUENCY_COLORS.occasional}`}>
                   {formatLabel(hook.frequency)}
                 </span>
               </div>
-              <p className="text-[13px] text-gray-300 italic">&ldquo;{hook.example}&rdquo;</p>
+              <p className="text-body-sm text-muted-foreground italic">&ldquo;{hook.example}&rdquo;</p>
             </div>
           ))}
         </div>
@@ -204,21 +204,21 @@ export function CreatorStyleProfileRenderer({
 
       {/* Narrative Structure */}
       <CardWrapper accentColor="bg-blue-500">
-        <p className="text-[11px] font-medium text-blue-400 uppercase tracking-wider mb-2">Narrative Structure</p>
+        <p className="text-caption font-medium text-blue-400 uppercase tracking-wider mb-2">Narrative Structure</p>
         <div className="space-y-2">
           <div>
-            <p className="text-[12px] text-gray-500 font-medium">Primary Structure</p>
-            <p className="text-[14px] text-gray-200">{formatLabel(profile.narrative_structure.primary_structure)}</p>
+            <p className="text-body-sm text-muted-foreground/70 font-medium">Primary Structure</p>
+            <p className="text-body text-foreground">{formatLabel(profile.narrative_structure.primary_structure)}</p>
           </div>
-          <p className="text-[13px] text-gray-300">{profile.narrative_structure.structure_description}</p>
+          <p className="text-body-sm text-muted-foreground">{profile.narrative_structure.structure_description}</p>
           <div className="flex gap-4 pt-1">
             <div>
-              <p className="text-[11px] text-gray-500">Pacing</p>
-              <p className="text-[13px] text-gray-300">{formatLabel(profile.narrative_structure.pacing)}</p>
+              <p className="text-caption text-muted-foreground/70">Pacing</p>
+              <p className="text-body-sm text-muted-foreground">{formatLabel(profile.narrative_structure.pacing)}</p>
             </div>
             <div>
-              <p className="text-[11px] text-gray-500">Transitions</p>
-              <p className="text-[13px] text-gray-300">{profile.narrative_structure.transition_style}</p>
+              <p className="text-caption text-muted-foreground/70">Transitions</p>
+              <p className="text-body-sm text-muted-foreground">{profile.narrative_structure.transition_style}</p>
             </div>
           </div>
         </div>
@@ -226,43 +226,43 @@ export function CreatorStyleProfileRenderer({
 
       {/* Vocabulary Fingerprint */}
       <div>
-        <p className="text-[12px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Vocabulary Fingerprint</p>
+        <p className="text-body-sm font-semibold text-muted-foreground/70 uppercase tracking-wider mb-3">Vocabulary Fingerprint</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3">
-            <p className="text-[11px] text-green-400 font-medium mb-2">Signature Phrases</p>
+          <div className="rounded-lg border border-border/50 bg-card/40 p-3">
+            <p className="text-caption text-green-400 font-medium mb-2">Signature Phrases</p>
             <div className="flex flex-wrap gap-1.5">
               {profile.vocabulary_fingerprint.signature_phrases.map((p, i) => (
-                <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-green-900/30 text-green-300 border border-green-700/40">
+                <span key={i} className="text-caption px-2 py-0.5 rounded-full bg-green-900/30 text-green-300 border border-green-700/40">
                   {p}
                 </span>
               ))}
             </div>
           </div>
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3">
-            <p className="text-[11px] text-amber-400 font-medium mb-2">Unique Expressions</p>
+          <div className="rounded-lg border border-border/50 bg-card/40 p-3">
+            <p className="text-caption text-amber-400 font-medium mb-2">Unique Expressions</p>
             <div className="flex flex-wrap gap-1.5">
               {profile.vocabulary_fingerprint.unique_expressions.map((p, i) => (
-                <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300 border border-amber-700/40">
+                <span key={i} className="text-caption px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300 border border-amber-700/40">
                   {p}
                 </span>
               ))}
             </div>
           </div>
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3">
-            <p className="text-[11px] text-blue-400 font-medium mb-2">Tone Markers</p>
+          <div className="rounded-lg border border-border/50 bg-card/40 p-3">
+            <p className="text-caption text-blue-400 font-medium mb-2">Tone Markers</p>
             <div className="flex flex-wrap gap-1.5">
               {profile.vocabulary_fingerprint.tone_markers.map((p, i) => (
-                <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-300 border border-blue-700/40">
+                <span key={i} className="text-caption px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-300 border border-blue-700/40">
                   {p}
                 </span>
               ))}
             </div>
           </div>
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3">
-            <p className="text-[11px] text-red-400 font-medium mb-2">Filler Words to Note</p>
+          <div className="rounded-lg border border-border/50 bg-card/40 p-3">
+            <p className="text-caption text-red-400 font-medium mb-2">Filler Words to Note</p>
             <div className="flex flex-wrap gap-1.5">
               {profile.vocabulary_fingerprint.filler_words.map((p, i) => (
-                <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-red-900/30 text-red-300 border border-red-700/40">
+                <span key={i} className="text-caption px-2 py-0.5 rounded-full bg-red-900/30 text-red-300 border border-red-700/40">
                   {p}
                 </span>
               ))}
@@ -275,9 +275,9 @@ export function CreatorStyleProfileRenderer({
       <CollapsibleSection label="Tone Descriptors" defaultOpen>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {Object.entries(profile.tone_descriptors).map(([key, value]) => (
-            <div key={key} className="text-center p-3 rounded-lg border border-gray-700/50 bg-gray-800/40">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{formatLabel(key)}</p>
-              <p className="text-[13px] text-gray-200 font-medium">{formatLabel(value)}</p>
+            <div key={key} className="text-center p-3 rounded-lg border border-border/50 bg-card/40">
+              <p className="text-caption text-muted-foreground/70 uppercase tracking-wider mb-1">{formatLabel(key)}</p>
+              <p className="text-body-sm text-foreground font-medium">{formatLabel(value)}</p>
             </div>
           ))}
         </div>
@@ -293,16 +293,16 @@ export function CreatorStyleProfileRenderer({
             { label: 'Music Tone', value: profile.aesthetic_profile.music_tone },
             { label: 'Typography', value: profile.aesthetic_profile.typography_style },
           ].map((item) => (
-            <div key={item.label} className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3">
-              <p className="text-[11px] text-gray-500 font-medium mb-1">{item.label}</p>
-              <p className="text-[13px] text-gray-300">{item.value}</p>
+            <div key={item.label} className="rounded-lg border border-border/50 bg-card/40 p-3">
+              <p className="text-caption text-muted-foreground/70 font-medium mb-1">{item.label}</p>
+              <p className="text-body-sm text-muted-foreground">{item.value}</p>
             </div>
           ))}
-          <div className="rounded-lg border border-gray-700/50 bg-gray-800/40 p-3">
-            <p className="text-[11px] text-gray-500 font-medium mb-1">Pacing</p>
+          <div className="rounded-lg border border-border/50 bg-card/40 p-3">
+            <p className="text-caption text-muted-foreground/70 font-medium mb-1">Pacing</p>
             <div className="flex flex-wrap gap-1">
               {profile.aesthetic_profile.pacing_descriptors.map((d, i) => (
-                <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-300">
+                <span key={i} className="text-caption px-1.5 py-0.5 rounded bg-muted/50 text-muted-foreground">
                   {d}
                 </span>
               ))}
@@ -313,19 +313,19 @@ export function CreatorStyleProfileRenderer({
 
       {/* Recommendations */}
       <CardWrapper accentColor="bg-amber-500">
-        <p className="text-[11px] font-medium text-amber-400 uppercase tracking-wider mb-3">Recommendations</p>
+        <p className="text-caption font-medium text-amber-400 uppercase tracking-wider mb-3">Recommendations</p>
         <div className="space-y-3">
           <div>
-            <p className="text-[12px] text-gray-500 font-medium">Voice</p>
-            <p className="text-[13px] text-gray-300">{profile.recommended_voice}</p>
+            <p className="text-body-sm text-muted-foreground/70 font-medium">Voice</p>
+            <p className="text-body-sm text-muted-foreground">{profile.recommended_voice}</p>
           </div>
           <div>
-            <p className="text-[12px] text-gray-500 font-medium">Hook Style</p>
-            <p className="text-[13px] text-gray-300">{profile.recommended_hook_style}</p>
+            <p className="text-body-sm text-muted-foreground/70 font-medium">Hook Style</p>
+            <p className="text-body-sm text-muted-foreground">{profile.recommended_hook_style}</p>
           </div>
           <div>
-            <p className="text-[12px] text-gray-500 font-medium">Structure</p>
-            <p className="text-[13px] text-gray-300">{profile.recommended_structure}</p>
+            <p className="text-body-sm text-muted-foreground/70 font-medium">Structure</p>
+            <p className="text-body-sm text-muted-foreground">{profile.recommended_structure}</p>
           </div>
         </div>
       </CardWrapper>

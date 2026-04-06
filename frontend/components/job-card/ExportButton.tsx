@@ -200,45 +200,45 @@ export function ExportButton({ jobId, onExportStart, onExportComplete }: ExportB
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-56 rounded-lg bg-gray-800 border border-gray-700 shadow-xl z-50"
+            className="absolute right-0 mt-2 w-56 rounded-lg bg-card border border-border shadow-xl z-50"
           >
             <div className="py-1">
               <button
                 onClick={handleExportToGoogleDocs}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 transition"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-muted transition"
               >
                 <svg className="h-5 w-5 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z" />
                 </svg>
                 <div className="text-left">
                   <div className="font-medium">Export to Google Docs</div>
-                  <div className="text-xs text-gray-400">Opens in new tab</div>
+                  <div className="text-xs text-muted-foreground">Opens in new tab</div>
                 </div>
               </button>
 
               <button
                 onClick={handleDownloadMarkdown}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 transition"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-muted transition"
               >
                 <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
                 <div className="text-left">
                   <div className="font-medium">Download Markdown</div>
-                  <div className="text-xs text-gray-400">.md file</div>
+                  <div className="text-xs text-muted-foreground">.md file</div>
                 </div>
               </button>
 
               <button
                 onClick={handleCopyToClipboard}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-200 hover:bg-gray-700 transition"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-muted transition"
               >
                 <svg className="h-5 w-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                 </svg>
                 <div className="text-left">
                   <div className="font-medium">Copy to Clipboard</div>
-                  <div className="text-xs text-gray-400">Plain text</div>
+                  <div className="text-xs text-muted-foreground">Plain text</div>
                 </div>
               </button>
             </div>

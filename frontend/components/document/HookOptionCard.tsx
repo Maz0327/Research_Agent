@@ -31,7 +31,7 @@ const HOOK_TYPE_STYLES: Record<string, { bg: string; text: string; border: strin
   'story_open':  { bg: 'bg-purple-900/40', text: 'text-purple-400', border: 'border-purple-800/30' },
 };
 
-const DEFAULT_STYLE = { bg: 'bg-gray-700/40', text: 'text-gray-400', border: 'border-gray-600/30' };
+const DEFAULT_STYLE = { bg: 'bg-muted/40', text: 'text-muted-foreground', border: 'border-border/30' };
 
 function getHookTypeStyle(hookType: string) {
   const normalized = hookType.toLowerCase().replace(/[\s_]+/g, '-').trim();
@@ -73,10 +73,10 @@ export function HookOptionCard({ hook, index, isSelected, onSelect, showDetails 
       onClick={() => onSelect(index)}
       className={`
         relative w-full text-left rounded-lg border p-4 sm:p-5 transition-all duration-200
-        bg-gray-800/40 overflow-hidden group
+        bg-card/40 overflow-hidden group
         ${isSelected
           ? 'border-amber-500/60 ring-1 ring-amber-500/30 shadow-lg shadow-amber-900/10'
-          : 'border-gray-700/40 hover:border-gray-600/60 hover:bg-gray-800/60'
+          : 'border-border/40 hover:border-border/60 hover:bg-card/60'
         }
       `}
     >
@@ -89,11 +89,11 @@ export function HookOptionCard({ hook, index, isSelected, onSelect, showDetails 
         {/* Header: type badge + tone + copy button */}
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider ${typeStyle.bg} ${typeStyle.text} border ${typeStyle.border}`}>
+            <span className={`text-caption px-2 py-0.5 rounded font-semibold uppercase tracking-wider ${typeStyle.bg} ${typeStyle.text} border ${typeStyle.border}`}>
               {formatHookTypeLabel(hook.hook_type)}
             </span>
             {hook.tone && (
-              <span className="text-[11px] text-gray-500 italic">{hook.tone}</span>
+              <span className="text-caption text-muted-foreground/70 italic">{hook.tone}</span>
             )}
           </div>
 
@@ -102,10 +102,10 @@ export function HookOptionCard({ hook, index, isSelected, onSelect, showDetails 
             type="button"
             onClick={handleCopy}
             className={`
-              flex-shrink-0 text-[11px] px-2 py-1 rounded transition-all duration-200
+              flex-shrink-0 text-caption px-2 py-1 rounded transition-all duration-200
               ${copied
                 ? 'bg-green-900/40 text-green-400 border border-green-800/30'
-                : 'bg-gray-700/40 text-gray-500 border border-gray-600/30 opacity-0 group-hover:opacity-100 hover:text-gray-300 hover:bg-gray-700/60'
+                : 'bg-muted/40 text-muted-foreground/70 border border-border/30 opacity-0 group-hover:opacity-100 hover:text-muted-foreground hover:bg-muted/60'
               }
             `}
             title="Copy hook text"
@@ -115,14 +115,14 @@ export function HookOptionCard({ hook, index, isSelected, onSelect, showDetails 
         </div>
 
         {/* Hook content — the hero text */}
-        <p className="text-[16px] text-gray-100 leading-relaxed font-medium">
+        <p className="text-[16px] text-foreground leading-relaxed font-medium">
           &ldquo;{hook.content}&rdquo;
         </p>
 
         {/* Source basis pills */}
         {hook.source_basis?.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-gray-700/30">
-            <span className="text-[10px] text-gray-600 uppercase tracking-wider mr-1">Sources</span>
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-border/30">
+            <span className="text-caption text-muted-foreground/60 uppercase tracking-wider mr-1">Sources</span>
             {hook.source_basis.map(sid => (
               <CitationPill key={sid} sourceId={sid} showDetails={showDetails} />
             ))}

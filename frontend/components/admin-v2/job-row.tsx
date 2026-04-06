@@ -53,11 +53,11 @@ export function JobRow({ job, onCancel, onDelete }: JobRowProps) {
 
   return (
     <tr className="border-b border-border hover:bg-accent/30 transition-colors cursor-pointer">
-      <td className="px-4 py-3 text-[11px] font-mono text-muted-foreground">{shortId}</td>
+      <td className="px-4 py-3 text-caption font-mono text-muted-foreground">{shortId}</td>
       <td className="px-4 py-3 text-sm text-muted-foreground max-w-[200px] truncate">{title}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground">{userShort}</td>
       <td className="px-4 py-3">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${cfg.className}`}>
+        <span className={`text-caption px-1.5 py-0.5 rounded font-medium ${cfg.className}`}>
           {cfg.label}
         </span>
       </td>
@@ -68,7 +68,7 @@ export function JobRow({ job, onCancel, onDelete }: JobRowProps) {
           <button
             onClick={() => run(onCancel, 'cancel')}
             disabled={busy !== null}
-            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+            className="text-caption text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
           >
             {busy === 'cancel' ? '…' : 'Cancel'}
           </button>
@@ -77,7 +77,7 @@ export function JobRow({ job, onCancel, onDelete }: JobRowProps) {
           <button
             onClick={() => run(onDelete, 'delete')}
             disabled={busy !== null}
-            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+            className="text-caption text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
           >
             {busy === 'delete' ? '…' : 'Delete'}
           </button>
@@ -85,7 +85,7 @@ export function JobRow({ job, onCancel, onDelete }: JobRowProps) {
         {act === 'retry' && (
           <button
             disabled
-            className="text-[10px] text-primary opacity-70 cursor-not-allowed"
+            className="text-caption text-primary opacity-70 cursor-not-allowed"
           >
             Retry
           </button>

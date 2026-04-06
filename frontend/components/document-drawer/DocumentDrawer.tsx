@@ -54,9 +54,9 @@ export interface DocumentDrawerProps {
 
 const STATUS_STYLES: Record<DocStatus, { text: string; bg: string; label: string }> = {
   available: { text: 'text-green-400', bg: 'bg-green-900/30', label: 'Ready' },
-  not_available: { text: 'text-gray-600', bg: 'bg-gray-800/50', label: 'Not available' },
+  not_available: { text: 'text-muted-foreground/60', bg: 'bg-card/50', label: 'Not available' },
   running: { text: 'text-blue-400', bg: 'bg-blue-900/30', label: 'Running...' },
-  locked: { text: 'text-gray-600', bg: 'bg-gray-800/50', label: 'Coming Soon' },
+  locked: { text: 'text-muted-foreground/60', bg: 'bg-card/50', label: 'Coming Soon' },
 };
 
 // =============================================================================
@@ -113,15 +113,15 @@ export function DocumentDrawer({
                   animate={{ x: 0 }}
                   exit={{ x: prefersReducedMotion ? 0 : '100%' }}
                   transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 300 }}
-                  className="fixed right-0 top-0 bottom-0 w-80 bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
+                  className="fixed right-0 top-0 bottom-0 w-80 bg-background border-l border-border z-50 overflow-y-auto"
                 >
             {/* Header */}
-            <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-5 py-4 z-10">
+            <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border px-5 py-4 z-10">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-gray-200">Documents</h2>
+                <h2 className="text-base font-semibold text-foreground">Documents</h2>
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
                   aria-label="Close drawer"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +133,7 @@ export function DocumentDrawer({
 
             {/* Core Documents */}
             <div className="px-4 py-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">
+              <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide px-1 mb-2">
                 Core
               </p>
               <div className="space-y-1">
@@ -158,7 +158,7 @@ export function DocumentDrawer({
 
             {/* Optional Documents */}
             <div className="px-4 pb-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-1 mb-2">
+              <p className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide px-1 mb-2">
                 Optional
               </p>
               <div className="space-y-1">
@@ -218,7 +218,7 @@ function DrawerItem({ doc, isSelected, onClick, onVersionClick }: DrawerItemProp
         ${isSelected
           ? 'bg-amber-900/20 border border-amber-700/40'
           : isClickable
-            ? 'hover:bg-gray-800 cursor-pointer border border-transparent'
+            ? 'hover:bg-card cursor-pointer border border-transparent'
             : 'opacity-50 cursor-not-allowed border border-transparent'
         }
       `}
@@ -237,14 +237,14 @@ function DrawerItem({ doc, isSelected, onClick, onVersionClick }: DrawerItemProp
       {/* Title + subtitle */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-medium ${isClickable ? 'text-gray-200' : 'text-gray-500'}`}>
+          <span className={`text-sm font-medium ${isClickable ? 'text-foreground' : 'text-muted-foreground/70'}`}>
             {doc.title}
           </span>
           {doc.isHero && (
             <span className="text-amber-400 text-xs" title="Hero Document">⭐</span>
           )}
         </div>
-        <p className="text-xs text-gray-500 truncate">{doc.subtitle}</p>
+        <p className="text-xs text-muted-foreground/70 truncate">{doc.subtitle}</p>
       </div>
 
       {/* Right side: version or status */}
@@ -255,7 +255,7 @@ function DrawerItem({ doc, isSelected, onClick, onVersionClick }: DrawerItemProp
               e.stopPropagation();
               onVersionClick?.();
             }}
-            className="text-xs text-gray-500 hover:text-gray-300 font-mono px-1.5 py-0.5 rounded hover:bg-gray-700 transition-colors"
+            className="text-xs text-muted-foreground/70 hover:text-muted-foreground font-mono px-1.5 py-0.5 rounded hover:bg-muted transition-colors"
             title="View versions"
           >
             v{doc.version}
@@ -268,7 +268,7 @@ function DrawerItem({ doc, isSelected, onClick, onVersionClick }: DrawerItemProp
           <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
         )}
         {doc.status === 'locked' && (
-          <span className="text-gray-600 text-xs">🔒</span>
+          <span className="text-muted-foreground/60 text-xs">🔒</span>
         )}
       </div>
     </div>

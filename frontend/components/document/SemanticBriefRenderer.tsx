@@ -40,12 +40,12 @@ function SCQASection({ scqa }: { scqa: SCQA }) {
 
   return (
     <CardWrapper accentColor="bg-indigo-500">
-      <p className="text-[11px] font-medium text-indigo-400 uppercase tracking-wider mb-3">The Big Picture</p>
+      <p className="text-caption font-medium text-indigo-400 uppercase tracking-wider mb-3">The Big Picture</p>
       <div className="space-y-3">
         {items.map(item => (
           <div key={item.label}>
-            <span className={`text-[12px] font-semibold ${item.color} uppercase tracking-wider`}>{item.label}</span>
-            <p className="text-[14px] text-foreground leading-relaxed mt-0.5">{item.value}</p>
+            <span className={`text-body-sm font-semibold ${item.color} uppercase tracking-wider`}>{item.label}</span>
+            <p className="text-body text-foreground leading-relaxed mt-0.5">{item.value}</p>
           </div>
         ))}
       </div>
@@ -57,13 +57,13 @@ function ConfidenceSection({ assessment }: { assessment: ConfidenceAssessment })
   return (
     <CardWrapper>
       <div className="flex items-center gap-3 mb-3">
-        <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Confidence Assessment</p>
+        <p className="text-caption font-medium text-muted-foreground/60 uppercase tracking-wider">Confidence Assessment</p>
         <ConfidenceBadge level={assessment.level} size="md" />
       </div>
       {assessment.reasoning?.length > 0 && (
         <ul className="space-y-1.5">
           {assessment.reasoning.map((r, i) => (
-            <li key={i} className="text-[13px] text-muted-foreground leading-relaxed flex gap-2">
+            <li key={i} className="text-body-sm text-muted-foreground leading-relaxed flex gap-2">
               <span className="text-muted-foreground/40 flex-shrink-0 mt-0.5">&#8226;</span>
               <span>{r}</span>
             </li>
@@ -84,17 +84,17 @@ function ThemeCard({ theme, keyPoints, showDetails }: { theme: Theme; keyPoints:
     <CardWrapper accentColor="bg-purple-500">
       <div className="flex items-center gap-2 mb-1">
         {showDetails && (
-          <span className="text-[11px] font-medium text-purple-400/70 uppercase tracking-wider">{formatInternalId(theme.theme_id)} ({theme.theme_id})</span>
+          <span className="text-caption font-medium text-purple-400/70 uppercase tracking-wider">{formatInternalId(theme.theme_id)} ({theme.theme_id})</span>
         )}
         {theme.is_consensus && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800/30">Multiple sources agree</span>
+          <span className="text-caption px-1.5 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800/30">Multiple sources agree</span>
         )}
         {theme.confidence && <ConfidenceBadge level={theme.confidence} />}
       </div>
-      <h3 className="text-[16px] font-semibold text-gray-100 mb-1">{theme.label}</h3>
+      <h3 className="text-[16px] font-semibold text-foreground mb-1">{theme.label}</h3>
       {/* "So what?" label — makes themes instantly scannable for creators */}
-      <p className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider mb-1 mt-2">So what?</p>
-      <p className="text-[14px] text-muted-foreground leading-relaxed">{theme.description}</p>
+      <p className="text-caption font-semibold text-amber-400 uppercase tracking-wider mb-1 mt-2">So what?</p>
+      <p className="text-body text-muted-foreground leading-relaxed">{theme.description}</p>
 
       {/* Source pills */}
       {theme.sources_supporting?.length > 0 && (
@@ -108,10 +108,10 @@ function ThemeCard({ theme, keyPoints, showDetails }: { theme: Theme; keyPoints:
       {/* Related key points */}
       {relatedKPs?.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border/30">
-          <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Related Findings</p>
+          <p className="text-caption font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Related Findings</p>
           <ul className="space-y-1.5">
             {relatedKPs.map(kp => (
-              <li key={kp.key_point_id} className="text-[13px] text-muted-foreground leading-relaxed flex gap-2">
+              <li key={kp.key_point_id} className="text-body-sm text-muted-foreground leading-relaxed flex gap-2">
                 <span className="text-purple-500/50 flex-shrink-0 mt-0.5">&#8226;</span>
                 <span>{kp.statement}</span>
               </li>
@@ -128,21 +128,21 @@ function TensionCard({ tension, showDetails }: { tension: Tension; showDetails: 
     <CardWrapper accentColor="bg-red-500/60">
       <div className="flex items-center gap-2 mb-2">
         {showDetails && (
-          <span className="text-[11px] font-medium text-red-400/70 uppercase tracking-wider">{formatInternalId(tension.tension_id)} ({tension.tension_id})</span>
+          <span className="text-caption font-medium text-red-400/70 uppercase tracking-wider">{formatInternalId(tension.tension_id)} ({tension.tension_id})</span>
         )}
         {tension.is_cross_source && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800/30">Sources disagree</span>
+          <span className="text-caption px-1.5 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800/30">Sources disagree</span>
         )}
         {tension.confidence && <ConfidenceBadge level={tension.confidence} />}
       </div>
-      <p className="text-[14px] font-medium text-foreground mb-1">{tension.label}</p>
-      <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">{tension.description}</p>
+      <p className="text-body font-medium text-foreground mb-1">{tension.label}</p>
+      <p className="text-body-sm text-muted-foreground leading-relaxed mb-3">{tension.description}</p>
 
       {/* Two-column positions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {tension.sources_position_a?.length > 0 && (
           <div className="bg-secondary/40 rounded p-2 sm:p-3">
-            <p className="text-[11px] font-medium text-muted-foreground/60 uppercase mb-1.5">Position A</p>
+            <p className="text-caption font-medium text-muted-foreground/60 uppercase mb-1.5">Position A</p>
             <div className="flex flex-wrap gap-1">
               {tension.sources_position_a.map(sid => (
                 <CitationPill key={sid} sourceId={sid} showDetails={showDetails} />
@@ -152,7 +152,7 @@ function TensionCard({ tension, showDetails }: { tension: Tension; showDetails: 
         )}
         {tension.sources_position_b?.length > 0 && (
           <div className="bg-secondary/40 rounded p-2 sm:p-3">
-            <p className="text-[11px] font-medium text-muted-foreground/60 uppercase mb-1.5">Position B</p>
+            <p className="text-caption font-medium text-muted-foreground/60 uppercase mb-1.5">Position B</p>
             <div className="flex flex-wrap gap-1">
               {tension.sources_position_b.map(sid => (
                 <CitationPill key={sid} sourceId={sid} showDetails={showDetails} />
@@ -170,18 +170,18 @@ function GapCard({ gap, showDetails }: { gap: Gap; showDetails: boolean }) {
     <CardWrapper accentColor="bg-amber-500/60">
       {showDetails && (
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[11px] font-medium text-amber-500/70 uppercase tracking-wider">{formatInternalId(gap.gap_id)} ({gap.gap_id})</span>
+          <span className="text-caption font-medium text-amber-500/70 uppercase tracking-wider">{formatInternalId(gap.gap_id)} ({gap.gap_id})</span>
         </div>
       )}
-      <p className="text-[14px] font-medium text-foreground mb-1">{gap.label}</p>
-      <p className="text-[13px] text-muted-foreground leading-relaxed">{gap.description}</p>
+      <p className="text-body font-medium text-foreground mb-1">{gap.label}</p>
+      <p className="text-body-sm text-muted-foreground leading-relaxed">{gap.description}</p>
       {gap.why_expected && (
-        <p className="text-[12px] text-muted-foreground/60 mt-1.5 italic">Why expected: {gap.why_expected}</p>
+        <p className="text-body-sm text-muted-foreground/60 mt-1.5 italic">Why expected: {gap.why_expected}</p>
       )}
       {gap.suggested_research_direction && (
         <div className="mt-2 flex items-start gap-1.5">
-          <span className="text-[11px] text-green-500 flex-shrink-0 mt-0.5">→</span>
-          <span className="text-[12px] text-green-400/80">{gap.suggested_research_direction}</span>
+          <span className="text-caption text-green-500 flex-shrink-0 mt-0.5">→</span>
+          <span className="text-body-sm text-green-400/80">{gap.suggested_research_direction}</span>
         </div>
       )}
     </CardWrapper>
@@ -211,7 +211,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       {/* Semantic core */}
       {data.semantic_core?.text && (
         <div className="text-center pb-4 border-b border-border/30">
-          <p className="text-[14px] sm:text-[15px] text-foreground leading-relaxed max-w-none sm:max-w-[700px] mx-auto italic">
+          <p className="text-body sm:text-body-lg text-foreground leading-relaxed max-w-none sm:max-w-[700px] mx-auto italic">
             &ldquo;{data.semantic_core.text}&rdquo;
           </p>
           {/* based_on contains internal KP_ IDs — only show in debug mode */}
@@ -226,7 +226,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       )}
 
       {/* Stats bar */}
-      <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 justify-center text-[13px] text-muted-foreground">
+      <div className="flex flex-wrap gap-x-2 sm:gap-x-4 gap-y-1 justify-center text-body-sm text-muted-foreground">
         <span>{themeCount} patterns</span>
         <span className="text-muted-foreground/40">&#183;</span>
         <span>{data.key_points?.length || 0} findings</span>
@@ -250,7 +250,7 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       {data.warnings?.length > 0 && (
         <div className="space-y-2">
           {data.warnings.map((w, i) => (
-            <div key={i} className="flex items-start gap-2 text-[13px] text-yellow-400/80 bg-yellow-900/10 border border-yellow-800/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
+            <div key={i} className="flex items-start gap-2 text-body-sm text-yellow-400/80 bg-yellow-900/10 border border-yellow-800/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5">
               <span className="flex-shrink-0 mt-0.5">⚠</span>
               <span>{w}</span>
             </div>
@@ -322,16 +322,16 @@ export function SemanticBriefRenderer({ data, showDetails = false }: SemanticBri
       {/* Speculative observations — collapsed by default */}
       {data.speculative_observations?.length > 0 && (
         <div>
-          <SectionHeader title="Worth Exploring" accentColor="bg-gray-600" count={data.speculative_observations.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
+          <SectionHeader title="Worth Exploring" accentColor="bg-secondary" count={data.speculative_observations.length} sectionIndex={++sectionIdx} totalSections={totalSections} />
           <div className="mt-3">
             <CollapsibleSection label="View speculative observations" itemCount={data.speculative_observations.length}>
               <div className="space-y-3">
                 {data.speculative_observations.map((obs, i) => (
-                  <CardWrapper key={i} accentColor="bg-gray-600">
+                  <CardWrapper key={i} accentColor="bg-secondary">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-gray-600/30 italic">Speculative</span>
+                      <span className="text-caption px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border/30 italic">Speculative</span>
                     </div>
-                    <p className="text-[14px] text-muted-foreground leading-relaxed italic">{obs.text}</p>
+                    <p className="text-body text-muted-foreground leading-relaxed italic">{obs.text}</p>
                     {obs.based_on?.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {obs.based_on.map(sid => (

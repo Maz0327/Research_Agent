@@ -21,9 +21,9 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
           <span className="text-sm text-amber-300">Generating Quick Brief preview…</span>
         </div>
         <div className="space-y-3 animate-pulse">
-          <div className="h-4 w-3/4 bg-gray-800 rounded" />
-          <div className="h-4 w-1/2 bg-gray-800 rounded" />
-          <div className="h-4 w-2/3 bg-gray-800 rounded" />
+          <div className="h-4 w-3/4 bg-card rounded" />
+          <div className="h-4 w-1/2 bg-card rounded" />
+          <div className="h-4 w-2/3 bg-card rounded" />
         </div>
       </div>
     );
@@ -41,8 +41,8 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
 
   if (!hasContent) {
     return (
-      <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-6 text-center">
-        <p className="text-sm text-gray-500">No preview available yet. Click &ldquo;Generate Quick Brief&rdquo; to see a preview.</p>
+      <div className="rounded-xl border border-border bg-background/50 p-6 text-center">
+        <p className="text-sm text-muted-foreground/70">No preview available yet. Click &ldquo;Generate Quick Brief&rdquo; to see a preview.</p>
       </div>
     );
   }
@@ -69,13 +69,13 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
         {/* Hooks */}
         {hookOptions.length > 0 && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Hook Options</h4>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Hook Options</h4>
             <div className="space-y-2">
               {hookOptions.slice(0, 2).map((hook, i) => (
-                <div key={i} className="rounded-lg border border-gray-700/50 bg-gray-800/30 p-3">
-                  <p className="text-sm text-gray-200">{hook.text}</p>
+                <div key={i} className="rounded-lg border border-border/50 bg-card/30 p-3">
+                  <p className="text-sm text-foreground">{hook.text}</p>
                   {hook.why_it_works && (
-                    <p className="text-xs text-gray-500 mt-1 italic">{hook.why_it_works}</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1 italic">{hook.why_it_works}</p>
                   )}
                 </div>
               ))}
@@ -86,17 +86,17 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
         {/* Setup */}
         {setup?.text && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Setup</h4>
-            <p className="text-sm text-gray-300 leading-relaxed">{setup.text}</p>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Setup</h4>
+            <p className="text-sm text-muted-foreground leading-relaxed">{setup.text}</p>
           </div>
         )}
 
         {/* Twist */}
         {twist?.text && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Twist</h4>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Twist</h4>
             <div className="rounded-lg border-l-2 border-amber-500/50 pl-3">
-              <p className="text-sm text-gray-300">{twist.text}</p>
+              <p className="text-sm text-muted-foreground">{twist.text}</p>
             </div>
           </div>
         )}
@@ -104,15 +104,15 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
         {/* Core Facts */}
         {coreFacts.length > 0 && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Core Facts</h4>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Core Facts</h4>
             <div className="space-y-2">
               {coreFacts.slice(0, 3).map((fact, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="text-amber-400 mt-0.5 text-xs">●</span>
                   <div>
-                    <p className="text-sm text-gray-200">{fact.statement}</p>
+                    <p className="text-sm text-foreground">{fact.statement}</p>
                     {fact.significance && (
-                      <p className="text-xs text-gray-500 mt-0.5">{fact.significance}</p>
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">{fact.significance}</p>
                     )}
                   </div>
                 </div>
@@ -124,9 +124,9 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
         {/* Analogy */}
         {analogy?.text && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Analogy</h4>
-            <div className="rounded-lg bg-gray-800/30 border border-gray-700/50 p-3">
-              <p className="text-sm text-gray-300 italic">{analogy.text}</p>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Analogy</h4>
+            <div className="rounded-lg bg-card/30 border border-border/50 p-3">
+              <p className="text-sm text-muted-foreground italic">{analogy.text}</p>
             </div>
           </div>
         )}
@@ -134,14 +134,14 @@ export default function QuickBriefPreview({ brief, isLoading }: QuickBriefPrevie
         {/* Cliffhanger */}
         {cliffhanger?.text && (
           <div>
-            <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Cliffhanger</h4>
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Cliffhanger</h4>
             <p className="text-sm text-amber-200/80 font-medium">{cliffhanger.text}</p>
           </div>
         )}
       </div>
 
       {/* Desaturation overlay */}
-      <div className="absolute inset-0 pointer-events-none bg-gray-900/10 mix-blend-saturation rounded-xl" />
+      <div className="absolute inset-0 pointer-events-none bg-background/10 mix-blend-saturation rounded-xl" />
     </motion.div>
   );
 }

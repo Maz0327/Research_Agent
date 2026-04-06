@@ -35,22 +35,22 @@ export function SectionHeader({
       <div className={`w-1 self-stretch rounded-full ${accentColor} flex-shrink-0 mt-0.5`} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap">
-          {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
-          <Tag className={`${titleSize} text-gray-100`}>{title}</Tag>
+          {icon && <span className="text-muted-foreground flex-shrink-0">{icon}</span>}
+          <Tag className={`${titleSize} text-foreground`}>{title}</Tag>
           {count !== undefined && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-700/60 text-gray-400">
+            <span className="px-2 py-0.5 rounded-full text-caption font-medium bg-muted/60 text-muted-foreground">
               {count}
             </span>
           )}
           {/* Section progress indicator — reduces "how much more?" anxiety */}
           {sectionIndex !== undefined && totalSections !== undefined && (
-            <span className="text-[11px] text-gray-600 ml-auto flex-shrink-0">
+            <span className="text-caption text-muted-foreground/60 ml-auto flex-shrink-0">
               Section {sectionIndex} of {totalSections}
             </span>
           )}
         </div>
         {subtitle && (
-          <p className="text-sm text-gray-500 mt-0.5 ml-0">{subtitle}</p>
+          <p className="text-sm text-muted-foreground/70 mt-0.5 ml-0">{subtitle}</p>
         )}
       </div>
     </div>

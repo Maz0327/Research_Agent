@@ -5,16 +5,17 @@
  */
 
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 import { SkipLink } from '@/components/SkipLink';
 
-// Load Inter with CSS variable for flexible usage in Tailwind
-const inter = Inter({
+// Load Plus Jakarta Sans with CSS variable for flexible usage in Tailwind
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-sans',
   display: 'swap',
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -45,7 +46,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     // suppressHydrationWarning required by next-themes to avoid
     // hydration mismatch when switching between server/client theme class.
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={plusJakarta.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <SkipLink />
         <Providers>{children}</Providers>

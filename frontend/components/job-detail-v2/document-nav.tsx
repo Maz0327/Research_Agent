@@ -17,7 +17,7 @@ export interface DocNavItem {
 }
 
 const DOC_DEFINITIONS: DocNavItem[] = [
-  { docType: 0, label: 'Source Ledger',   subtitle: 'What was analyzed',      accentClass: 'text-zinc-400' },
+  { docType: 0, label: 'Source Ledger',   subtitle: 'What was analyzed',      accentClass: 'text-muted-foreground' },
   { docType: 1, label: 'Jump-Start',      subtitle: 'Where to go next',       accentClass: 'text-blue-400' },
   { docType: 2, label: 'Semantic Brief',  subtitle: 'What sources reveal',     accentClass: 'text-purple-400' },
   { docType: 3, label: 'Creator Brief',   subtitle: 'Your hero document',      accentClass: 'text-amber-400' },
@@ -78,11 +78,11 @@ export function DocumentNav({ artifacts, selectedDoc, onSelectDoc }: DocumentNav
                 <p className={cn('text-xs font-medium truncate', isActive ? 'text-blue-300' : 'text-foreground')}>
                   {doc.label}
                 </p>
-                <p className="text-[10px] text-muted-foreground truncate">{doc.subtitle}</p>
+                <p className="text-caption text-muted-foreground truncate">{doc.subtitle}</p>
               </div>
               <Badge
                 variant="outline"
-                className={cn('text-[10px] px-1 py-0 flex-shrink-0 border-border', doc.accentClass)}
+                className={cn('text-caption px-1 py-0 flex-shrink-0 border-border', doc.accentClass)}
               >
                 v1
               </Badge>

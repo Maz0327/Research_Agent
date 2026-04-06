@@ -19,7 +19,7 @@ interface SearchApprovalViewProps {
 function getScoreColor(score: number): string {
   if (score >= 0.7) return 'text-green-400';
   if (score >= 0.5) return 'text-yellow-400';
-  return 'text-gray-500';
+  return 'text-muted-foreground/70';
 }
 
 /** Width for score bar */
@@ -31,7 +31,7 @@ function getScoreBarWidth(score: number): string {
 function getScoreBarColor(score: number): string {
   if (score >= 0.7) return 'bg-green-500';
   if (score >= 0.5) return 'bg-yellow-500';
-  return 'bg-gray-600';
+  return 'bg-secondary';
 }
 
 /** Badge for provider */
@@ -39,7 +39,7 @@ function getProviderBadge(provider: string): { label: string; color: string } {
   switch (provider) {
     case 'tavily': return { label: 'Tavily', color: 'text-blue-400 bg-blue-400/10' };
     case 'serper': return { label: 'Serper', color: 'text-purple-400 bg-purple-400/10' };
-    default: return { label: provider, color: 'text-gray-400 bg-gray-400/10' };
+    default: return { label: provider, color: 'text-muted-foreground bg-muted/10' };
   }
 }
 
@@ -146,10 +146,10 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-gray-100 truncate">
+          <h3 className="text-lg font-semibold text-foreground truncate">
             Sources for: <span className="text-blue-300">{searchResults.topic}</span>
           </h3>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="text-sm text-muted-foreground/70 mt-0.5">
             Found {searchResults.total_found} source{searchResults.total_found !== 1 ? 's' : ''}
             {' · '}
             {selectedUrls.size} selected
@@ -157,7 +157,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
         </div>
         <button
           onClick={handleBack}
-          className="text-sm text-gray-400 hover:text-gray-300 transition flex-shrink-0 self-start sm:self-auto"
+          className="text-sm text-muted-foreground hover:text-muted-foreground transition flex-shrink-0 self-start sm:self-auto"
         >
           ← New Search
         </button>
@@ -170,8 +170,8 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
           {quickBrief ? (
             <QuickBriefPreview brief={quickBrief.brief} />
           ) : !isLoadingQuickBrief ? (
-            <div className="rounded-xl border border-gray-700 bg-gray-900/50 p-5">
-              <p className="text-sm text-gray-400 mb-3">
+            <div className="rounded-xl border border-border bg-background/50 p-5">
+              <p className="text-sm text-muted-foreground mb-3">
                 Generate a Quick Brief preview to see what your research will look like before committing.
               </p>
               <button
@@ -203,7 +203,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
         <div className="space-y-3">
           {/* Select all / deselect all */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Sources</span>
+            <span className="text-xs text-muted-foreground/70 uppercase tracking-wider font-medium">Sources</span>
             <div className="flex gap-2">
               <button
                 onClick={selectAll}
@@ -211,10 +211,10 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
               >
                 Select All
               </button>
-              <span className="text-gray-600">·</span>
+              <span className="text-muted-foreground/60">·</span>
               <button
                 onClick={deselectAll}
-                className="text-xs text-gray-400 hover:text-gray-300 transition"
+                className="text-xs text-muted-foreground hover:text-muted-foreground transition"
               >
                 Deselect All
               </button>
@@ -240,7 +240,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                     className={`w-full text-left rounded-lg border p-3 transition-all ${
                       isSelected
                         ? 'border-blue-500/50 bg-blue-500/5'
-                        : 'border-gray-700/50 bg-gray-800/20 opacity-60'
+                        : 'border-border/50 bg-card/20 opacity-60'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -248,7 +248,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                       <div className={`mt-0.5 flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition ${
                         isSelected
                           ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-600'
+                          : 'border-border'
                       }`}>
                         {isSelected && (
                           <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,12 +259,12 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-medium text-gray-200 truncate">
+                        <h4 className="text-sm font-medium text-foreground truncate">
                           {candidate.title || candidate.url}
                         </h4>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">{candidate.url}</p>
+                        <p className="text-xs text-muted-foreground/70 truncate mt-0.5">{candidate.url}</p>
                         {candidate.snippet && (
-                          <p className="text-xs text-gray-400 mt-1 line-clamp-2">{candidate.snippet}</p>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{candidate.snippet}</p>
                         )}
 
                         {/* Meta badges */}
@@ -272,14 +272,14 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
                           <span className={`text-xs px-1.5 py-0.5 rounded ${providerBadge.color}`}>
                             {providerBadge.label}
                           </span>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground/70">
                             {sourceType.icon} {sourceType.label}
                           </span>
                           <span className={`text-xs ${getScoreColor(candidate.relevance_score)}`}>
                             {Math.round(candidate.relevance_score * 100)}%
                           </span>
                           {/* Score bar */}
-                          <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden max-w-[60px]">
+                          <div className="flex-1 h-1 bg-card rounded-full overflow-hidden max-w-[60px]">
                             <div
                               className={`h-full rounded-full ${getScoreBarColor(candidate.relevance_score)}`}
                               style={{ width: getScoreBarWidth(candidate.relevance_score) }}
@@ -331,7 +331,7 @@ export default function SearchApprovalView({ onBack }: SearchApprovalViewProps) 
         <button
           onClick={handleBack}
           disabled={isApproving}
-          className="px-4 py-3 text-sm text-gray-400 hover:text-gray-300 transition"
+          className="px-4 py-3 text-sm text-muted-foreground hover:text-muted-foreground transition"
         >
           Cancel
         </button>

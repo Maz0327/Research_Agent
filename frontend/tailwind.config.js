@@ -12,13 +12,19 @@ module.exports = {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'var(--font-inter)',
-  				'Inter',
+  				'var(--font-sans)',
+  				'Plus Jakarta Sans',
   				'-apple-system',
   				'BlinkMacSystemFont',
   				'Segoe UI',
   				'sans-serif'
   			]
+  		},
+  		fontSize: {
+  			'caption': ['0.6875rem', { lineHeight: '1rem' }],      // 11px
+  			'body-sm': ['0.8125rem', { lineHeight: '1.25rem' }],   // 13px
+  			'body': ['0.875rem', { lineHeight: '1.375rem' }],      // 14px
+  			'body-lg': ['0.9375rem', { lineHeight: '1.5rem' }],    // 15px
   		},
   		colors: {
   			border: 'hsl(var(--border))',

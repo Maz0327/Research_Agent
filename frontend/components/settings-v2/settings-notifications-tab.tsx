@@ -101,7 +101,7 @@ export function SettingsNotificationsTab({
             </button>
           ))}
         </div>
-        <p className="mt-2 text-[10px] text-muted-foreground">
+        <p className="mt-2 text-caption text-muted-foreground">
           Choose how you want to receive notifications
         </p>
       </div>

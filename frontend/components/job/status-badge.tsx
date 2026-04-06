@@ -23,7 +23,7 @@ const STATUS_CONFIG: Record<JobStatus, StatusConfig> = {
   },
   queued: {
     label: 'Queued',
-    className: 'bg-zinc-800 text-zinc-300 border-zinc-700',
+    className: 'bg-card text-muted-foreground border-border',
   },
   completed: {
     label: 'Completed',

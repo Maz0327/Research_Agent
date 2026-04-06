@@ -32,7 +32,7 @@ export function ArticleSourceForm({ onAdd, onCancel }: ArticleSourceFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="articleUrls" className="mb-1.5 block text-sm font-medium text-gray-300">
+        <label htmlFor="articleUrls" className="mb-1.5 block text-sm font-medium text-muted-foreground">
           Article URLs
           {validUrls.length > 0 && (
             <span className="ml-2 text-blue-400">({validUrls.length} valid)</span>
@@ -44,9 +44,9 @@ export function ArticleSourceForm({ onAdd, onCancel }: ArticleSourceFormProps) {
           onChange={(e) => setUrls(e.target.value)}
           placeholder={`Paste article URLs (one per line)\n\nhttps://example.com/article\nhttps://news.site.com/story`}
           rows={4}
-          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-gray-100 placeholder-gray-500 font-mono text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-foreground placeholder-gray-500 font-mono text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
-        <p className="mt-1.5 text-xs text-gray-500">
+        <p className="mt-1.5 text-xs text-muted-foreground/70">
           Articles will be fetched and analyzed. Paywalled content may not extract properly.
         </p>
       </div>
@@ -55,7 +55,7 @@ export function ArticleSourceForm({ onAdd, onCancel }: ArticleSourceFormProps) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-300 transition"
+          className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-muted-foreground transition"
         >
           Cancel
         </button>

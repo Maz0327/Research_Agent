@@ -18,10 +18,10 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, icon, count, confidence, className }: SectionHeaderProps) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      {icon && <span className="flex-shrink-0 text-zinc-400">{icon}</span>}
+      {icon && <span className="flex-shrink-0 text-muted-foreground">{icon}</span>}
       <span className="font-medium text-sm text-foreground">{title}</span>
       {count !== undefined && (
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-zinc-800 text-zinc-400">
+        <Badge variant="secondary" className="text-caption px-1.5 py-0 bg-card text-muted-foreground">
           {count}
         </Badge>
       )}

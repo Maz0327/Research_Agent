@@ -26,14 +26,14 @@ export function SettingsSection({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className="rounded-xl border border-gray-800 bg-gray-900 p-6 shadow-lg"
+      className="rounded-xl border border-border bg-background p-6 shadow-lg"
     >
-      <h2 className="mb-4 text-lg font-semibold text-gray-100 flex items-center gap-2">
+      <h2 className="mb-4 text-lg font-semibold text-foreground flex items-center gap-2">
         {icon && <span className="flex-shrink-0">{icon}</span>}
         {title}
       </h2>
       {description && (
-        <p className="mb-4 text-sm text-gray-400">{description}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{description}</p>
       )}
       {children}
     </motion.div>

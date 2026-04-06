@@ -56,7 +56,7 @@ function BatchUrlForm({ onAddVideos, onAddArticles, onCancel }: {
         onChange={(e) => setBatchText(e.target.value)}
         placeholder="Paste multiple URLs here (one per line or comma-separated)"
         rows={6}
-        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-sm text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         style={{ fontSize: '16px' }}
         autoFocus
       />
@@ -75,7 +75,7 @@ function BatchUrlForm({ onAddVideos, onAddArticles, onCancel }: {
         </div>
       )}
       <div className="flex gap-3">
-        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition">
+        <button onClick={onCancel} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition">
           Cancel
         </button>
         <button
@@ -131,15 +131,15 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="add-source-modal-title">
-      <div className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-900 shadow-xl">
+      <div className="w-full max-w-lg rounded-xl border border-border bg-background shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-700 px-5 py-4">
-          <h3 id="add-source-modal-title" className="text-lg font-semibold text-gray-100">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h3 id="add-source-modal-title" className="text-lg font-semibold text-foreground">
             {activeForm === 'batch' ? 'Paste Multiple URLs' : activeForm ? `Add ${activeForm.charAt(0).toUpperCase() + activeForm.slice(1)}` : 'Add Source'}
           </h3>
           <button
             onClick={handleClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-300 hover:bg-gray-800 transition"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-muted-foreground hover:bg-card transition"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -161,7 +161,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="text-sm font-medium">Video</span>
-                <span className="text-xs text-gray-500">YouTube URLs</span>
+                <span className="text-xs text-muted-foreground/70">YouTube URLs</span>
               </button>
 
               <button
@@ -172,7 +172,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 <span className="text-sm font-medium">Text</span>
-                <span className="text-xs text-gray-500">Paste content</span>
+                <span className="text-xs text-muted-foreground/70">Paste content</span>
               </button>
 
               <button
@@ -183,7 +183,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                 </svg>
                 <span className="text-sm font-medium">Article</span>
-                <span className="text-xs text-gray-500">Fetch URL</span>
+                <span className="text-xs text-muted-foreground/70">Fetch URL</span>
               </button>
 
               <button
@@ -194,7 +194,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span className="text-sm font-medium">Screenshot</span>
-                <span className="text-xs text-gray-500">Upload image</span>
+                <span className="text-xs text-muted-foreground/70">Upload image</span>
               </button>
 
               <button
@@ -205,7 +205,7 @@ export function AddSourceModal({ isOpen, onClose, onAddVideos, onAddText, onAddA
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
                 <span className="text-sm font-medium">Batch</span>
-                <span className="text-xs text-gray-500">Multiple URLs</span>
+                <span className="text-xs text-muted-foreground/70">Multiple URLs</span>
               </button>
             </div>
           ) : activeForm === 'video' ? (

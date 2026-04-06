@@ -119,7 +119,7 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
         className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           isDragging
             ? 'border-blue-500 bg-blue-500/10'
-            : 'border-gray-600 hover:border-gray-500'
+            : 'border-border hover:border-border'
         }`}
       >
         {preview ? (
@@ -133,9 +133,9 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
                 unoptimized  // Required for blob URLs from createObjectURL
               />
             </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <span>{file?.name}</span>
-              <span className="text-gray-600">•</span>
+              <span className="text-muted-foreground/60">•</span>
               <span>{file ? (file.size / 1024).toFixed(1) : 0} KB</span>
             </div>
             <button
@@ -149,7 +149,7 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
         ) : (
           <div className="space-y-2">
             <svg
-              className="mx-auto h-12 w-12 text-gray-500"
+              className="mx-auto h-12 w-12 text-muted-foreground/70"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -161,7 +161,7 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               Drag and drop an image, or{' '}
               <button
                 type="button"
@@ -171,7 +171,7 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
                 browse
               </button>
             </p>
-            <p className="text-xs text-gray-500">PNG, JPEG, WebP, GIF up to 10MB</p>
+            <p className="text-xs text-muted-foreground/70">PNG, JPEG, WebP, GIF up to 10MB</p>
           </div>
         )}
         <input
@@ -185,13 +185,13 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
 
       {/* Platform hint selector */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Screenshot Source (helps OCR accuracy)
         </label>
         <select
           value={platformHint}
           onChange={(e) => setPlatformHint(e.target.value)}
-          className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         >
           {SCREENSHOT_PLATFORM_HINTS.map((hint) => (
             <option key={hint.value} value={hint.value}>
@@ -211,7 +211,7 @@ export function ScreenshotSourceForm({ onAdd, onCancel }: ScreenshotSourceFormPr
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-300"
+          className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-muted-foreground"
         >
           Cancel
         </button>

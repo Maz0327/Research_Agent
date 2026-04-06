@@ -131,7 +131,7 @@ export function StageProgress({
               {!compact && (
                 <span
                   className={cn(
-                    'text-[10px] font-medium text-center leading-tight',
+                    'text-caption font-medium text-center leading-tight',
                     state === 'active' && 'text-accent-blue',
                     state === 'completed' && 'text-accent-green',
                     state === 'pending' && 'text-muted-foreground'

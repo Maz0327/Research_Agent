@@ -16,7 +16,7 @@ export function SettingsToggleRow({ label, description, checked, onChange }: Set
     <div className="flex items-center justify-between">
       <div>
         <p className="text-sm text-foreground/80">{label}</p>
-        {description && <p className="text-[10px] text-muted-foreground mt-0.5">{description}</p>}
+        {description && <p className="text-caption text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <button
         role="switch"

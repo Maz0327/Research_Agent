@@ -82,7 +82,7 @@ export function ErrorCard({ error, onDismiss, onRetry }: ErrorCardProps) {
             <h3 className={`text-sm font-medium ${critical ? 'text-destructive' : 'text-orange-400'}`}>
               {error.user_message}
             </h3>
-            <span className="text-[10px] text-muted-foreground flex-shrink-0">
+            <span className="text-caption text-muted-foreground flex-shrink-0">
               {relativeTime(error.created_at)}
             </span>
           </div>
@@ -94,7 +94,7 @@ export function ErrorCard({ error, onDismiss, onRetry }: ErrorCardProps) {
           </p>
 
           {error.stack_trace && (
-            <pre className="text-[10px] bg-muted/40 rounded-lg p-2 text-muted-foreground overflow-x-auto mb-2 whitespace-pre-wrap break-all">
+            <pre className="text-caption bg-muted/40 rounded-lg p-2 text-muted-foreground overflow-x-auto mb-2 whitespace-pre-wrap break-all">
               {error.stack_trace.slice(0, 200)}{error.stack_trace.length > 200 ? '…' : ''}
             </pre>
           )}
@@ -104,7 +104,7 @@ export function ErrorCard({ error, onDismiss, onRetry }: ErrorCardProps) {
               <button
                 onClick={handleRetry}
                 disabled={busy}
-                className="text-[10px] text-primary hover:underline disabled:opacity-50 cursor-pointer"
+                className="text-caption text-primary hover:underline disabled:opacity-50 cursor-pointer"
               >
                 {busyRetry ? '…' : 'Retry Job'}
               </button>
@@ -113,7 +113,7 @@ export function ErrorCard({ error, onDismiss, onRetry }: ErrorCardProps) {
               <button
                 onClick={handleDismiss}
                 disabled={busy}
-                className="text-[10px] text-primary hover:underline disabled:opacity-50 cursor-pointer"
+                className="text-caption text-primary hover:underline disabled:opacity-50 cursor-pointer"
               >
                 {busyDismiss ? '…' : 'Resolve'}
               </button>
@@ -122,13 +122,13 @@ export function ErrorCard({ error, onDismiss, onRetry }: ErrorCardProps) {
               <button
                 onClick={handleDismiss}
                 disabled={busy}
-                className="text-[10px] text-muted-foreground hover:underline disabled:opacity-50 cursor-pointer"
+                className="text-caption text-muted-foreground hover:underline disabled:opacity-50 cursor-pointer"
               >
                 {busyDismiss ? '…' : 'Dismiss'}
               </button>
             )}
             {error.resolved && (
-              <span className="text-[10px] text-green-400">Resolved</span>
+              <span className="text-caption text-green-400">Resolved</span>
             )}
           </div>
         </div>

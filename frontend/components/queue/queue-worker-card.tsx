@@ -25,10 +25,10 @@ export function WorkerCard({ name, jobTitle, progress, idle }: WorkerCardProps) 
       </div>
 
       {idle ? (
-        <p className="text-[11px] text-muted-foreground/60">Idle — ready for next job</p>
+        <p className="text-caption text-muted-foreground/60">Idle — ready for next job</p>
       ) : (
         <>
-          <p className="text-[11px] text-muted-foreground truncate">{jobTitle}</p>
+          <p className="text-caption text-muted-foreground truncate">{jobTitle}</p>
           <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
             <div
               className="h-full rounded-full bg-accent-blue transition-all"

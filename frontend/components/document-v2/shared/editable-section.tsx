@@ -42,7 +42,7 @@ export function EditableSection({ content, sectionId, onSave, editable = true, c
           <ProseBlock content={content} />
           <button
             onClick={() => setIsEditing(true)}
-            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/40 hover:text-zinc-200"
+            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-caption px-1.5 py-0.5 rounded bg-card text-muted-foreground border border-border/40 hover:text-foreground"
             title="Edit section"
           >
             Edit
@@ -53,13 +53,13 @@ export function EditableSection({ content, sectionId, onSave, editable = true, c
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            className="w-full min-h-[120px] text-sm text-zinc-200 bg-zinc-900 border border-blue-500/40 rounded-md p-3 resize-y focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+            className="w-full min-h-[120px] text-sm text-foreground bg-background border border-blue-500/40 rounded-md p-3 resize-y focus:outline-none focus:ring-1 focus:ring-blue-500/40"
             autoFocus
           />
           <div className="flex gap-2 justify-end">
             <button
               onClick={handleCancel}
-              className="text-xs px-3 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/40 hover:text-zinc-200 transition-colors"
+              className="text-xs px-3 py-1 rounded bg-card text-muted-foreground border border-border/40 hover:text-foreground transition-colors"
             >
               Cancel
             </button>

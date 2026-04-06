@@ -34,12 +34,12 @@ const MODE_LABELS: Record<string, string> = {
 function getRunTypeBadgeClass(runType: RunType): string {
   const canonical = normalizeRunType(runType);
   const colors: Record<string, string> = {
-    baseline: 'bg-gray-600 text-gray-200',
+    baseline: 'bg-secondary text-foreground',
     expand: 'bg-blue-600 text-blue-100',
     refine: 'bg-orange-600 text-orange-100',
     regenerate: 'bg-red-600 text-red-100',
   };
-  return colors[canonical] || 'bg-gray-600 text-gray-200';
+  return colors[canonical] || 'bg-secondary text-foreground';
 }
 
 export interface RunSelectorProps {
@@ -108,14 +108,14 @@ export function RunSelector({
       {/* Trigger button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600 transition-colors"
+        className="flex items-center justify-between w-full px-4 py-3 bg-card border border-border rounded-lg hover:border-border transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-gray-400 text-sm">Viewing:</span>
+          <span className="text-muted-foreground text-sm">Viewing:</span>
           <span className="text-white font-medium">{getSelectedLabel()}</span>
         </div>
         <svg
-          className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -132,7 +132,7 @@ export function RunSelector({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute z-20 w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+            className="absolute z-20 w-full mt-2 bg-card border border-border rounded-lg shadow-xl overflow-hidden max-h-80 overflow-y-auto"
           >
             {/* Baseline option */}
             <button
@@ -141,9 +141,9 @@ export function RunSelector({
                 setIsOpen(false);
               }}
               className={`
-                w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors
+                w-full px-4 py-3 text-left hover:bg-muted transition-colors
                 flex items-center justify-between
-                ${selectedVersion === 'baseline' || selectedVersion === 'run_0' ? 'bg-gray-700' : ''}
+                ${selectedVersion === 'baseline' || selectedVersion === 'run_0' ? 'bg-muted' : ''}
               `}
             >
               <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export function RunSelector({
                 </span>
                 <div>
                   <p className="text-white font-medium">Baseline (original)</p>
-                  <p className="text-sm text-gray-400">Initial research results</p>
+                  <p className="text-sm text-muted-foreground">Initial research results</p>
                 </div>
               </div>
               {(selectedVersion === 'baseline' || selectedVersion === 'run_0') && (
@@ -163,7 +163,7 @@ export function RunSelector({
             {/* V2 Runs Section */}
             {completedRuns.length > 0 && (
               <>
-                <div className="px-4 py-2 text-xs text-gray-500 bg-gray-900/50 border-t border-gray-700">
+                <div className="px-4 py-2 text-xs text-muted-foreground/70 bg-background/50 border-t border-border">
                   RUNS
                 </div>
                 {completedRuns.map(run => {
@@ -176,9 +176,9 @@ export function RunSelector({
                         setIsOpen(false);
                       }}
                       className={`
-                        w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors border-t border-gray-700
+                        w-full px-4 py-3 text-left hover:bg-muted transition-colors border-t border-border
                         flex items-center justify-between
-                        ${selectedVersion === run.run_id ? 'bg-gray-700' : ''}
+                        ${selectedVersion === run.run_id ? 'bg-muted' : ''}
                       `}
                     >
                       <div className="flex items-center gap-3">
@@ -189,10 +189,10 @@ export function RunSelector({
                           <p className="text-white font-medium">
                             {run.run_id} - {RUN_TYPE_LABELS[run.run_type] || canonical}
                           </p>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-muted-foreground">
                             {formatRelativeTime(run.completed_at || run.created_at)}
                             {run.request.user_prompt && (
-                              <span className="ml-2 text-gray-500">
+                              <span className="ml-2 text-muted-foreground/70">
                                 • &quot;{run.request.user_prompt.slice(0, 25)}{run.request.user_prompt.length > 25 ? '...' : ''}&quot;
                               </span>
                             )}
@@ -211,7 +211,7 @@ export function RunSelector({
             {/* V1 Iterations Section (legacy) */}
             {completedIterations.length > 0 && (
               <>
-                <div className="px-4 py-2 text-xs text-gray-500 bg-gray-900/50 border-t border-gray-700">
+                <div className="px-4 py-2 text-xs text-muted-foreground/70 bg-background/50 border-t border-border">
                   LEGACY ITERATIONS
                 </div>
                 {completedIterations.map(iteration => (
@@ -222,19 +222,19 @@ export function RunSelector({
                       setIsOpen(false);
                     }}
                     className={`
-                      w-full px-4 py-3 text-left hover:bg-gray-700 transition-colors border-t border-gray-700
+                      w-full px-4 py-3 text-left hover:bg-muted transition-colors border-t border-border
                       flex items-center justify-between
-                      ${selectedVersion === iteration.iteration_id ? 'bg-gray-700' : ''}
+                      ${selectedVersion === iteration.iteration_id ? 'bg-muted' : ''}
                     `}
                   >
                     <div>
                       <p className="text-white font-medium">
                         {iteration.iteration_id} - {MODE_LABELS[iteration.request.mode] || iteration.request.mode}
                       </p>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {formatRelativeTime(iteration.completed_at || iteration.created_at)}
                         {iteration.request.user_prompt && (
-                          <span className="ml-2 text-gray-500">
+                          <span className="ml-2 text-muted-foreground/70">
                             • &quot;{iteration.request.user_prompt.slice(0, 25)}{iteration.request.user_prompt.length > 25 ? '...' : ''}&quot;
                           </span>
                         )}
@@ -250,7 +250,7 @@ export function RunSelector({
 
             {/* No runs message */}
             {completedRuns.length === 0 && completedIterations.length === 0 && (
-              <div className="px-4 py-3 text-sm text-gray-400 border-t border-gray-700">
+              <div className="px-4 py-3 text-sm text-muted-foreground border-t border-border">
                 No completed runs or iterations yet
               </div>
             )}

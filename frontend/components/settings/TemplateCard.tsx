@@ -32,15 +32,15 @@ export function TemplateCard({
         w-full text-left rounded-lg border p-4 transition-all duration-200
         ${isSelected
           ? 'border-blue-500/60 ring-1 ring-blue-500/30 bg-blue-900/10'
-          : 'border-gray-700/50 bg-gray-800/40 hover:border-gray-600/60 hover:bg-gray-800/60'
+          : 'border-border/50 bg-card/40 hover:border-border/60 hover:bg-card/60'
         }
       `}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="text-[15px] font-semibold text-gray-100">{name}</h3>
-          <p className="text-[13px] text-gray-400 mt-0.5">{description}</p>
-          <p className="text-[11px] text-gray-600 mt-1">{creatorReferences}</p>
+          <h3 className="text-body-lg font-semibold text-foreground">{name}</h3>
+          <p className="text-body-sm text-muted-foreground mt-0.5">{description}</p>
+          <p className="text-caption text-muted-foreground/60 mt-1">{creatorReferences}</p>
         </div>
         {isSelected && (
           <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center mt-0.5">
@@ -52,9 +52,9 @@ export function TemplateCard({
       </div>
 
       {/* Example tone preview */}
-      <div className="mt-3 pt-3 border-t border-gray-700/30">
-        <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Example tone</p>
-        <p className="text-[12px] text-gray-400 italic leading-relaxed line-clamp-2">
+      <div className="mt-3 pt-3 border-t border-border/30">
+        <p className="text-caption text-muted-foreground/60 uppercase tracking-wider mb-1">Example tone</p>
+        <p className="text-body-sm text-muted-foreground italic leading-relaxed line-clamp-2">
           &ldquo;{exampleTone}&rdquo;
         </p>
       </div>

@@ -15,10 +15,10 @@ const DOC_COLORS: Record<string, {
   border: string;
 }> = {
   doc_0: {
-    badge: 'bg-gray-700',
-    badgeText: 'text-gray-200',
-    accent: 'text-gray-400',
-    border: 'border-gray-700',
+    badge: 'bg-muted',
+    badgeText: 'text-foreground',
+    accent: 'text-muted-foreground',
+    border: 'border-border',
   },
   doc_1: {
     badge: 'bg-blue-900/60',
@@ -111,20 +111,20 @@ export function DocumentHeader({
             </span>
           )}
           {version != null && (
-            <span className="text-xs text-gray-500 font-mono">
+            <span className="text-xs text-muted-foreground/70 font-mono">
               v{version}
             </span>
           )}
         </div>
         {date && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-muted-foreground/70">
             {formatTimestamp(date)}
           </span>
         )}
       </div>
 
       {/* Title + subtitle */}
-      <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
+      <h2 className="text-xl font-semibold text-foreground">{title}</h2>
       {subtitle && (
         <p className={`text-sm mt-0.5 ${colors.accent}`}>{subtitle}</p>
       )}
@@ -133,14 +133,14 @@ export function DocumentHeader({
       {(sourceCount != null || claimCount != null) && (
         <div className="flex items-center gap-4 mt-3">
           {sourceCount != null && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="text-gray-500">📋</span>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="text-muted-foreground/70">📋</span>
               <span>{sourceCount} source{sourceCount !== 1 ? 's' : ''}</span>
             </div>
           )}
           {claimCount != null && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="text-gray-500">📊</span>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="text-muted-foreground/70">📊</span>
               <span>{claimCount} claim{claimCount !== 1 ? 's' : ''}</span>
             </div>
           )}

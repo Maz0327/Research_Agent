@@ -51,20 +51,20 @@ function UserRow({ user, onBan, onUnban }: { user: AdminUser; onBan: () => Promi
     <tr className="border-b border-border hover:bg-accent/30 transition-colors">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${color}`}>
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-bold flex-shrink-0 ${color}`}>
             {inits}
           </div>
           <div>
             <p className="text-sm font-medium">{user.email.split('@')[0]}</p>
-            <p className="text-[10px] text-muted-foreground">{user.email}</p>
+            <p className="text-caption text-muted-foreground">{user.email}</p>
           </div>
         </div>
       </td>
       <td className="px-4 py-3">
         {user.is_admin ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">Admin</span>
+          <span className="text-caption px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">Admin</span>
         ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">User</span>
+          <span className="text-caption px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">User</span>
         )}
       </td>
       <td className="px-4 py-3 text-xs text-muted-foreground">{user.job_count}</td>
@@ -75,7 +75,7 @@ function UserRow({ user, onBan, onUnban }: { user: AdminUser; onBan: () => Promi
           <button
             onClick={() => handle(user.is_banned ? onUnban : onBan)}
             disabled={busy}
-            className={`text-[10px] transition-colors disabled:opacity-50 ${
+            className={`text-caption transition-colors disabled:opacity-50 ${
               user.is_banned ? 'text-green-500 hover:text-green-400' : 'text-muted-foreground hover:text-destructive'
             }`}
           >
@@ -137,7 +137,7 @@ export function UserManagementTable() {
           <thead>
             <tr className="border-b border-border">
               {['User', 'Role', 'Jobs', 'Spend', 'Last Active', ''].map((h) => (
-                <th key={h} className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">
+                <th key={h} className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">
                   {h}
                 </th>
               ))}

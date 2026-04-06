@@ -169,7 +169,7 @@ export function SharedJobView({ document }: SharedJobViewProps) {
                 <LinkIcon className="w-3.5 h-3.5" />
                 {copied ? 'Copied!' : 'Copy Link'}
               </button>
-              <span className="text-[10px] text-muted-foreground ml-auto">{expiry}</span>
+              <span className="text-caption text-muted-foreground ml-auto">{expiry}</span>
             </div>
           </div>
         </div>

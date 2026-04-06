@@ -145,8 +145,8 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
 
   if (sourceGroups.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-8 text-center">
-        <p className="text-gray-400">No claims extracted yet.</p>
+      <div className="rounded-xl border border-border bg-background p-8 text-center">
+        <p className="text-muted-foreground">No claims extracted yet.</p>
       </div>
     );
   }
@@ -156,10 +156,10 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
       {/* Header bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-gray-100">
+          <h3 className="text-lg font-semibold text-foreground">
             Extracted Claims
           </h3>
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-muted-foreground">
             {totalClaims} claim{totalClaims !== 1 ? 's' : ''} from {sourceGroups.length} source{sourceGroups.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -168,7 +168,7 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
           <select
             value={confidenceFilter || ''}
             onChange={(e) => setConfidenceFilter(e.target.value || null)}
-            className="text-xs rounded-lg border border-gray-700 bg-gray-800 px-2 py-1 text-gray-300"
+            className="text-xs rounded-lg border border-border bg-card px-2 py-1 text-muted-foreground"
           >
             <option value="">All Confidence</option>
             <option value="HIGH">HIGH only</option>
@@ -178,8 +178,8 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
           <button onClick={expandAll} className="text-xs text-blue-400 hover:text-blue-300 transition">
             Expand All
           </button>
-          <span className="text-gray-600">|</span>
-          <button onClick={collapseAll} className="text-xs text-gray-400 hover:text-gray-300 transition">
+          <span className="text-muted-foreground/60">|</span>
+          <button onClick={collapseAll} className="text-xs text-muted-foreground hover:text-muted-foreground transition">
             Collapse All
           </button>
         </div>
@@ -195,22 +195,22 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
             key={group.source_id}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-gray-700 bg-gray-900 overflow-hidden"
+            className="rounded-xl border border-border bg-background overflow-hidden"
           >
             {/* Source header */}
             <button
               onClick={() => toggleSource(group.source_id)}
-              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-800/50 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-card/50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-gray-500 font-mono text-xs">{group.source_id}</span>
-                <span className="text-sm font-medium text-gray-200 truncate">{group.title}</span>
-                <span className="text-xs text-gray-500 flex-shrink-0">
+                <span className="text-muted-foreground/70 font-mono text-xs">{group.source_id}</span>
+                <span className="text-sm font-medium text-foreground truncate">{group.title}</span>
+                <span className="text-xs text-muted-foreground/70 flex-shrink-0">
                   {filteredClaims.length} claim{filteredClaims.length !== 1 ? 's' : ''}
                 </span>
               </div>
               <svg
-                className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 text-muted-foreground/70 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -227,20 +227,20 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="border-t border-gray-800"
+                  className="border-t border-border"
                 >
                   <div className="divide-y divide-gray-800">
                     {filteredClaims.map((claim, i) => (
                       <div key={claim.claim_id || i} className="px-5 py-3.5">
                         <div className="flex items-start gap-3">
                           {/* Claim number */}
-                          <span className="text-xs font-mono text-gray-600 mt-0.5 flex-shrink-0 w-6 text-right">
+                          <span className="text-xs font-mono text-muted-foreground/60 mt-0.5 flex-shrink-0 w-6 text-right">
                             {i + 1}.
                           </span>
 
                           <div className="flex-1 min-w-0">
                             {/* Statement */}
-                            <p className="text-sm text-gray-200 leading-relaxed">
+                            <p className="text-sm text-foreground leading-relaxed">
                               {claim.statement}
                             </p>
 
@@ -253,7 +253,7 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
                                 <SignificanceIndicator level={claim.significance} />
                               )}
                               {claim.speaker && (
-                                <span className="text-xs text-gray-400">
+                                <span className="text-xs text-muted-foreground">
                                   🗣️ {claim.speaker}
                                 </span>
                               )}
@@ -264,8 +264,8 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
 
                             {/* Anchor quote */}
                             {claim.anchor && (
-                              <div className="mt-2 pl-3 border-l-2 border-gray-700">
-                                <p className="text-xs text-gray-500 italic line-clamp-2">
+                              <div className="mt-2 pl-3 border-l-2 border-border">
+                                <p className="text-xs text-muted-foreground/70 italic line-clamp-2">
                                   &ldquo;{claim.anchor}&rdquo;
                                 </p>
                               </div>
@@ -277,7 +277,7 @@ export function ClaimExtractorView({ data }: ClaimExtractorViewProps) {
 
                     {filteredClaims.length === 0 && (
                       <div className="px-5 py-4 text-center">
-                        <p className="text-xs text-gray-500">No claims match the current filter.</p>
+                        <p className="text-xs text-muted-foreground/70">No claims match the current filter.</p>
                       </div>
                     )}
                   </div>

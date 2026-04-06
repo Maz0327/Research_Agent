@@ -15,7 +15,7 @@ export function ProseBlock({ content, compact = false }: ProseBlockProps) {
   if (!content) return null;
 
   return (
-    <div className="max-w-none sm:max-w-[720px] text-[14px] sm:text-[15px] leading-[1.75]">
+    <div className="max-w-none sm:max-w-[720px] text-body sm:text-body-lg leading-[1.75]">
       <MarkdownRenderer content={content} compact={compact} />
     </div>
   );

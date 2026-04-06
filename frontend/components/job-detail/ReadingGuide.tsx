@@ -28,10 +28,10 @@ export function ReadingGuide({ hasCreatorBrief, onStartReading }: ReadingGuidePr
         <div className="flex items-start gap-3">
           <span className="text-lg flex-shrink-0 mt-0.5">&#9733;</span>
           <div>
-            <p className="text-sm font-medium text-gray-200">
+            <p className="text-sm font-medium text-foreground">
               Your research is ready
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Start with the Creator Brief — it&apos;s your script blueprint. Explore the other documents for deeper research.
             </p>
           </div>

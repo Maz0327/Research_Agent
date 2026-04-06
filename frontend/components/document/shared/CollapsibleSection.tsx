@@ -27,7 +27,7 @@ export function CollapsibleSection({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-[12px] text-gray-500 hover:text-gray-400 transition-colors py-1 group w-full text-left"
+        className="flex items-center gap-2 text-body-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors py-1 group w-full text-left"
       >
         <svg
           className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
@@ -42,7 +42,7 @@ export function CollapsibleSection({
           {label || (isOpen ? 'Hide details' : 'Show details')}
         </span>
         {itemCount !== undefined && !isOpen && (
-          <span className="text-gray-600">({itemCount} items)</span>
+          <span className="text-muted-foreground/60">({itemCount} items)</span>
         )}
       </button>
       {isOpen && (

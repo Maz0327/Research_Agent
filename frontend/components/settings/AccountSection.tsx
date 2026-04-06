@@ -46,7 +46,7 @@ export function AccountSection({
       <div className="space-y-4">
         {/* Username */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             Username
           </label>
           <div className="mt-1.5 flex gap-2">
@@ -56,10 +56,10 @@ export function AccountSection({
               onChange={(e) => handleUsernameChange(e.target.value)}
               placeholder="Choose a username"
               maxLength={30}
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             {isCheckingUsername && (
-              <span className="flex items-center text-sm text-gray-500">
+              <span className="flex items-center text-sm text-muted-foreground/70">
                 <svg
                   className="animate-spin h-4 w-4 mr-2"
                   fill="none"
@@ -95,7 +95,7 @@ export function AccountSection({
             </p>
           )}
           {username.length > 0 && username.length < 3 && (
-            <p className="mt-1.5 text-sm text-gray-500">
+            <p className="mt-1.5 text-sm text-muted-foreground/70">
               Username must be at least 3 characters
             </p>
           )}
@@ -103,28 +103,28 @@ export function AccountSection({
 
         {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             Email
           </label>
-          <p className="mt-1 text-gray-200">{user?.email || 'Not set'}</p>
+          <p className="mt-1 text-foreground">{user?.email || 'Not set'}</p>
         </div>
 
         {/* User ID */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             User ID
           </label>
-          <p className="mt-1 font-mono text-sm text-gray-500">
+          <p className="mt-1 font-mono text-sm text-muted-foreground/70">
             {user?.id || 'Not set'}
           </p>
         </div>
 
         {/* Last Sign In */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             Last Sign In
           </label>
-          <p className="mt-1 text-gray-200">
+          <p className="mt-1 text-foreground">
             {user?.last_sign_in_at ? formatDate(user.last_sign_in_at) : 'Unknown'}
           </p>
         </div>

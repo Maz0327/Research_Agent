@@ -72,7 +72,7 @@ export function StartInput({ onSubmit, isLoading = false, onModeSelect }: StartI
         relative rounded-xl border-2 transition-all duration-200
         ${isFocused
           ? 'border-blue-500/60 shadow-lg shadow-blue-500/10'
-          : 'border-gray-700 hover:border-gray-600'
+          : 'border-border hover:border-border'
         }
       `}>
         <textarea
@@ -85,7 +85,7 @@ export function StartInput({ onSubmit, isLoading = false, onModeSelect }: StartI
           placeholder={PLACEHOLDER_EXAMPLES[placeholderIndex]}
           disabled={isLoading}
           rows={2}
-          className="w-full resize-none rounded-xl bg-gray-800/50 px-4 py-4 pr-24 text-[15px] text-gray-100 placeholder-gray-500 focus:outline-none disabled:opacity-50"
+          className="w-full resize-none rounded-xl bg-card/50 px-4 py-4 pr-24 text-body-lg text-foreground placeholder-gray-500 focus:outline-none disabled:opacity-50"
           style={{ fontSize: '16px' }} // Prevent iOS zoom
         />
 
@@ -97,7 +97,7 @@ export function StartInput({ onSubmit, isLoading = false, onModeSelect }: StartI
             absolute right-3 bottom-3 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all
             ${value.trim() && !isLoading
               ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
-              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-muted text-muted-foreground/70 cursor-not-allowed'
             }
           `}
         >
@@ -117,7 +117,7 @@ export function StartInput({ onSubmit, isLoading = false, onModeSelect }: StartI
         <motion.p
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-xs text-gray-500 px-1"
+          className="text-xs text-muted-foreground/70 px-1"
         >
           {intentHint.icon} {intentHint.text}
         </motion.p>
@@ -125,22 +125,22 @@ export function StartInput({ onSubmit, isLoading = false, onModeSelect }: StartI
 
       {/* Power user links */}
       <div className="flex flex-wrap gap-x-4 gap-y-1 px-1">
-        <span className="text-xs text-gray-600">or:</span>
+        <span className="text-xs text-muted-foreground/60">or:</span>
         <button
           onClick={() => onModeSelect?.('sources')}
-          className="text-xs text-gray-500 hover:text-blue-400 transition-colors"
+          className="text-xs text-muted-foreground/70 hover:text-blue-400 transition-colors"
         >
           paste my own sources
         </button>
         <button
           onClick={() => onModeSelect?.('claims')}
-          className="text-xs text-gray-500 hover:text-purple-400 transition-colors"
+          className="text-xs text-muted-foreground/70 hover:text-purple-400 transition-colors"
         >
           extract claims
         </button>
         <button
           onClick={() => onModeSelect?.('transcripts')}
-          className="text-xs text-gray-500 hover:text-amber-400 transition-colors"
+          className="text-xs text-muted-foreground/70 hover:text-amber-400 transition-colors"
         >
           get transcripts
         </button>

@@ -87,25 +87,25 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
         <button
           type="button"
           onClick={onBack}
-          className="text-[12px] text-gray-500 hover:text-gray-400 transition mb-3 flex items-center gap-1"
+          className="text-body-sm text-muted-foreground/70 hover:text-muted-foreground transition mb-3 flex items-center gap-1"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           Back to topic
         </button>
-        <h2 className="text-xl font-bold text-gray-100">
+        <h2 className="text-xl font-bold text-foreground">
           Creative Angles
         </h2>
-        <p className="text-[14px] text-gray-400 mt-1 leading-relaxed">
-          Here are {result.angles.length} ways to approach <span className="text-gray-200 font-medium">&ldquo;{topic}&rdquo;</span>.
+        <p className="text-body text-muted-foreground mt-1 leading-relaxed">
+          Here are {result.angles.length} ways to approach <span className="text-foreground font-medium">&ldquo;{topic}&rdquo;</span>.
           Select the angles that resonate, then we&apos;ll find sources.
         </p>
       </div>
 
       {/* Angles */}
       <div>
-        <p className="text-[12px] font-medium text-gray-500 uppercase tracking-wider mb-3">
+        <p className="text-body-sm font-medium text-muted-foreground/70 uppercase tracking-wider mb-3">
           Narrative Angles
           {selectedAngles.size > 0 && (
             <span className="text-blue-400 ml-2">({selectedAngles.size} selected)</span>
@@ -126,9 +126,9 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
       {/* Vocabulary */}
       {result.vocabulary.length > 0 && (
         <div>
-          <p className="text-[12px] font-medium text-gray-500 uppercase tracking-wider mb-3">
+          <p className="text-body-sm font-medium text-muted-foreground/70 uppercase tracking-wider mb-3">
             Key Vocabulary
-            <span className="text-gray-600 ml-2">(tap to remove)</span>
+            <span className="text-muted-foreground/60 ml-2">(tap to remove)</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {result.vocabulary.map(term => (
@@ -137,10 +137,10 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
                 type="button"
                 onClick={() => toggleVocab(term)}
                 className={`
-                  text-[13px] px-3 py-1.5 rounded-full border transition-all duration-150
+                  text-body-sm px-3 py-1.5 rounded-full border transition-all duration-150
                   ${deselectedVocab.has(term)
-                    ? 'border-gray-800 bg-gray-900/40 text-gray-600 line-through'
-                    : 'border-gray-600/40 bg-gray-800/50 text-gray-300 hover:border-gray-500/60'
+                    ? 'border-border bg-background/40 text-muted-foreground/60 line-through'
+                    : 'border-border/40 bg-card/50 text-muted-foreground hover:border-border/60'
                   }
                 `}
               >
@@ -154,7 +154,7 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
       {/* Key Questions */}
       {result.key_questions.length > 0 && (
         <div>
-          <p className="text-[12px] font-medium text-gray-500 uppercase tracking-wider mb-3">
+          <p className="text-body-sm font-medium text-muted-foreground/70 uppercase tracking-wider mb-3">
             Key Questions
           </p>
           <div className="space-y-2">
@@ -167,9 +167,9 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
                   type="checkbox"
                   checked={selectedQuestions.has(q)}
                   onChange={() => toggleQuestion(q)}
-                  className="mt-1 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500/30"
+                  className="mt-1 rounded border-border bg-card text-blue-500 focus:ring-blue-500/30"
                 />
-                <span className="text-[14px] text-gray-300 leading-relaxed group-hover:text-gray-200 transition">
+                <span className="text-body text-muted-foreground leading-relaxed group-hover:text-foreground transition">
                   {q}
                 </span>
               </label>
@@ -182,13 +182,13 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
                 onChange={e => setCustomQuestion(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addCustomQuestion()}
                 placeholder="Add your own question..."
-                className="flex-1 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2 text-[13px] text-gray-200 placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
+                className="flex-1 rounded-lg border border-border bg-card/60 px-3 py-2 text-body-sm text-foreground placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
               />
               <button
                 type="button"
                 onClick={addCustomQuestion}
                 disabled={!customQuestion.trim()}
-                className="text-[12px] px-3 py-2 rounded-lg bg-gray-700/40 text-gray-400 hover:text-gray-300 hover:bg-gray-700/60 transition disabled:opacity-40"
+                className="text-body-sm px-3 py-2 rounded-lg bg-muted/40 text-muted-foreground hover:text-muted-foreground hover:bg-muted/60 transition disabled:opacity-40"
               >
                 Add
               </button>
@@ -200,14 +200,14 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
       {/* Aesthetic Keywords (display only) */}
       {result.aesthetic_keywords.length > 0 && (
         <div>
-          <p className="text-[12px] font-medium text-gray-500 uppercase tracking-wider mb-3">
+          <p className="text-body-sm font-medium text-muted-foreground/70 uppercase tracking-wider mb-3">
             Aesthetic Keywords
           </p>
           <div className="flex flex-wrap gap-2">
             {result.aesthetic_keywords.map(kw => (
               <span
                 key={kw}
-                className="text-[12px] px-2.5 py-1 rounded bg-gray-800/50 text-gray-500 border border-gray-700/30 italic"
+                className="text-body-sm px-2.5 py-1 rounded bg-card/50 text-muted-foreground/70 border border-border/30 italic"
               >
                 {kw}
               </span>
@@ -217,8 +217,8 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
       )}
 
       {/* Proceed button */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-700/30">
-        <p className="text-[12px] text-gray-600">
+      <div className="flex items-center justify-between pt-4 border-t border-border/30">
+        <p className="text-body-sm text-muted-foreground/60">
           {selectedAngles.size > 0
             ? `${selectedAngles.size} angle${selectedAngles.size > 1 ? 's' : ''} selected · ${activeVocab.length} terms · ${selectedQuestions.size} questions`
             : 'Select at least one angle to continue'
@@ -228,7 +228,7 @@ export function BrainstormPanel({ result, topic, onProceed, onBack }: Brainstorm
           type="button"
           onClick={handleProceed}
           disabled={selectedAngles.size === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-2.5 text-[14px] font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-2.5 text-body font-medium text-white shadow-lg shadow-blue-500/20 transition-all duration-200 hover:from-blue-500 hover:to-blue-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
         >
           Find Sources
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

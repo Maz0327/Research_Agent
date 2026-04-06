@@ -27,18 +27,18 @@ export function ProfileSection({
   };
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
+    <div className="rounded-xl border border-border bg-background p-6">
       <div className="flex items-center gap-2 mb-4">
         <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
-        <h2 className="text-lg font-semibold text-gray-100">Account</h2>
+        <h2 className="text-lg font-semibold text-foreground">Account</h2>
       </div>
 
       <div className="space-y-4">
         {/* Username */}
         <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1.5">Username</label>
+          <label className="block text-sm font-medium text-muted-foreground mb-1.5">Username</label>
           <div className="flex gap-2 items-center">
             <input
               type="text"
@@ -46,10 +46,10 @@ export function ProfileSection({
               onChange={(e) => handleUsernameChange(e.target.value)}
               placeholder="Choose a username"
               maxLength={30}
-              className="flex-1 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder-gray-500 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             {isCheckingUsername && (
-              <svg className="animate-spin h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-4 w-4 text-muted-foreground/70" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
@@ -61,14 +61,14 @@ export function ProfileSection({
             </p>
           )}
           {username.length > 0 && username.length < 3 && (
-            <p className="mt-1.5 text-sm text-gray-500">Username must be at least 3 characters</p>
+            <p className="mt-1.5 text-sm text-muted-foreground/70">Username must be at least 3 characters</p>
           )}
         </div>
 
         {/* Email (read-only) */}
         <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1.5">Email</label>
-          <p className="text-gray-200">{userEmail || 'Not set'}</p>
+          <label className="block text-sm font-medium text-muted-foreground mb-1.5">Email</label>
+          <p className="text-foreground">{userEmail || 'Not set'}</p>
         </div>
       </div>
     </div>

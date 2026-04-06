@@ -74,7 +74,7 @@ function QuoteCard({ quote }: { quote: Quote }) {
           ? 'border-green-700/50 bg-green-900/20 hover:border-green-600'
           : isProbable
             ? 'border-yellow-700/50 bg-yellow-900/20 hover:border-yellow-600'
-            : 'border-gray-700/50 bg-gray-800/30 hover:border-gray-600'
+            : 'border-border/50 bg-card/30 hover:border-border'
       }`}
     >
       {/* Verification indicator */}
@@ -88,7 +88,7 @@ function QuoteCard({ quote }: { quote: Quote }) {
             ~
           </span>
         ) : (
-          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-600 text-xs text-white" title="Unverified">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-xs text-white" title="Unverified">
             ?
           </span>
         )}
@@ -106,17 +106,17 @@ function QuoteCard({ quote }: { quote: Quote }) {
           >
             [{quote.timestamp}]
           </a>
-          <span className="text-sm font-medium text-gray-300">{quote.speaker}</span>
+          <span className="text-sm font-medium text-muted-foreground">{quote.speaker}</span>
         </div>
 
-        <p className="text-gray-200 text-sm leading-relaxed">
+        <p className="text-foreground text-sm leading-relaxed">
           &ldquo;{quote.text}&rdquo;
         </p>
 
         {/* Match score indicator for unverified quotes */}
         {!isVerified && quote.match_score > 0 && (
           <div className="mt-2 flex items-center gap-2">
-            <div className="h-1 flex-1 rounded-full bg-gray-700 max-w-[100px]">
+            <div className="h-1 flex-1 rounded-full bg-muted max-w-[100px]">
               <div
                 className={`h-1 rounded-full ${
                   quote.match_score >= 0.8
@@ -128,7 +128,7 @@ function QuoteCard({ quote }: { quote: Quote }) {
                 style={{ width: `${quote.match_score * 100}%` }}
               />
             </div>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground/70">
               {Math.round(quote.match_score * 100)}% match
             </span>
           </div>
@@ -141,7 +141,7 @@ function QuoteCard({ quote }: { quote: Quote }) {
         className={`flex-shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition ${
           copied
             ? 'bg-green-600 text-white opacity-100'
-            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            : 'bg-muted text-muted-foreground hover:bg-secondary'
         }`}
       >
         {copied ? (
@@ -194,7 +194,7 @@ export function QuoteList({ quotes, showVerifiedOnly = false }: QuoteListProps) 
 
   if (quotes.length === 0) {
     return (
-      <div className="text-center py-6 text-gray-500">
+      <div className="text-center py-6 text-muted-foreground/70">
         No quotes extracted from videos.
       </div>
     );
@@ -204,7 +204,7 @@ export function QuoteList({ quotes, showVerifiedOnly = false }: QuoteListProps) 
     <div className="space-y-4">
       {/* Header with filter */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-300">
+        <h4 className="text-sm font-medium text-muted-foreground">
           Quotes ({quotes.length})
         </h4>
 
@@ -212,7 +212,7 @@ export function QuoteList({ quotes, showVerifiedOnly = false }: QuoteListProps) 
           <button
             onClick={() => setFilter('all')}
             className={`rounded px-2 py-1 transition ${
-              filter === 'all' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              filter === 'all' ? 'bg-muted text-white' : 'text-muted-foreground hover:text-muted-foreground'
             }`}
           >
             All
@@ -220,13 +220,13 @@ export function QuoteList({ quotes, showVerifiedOnly = false }: QuoteListProps) 
           <button
             onClick={() => setFilter('verified')}
             className={`rounded px-2 py-1 transition ${
-              filter === 'verified' ? 'bg-green-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              filter === 'verified' ? 'bg-green-700 text-white' : 'text-muted-foreground hover:text-muted-foreground'
             }`}
           >
             Verified ({verifiedCount})
           </button>
           {probableCount > 0 && (
-            <span className="text-gray-500 px-1">
+            <span className="text-muted-foreground/70 px-1">
               +{probableCount} probable
             </span>
           )}
@@ -241,7 +241,7 @@ export function QuoteList({ quotes, showVerifiedOnly = false }: QuoteListProps) 
       </div>
 
       {filteredQuotes.length === 0 && filter !== 'all' && (
-        <div className="text-center py-4 text-gray-500 text-sm">
+        <div className="text-center py-4 text-muted-foreground/70 text-sm">
           No quotes match the selected filter.
         </div>
       )}

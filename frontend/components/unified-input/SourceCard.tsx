@@ -74,11 +74,11 @@ export function SourceCard({ source, onRemove }: SourceCardProps) {
             {source.type}
           </span>
         </div>
-        <p className="text-sm text-gray-200 truncate" title={source.label}>
+        <p className="text-sm text-foreground truncate" title={source.label}>
           {source.label}
         </p>
         {source.detail && (
-          <p className="text-xs text-gray-500 truncate" title={source.detail}>
+          <p className="text-xs text-muted-foreground/70 truncate" title={source.detail}>
             {source.detail}
           </p>
         )}
@@ -88,7 +88,7 @@ export function SourceCard({ source, onRemove }: SourceCardProps) {
       <button
         type="button"
         onClick={() => onRemove(source.id)}
-        className="flex-shrink-0 p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition"
+        className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground/70 hover:text-red-400 hover:bg-red-900/20 transition"
         aria-label={`Remove ${source.label}`}
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

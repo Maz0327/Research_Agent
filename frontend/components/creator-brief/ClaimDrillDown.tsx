@@ -88,17 +88,17 @@ export function ClaimDrillDown({
                   animate={{ x: 0 }}
                   exit={{ x: prefersReducedMotion ? 0 : '100%' }}
                   transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 30, stiffness: 300 }}
-                  className="fixed right-0 top-0 bottom-0 w-full sm:w-[480px] bg-gray-900 border-l border-gray-700 z-50 overflow-y-auto"
+                  className="fixed right-0 top-0 bottom-0 w-full sm:w-[480px] bg-background border-l border-border z-50 overflow-y-auto"
                 >
             {/* Header */}
-            <div className="sticky top-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 px-6 py-4 z-10">
+            <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border px-6 py-4 z-10">
               <div className="flex items-center justify-between">
-                <h2 id="claim-drilldown-title" className="text-lg font-semibold text-gray-100">
+                <h2 id="claim-drilldown-title" className="text-lg font-semibold text-foreground">
                   Fact Details
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-2.5 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
                   aria-label="Close panel"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +106,7 @@ export function ClaimDrillDown({
                   </svg>
                 </button>
               </div>
-              <span className="text-xs font-mono text-gray-500 mt-1 block">
+              <span className="text-xs font-mono text-muted-foreground/70 mt-1 block">
                 {fact.fact_id} → {fact.claim_id} → {fact.source_id}
               </span>
             </div>
@@ -115,17 +115,17 @@ export function ClaimDrillDown({
             <div className="px-6 py-6 space-y-6">
               {/* Statement */}
               <section>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide mb-2">
                   Statement
                 </h3>
-                <p className="text-gray-200 leading-relaxed">
+                <p className="text-foreground leading-relaxed">
                   {fact.statement}
                 </p>
               </section>
 
               {/* Say It Like */}
               <section>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide mb-2">
                   Say It Like
                 </h3>
                 <div className="rounded-lg bg-amber-900/15 border border-amber-800/30 p-4">
@@ -137,43 +137,43 @@ export function ClaimDrillDown({
 
               {/* Metadata grid */}
               <section>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide mb-3">
                   Details
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   {/* Significance */}
-                  <div className="rounded-lg bg-gray-800/50 p-3">
-                    <p className="text-xs text-gray-500 mb-1">Significance</p>
+                  <div className="rounded-lg bg-card/50 p-3">
+                    <p className="text-xs text-muted-foreground/70 mb-1">Significance</p>
                     <SignificanceIndicator level={fact.significance} />
                   </div>
 
                   {/* Speaker */}
-                  <div className="rounded-lg bg-gray-800/50 p-3">
-                    <p className="text-xs text-gray-500 mb-1">Speaker</p>
-                    <p className="text-sm text-gray-300">
+                  <div className="rounded-lg bg-card/50 p-3">
+                    <p className="text-xs text-muted-foreground/70 mb-1">Speaker</p>
+                    <p className="text-sm text-muted-foreground">
                       {fact.speaker || 'Not attributed'}
                     </p>
                   </div>
 
                   {/* Claim ID */}
-                  <div className="rounded-lg bg-gray-800/50 p-3">
-                    <p className="text-xs text-gray-500 mb-1">Claim Reference</p>
+                  <div className="rounded-lg bg-card/50 p-3">
+                    <p className="text-xs text-muted-foreground/70 mb-1">Claim Reference</p>
                     <p className="text-sm text-purple-400 font-mono">
                       {fact.claim_id}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">
                       From Doc 2 (Semantic Brief)
                     </p>
                   </div>
 
                   {/* Source ID */}
-                  <div className="rounded-lg bg-gray-800/50 p-3">
-                    <p className="text-xs text-gray-500 mb-1">Source Reference</p>
+                  <div className="rounded-lg bg-card/50 p-3">
+                    <p className="text-xs text-muted-foreground/70 mb-1">Source Reference</p>
                     <SourceCitation
                       sourceId={fact.source_id}
                       onClick={onNavigateToDoc ? () => onNavigateToDoc('doc_0') : undefined}
                     />
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">
                       From Doc 0 (Source Ledger)
                     </p>
                   </div>
@@ -182,30 +182,30 @@ export function ClaimDrillDown({
 
               {/* Provenance Chain */}
               <section>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                <h3 className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wide mb-3">
                   Provenance Chain
                 </h3>
                 <div className="flex items-center gap-2 text-sm">
                   <span className="px-2 py-1 rounded bg-amber-900/30 text-amber-400 text-xs font-mono">
                     {fact.fact_id}
                   </span>
-                  <span className="text-gray-600">→</span>
+                  <span className="text-muted-foreground/60">→</span>
                   <span className="px-2 py-1 rounded bg-purple-900/30 text-purple-400 text-xs font-mono">
                     {fact.claim_id}
                   </span>
-                  <span className="text-gray-600">→</span>
-                  <span className="px-2 py-1 rounded bg-gray-700 text-gray-300 text-xs font-mono">
+                  <span className="text-muted-foreground/60">→</span>
+                  <span className="px-2 py-1 rounded bg-muted text-muted-foreground text-xs font-mono">
                     {fact.source_id}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground/70 mt-2">
                   Creator Brief → Semantic Brief → Source Ledger
                 </p>
               </section>
 
               {/* Navigation actions */}
               {onNavigateToDoc && (
-                <section className="pt-4 border-t border-gray-800">
+                <section className="pt-4 border-t border-border">
                   <div className="space-y-2">
                     <button
                       onClick={() => onNavigateToDoc('doc_2')}
@@ -215,7 +215,7 @@ export function ClaimDrillDown({
                     </button>
                     <button
                       onClick={() => onNavigateToDoc('doc_0')}
-                      className="w-full px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm font-medium hover:bg-gray-700 transition-colors text-left"
+                      className="w-full px-4 py-2.5 rounded-lg bg-card border border-border text-muted-foreground text-sm font-medium hover:bg-muted transition-colors text-left"
                     >
                       📋 View source in Source Ledger
                     </button>

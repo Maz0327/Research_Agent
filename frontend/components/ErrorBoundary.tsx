@@ -51,7 +51,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
       // Default fallback UI
       return (
-        <div className="min-h-[200px] flex flex-col items-center justify-center p-8 bg-gray-900 rounded-lg border border-gray-800">
+        <div className="min-h-[200px] flex flex-col items-center justify-center p-8 bg-background rounded-lg border border-border">
           <div className="text-red-500 mb-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -71,12 +71,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           <h2 className="text-xl font-semibold text-white mb-2">
             Something went wrong
           </h2>
-          <p className="text-gray-400 text-center mb-4 max-w-md">
+          <p className="text-muted-foreground text-center mb-4 max-w-md">
             An unexpected error occurred. Please try again or contact support if
             the problem persists.
           </p>
           {process.env.NODE_ENV === 'development' && this.state.error && (
-            <pre className="text-xs text-red-400 bg-gray-950 p-4 rounded mb-4 max-w-full overflow-x-auto">
+            <pre className="text-xs text-red-400 bg-background p-4 rounded mb-4 max-w-full overflow-x-auto">
               {this.state.error.toString()}
             </pre>
           )}

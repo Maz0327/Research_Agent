@@ -95,7 +95,7 @@ export function MobileBottomNav() {
                 {item.icon}
                 {item.iconExtra}
               </svg>
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-caption font-medium">{item.label}</span>
             </Link>
           );
         })}

@@ -17,13 +17,13 @@ interface ClaimCardProps {
 
 export function ClaimCard({ statement, confidence, verified, sourceIds, className }: ClaimCardProps) {
   return (
-    <Card className={cn('bg-zinc-900/40 border-border', className)}>
+    <Card className={cn('bg-background/40 border-border', className)}>
       <CardContent className="p-3 space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm text-zinc-200 leading-relaxed flex-1">{statement}</p>
+          <p className="text-sm text-foreground leading-relaxed flex-1">{statement}</p>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {verified !== undefined && (
-              <span className={cn('text-[11px]', verified ? 'text-green-400' : 'text-zinc-400')}>
+              <span className={cn('text-caption', verified ? 'text-green-400' : 'text-muted-foreground')}>
                 {verified ? '✓' : '—'}
               </span>
             )}

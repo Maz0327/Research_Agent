@@ -48,7 +48,7 @@ export function PipelineSection({
           <select
             value={defaultPipeline}
             onChange={(e) => setDefaultPipeline(e.target.value as PipelineType)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-2.5 text-sm text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {PIPELINE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -57,7 +57,7 @@ export function PipelineSection({
             ))}
           </select>
           {selectedPipeline && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-muted-foreground/70">
               {selectedPipeline.description}
             </p>
           )}
@@ -70,11 +70,11 @@ export function PipelineSection({
             id="autoExtractClaims"
             checked={autoExtractClaims}
             onChange={(e) => setAutoExtractClaims(e.target.checked)}
-            className="h-4 w-4 rounded bg-gray-800 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
+            className="h-4 w-4 rounded bg-card border-border text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900"
           />
           <label
             htmlFor="autoExtractClaims"
-            className="ml-3 text-sm text-gray-300"
+            className="ml-3 text-sm text-muted-foreground"
           >
             Auto-extract claims from sources
           </label>
@@ -82,7 +82,7 @@ export function PipelineSection({
 
         {/* Max sources */}
         <div>
-          <label className="block text-sm font-medium text-gray-400">
+          <label className="block text-sm font-medium text-muted-foreground">
             Maximum sources per job
           </label>
           <div className="mt-1.5 flex items-center gap-3">
@@ -92,9 +92,9 @@ export function PipelineSection({
               max={50}
               value={maxSources}
               onChange={(e) => handleMaxSourcesChange(e.target.value)}
-              className="w-24 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-24 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <span className="text-sm text-gray-500">(5-50)</span>
+            <span className="text-sm text-muted-foreground/70">(5-50)</span>
           </div>
         </div>
       </div>

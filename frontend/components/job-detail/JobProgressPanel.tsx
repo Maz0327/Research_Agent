@@ -99,8 +99,8 @@ function WhileYouWait() {
 
   return (
     <div className="mt-4 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-      <p className="text-[11px] text-white/30 uppercase tracking-wider font-medium mb-1">While you wait</p>
-      <p className="text-[12px] text-white/40 leading-relaxed">{WHILE_YOU_WAIT_TIPS[tipIndex]}</p>
+      <p className="text-caption text-white/30 uppercase tracking-wider font-medium mb-1">While you wait</p>
+      <p className="text-body-sm text-white/40 leading-relaxed">{WHILE_YOU_WAIT_TIPS[tipIndex]}</p>
     </div>
   );
 }
@@ -190,7 +190,7 @@ function StageTimeline({
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-[11px] text-white/30 mt-0.5"
+                  className="text-caption text-white/30 mt-0.5"
                 >
                   {stage.narrated}
                 </motion.p>
@@ -261,10 +261,10 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
         <div className="flex-shrink-0 text-right space-y-0.5">
           <p className="text-sm font-mono text-white/50 tabular-nums">{clampedProgress}%</p>
           {elapsed && (
-            <p className="text-[11px] text-white/25 font-mono tabular-nums">{elapsed}</p>
+            <p className="text-caption text-white/25 font-mono tabular-nums">{elapsed}</p>
           )}
           {eta && (
-            <p className="text-[11px] text-emerald-400/70 font-mono tabular-nums">ETA {eta}</p>
+            <p className="text-caption text-emerald-400/70 font-mono tabular-nums">ETA {eta}</p>
           )}
         </div>
       </div>
@@ -282,7 +282,7 @@ export function JobProgressPanel({ job }: JobProgressPanelProps) {
 
       {/* Source count */}
       {job.artifacts?.semantic_extractions && job.artifacts.semantic_extractions.length > 0 && (
-        <p className="text-[11px] text-white/25 mt-2">
+        <p className="text-caption text-white/25 mt-2">
           {job.artifacts.semantic_extractions.length} source{job.artifacts.semantic_extractions.length !== 1 ? 's' : ''} being analyzed
         </p>
       )}

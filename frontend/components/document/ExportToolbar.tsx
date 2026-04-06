@@ -86,7 +86,7 @@ export function ExportToolbar({
       {/* Copy full document */}
       <button
         onClick={handleCopyAll}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg border border-white/[0.08] text-white/60 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-body-sm font-medium rounded-lg border border-white/[0.08] text-white/60 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
       >
         {copyFeedback ? (
           <>
@@ -109,7 +109,7 @@ export function ExportToolbar({
       <div className="relative">
         <button
           onClick={() => setShowDropdown(!showDropdown)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg border border-white/[0.08] text-white/60 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-body-sm font-medium rounded-lg border border-white/[0.08] text-white/60 hover:text-white/80 hover:bg-white/[0.04] transition-colors"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -123,25 +123,25 @@ export function ExportToolbar({
         {showDropdown && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-            <div className="absolute left-0 top-full mt-1 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[140px]">
+            <div className="absolute left-0 top-full mt-1 z-20 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[140px]">
               {markdown && (
                 <button
                   onClick={handleDownloadMd}
-                  className="w-full text-left px-3 py-1.5 text-[12px] text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="w-full text-left px-3 py-1.5 text-body-sm text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Markdown (.md)
                 </button>
               )}
               <button
                 onClick={handleDownloadJson}
-                className="w-full text-left px-3 py-1.5 text-[12px] text-gray-300 hover:bg-gray-700 transition-colors"
+                className="w-full text-left px-3 py-1.5 text-body-sm text-muted-foreground hover:bg-muted transition-colors"
               >
                 JSON (.json)
               </button>
               {onExportPdf && (
                 <button
                   onClick={() => { onExportPdf(); setShowDropdown(false); }}
-                  className="w-full text-left px-3 py-1.5 text-[12px] text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="w-full text-left px-3 py-1.5 text-body-sm text-muted-foreground hover:bg-muted transition-colors"
                 >
                   PDF (.pdf)
                 </button>
@@ -149,7 +149,7 @@ export function ExportToolbar({
               {onExportDocx && (
                 <button
                   onClick={() => { onExportDocx(); setShowDropdown(false); }}
-                  className="w-full text-left px-3 py-1.5 text-[12px] text-gray-300 hover:bg-gray-700 transition-colors"
+                  className="w-full text-left px-3 py-1.5 text-body-sm text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Word (.docx)
                 </button>
@@ -163,7 +163,7 @@ export function ExportToolbar({
       <div className="flex-1" />
 
       {/* Document label */}
-      <span className="text-[11px] text-white/20 font-mono">Doc {docNumber}</span>
+      <span className="text-caption text-white/20 font-mono">Doc {docNumber}</span>
     </div>
   );
 }

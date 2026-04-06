@@ -66,7 +66,7 @@ export function CopyButton({
       className={`inline-flex items-center gap-1 rounded transition ${sizeClasses} ${
         copied
           ? 'bg-green-600 text-white'
-          : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+          : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-muted-foreground'
       } ${className}`}
       aria-label={copied ? `${copiedLabel}` : `${label} to clipboard`}
       title={copied ? copiedLabel : label}

@@ -31,7 +31,7 @@ function HookCard({ hook, index, isSelected, onSelect }: {
 }) {
   const [copied, setCopied] = useState(false);
   const typeKey = (hook.hook_type ?? '').toLowerCase().replace(/\s+/g, '-');
-  const typeStyle = HOOK_TYPE_STYLES[typeKey] ?? 'bg-zinc-700/40 text-zinc-400 border-zinc-600/30';
+  const typeStyle = HOOK_TYPE_STYLES[typeKey] ?? 'bg-muted/40 text-muted-foreground border-border/30';
 
   const handleCopy = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,34 +48,34 @@ function HookCard({ hook, index, isSelected, onSelect }: {
     <button
       type="button"
       onClick={() => onSelect(isSelected ? -1 : index)}
-      className={`relative w-full text-left rounded-lg border p-4 transition-all duration-200 bg-zinc-800/40 overflow-hidden group
+      className={`relative w-full text-left rounded-lg border p-4 transition-all duration-200 bg-card/40 overflow-hidden group
         ${isSelected
           ? 'border-amber-500/60 ring-1 ring-amber-500/30'
-          : 'border-border hover:border-zinc-600/60 hover:bg-zinc-800/60'
+          : 'border-border hover:border-border/60 hover:bg-card/60'
         }`}
     >
       {isSelected && <div className="absolute top-0 left-0 bottom-0 w-1 rounded-l-lg bg-amber-500" />}
       <div className={isSelected ? 'pl-3' : ''}>
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 font-semibold uppercase tracking-wider ${typeStyle}`}>
+            <Badge variant="outline" className={`text-caption px-1.5 py-0 font-semibold uppercase tracking-wider ${typeStyle}`}>
               {formatHookType(hook.hook_type ?? '')}
             </Badge>
-            {hook.tone && <span className="text-[11px] text-zinc-500 italic">{hook.tone}</span>}
+            {hook.tone && <span className="text-caption text-muted-foreground/70 italic">{hook.tone}</span>}
           </div>
           <button
             type="button"
             onClick={handleCopy}
-            className={`flex-shrink-0 text-[10px] px-2 py-0.5 rounded transition-all
+            className={`flex-shrink-0 text-caption px-2 py-0.5 rounded transition-all
               ${copied
                 ? 'bg-green-900/40 text-green-400 border border-green-800/30'
-                : 'bg-zinc-700/40 text-zinc-500 border border-zinc-600/30 opacity-0 group-hover:opacity-100 hover:text-zinc-300'
+                : 'bg-muted/40 text-muted-foreground/70 border border-border/30 opacity-0 group-hover:opacity-100 hover:text-muted-foreground'
               }`}
           >
             {copied ? '✓' : 'Copy'}
           </button>
         </div>
-        <p className="text-[15px] text-zinc-100 leading-relaxed font-medium">&ldquo;{hook.content}&rdquo;</p>
+        <p className="text-body-lg text-foreground leading-relaxed font-medium">&ldquo;{hook.content}&rdquo;</p>
         {hook.source_basis?.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t border-border">
             {hook.source_basis.map((sid: string) => <CitationPill key={sid} id={sid} />)}

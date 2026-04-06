@@ -186,16 +186,16 @@ export function CreatorBriefView({
     return (
       <div className={`max-w-4xl mx-auto px-4 py-8 ${className}`}>
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-800 rounded w-1/3" />
-          <div className="h-4 bg-gray-800 rounded w-2/3" />
+          <div className="h-8 bg-card rounded w-1/3" />
+          <div className="h-4 bg-card rounded w-2/3" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="h-32 bg-gray-800 rounded-xl" />
-            <div className="h-32 bg-gray-800 rounded-xl" />
+            <div className="h-32 bg-card rounded-xl" />
+            <div className="h-32 bg-card rounded-xl" />
           </div>
-          <div className="h-24 bg-gray-800 rounded-xl" />
+          <div className="h-24 bg-card rounded-xl" />
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-800 rounded-xl" />
+              <div key={i} className="h-20 bg-card rounded-xl" />
             ))}
           </div>
         </div>
@@ -240,7 +240,7 @@ export function CreatorBriefView({
       {/* Hook Options */}
       {brief.hook_options?.length > 0 && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Hook Options
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -253,7 +253,7 @@ export function CreatorBriefView({
                   rounded-xl border-2 p-4 cursor-pointer transition-all duration-200
                   ${selectedHook === hook.hook_id
                     ? 'border-amber-500 bg-amber-900/20'
-                    : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+                    : 'border-border bg-card/50 hover:border-border'
                   }
                 `}
               >
@@ -265,10 +265,10 @@ export function CreatorBriefView({
                     <span className="text-amber-400 text-xs">Selected</span>
                   )}
                 </div>
-                <p className="text-gray-200 text-sm leading-relaxed italic">
+                <p className="text-foreground text-sm leading-relaxed italic">
                   &ldquo;{hook.text}&rdquo;
                 </p>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground/70 mt-2">
                   {hook.why_it_works}
                 </p>
                 <SourceCitation sourceId={hook.source_id} className="mt-2" />
@@ -281,11 +281,11 @@ export function CreatorBriefView({
       {/* Setup */}
       {brief.setup && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Setup
           </h3>
-          <div className="rounded-xl bg-gray-800/50 border border-gray-700 p-5">
-            <p className="text-gray-200 leading-relaxed">{brief.setup.text}</p>
+          <div className="rounded-xl bg-card/50 border border-border p-5">
+            <p className="text-foreground leading-relaxed">{brief.setup.text}</p>
             {brief.setup.supporting_source_ids?.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {brief.setup.supporting_source_ids.map((sid) => (
@@ -300,14 +300,14 @@ export function CreatorBriefView({
       {/* Twist */}
       {brief.twist && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             The Twist
           </h3>
           <div className="rounded-xl bg-orange-900/10 border border-orange-800/30 p-5">
             <div className="flex items-start gap-3">
               <span className="text-orange-400 text-xl mt-0.5" aria-hidden="true">↩️</span>
               <div className="flex-1">
-                <p className="text-gray-200 leading-relaxed">{brief.twist.text}</p>
+                <p className="text-foreground leading-relaxed">{brief.twist.text}</p>
                 <div className="flex items-center gap-3 mt-3">
                   <DisputedClaimBadge framing={brief.twist.framing} />
                   <SourceCitation sourceId={brief.twist.source_id} />
@@ -321,7 +321,7 @@ export function CreatorBriefView({
       {/* Core Facts */}
       {brief.core_facts?.length > 0 && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Core Facts
           </h3>
           <div className="space-y-3">
@@ -331,14 +331,14 @@ export function CreatorBriefView({
                 whileHover={onFactClick ? { scale: 1.005 } : {}}
                 onClick={() => onFactClick?.(fact)}
                 className={`
-                  rounded-xl border border-gray-700 bg-gray-800/50 p-5 transition-all
-                  ${onFactClick ? 'cursor-pointer hover:border-amber-600/50 hover:bg-gray-800' : ''}
+                  rounded-xl border border-border bg-card/50 p-5 transition-all
+                  ${onFactClick ? 'cursor-pointer hover:border-amber-600/50 hover:bg-card' : ''}
                 `}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     {/* Statement */}
-                    <p className="text-gray-200 font-medium leading-relaxed">
+                    <p className="text-foreground font-medium leading-relaxed">
                       {fact.statement}
                     </p>
                     {/* Say-it-like */}
@@ -349,7 +349,7 @@ export function CreatorBriefView({
                     <div className="flex flex-wrap items-center gap-3 mt-3">
                       <SignificanceIndicator level={fact.significance} />
                       {fact.speaker && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-muted-foreground">
                           — {fact.speaker}
                         </span>
                       )}
@@ -361,7 +361,7 @@ export function CreatorBriefView({
                   </div>
                   {/* Drill-down indicator */}
                   {onFactClick && (
-                    <span className="text-gray-600 text-sm flex-shrink-0 mt-1" aria-label="Click for details">
+                    <span className="text-muted-foreground/60 text-sm flex-shrink-0 mt-1" aria-label="Click for details">
                       →
                     </span>
                   )}
@@ -375,13 +375,13 @@ export function CreatorBriefView({
       {/* Analogy */}
       {brief.analogy && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Analogy
           </h3>
           <div className="rounded-xl bg-blue-900/10 border border-blue-800/30 p-5">
             <div className="flex items-start gap-3">
               <span className="text-blue-400 text-xl" aria-hidden="true">💡</span>
-              <p className="text-gray-200 leading-relaxed">{brief.analogy.text}</p>
+              <p className="text-foreground leading-relaxed">{brief.analogy.text}</p>
             </div>
           </div>
         </section>
@@ -390,11 +390,11 @@ export function CreatorBriefView({
       {/* Personal Stakes */}
       {brief.personal_stakes && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Why This Matters
           </h3>
           <div className="rounded-xl bg-purple-900/10 border border-purple-800/30 p-5">
-            <p className="text-gray-200 leading-relaxed">{brief.personal_stakes.text}</p>
+            <p className="text-foreground leading-relaxed">{brief.personal_stakes.text}</p>
           </div>
         </section>
       )}
@@ -402,14 +402,14 @@ export function CreatorBriefView({
       {/* Cliffhanger */}
       {brief.cliffhanger && (
         <section className="mb-8">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Cliffhanger
           </h3>
-          <div className="rounded-xl bg-gray-800/80 border border-gray-600 p-5">
+          <div className="rounded-xl bg-card/80 border border-border p-5">
             <div className="flex items-start gap-3">
-              <span className="text-gray-300 text-xl" aria-hidden="true">🎯</span>
+              <span className="text-muted-foreground text-xl" aria-hidden="true">🎯</span>
               <div className="flex-1">
-                <p className="text-gray-200 leading-relaxed italic">{brief.cliffhanger.text}</p>
+                <p className="text-foreground leading-relaxed italic">{brief.cliffhanger.text}</p>
                 <DisputedClaimBadge framing={brief.cliffhanger.framing} className="mt-2" />
               </div>
             </div>
@@ -431,11 +431,11 @@ export function CreatorBriefView({
               >
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
-                    <p className="text-gray-300 text-sm">{claim.statement}</p>
+                    <p className="text-muted-foreground text-sm">{claim.statement}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <DisputedClaimBadge framing={claim.framing} />
                       {claim.speaker && (
-                        <span className="text-xs text-gray-500">— {claim.speaker}</span>
+                        <span className="text-xs text-muted-foreground/70">— {claim.speaker}</span>
                       )}
                       <SourceCitation sourceId={claim.source_id} />
                     </div>
@@ -451,20 +451,20 @@ export function CreatorBriefView({
       {brief.description_sources?.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Sources for Description
             </h3>
             <CopyButton text={buildSourcesText()} label="Copy" copiedLabel="Copied!" size="sm" />
           </div>
-          <div className="rounded-xl bg-gray-800/50 border border-gray-700 p-5">
+          <div className="rounded-xl bg-card/50 border border-border p-5">
             <ul className="space-y-2">
               {brief.description_sources.map((source) => (
                 <li key={source.source_id} className="flex items-start gap-2 text-sm">
-                  <span className="text-gray-500 flex-shrink-0">•</span>
+                  <span className="text-muted-foreground/70 flex-shrink-0">•</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-gray-200">{source.title}</span>
+                    <span className="text-foreground">{source.title}</span>
                     {source.creator && (
-                      <span className="text-gray-500"> by {source.creator}</span>
+                      <span className="text-muted-foreground/70"> by {source.creator}</span>
                     )}
                     {source.url && (
                       <a
@@ -486,7 +486,7 @@ export function CreatorBriefView({
 
       {/* Contextual Navigation */}
       {onNavigateToDoc && (
-        <section className="mt-10 pt-6 border-t border-gray-800">
+        <section className="mt-10 pt-6 border-t border-border">
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => onNavigateToDoc('doc_2')}
@@ -502,13 +502,13 @@ export function CreatorBriefView({
             </button>
             <button
               onClick={() => onNavigateToDoc('doc_0')}
-              className="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 text-sm font-medium hover:bg-gray-700 transition-colors"
+              className="px-4 py-2.5 rounded-lg bg-card border border-border text-muted-foreground text-sm font-medium hover:bg-muted transition-colors"
             >
               📋 View Sources
             </button>
             <button
               disabled
-              className="px-4 py-2.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-600 text-sm font-medium cursor-not-allowed"
+              className="px-4 py-2.5 rounded-lg bg-background border border-border text-muted-foreground/60 text-sm font-medium cursor-not-allowed"
               title="Coming in v2"
             >
               🔒 Generate Script

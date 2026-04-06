@@ -38,10 +38,10 @@ const coreDocConfigs: DocConfig[] = [
       </svg>
     ),
     color: {
-      bg: 'bg-gray-800/50 hover:bg-gray-800/70',
-      border: 'border-gray-700 hover:border-gray-600',
-      text: 'text-gray-300',
-      badge: 'bg-gray-700 text-gray-300',
+      bg: 'bg-card/50 hover:bg-card/70',
+      border: 'border-border hover:border-border',
+      text: 'text-muted-foreground',
+      badge: 'bg-muted text-muted-foreground',
     },
   },
   {
@@ -445,7 +445,7 @@ export function DocumentCardGrid({
     <>
       {/* Document Cards Grid */}
       <div className="space-y-3">
-        <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <h3 className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wider">
           Research Documents
         </h3>
 
@@ -483,7 +483,7 @@ export function DocumentCardGrid({
                 >
                   {/* Loading overlay */}
                   {isLoading && (
-                    <div className="absolute inset-0 bg-gray-900/50 rounded-xl flex items-center justify-center z-10">
+                    <div className="absolute inset-0 bg-background/50 rounded-xl flex items-center justify-center z-10">
                       <svg className="h-6 w-6 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -498,7 +498,7 @@ export function DocumentCardGrid({
                     </span>
                     <button
                       onClick={(e) => handleDownloadPdf(e, config)}
-                      className="p-1.5 rounded-lg hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 transition"
+                      className="p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-muted-foreground transition"
                       title="Download PDF"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -510,13 +510,13 @@ export function DocumentCardGrid({
                   {/* Title and subtitle */}
                   <div className="flex items-center gap-2 mb-1">
                     <span className={config.color.text}>{config.icon}</span>
-                    <h4 className="font-medium text-gray-100 text-sm">{config.title}</h4>
+                    <h4 className="font-medium text-foreground text-sm">{config.title}</h4>
                   </div>
-                  <p className="text-xs text-gray-500">{config.subtitle}</p>
+                  <p className="text-xs text-muted-foreground/70">{config.subtitle}</p>
 
                   {/* Open indicator */}
                   <div className="mt-auto pt-3 flex items-center justify-end">
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground/70 flex items-center gap-1">
                       Click to open
                       <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -576,7 +576,7 @@ export function DocumentCardGrid({
             >
               {/* Loading overlay */}
               {isTriggeringProducer && (
-                <div className="absolute inset-0 bg-gray-900/50 rounded-xl flex items-center justify-center z-10">
+                <div className="absolute inset-0 bg-background/50 rounded-xl flex items-center justify-center z-10">
                   <svg className="h-6 w-6 animate-spin text-amber-400" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -603,7 +603,7 @@ export function DocumentCardGrid({
                 </span>
                 <h4 className="font-medium text-amber-300/80 text-sm">Creator Brief</h4>
               </div>
-              <p className="text-xs text-gray-500">Your hero document</p>
+              <p className="text-xs text-muted-foreground/70">Your hero document</p>
 
               {/* Action indicator */}
               <div className="mt-auto pt-3 flex items-center justify-end">
@@ -620,7 +620,7 @@ export function DocumentCardGrid({
 
         {/* Iteration Loop Trigger */}
         {canTriggerActions && onTriggerIteration && (
-          <div className="mt-4 pt-4 border-t border-gray-700/50">
+          <div className="mt-4 pt-4 border-t border-border/50">
             <button
               onClick={() => setIterationModalOpen(true)}
               disabled={isTriggeringIteration || isIterationRunning}
@@ -693,9 +693,9 @@ export function DocumentCardGrid({
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl pointer-events-auto"
+                    className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl pointer-events-auto"
                   >
-            <h3 id="iteration-modal-title" className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
+            <h3 id="iteration-modal-title" className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
               <svg className="h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
@@ -704,18 +704,18 @@ export function DocumentCardGrid({
 
             {/* Mode Selection */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Mode</label>
+              <label className="block text-sm font-medium text-muted-foreground mb-2">Mode</label>
               <select
                 value={iterationMode}
                 onChange={(e) => setIterationMode(e.target.value as typeof iterationMode)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-foreground text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               >
                 <option value="more_sources">Find More Sources</option>
                 <option value="deeper">Deeper Analysis</option>
                 <option value="different_angle">Different Angle</option>
                 <option value="custom">Custom (User Prompt)</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground/70 mt-1">
                 {iterationMode === 'more_sources' && 'Search for additional sources to expand coverage'}
                 {iterationMode === 'deeper' && 'Perform deeper analysis on existing sources'}
                 {iterationMode === 'different_angle' && 'Explore a different perspective or angle'}
@@ -726,13 +726,13 @@ export function DocumentCardGrid({
             {/* Angle input (for different_angle mode) */}
             {iterationMode === 'different_angle' && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">Angle to Explore</label>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">Angle to Explore</label>
                 <input
                   type="text"
                   value={iterationAngle}
                   onChange={(e) => setIterationAngle(e.target.value)}
                   placeholder="e.g., economic impact, environmental concerns"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-foreground text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             )}
@@ -740,7 +740,7 @@ export function DocumentCardGrid({
             {/* Max new sources (for more_sources mode) */}
             {iterationMode === 'more_sources' && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Max New Sources: {iterationMaxSources}
                 </label>
                 <input
@@ -749,9 +749,9 @@ export function DocumentCardGrid({
                   max={10}
                   value={iterationMaxSources}
                   onChange={(e) => setIterationMaxSources(Number(e.target.value))}
-                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
                 />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-muted-foreground/70 mt-1">
                   <span>1</span>
                   <span>10</span>
                 </div>
@@ -760,7 +760,7 @@ export function DocumentCardGrid({
 
             {/* User prompt */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 {iterationMode === 'custom' ? 'Custom Prompt' : 'Guidance (optional)'}
               </label>
               <textarea
@@ -770,13 +770,13 @@ export function DocumentCardGrid({
                 placeholder={iterationMode === 'custom'
                   ? 'Describe what you want the iteration to do...'
                   : 'Any specific guidance for this iteration...'}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-foreground text-sm placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
               />
             </div>
 
             {/* Note about append-only */}
-            <div className="mb-6 p-3 bg-gray-700/50 rounded-lg border border-gray-600/50">
-              <p className="text-xs text-gray-400">
+            <div className="mb-6 p-3 bg-muted/50 rounded-lg border border-border/50">
+              <p className="text-xs text-muted-foreground">
                 <span className="text-emerald-400 font-medium">Append-only:</span> Iterations create new document bundles without modifying your original research.
               </p>
             </div>
@@ -785,7 +785,7 @@ export function DocumentCardGrid({
             <div className="flex gap-3">
               <button
                 onClick={() => setIterationModalOpen(false)}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+                className="flex-1 px-4 py-2 text-sm font-medium text-muted-foreground bg-muted hover:bg-secondary rounded-lg transition"
               >
                 Cancel
               </button>

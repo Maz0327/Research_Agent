@@ -28,7 +28,7 @@ export function BoldFirstSentence({ text, className = '' }: BoldFirstSentencePro
 
   return (
     <p className={className}>
-      <strong className="text-gray-100">{firstSentence}</strong>{' '}
+      <strong className="text-foreground">{firstSentence}</strong>{' '}
       {rest}
     </p>
   );

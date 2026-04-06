@@ -25,7 +25,7 @@ const STATUS_STYLES: Record<string, { dot: string; label: string }> = {
 
 function SourceCard({ source }: { source: SourceEntry }) {
   const typeKey = (source.source_type ?? '').toLowerCase();
-  const typeStyle = TYPE_STYLES[typeKey] ?? 'bg-zinc-800 text-zinc-400 border-zinc-600/20';
+  const typeStyle = TYPE_STYLES[typeKey] ?? 'bg-card text-muted-foreground border-border/20';
   const status = STATUS_STYLES[source.status] ?? STATUS_STYLES.ingested;
 
   return (
@@ -35,13 +35,13 @@ function SourceCard({ source }: { source: SourceEntry }) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <CitationPill id={source.source_id} />
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typeStyle}`}>
+            <Badge variant="outline" className={`text-caption px-1.5 py-0 ${typeStyle}`}>
               {source.source_type}
             </Badge>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <span className={`w-2 h-2 rounded-full ${status.dot}`} />
-            <span className="text-[11px] text-zinc-500">{status.label}</span>
+            <span className="text-caption text-muted-foreground/70">{status.label}</span>
           </div>
         </div>
 
@@ -52,11 +52,11 @@ function SourceCard({ source }: { source: SourceEntry }) {
             {source.title}
           </a>
         ) : (
-          <p className="text-sm font-medium text-zinc-200 leading-snug">{source.title}</p>
+          <p className="text-sm font-medium text-foreground leading-snug">{source.title}</p>
         )}
 
         {/* Meta */}
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-caption text-muted-foreground/70">
           {source.creator && <span>{source.creator}</span>}
           {source.published && <span>{source.published}</span>}
           {source.duration && <span>{source.duration}</span>}
@@ -67,8 +67,8 @@ function SourceCard({ source }: { source: SourceEntry }) {
         {source.skim_summary && source.skim_summary.length > 0 && (
           <ul className="space-y-1 pt-1">
             {source.skim_summary.map((item, i) => (
-              <li key={i} className="text-[13px] text-zinc-300 leading-relaxed flex gap-2">
-                <span className="text-zinc-600 flex-shrink-0 mt-0.5">•</span>
+              <li key={i} className="text-body-sm text-muted-foreground leading-relaxed flex gap-2">
+                <span className="text-muted-foreground/60 flex-shrink-0 mt-0.5">•</span>
                 <span>{item}</span>
               </li>
             ))}
@@ -77,9 +77,9 @@ function SourceCard({ source }: { source: SourceEntry }) {
 
         {/* Transcript provenance */}
         {source.transcript_provenance && (
-          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] pt-1 border-t border-border">
-            <span className="text-zinc-500">Transcript:</span>
-            <span className="text-zinc-400">{source.transcript_provenance.transcript_source}</span>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-caption pt-1 border-t border-border">
+            <span className="text-muted-foreground/70">Transcript:</span>
+            <span className="text-muted-foreground">{source.transcript_provenance.transcript_source}</span>
             <span className={source.transcript_provenance.transcript_status === 'success' ? 'text-green-500' : 'text-yellow-500'}>
               {source.transcript_provenance.transcript_status === 'success' ? '✓' : '⚠'} {source.transcript_provenance.transcript_status}
             </span>
@@ -88,7 +88,7 @@ function SourceCard({ source }: { source: SourceEntry }) {
 
         {/* Failure reason */}
         {source.failure_reason && (
-          <p className="text-[12px] text-red-400 pt-1 border-t border-red-900/20">{source.failure_reason}</p>
+          <p className="text-body-sm text-red-400 pt-1 border-t border-red-900/20">{source.failure_reason}</p>
         )}
       </CardContent>
     </Card>
@@ -110,25 +110,25 @@ export function SourceLedgerRenderer({ content }: SourceLedgerRendererProps) {
       {/* Topic */}
       {data?.topic && (
         <div className="text-center pb-4 border-b border-border">
-          <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider mb-1">Research Topic</p>
-          <p className="text-base font-semibold text-zinc-100">{data.topic}</p>
+          <p className="text-caption font-medium text-muted-foreground/70 uppercase tracking-wider mb-1">Research Topic</p>
+          <p className="text-base font-semibold text-foreground">{data.topic}</p>
         </div>
       )}
 
       {/* Stats */}
       <div className="flex flex-wrap gap-6 justify-center">
         <div className="text-center">
-          <p className="text-2xl font-bold text-zinc-100">{sources.length}</p>
-          <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Total</p>
+          <p className="text-2xl font-bold text-foreground">{sources.length}</p>
+          <p className="text-caption text-muted-foreground/70 uppercase tracking-wider">Total</p>
         </div>
         <div className="text-center">
           <p className="text-2xl font-bold text-green-400">{ingested}</p>
-          <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Ingested</p>
+          <p className="text-caption text-muted-foreground/70 uppercase tracking-wider">Ingested</p>
         </div>
         {failed > 0 && (
           <div className="text-center">
             <p className="text-2xl font-bold text-red-400">{failed}</p>
-            <p className="text-[11px] text-zinc-500 uppercase tracking-wider">Failed</p>
+            <p className="text-caption text-muted-foreground/70 uppercase tracking-wider">Failed</p>
           </div>
         )}
       </div>

@@ -19,12 +19,12 @@ const STYLES: Record<string, string> = {
 
 export function ConfidenceBadge({ level, className }: ConfidenceBadgeProps) {
   const normalized = (level ?? '').toLowerCase();
-  const style = STYLES[normalized] ?? 'bg-zinc-800 text-zinc-400 border-zinc-600/20 hover:bg-zinc-800';
+  const style = STYLES[normalized] ?? 'bg-card text-muted-foreground border-border/20 hover:bg-card';
 
   return (
     <Badge
       variant="outline"
-      className={cn('text-[10px] px-1.5 py-0.5 font-medium', style, className)}
+      className={cn('text-caption px-1.5 py-0.5 font-medium', style, className)}
     >
       {normalized.charAt(0).toUpperCase() + normalized.slice(1)}
     </Badge>

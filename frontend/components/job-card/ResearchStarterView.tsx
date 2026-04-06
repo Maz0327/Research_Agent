@@ -63,7 +63,7 @@ const platformIcons: Record<string, { icon: string; color: string; bg: string }>
   youtube: { icon: '>', color: 'text-red-400', bg: 'bg-red-900/50' },
   reddit: { icon: 'R', color: 'text-orange-400', bg: 'bg-orange-900/50' },
   academic: { icon: 'A', color: 'text-green-400', bg: 'bg-green-900/50' },
-  default: { icon: '?', color: 'text-gray-400', bg: 'bg-gray-800/50' },
+  default: { icon: '?', color: 'text-muted-foreground', bg: 'bg-card/50' },
 };
 
 const sourceTypeIcons: Record<string, { icon: string; color: string }> = {
@@ -73,7 +73,7 @@ const sourceTypeIcons: Record<string, { icon: string; color: string }> = {
   news_article: { icon: 'News', color: 'text-amber-400' },
   reddit_discussion: { icon: 'Reddit', color: 'text-orange-400' },
   book: { icon: 'Book', color: 'text-green-400' },
-  default: { icon: 'Src', color: 'text-gray-400' },
+  default: { icon: 'Src', color: 'text-muted-foreground' },
 };
 
 function CopyButton({ text, label }: { text: string; label?: string }) {
@@ -102,7 +102,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
       className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition ${
         copied
           ? 'bg-green-600 text-white'
-          : 'bg-gray-700 text-gray-400 hover:bg-gray-600 hover:text-gray-300'
+          : 'bg-muted text-muted-foreground hover:bg-secondary hover:text-muted-foreground'
       }`}
       title={copied ? 'Copied!' : label || 'Copy'}
     >
@@ -116,7 +116,7 @@ function SearchQueryCard({ query }: { query: SearchQuery }) {
   const config = platformIcons[platform] || platformIcons.default;
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+    <div className="rounded-lg border border-border bg-card/50 p-3">
       <div className="flex items-start gap-3">
         <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}>
           <span className={`text-xs font-bold ${config.color}`}>{config.icon}</span>
@@ -128,10 +128,10 @@ function SearchQueryCard({ query }: { query: SearchQuery }) {
             </span>
             <CopyButton text={query.query} label="Copy query" />
           </div>
-          <code className="block text-sm text-gray-200 bg-gray-900/50 rounded px-2 py-1.5 mb-2 break-all">
+          <code className="block text-sm text-foreground bg-background/50 rounded px-2 py-1.5 mb-2 break-all">
             {query.query}
           </code>
-          <p className="text-xs text-gray-500">{query.why}</p>
+          <p className="text-xs text-muted-foreground/70">{query.why}</p>
         </div>
       </div>
     </div>
@@ -143,14 +143,14 @@ function SourceSuggestionCard({ suggestion }: { suggestion: SourceSuggestion }) 
   const config = sourceTypeIcons[sourceType] || sourceTypeIcons.default;
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+    <div className="rounded-lg border border-border bg-card/50 p-3">
       <div className="flex items-start gap-3">
-        <span className={`text-xs font-bold ${config.color} bg-gray-900/50 rounded px-2 py-1`}>
+        <span className={`text-xs font-bold ${config.color} bg-background/50 rounded px-2 py-1`}>
           {config.icon}
         </span>
         <div className="flex-1">
-          <p className="text-sm text-gray-300 mb-1">{suggestion.description}</p>
-          <p className="text-xs text-gray-500">{suggestion.why_helpful}</p>
+          <p className="text-sm text-muted-foreground mb-1">{suggestion.description}</p>
+          <p className="text-xs text-muted-foreground/70">{suggestion.why_helpful}</p>
         </div>
       </div>
     </div>
@@ -161,8 +161,8 @@ function RabbitHoleCard({ rabbitHole }: { rabbitHole: RabbitHole }) {
   return (
     <div className="rounded-lg border border-purple-800/50 bg-purple-900/20 p-3">
       <h6 className="font-medium text-purple-300 mb-1">{rabbitHole.topic}</h6>
-      <p className="text-xs text-gray-500 mb-2">Mentioned in: {rabbitHole.mentioned_in}</p>
-      <p className="text-sm text-gray-400">{rabbitHole.potential_angle}</p>
+      <p className="text-xs text-muted-foreground/70 mb-2">Mentioned in: {rabbitHole.mentioned_in}</p>
+      <p className="text-sm text-muted-foreground">{rabbitHole.potential_angle}</p>
     </div>
   );
 }
@@ -173,12 +173,12 @@ function ContentAngleCard({ angle }: { angle: ContentAngle }) {
       <h6 className="font-medium text-green-300 mb-2">{angle.angle}</h6>
       <div className="space-y-2">
         <div>
-          <span className="text-xs text-gray-500">Differentiator: </span>
-          <span className="text-sm text-gray-300">{angle.differentiator}</span>
+          <span className="text-xs text-muted-foreground/70">Differentiator: </span>
+          <span className="text-sm text-muted-foreground">{angle.differentiator}</span>
         </div>
         <div>
-          <span className="text-xs text-gray-500">Why it works: </span>
-          <span className="text-sm text-gray-400">{angle.why_unique}</span>
+          <span className="text-xs text-muted-foreground/70">Why it works: </span>
+          <span className="text-sm text-muted-foreground">{angle.why_unique}</span>
         </div>
       </div>
     </div>
@@ -194,8 +194,8 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-gray-300">Research Starter</h4>
-          <p className="text-xs text-gray-500">Generating research directions...</p>
+          <h4 className="text-sm font-medium text-muted-foreground">Research Starter</h4>
+          <p className="text-xs text-muted-foreground/70">Generating research directions...</p>
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
@@ -214,15 +214,15 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
   if (!hasContent) {
     return (
       <div 
-        className="text-center py-8 px-4 rounded-lg border border-dashed border-gray-700"
+        className="text-center py-8 px-4 rounded-lg border border-dashed border-border"
         role="status"
         aria-label="No research starters generated"
       >
-        <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="mx-auto h-12 w-12 text-muted-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <h5 className="mt-3 text-sm font-medium text-gray-400">No Research Directions</h5>
-        <p className="mt-1 text-xs text-gray-500">
+        <h5 className="mt-3 text-sm font-medium text-muted-foreground">No Research Directions</h5>
+        <p className="mt-1 text-xs text-muted-foreground/70">
           Research suggestions will appear after gap analysis identifies areas to explore.
         </p>
       </div>
@@ -261,13 +261,13 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
       
       {/* Header - M-006: ARIA labels */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-300">Research Starter</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Research Starter</h4>
         <button
           onClick={handleCopyAll}
           className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition ${
             copiedAll
               ? 'bg-green-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              : 'bg-muted text-muted-foreground hover:bg-secondary'
           }`}
           aria-label={copiedAll ? 'Research starter copied to clipboard' : 'Copy all research starters as Markdown'}
         >
@@ -276,13 +276,13 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
       </div>
 
       {/* Section tabs */}
-      <div className="flex border-b border-gray-700">
+      <div className="flex border-b border-border">
         <button
           onClick={() => setActiveSection('queries')}
           className={`px-4 py-2 text-sm font-medium transition ${
             activeSection === 'queries'
               ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-muted-foreground'
           }`}
         >
           Queries ({researchStarter.search_queries.length})
@@ -292,7 +292,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
           className={`px-4 py-2 text-sm font-medium transition ${
             activeSection === 'sources'
               ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-muted-foreground'
           }`}
         >
           Sources ({researchStarter.source_suggestions.length})
@@ -302,7 +302,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
           className={`px-4 py-2 text-sm font-medium transition ${
             activeSection === 'angles'
               ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-gray-400 hover:text-gray-300'
+              : 'text-muted-foreground hover:text-muted-foreground'
           }`}
         >
           Angles ({researchStarter.content_angles.length})
@@ -319,7 +319,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
                 <SearchQueryCard key={idx} query={query} />
               ))
             ) : (
-              <p className="text-center text-gray-500 py-4">No search queries generated.</p>
+              <p className="text-center text-muted-foreground/70 py-4">No search queries generated.</p>
             )}
           </div>
         )}
@@ -332,7 +332,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
                 <SourceSuggestionCard key={idx} suggestion={suggestion} />
               ))
             ) : (
-              <p className="text-center text-gray-500 py-4">No source suggestions generated.</p>
+              <p className="text-center text-muted-foreground/70 py-4">No source suggestions generated.</p>
             )}
           </div>
         )}
@@ -343,7 +343,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
             {/* Content Angles */}
             {researchStarter.content_angles.length > 0 && (
               <div>
-                <h5 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-2">
                   <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
@@ -360,7 +360,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
             {/* Rabbit Holes */}
             {researchStarter.rabbit_holes.length > 0 && (
               <div>
-                <h5 className="text-xs font-medium text-gray-400 uppercase mb-3 flex items-center gap-2">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase mb-3 flex items-center gap-2">
                   <svg className="h-4 w-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
@@ -375,7 +375,7 @@ export function ResearchStarterView({ researchStarter, isLoading }: ResearchStar
             )}
 
             {researchStarter.content_angles.length === 0 && researchStarter.rabbit_holes.length === 0 && (
-              <p className="text-center text-gray-500 py-4">No content angles generated.</p>
+              <p className="text-center text-muted-foreground/70 py-4">No content angles generated.</p>
             )}
           </div>
         )}

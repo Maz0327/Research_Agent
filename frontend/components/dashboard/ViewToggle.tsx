@@ -10,13 +10,13 @@ interface ViewToggleProps {
 
 export function ViewToggle({ view, onChange }: ViewToggleProps) {
   return (
-    <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
+    <div className="flex items-center gap-1 bg-card rounded-lg p-1">
       <button
         onClick={() => onChange('card')}
         className={`p-1.5 sm:p-2 rounded-md transition-all touch-manipulation ${
           view === 'card'
-            ? 'bg-gray-700 text-blue-400'
-            : 'text-gray-500 hover:text-gray-400'
+            ? 'bg-muted text-blue-400'
+            : 'text-muted-foreground/70 hover:text-muted-foreground'
         }`}
         title="Card view"
         aria-label="Card view"
@@ -35,8 +35,8 @@ export function ViewToggle({ view, onChange }: ViewToggleProps) {
         onClick={() => onChange('table')}
         className={`p-1.5 sm:p-2 rounded-md transition-all touch-manipulation ${
           view === 'table'
-            ? 'bg-gray-700 text-blue-400'
-            : 'text-gray-500 hover:text-gray-400'
+            ? 'bg-muted text-blue-400'
+            : 'text-muted-foreground/70 hover:text-muted-foreground'
         }`}
         title="Table view"
         aria-label="Table view"

@@ -47,7 +47,7 @@ function ProgressCell({
   const isRunning = job.status === 'running';
 
   if (job.status === 'queued') {
-    return <span className="text-[10px] text-muted-foreground/60">Position #{queuePosition}</span>;
+    return <span className="text-caption text-muted-foreground/60">Position #{queuePosition}</span>;
   }
 
   if (isCompleted) {
@@ -56,7 +56,7 @@ function ProgressCell({
         <div className="flex-1 h-1.5 rounded-full bg-accent-green/20 overflow-hidden">
           <div className="h-full rounded-full bg-accent-green w-full" />
         </div>
-        <span className="text-[10px] text-accent-green w-8">Done</span>
+        <span className="text-caption text-accent-green w-8">Done</span>
       </div>
     );
   }
@@ -70,7 +70,7 @@ function ProgressCell({
             style={{ width: `${job.progress_percent ?? 0}%` }}
           />
         </div>
-        <span className="text-[10px] text-muted-foreground w-8">{job.progress_percent ?? 0}%</span>
+        <span className="text-caption text-muted-foreground w-8">{job.progress_percent ?? 0}%</span>
       </div>
     );
   }
@@ -81,25 +81,25 @@ function ProgressCell({
 function StatusCell({ status }: { status: Job['status'] }) {
   if (status === 'running') {
     return (
-      <span className="flex items-center gap-1.5 text-[10px] font-medium text-accent-green">
+      <span className="flex items-center gap-1.5 text-caption font-medium text-accent-green">
         <span className="w-1.5 h-1.5 rounded-full bg-accent-green motion-safe:animate-pulse" />
         Running
       </span>
     );
   }
   if (status === 'queued') {
-    return <span className="text-[10px] font-medium text-muted-foreground">Queued</span>;
+    return <span className="text-caption font-medium text-muted-foreground">Queued</span>;
   }
   if (status === 'completed' || status === 'completed_with_warnings') {
-    return <span className="text-[10px] font-medium text-accent-green">Completed</span>;
+    return <span className="text-caption font-medium text-accent-green">Completed</span>;
   }
   if (status === 'failed' || status === 'failed_insufficient') {
-    return <span className="text-[10px] font-medium text-destructive">Failed</span>;
+    return <span className="text-caption font-medium text-destructive">Failed</span>;
   }
   if (status === 'cancelled') {
-    return <span className="text-[10px] font-medium text-muted-foreground">Cancelled</span>;
+    return <span className="text-caption font-medium text-muted-foreground">Cancelled</span>;
   }
-  return <span className="text-[10px] font-medium text-muted-foreground">{status}</span>;
+  return <span className="text-caption font-medium text-muted-foreground">{status}</span>;
 }
 
 export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
@@ -137,7 +137,7 @@ export function QueueTableRow({ job, queuePosition }: QueueTableRowProps) {
       {/* Job title + meta */}
       <td className="px-4 py-3">
         <p className="text-sm font-medium truncate max-w-[250px]">{title}</p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           {modeLabel}
           {job.status === 'running' || job.status === 'completed' || job.status === 'completed_with_warnings'
             ? ''

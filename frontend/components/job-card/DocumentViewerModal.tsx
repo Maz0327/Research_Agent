@@ -47,11 +47,11 @@ export interface DocumentViewerModalProps {
 // Document type styling
 const docStyles: Record<0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 'B', { headerBg: string; headerBorder: string; badge: string; accent: string; accentBar: string }> = {
   0: {
-    headerBg: 'bg-gray-800',
-    headerBorder: 'border-gray-700',
-    badge: 'bg-gray-700 text-gray-300',
-    accent: 'text-gray-400',
-    accentBar: 'bg-gray-500',
+    headerBg: 'bg-card',
+    headerBorder: 'border-border',
+    badge: 'bg-muted text-muted-foreground',
+    accent: 'text-muted-foreground',
+    accentBar: 'bg-muted-foreground/50',
   },
   1: {
     headerBg: 'bg-blue-900/30',
@@ -346,13 +346,13 @@ export function DocumentViewerModal({
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={{ left: 0, right: 0.5 }}
             onDragEnd={handleDragEnd}
-            className="absolute inset-0 bg-gray-900 flex flex-col overflow-hidden shadow-2xl"
+            className="absolute inset-0 bg-background flex flex-col overflow-hidden shadow-2xl"
           >
             {/* Header with breadcrumb */}
             <div className={`flex-shrink-0 ${style.headerBg} border-b ${style.headerBorder}`}>
               {/* Breadcrumb strip - shown if jobTitle is provided */}
               {jobTitle && (
-                <div className="px-4 sm:px-6 pt-2.5 pb-0 flex items-center gap-2 text-xs text-gray-500">
+                <div className="px-4 sm:px-6 pt-2.5 pb-0 flex items-center gap-2 text-xs text-muted-foreground/70">
                   <span className="truncate max-w-[200px] sm:max-w-none">{jobTitle}</span>
                   <svg className="h-3 w-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -371,12 +371,12 @@ export function DocumentViewerModal({
                     <span className={`px-2 py-1 rounded text-xs font-medium flex-shrink-0 ${style.badge}`}>
                       DOC {docNumber}
                     </span>
-                    <h2 className="text-base sm:text-xl font-semibold text-gray-100 truncate">{title}</h2>
+                    <h2 className="text-base sm:text-xl font-semibold text-foreground truncate">{title}</h2>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={onClose}
-                      className="p-2 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                       title="Close (Esc)"
                       aria-label="Close document viewer"
                     >
@@ -390,14 +390,14 @@ export function DocumentViewerModal({
             </div>
 
             {/* Swipe hint on mobile */}
-            <div className="lg:hidden flex justify-center py-1.5 bg-gray-800/50">
-              <div className="w-10 h-1 rounded-full bg-gray-600" />
+            <div className="lg:hidden flex justify-center py-1.5 bg-card/50">
+              <div className="w-10 h-1 rounded-full bg-secondary" />
             </div>
 
             {/* Version selector — show when multiple versions exist */}
             {versions.length > 1 && (
-              <div className="flex-shrink-0 flex items-center gap-2 px-4 sm:px-6 py-2 border-b border-gray-700/50 bg-gray-800/30">
-                <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Version</span>
+              <div className="flex-shrink-0 flex items-center gap-2 px-4 sm:px-6 py-2 border-b border-border/50 bg-card/30">
+                <span className="text-caption font-medium text-muted-foreground/70 uppercase tracking-wider">Version</span>
                 <select
                   value={activeVersion ?? ''}
                   onChange={(e) => {
@@ -408,7 +408,7 @@ export function DocumentViewerModal({
                       loadVersion(Number(val));
                     }
                   }}
-                  className="bg-gray-700/50 border border-gray-600/50 rounded px-2 py-1 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="bg-muted/50 border border-border/50 rounded px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">Latest (v{versions[0]?.version})</option>
                   {versions.slice(1).map((v) => (
@@ -419,7 +419,7 @@ export function DocumentViewerModal({
                 </select>
                 {isLoadingVersion && <Spinner size="sm" />}
                 {activeVersion !== null && !isLoadingVersion && (
-                  <span className="text-[11px] text-gray-500">
+                  <span className="text-caption text-muted-foreground/70">
                     {versions.find(v => v.version === activeVersion)?.created_at
                       ? new Date(versions.find(v => v.version === activeVersion)!.created_at).toLocaleDateString()
                       : ''}
@@ -452,7 +452,7 @@ export function DocumentViewerModal({
             </div>
 
             {/* Footer - sticky on mobile */}
-            <div className="flex-shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-700 bg-gray-800/50">
+            <div className="flex-shrink-0 flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-card/50">
               {/* Details toggle - left side */}
               {hasContent ? (
                 <button
@@ -460,7 +460,7 @@ export function DocumentViewerModal({
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition flex items-center gap-2 min-h-[44px] touch-manipulation ${
                     showDetails
                       ? 'bg-blue-600/30 text-blue-300 border border-blue-600/50'
-                      : 'bg-gray-700/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700'
+                      : 'bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted'
                   }`}
                   title={showDetails ? 'Hide internal IDs' : 'Show internal IDs for debugging'}
                 >
@@ -505,12 +505,12 @@ export function DocumentViewerModal({
                         className="fixed inset-0 z-10"
                         onClick={() => setShowDownloadMenu(false)}
                       />
-                      <div className="absolute right-0 bottom-full mb-1 z-20 w-48 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                      <div className="absolute right-0 bottom-full mb-1 z-20 w-48 rounded-lg border border-border bg-card py-1 shadow-lg">
                         {!!effectiveMarkdown && (
                           <>
                             <button
                               onClick={handleDownloadPDF}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                              className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2"
                             >
                               <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -519,17 +519,17 @@ export function DocumentViewerModal({
                             </button>
                             <button
                               onClick={handleDownloadDocx}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+                              className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2"
                             >
                               <svg className="h-4 w-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                               </svg>
                               Download Word (.docx)
                             </button>
-                            <div className="border-t border-gray-700 my-1" />
+                            <div className="border-t border-border my-1" />
                             <button
                               onClick={handleDownloadMarkdown}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-700 hover:text-gray-300 flex items-center gap-2"
+                              className="w-full px-3 py-2 text-left text-sm text-muted-foreground/70 hover:bg-muted hover:text-muted-foreground flex items-center gap-2"
                             >
                               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -541,7 +541,7 @@ export function DocumentViewerModal({
                         {hasData && (
                           <button
                             onClick={handleDownloadJSON}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-700 hover:text-gray-300 flex items-center gap-2"
+                            className="w-full px-3 py-2 text-left text-sm text-muted-foreground/70 hover:bg-muted hover:text-muted-foreground flex items-center gap-2"
                           >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -556,7 +556,7 @@ export function DocumentViewerModal({
 
                 <button
                   onClick={handleCopy}
-                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition flex items-center gap-2 min-h-[44px] touch-manipulation"
+                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-muted text-muted-foreground hover:bg-secondary transition flex items-center gap-2 min-h-[44px] touch-manipulation"
                 >
                   {copied ? (
                     <>
@@ -576,7 +576,7 @@ export function DocumentViewerModal({
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-gray-600 text-gray-200 hover:bg-gray-500 transition min-h-[44px] touch-manipulation hidden sm:flex"
+                  className="px-3 sm:px-4 py-2 sm:py-2 rounded-lg text-sm font-medium bg-secondary text-foreground hover:bg-muted transition min-h-[44px] touch-manipulation hidden sm:flex"
                 >
                   Close
                 </button>

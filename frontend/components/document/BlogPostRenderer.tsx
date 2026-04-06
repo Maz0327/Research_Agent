@@ -67,7 +67,7 @@ export function BlogPostRenderer({ data, showDetails = false, jobId }: BlogPostR
           {data.seo_keywords.map((kw) => (
             <span
               key={kw}
-              className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.06] text-white/50 border border-white/[0.06]"
+              className="text-caption px-2 py-0.5 rounded-full bg-white/[0.06] text-white/50 border border-white/[0.06]"
             >
               {kw}
             </span>

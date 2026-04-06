@@ -101,7 +101,7 @@ export function ActiveTaskBanner({
               {config.label} {status === 'running' ? 'in progress...' : 'starting...'}
             </p>
             {iterationId && (
-              <p className="text-sm text-gray-400">{iterationId}</p>
+              <p className="text-sm text-muted-foreground">{iterationId}</p>
             )}
           </div>
         </div>
@@ -114,7 +114,7 @@ export function ActiveTaskBanner({
           {onCancel && (
             <button
               onClick={onCancel}
-              className="px-3 py-1 text-sm text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+              className="px-3 py-1 text-sm text-muted-foreground hover:text-white hover:bg-muted rounded transition-colors"
             >
               Cancel
             </button>
@@ -124,7 +124,7 @@ export function ActiveTaskBanner({
 
       {/* Progress bar */}
       {status === 'running' && (
-        <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${progressPercent}%` }}
@@ -136,7 +136,7 @@ export function ActiveTaskBanner({
 
       {/* Pulsing indicator for queued */}
       {status === 'queued' && (
-        <div className="mt-3 h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
           <motion.div
             animate={{ x: ['-100%', '200%'] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}

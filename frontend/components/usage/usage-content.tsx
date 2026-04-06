@@ -96,17 +96,17 @@ export function UsageContent() {
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-muted-foreground mb-1">This Month</p>
           <p className="text-2xl font-bold">${totalCost.toFixed(2)}</p>
-          <p className="text-[10px] text-accent-green mt-1">Estimated total</p>
+          <p className="text-caption text-accent-green mt-1">Estimated total</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-muted-foreground mb-1">Jobs Run</p>
           <p className="text-2xl font-bold">{totalJobs}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">Avg ${avgCostPerJob}/job</p>
+          <p className="text-caption text-muted-foreground mt-1">Avg ${avgCostPerJob}/job</p>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-xs text-muted-foreground mb-1">API Calls</p>
           <p className="text-2xl font-bold">{stats?.jobs_with_cost_tracking ?? 0}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">Jobs with cost tracking</p>
+          <p className="text-caption text-muted-foreground mt-1">Jobs with cost tracking</p>
         </div>
       </div>
 
@@ -141,8 +141,8 @@ export function UsageContent() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-5 py-2.5">Provider</th>
-              <th className="text-right text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-5 py-2.5">Cost</th>
+              <th className="text-left text-caption font-medium text-muted-foreground uppercase tracking-wider px-5 py-2.5">Provider</th>
+              <th className="text-right text-caption font-medium text-muted-foreground uppercase tracking-wider px-5 py-2.5">Cost</th>
             </tr>
           </thead>
           <tbody>

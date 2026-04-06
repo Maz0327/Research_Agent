@@ -24,12 +24,12 @@ function ScriptSectionCard({ section, showDetails }: { section: ScriptSection; s
     <CardWrapper accentColor="cyan">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 font-medium">
+          <span className="text-caption px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/20 font-medium">
             {section.beat_label}
           </span>
-          <span className="text-[11px] text-white/30 font-mono">{section.section_id}</span>
+          <span className="text-caption text-white/30 font-mono">{section.section_id}</span>
         </div>
-        <span className="text-[11px] text-white/30">{section.duration_estimate}</span>
+        <span className="text-caption text-white/30">{section.duration_estimate}</span>
       </div>
 
       {section.stage_direction && (

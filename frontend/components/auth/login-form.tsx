@@ -82,7 +82,7 @@ export function LoginForm() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-3 text-lg text-gray-400">
+        <div className="flex items-center gap-3 text-lg text-muted-foreground">
           <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -94,35 +94,35 @@ export function LoginForm() {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur-xl p-8 shadow-2xl">
+    <div className="rounded-2xl border border-border bg-background/80 backdrop-blur-xl p-8 shadow-2xl">
       {/* Header */}
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
           Research Agent
         </h1>
-        <p className="mt-2 text-gray-300">Sign in to your account</p>
+        <p className="mt-2 text-muted-foreground">Sign in to your account</p>
       </div>
 
       {/* Google OAuth */}
       <button
         onClick={handleGoogleLogin}
         disabled={loading}
-        className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-200 transition-all duration-200 hover:bg-gray-700 hover:border-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-foreground transition-all duration-200 hover:bg-muted hover:border-border disabled:cursor-not-allowed disabled:opacity-50"
       >
         <GoogleIcon />
         Continue with Google
       </button>
 
       <div className="my-6 flex items-center">
-        <div className="flex-grow border-t border-gray-700" />
-        <span className="mx-4 text-sm text-gray-400">or</span>
-        <div className="flex-grow border-t border-gray-700" />
+        <div className="flex-grow border-t border-border" />
+        <span className="mx-4 text-sm text-muted-foreground">or</span>
+        <div className="flex-grow border-t border-border" />
       </div>
 
       {/* Email Form */}
       <form onSubmit={handleEmailLogin}>
         <div className="mb-4">
-          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-300">
+          <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-muted-foreground">
             Email address
           </label>
           <input
@@ -132,14 +132,14 @@ export function LoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             autoComplete="email"
-            className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3.5 text-foreground placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             disabled={loading}
           />
         </div>
 
         {usePassword && (
           <div className="mb-4">
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-300">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-muted-foreground">
               Password
             </label>
             <input
@@ -149,7 +149,7 @@ export function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="current-password"
-              className="w-full rounded-xl border border-gray-700 bg-gray-800 px-4 py-3.5 text-gray-100 placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-xl border border-border bg-card px-4 py-3.5 text-foreground placeholder-gray-400 transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={loading}
             />
           </div>
@@ -176,7 +176,7 @@ export function LoginForm() {
         <button
           type="button"
           onClick={() => { setUsePassword(!usePassword); setMessage(null); setPassword(''); }}
-          className="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-300 transition-colors"
+          className="mt-3 w-full text-center text-sm text-muted-foreground hover:text-muted-foreground transition-colors"
         >
           {usePassword ? 'Use magic link instead' : 'Use password instead'}
         </button>
@@ -201,11 +201,11 @@ export function LoginForm() {
         )}
       </div>
 
-      <p className="mt-6 text-center text-sm text-gray-400">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         By signing in, you agree to our{' '}
-        <a href="/terms" className="underline hover:text-gray-200 transition-colors">Terms of Service</a>
+        <a href="/terms" className="underline hover:text-foreground transition-colors">Terms of Service</a>
         {' '}and{' '}
-        <a href="/privacy" className="underline hover:text-gray-200 transition-colors">Privacy Policy</a>.
+        <a href="/privacy" className="underline hover:text-foreground transition-colors">Privacy Policy</a>.
       </p>
     </div>
   );

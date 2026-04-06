@@ -47,7 +47,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="text-[11px] px-2 py-0.5 rounded bg-white/[0.06] text-white/50 hover:text-white/70 hover:bg-white/[0.1] transition-colors"
+      className="text-caption px-2 py-0.5 rounded bg-white/[0.06] text-white/50 hover:text-white/70 hover:bg-white/[0.1] transition-colors"
     >
       {copied ? 'Copied!' : 'Copy'}
     </button>
@@ -76,10 +76,10 @@ function PlatformPostCard({ post, showDetails }: { post: PlatformPost; showDetai
     <CardWrapper>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium border ${colorClass}`}>
+          <span className={`text-caption px-2 py-0.5 rounded-full font-medium border ${colorClass}`}>
             {label}
           </span>
-          <span className="text-[11px] text-white/30">{post.char_count} chars</span>
+          <span className="text-caption text-white/30">{post.char_count} chars</span>
         </div>
         <CopyButton text={getPostText()} />
       </div>
@@ -90,10 +90,10 @@ function PlatformPostCard({ post, showDetails }: { post: PlatformPost; showDetai
           {post.tweets.map((tweet) => (
             <div key={tweet.tweet_number} className="bg-white/[0.03] rounded-lg p-3 border border-white/[0.06]">
               <div className="flex items-start gap-2">
-                <span className="text-[11px] text-white/30 font-mono flex-shrink-0">{tweet.tweet_number}.</span>
+                <span className="text-caption text-white/30 font-mono flex-shrink-0">{tweet.tweet_number}.</span>
                 <p className="text-sm text-white/80">{tweet.text}</p>
               </div>
-              <p className="text-[10px] text-white/25 mt-1 text-right">{tweet.text.length}/280</p>
+              <p className="text-caption text-white/25 mt-1 text-right">{tweet.text.length}/280</p>
             </div>
           ))}
         </div>
@@ -128,7 +128,7 @@ function PlatformPostCard({ post, showDetails }: { post: PlatformPost; showDetai
       {post.hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3">
           {post.hashtags.map((tag) => (
-            <span key={tag} className="text-[11px] px-1.5 py-0.5 rounded bg-white/[0.06] text-white/40">
+            <span key={tag} className="text-caption px-1.5 py-0.5 rounded bg-white/[0.06] text-white/40">
               {tag}
             </span>
           ))}

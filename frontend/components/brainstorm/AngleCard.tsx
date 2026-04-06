@@ -67,10 +67,10 @@ export function AngleCard({ angle, isSelected, onToggle }: AngleCardProps) {
       onClick={() => onToggle(angle.angle_id)}
       className={`
         relative w-full text-left rounded-lg border p-4 sm:p-5 transition-all duration-200
-        bg-gray-800/40 overflow-hidden group
+        bg-card/40 overflow-hidden group
         ${isSelected
           ? 'border-blue-500/60 ring-1 ring-blue-500/30 shadow-lg shadow-blue-900/10'
-          : 'border-gray-700/40 hover:border-gray-600/60 hover:bg-gray-800/60'
+          : 'border-border/40 hover:border-border/60 hover:bg-card/60'
         }
       `}
     >
@@ -82,24 +82,24 @@ export function AngleCard({ angle, isSelected, onToggle }: AngleCardProps) {
       <div className={isSelected ? 'pl-2 sm:pl-3' : ''}>
         {/* Badges */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <span className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider border ${typeStyle}`}>
+          <span className={`text-caption px-2 py-0.5 rounded font-semibold uppercase tracking-wider border ${typeStyle}`}>
             {angle.content_type}
           </span>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-gray-700/40 text-gray-500 border border-gray-600/30">
+          <span className="text-caption px-2 py-0.5 rounded bg-muted/40 text-muted-foreground/70 border border-border/30">
             {DEPTH_LABELS[angle.estimated_depth] || angle.estimated_depth}
           </span>
         </div>
 
         {/* Title */}
-        <h3 className="text-[16px] font-semibold text-gray-100 mb-1">{angle.title}</h3>
+        <h3 className="text-[16px] font-semibold text-foreground mb-1">{angle.title}</h3>
 
         {/* Description */}
-        <p className="text-[14px] text-gray-400 leading-relaxed mb-3">{angle.description}</p>
+        <p className="text-body text-muted-foreground leading-relaxed mb-3">{angle.description}</p>
 
         {/* Hook preview */}
-        <div className="bg-gray-900/40 rounded-lg p-3 border border-gray-700/30 mb-3">
-          <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Hook preview</p>
-          <p className="text-[14px] text-gray-200 leading-relaxed italic">
+        <div className="bg-background/40 rounded-lg p-3 border border-border/30 mb-3">
+          <p className="text-caption text-muted-foreground/60 uppercase tracking-wider mb-1">Hook preview</p>
+          <p className="text-body text-foreground leading-relaxed italic">
             &ldquo;{angle.hook_preview}&rdquo;
           </p>
         </div>
@@ -108,7 +108,7 @@ export function AngleCard({ angle, isSelected, onToggle }: AngleCardProps) {
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); setShowArc(!showArc); }}
-          className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-gray-400 transition"
+          className="flex items-center gap-1.5 text-body-sm text-muted-foreground/70 hover:text-muted-foreground transition"
         >
           <svg
             className={`w-3 h-3 transition-transform duration-200 ${showArc ? 'rotate-90' : ''}`}
@@ -126,10 +126,10 @@ export function AngleCard({ angle, isSelected, onToggle }: AngleCardProps) {
           <div className="mt-3 space-y-2">
             {ARC_LABELS.map(({ key, label, icon }) => (
               <div key={key} className="flex gap-2 items-start">
-                <span className="text-[12px] flex-shrink-0 mt-0.5">{icon}</span>
+                <span className="text-body-sm flex-shrink-0 mt-0.5">{icon}</span>
                 <div>
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{label}</span>
-                  <p className="text-[13px] text-gray-300 leading-relaxed">
+                  <span className="text-caption font-semibold text-muted-foreground/70 uppercase tracking-wider">{label}</span>
+                  <p className="text-body-sm text-muted-foreground leading-relaxed">
                     {angle.story_arc[key as keyof StoryArc]}
                   </p>
                 </div>

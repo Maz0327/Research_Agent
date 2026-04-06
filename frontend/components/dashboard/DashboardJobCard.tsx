@@ -74,7 +74,7 @@ export function DashboardJobCard({ job }: DashboardJobCardProps) {
       {/* Progress bar — running jobs only */}
       {isRunning && (
         <div className="mb-3">
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+          <div className="flex items-center justify-between text-caption text-muted-foreground mb-1">
             <span>{job.stage ?? 'Processing'}</span>
             <span>{job.progress_percent ?? 0}%</span>
           </div>
@@ -93,7 +93,7 @@ export function DashboardJobCard({ job }: DashboardJobCardProps) {
       )}
 
       {/* Footer: time ago */}
-      <p className="text-[10px] text-muted-foreground">{formatRelativeTime(job.created_at)}</p>
+      <p className="text-caption text-muted-foreground">{formatRelativeTime(job.created_at)}</p>
     </div>
   );
 }

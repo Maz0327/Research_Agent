@@ -21,7 +21,7 @@ interface SourceReviewPanelProps {
 function getScoreColor(score: number): string {
   if (score >= 0.7) return 'text-green-400';
   if (score >= 0.5) return 'text-yellow-400';
-  return 'text-gray-400';
+  return 'text-muted-foreground';
 }
 
 /** Quality score bar width */
@@ -44,7 +44,7 @@ function getProviderBadge(provider: string): { label: string; color: string } {
     youtube: { label: 'Video', color: 'bg-red-900/40 text-red-300' },
     reddit: { label: 'Reddit', color: 'bg-orange-900/40 text-orange-300' },
   };
-  return map[provider] || { label: provider, color: 'bg-gray-700 text-gray-300' };
+  return map[provider] || { label: provider, color: 'bg-muted text-muted-foreground' };
 }
 
 export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPanelProps) {
@@ -126,8 +126,8 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
 
   if (candidates.length === 0) {
     return (
-      <div className="p-4 bg-gray-700/50 border border-gray-600/50 rounded-xl">
-        <p className="text-gray-400 text-sm">No search candidates found.</p>
+      <div className="p-4 bg-muted/50 border border-border/50 rounded-xl">
+        <p className="text-muted-foreground text-sm">No search candidates found.</p>
       </div>
     );
   }
@@ -147,7 +147,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
             </svg>
             Review Sources
           </h4>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {candidates.length} source{candidates.length !== 1 ? 's' : ''} found — select which ones to include
           </p>
         </div>
@@ -160,7 +160,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
           </button>
           <button
             onClick={deselectAll}
-            className="px-2 py-1 rounded text-gray-400 hover:text-gray-300 hover:bg-gray-800 transition"
+            className="px-2 py-1 rounded text-muted-foreground hover:text-muted-foreground hover:bg-card transition"
           >
             Deselect All
           </button>
@@ -184,7 +184,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
                 w-full text-left rounded-xl border-2 p-4 transition-all duration-150
                 ${isSelected
                   ? 'border-blue-500/50 bg-blue-500/5'
-                  : 'border-gray-700 bg-gray-800/30 opacity-50'
+                  : 'border-border bg-card/30 opacity-50'
                 }
               `}
             >
@@ -194,7 +194,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
                   mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
                   ${isSelected
                     ? 'border-blue-500 bg-blue-500'
-                    : 'border-gray-600 bg-gray-800'
+                    : 'border-border bg-card'
                   }
                 `}>
                   {isSelected && (
@@ -207,32 +207,32 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-gray-200 truncate">
+                    <span className="text-sm font-medium text-foreground truncate">
                       {candidate.title || 'Untitled'}
                     </span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${badge.color}`}>
+                    <span className={`text-caption px-1.5 py-0.5 rounded-full font-medium ${badge.color}`}>
                       {badge.label}
                     </span>
                   </div>
 
                   {/* Snippet */}
-                  <p className="text-xs text-gray-400 line-clamp-2 mb-2">{candidate.snippet}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{candidate.snippet}</p>
 
                   {/* Bottom row: URL + quality score */}
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] text-gray-500 truncate font-mono flex-1">
+                    <span className="text-caption text-muted-foreground/70 truncate font-mono flex-1">
                       {candidate.url}
                     </span>
 
                     {/* Quality score bar */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${getScoreBarColor(candidate.relevance_score)}`}
                           style={{ width: getScoreWidth(candidate.relevance_score) }}
                         />
                       </div>
-                      <span className={`text-[11px] font-mono ${getScoreColor(candidate.relevance_score)}`}>
+                      <span className={`text-caption font-mono ${getScoreColor(candidate.relevance_score)}`}>
                         {Math.round(candidate.relevance_score * 100)}%
                       </span>
                     </div>
@@ -245,8 +245,8 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
       </div>
 
       {/* Footer actions */}
-      <div className="flex items-center justify-between px-5 py-4 border-t border-blue-700/20 bg-gray-900/50">
-        <span className="text-xs text-gray-400">
+      <div className="flex items-center justify-between px-5 py-4 border-t border-blue-700/20 bg-background/50">
+        <span className="text-xs text-muted-foreground">
           {selectedUrls.size} of {candidates.length} selected
         </span>
         <button
@@ -256,7 +256,7 @@ export function SourceReviewPanel({ jobId, runId, onComplete }: SourceReviewPane
             px-5 py-2 rounded-lg text-sm font-medium transition-all
             ${selectedUrls.size > 0 && !isSubmitting
               ? 'bg-blue-600 hover:bg-blue-500 text-white'
-              : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+              : 'bg-card text-muted-foreground/60 cursor-not-allowed'
             }
           `}
         >

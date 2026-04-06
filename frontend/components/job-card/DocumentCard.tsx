@@ -27,10 +27,10 @@ export interface DocumentCardProps {
 const docConfig = {
   0: {
     color: 'gray',
-    bgColor: 'bg-gray-800/50',
-    borderColor: 'border-gray-700',
-    textColor: 'text-gray-300',
-    badgeColor: 'bg-gray-700 text-gray-400',
+    bgColor: 'bg-card/50',
+    borderColor: 'border-border',
+    textColor: 'text-muted-foreground',
+    badgeColor: 'bg-muted text-muted-foreground',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -182,17 +182,17 @@ export function DocumentCard({
       </div>
 
       {/* Title & Subtitle */}
-      <h4 className="font-semibold text-gray-100 mb-1">{title}</h4>
-      <p className="text-xs text-gray-500 mb-3">{subtitle}</p>
+      <h4 className="font-semibold text-foreground mb-1">{title}</h4>
+      <p className="text-xs text-muted-foreground/70 mb-3">{subtitle}</p>
 
       {/* Stats */}
       <div className="flex-1">
         {usesLazyLoading && stats.length === 0 ? (
-          <p className="text-xs text-gray-500 italic">Click View to load</p>
+          <p className="text-xs text-muted-foreground/70 italic">Click View to load</p>
         ) : (
           stats.map((stat, idx) => (
             <div key={idx} className="flex justify-between text-sm mb-1">
-              <span className="text-gray-500">{stat.label}</span>
+              <span className="text-muted-foreground/70">{stat.label}</span>
               <span className={config.textColor}>{stat.value}</span>
             </div>
           ))
@@ -200,15 +200,15 @@ export function DocumentCard({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2 mt-3 pt-3 border-t border-gray-800">
+      <div className="flex gap-2 mt-3 pt-3 border-t border-border">
         <button
           onClick={onView}
           disabled={isLoading}
           className={`flex-1 rounded-lg py-2 text-sm font-medium transition min-h-[44px] ${
             isLoading
-              ? 'bg-gray-700 text-gray-500 cursor-wait'
+              ? 'bg-muted text-muted-foreground/70 cursor-wait'
               : config.color === 'gray'
-              ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+              ? 'bg-muted text-foreground hover:bg-secondary'
               : config.color === 'blue'
               ? 'bg-blue-600/30 text-blue-300 hover:bg-blue-600/40'
               : 'bg-purple-600/30 text-purple-300 hover:bg-purple-600/40'
@@ -232,7 +232,7 @@ export function DocumentCard({
           <div className="relative">
             <button
               onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-              className="rounded-lg px-3 py-2 text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition min-h-[44px]"
+              className="rounded-lg px-3 py-2 text-sm font-medium bg-muted text-muted-foreground hover:bg-secondary transition min-h-[44px]"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -246,10 +246,10 @@ export function DocumentCard({
                   className="fixed inset-0 z-10"
                   onClick={() => setShowDownloadMenu(false)}
                 />
-                <div className="absolute right-0 bottom-full mb-1 z-20 w-44 rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                <div className="absolute right-0 bottom-full mb-1 z-20 w-44 rounded-lg border border-border bg-card py-1 shadow-lg">
                   <button
                     onClick={handleCopyToClipboard}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 min-h-[44px]"
+                    className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2 min-h-[44px]"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -259,7 +259,7 @@ export function DocumentCard({
                   {hasMarkdown && (
                     <button
                       onClick={handleDownloadMarkdown}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 min-h-[44px]"
+                      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2 min-h-[44px]"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -269,7 +269,7 @@ export function DocumentCard({
                   )}
                   <button
                     onClick={handleDownloadPDF}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 min-h-[44px]"
+                    className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2 min-h-[44px]"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -279,7 +279,7 @@ export function DocumentCard({
                   {hasData && (
                     <button
                       onClick={handleDownloadJSON}
-                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-700 flex items-center gap-2 min-h-[44px]"
+                      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2 min-h-[44px]"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />

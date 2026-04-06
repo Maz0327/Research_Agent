@@ -93,7 +93,7 @@ function MobileAdminHeader() {
             <Shield className="w-3.5 h-3.5 text-white" aria-hidden="true" />
           </div>
           <span className="text-sm font-semibold">Admin Panel</span>
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">
+          <span className="text-caption font-medium px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">
             Admin
           </span>
         </div>
@@ -120,7 +120,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Shield className="w-4 h-4 text-white" aria-hidden="true" />
             </div>
             <span className="text-sm font-semibold">Admin Panel</span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">
+            <span className="text-caption font-medium px-1.5 py-0.5 rounded bg-red-500/10 text-red-400">
               Admin
             </span>
           </div>

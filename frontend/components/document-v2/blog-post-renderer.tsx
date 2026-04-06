@@ -14,9 +14,9 @@ import type { BlogPostData, BlogSection } from '@/types/documents';
 
 function SectionCard({ section, showDetails }: { section: BlogSection; showDetails?: boolean }) {
   return (
-    <Card className="border-l-2 border-l-emerald-500/60 border-border bg-zinc-900/60">
+    <Card className="border-l-2 border-l-emerald-500/60 border-border bg-background/60">
       <CardContent className="p-4 space-y-2">
-        <h3 className="text-base font-semibold text-zinc-100">{section.heading}</h3>
+        <h3 className="text-base font-semibold text-foreground">{section.heading}</h3>
         <ProseBlock content={section.body} />
         {showDetails && (section.source_ids?.length > 0 || section.claim_ids?.length > 0) && (
           <div className="flex flex-wrap gap-1 pt-1">
@@ -41,12 +41,12 @@ export function BlogPostRenderer({ content, showDetails = false }: BlogPostRende
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-zinc-100 leading-tight">{data?.title}</h1>
-        {data?.subtitle && <p className="text-base text-zinc-400 mt-1">{data.subtitle}</p>}
-        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-zinc-500">
+        <h1 className="text-xl font-bold text-foreground leading-tight">{data?.title}</h1>
+        {data?.subtitle && <p className="text-base text-muted-foreground mt-1">{data.subtitle}</p>}
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground/70">
           {data?.estimated_reading_time && <span>{data.estimated_reading_time}</span>}
           {data?.source_count != null && (
-            <><span className="w-1 h-1 rounded-full bg-zinc-600" /><span>{data.source_count} source{data.source_count !== 1 ? 's' : ''}</span></>
+            <><span className="w-1 h-1 rounded-full bg-secondary" /><span>{data.source_count} source{data.source_count !== 1 ? 's' : ''}</span></>
           )}
         </div>
       </div>
@@ -55,7 +55,7 @@ export function BlogPostRenderer({ content, showDetails = false }: BlogPostRende
       {data?.meta_description && (
         <div className="bg-emerald-900/10 border border-emerald-700/20 rounded-lg p-3">
           <p className="text-xs font-medium text-emerald-400/70 mb-1">Meta Description</p>
-          <p className="text-sm text-zinc-300">{data.meta_description}</p>
+          <p className="text-sm text-muted-foreground">{data.meta_description}</p>
         </div>
       )}
 
@@ -63,7 +63,7 @@ export function BlogPostRenderer({ content, showDetails = false }: BlogPostRende
       {data?.seo_keywords?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {data.seo_keywords.map((kw: string) => (
-            <Badge key={kw} variant="outline" className="text-[10px] px-2 py-0 text-zinc-400 border-zinc-600/40 bg-zinc-800/60">
+            <Badge key={kw} variant="outline" className="text-caption px-2 py-0 text-muted-foreground border-border/40 bg-card/60">
               {kw}
             </Badge>
           ))}
@@ -86,7 +86,7 @@ export function BlogPostRenderer({ content, showDetails = false }: BlogPostRende
       {data?.conclusion && (
         <div>
           <SectionHeader title="Conclusion" className="mb-2" />
-          <Card className="bg-zinc-900/40 border-border">
+          <Card className="bg-background/40 border-border">
             <CardContent className="p-4">
               <ProseBlock content={data.conclusion} />
             </CardContent>
@@ -105,15 +105,15 @@ export function BlogPostRenderer({ content, showDetails = false }: BlogPostRende
       {data?.description_sources?.length > 0 && (
         <Accordion type="single" collapsible>
           <AccordionItem value="sources" className="border-0">
-            <AccordionTrigger className="rounded-lg bg-zinc-900/40 border border-border px-4 py-2.5 hover:bg-zinc-900/60 hover:no-underline">
+            <AccordionTrigger className="rounded-lg bg-background/40 border border-border px-4 py-2.5 hover:bg-background/60 hover:no-underline">
               <SectionHeader title="Sources" count={data.description_sources.length} />
             </AccordionTrigger>
             <AccordionContent className="pt-0 pb-0">
               <div className="border border-t-0 border-border rounded-b-lg p-4 space-y-2">
                 {data.description_sources.map((ds: any) => (
-                  <div key={ds.source_id} className="text-sm text-zinc-400">
-                    <span className="font-medium text-zinc-200">{ds.title}</span>
-                    {ds.creator && <span className="text-zinc-500"> by {ds.creator}</span>}
+                  <div key={ds.source_id} className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{ds.title}</span>
+                    {ds.creator && <span className="text-muted-foreground/70"> by {ds.creator}</span>}
                     {ds.url && (
                       <> — <a href={ds.url} target="_blank" rel="noopener noreferrer" className="text-emerald-400/70 hover:text-emerald-400 underline">{ds.url}</a></>
                     )}

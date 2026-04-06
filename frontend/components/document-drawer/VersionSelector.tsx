@@ -15,12 +15,12 @@ import { formatTimestamp } from '../../lib/document-formatters';
 // =============================================================================
 
 const TRIGGER_LABELS: Record<string, { label: string; color: string }> = {
-  initial_run: { label: 'Initial', color: 'text-gray-400' },
+  initial_run: { label: 'Initial', color: 'text-muted-foreground' },
   deep_dive: { label: 'Deep Dive', color: 'text-blue-400' },
   expand_sources: { label: 'Expand', color: 'text-green-400' },
   deeper: { label: 'Deeper', color: 'text-purple-400' },
   different_angle: { label: 'New Angle', color: 'text-orange-400' },
-  custom: { label: 'Custom', color: 'text-gray-300' },
+  custom: { label: 'Custom', color: 'text-muted-foreground' },
 };
 
 // =============================================================================
@@ -116,7 +116,7 @@ export function VersionSelector({
       {/* Trigger button */}
       <button
         onClick={handleOpen}
-        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
         title="View versions"
       >
         v{displayVersion || '?'}
@@ -138,11 +138,11 @@ export function VersionSelector({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-gray-800 border border-gray-700 shadow-xl z-[60] overflow-hidden"
+            className="absolute right-0 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-card border border-border shadow-xl z-[60] overflow-hidden"
           >
             {/* Header */}
-            <div className="px-3 py-2 border-b border-gray-700">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+            <div className="px-3 py-2 border-b border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Version History
               </p>
             </div>
@@ -151,12 +151,12 @@ export function VersionSelector({
             <div className="max-h-64 overflow-y-auto">
               {loading ? (
                 <div className="px-3 py-4 text-center">
-                  <div className="w-4 h-4 border-2 border-gray-600 border-t-gray-300 rounded-full animate-spin mx-auto" />
-                  <p className="text-xs text-gray-500 mt-2">Loading versions...</p>
+                  <div className="w-4 h-4 border-2 border-border border-t-gray-300 rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-muted-foreground/70 mt-2">Loading versions...</p>
                 </div>
               ) : versions.length === 0 ? (
                 <div className="px-3 py-4 text-center">
-                  <p className="text-xs text-gray-500">No version history available</p>
+                  <p className="text-xs text-muted-foreground/70">No version history available</p>
                 </div>
               ) : (
                 [...versions]
@@ -165,7 +165,7 @@ export function VersionSelector({
                     const isSelected = version.version === currentVersion;
                     const triggerInfo = TRIGGER_LABELS[version.trigger] || {
                       label: version.trigger,
-                      color: 'text-gray-400',
+                      color: 'text-muted-foreground',
                     };
 
                     return (
@@ -176,36 +176,36 @@ export function VersionSelector({
                           setIsOpen(false);
                         }}
                         className={`
-                          w-full px-3 py-2.5 text-left hover:bg-gray-700/50 transition-colors
+                          w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors
                           ${isSelected ? 'bg-amber-900/20 border-l-2 border-amber-500' : 'border-l-2 border-transparent'}
                         `}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono text-gray-200">
+                            <span className="text-sm font-mono text-foreground">
                               v{version.version}
                             </span>
                             <span className={`text-xs ${triggerInfo.color}`}>
                               {triggerInfo.label}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-muted-foreground/70">
                             {formatTimestamp(version.created_at)}
                           </span>
                         </div>
                         {version.diff_summary && (
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                          <p className="text-xs text-muted-foreground/70 mt-0.5 truncate">
                             {version.diff_summary}
                           </p>
                         )}
                         <div className="flex items-center gap-3 mt-1">
                           {version.source_count > 0 && (
-                            <span className="text-xs text-gray-600">
+                            <span className="text-xs text-muted-foreground/60">
                               {version.source_count} sources
                             </span>
                           )}
                           {version.claim_count > 0 && (
-                            <span className="text-xs text-gray-600">
+                            <span className="text-xs text-muted-foreground/60">
                               {version.claim_count} claims
                             </span>
                           )}

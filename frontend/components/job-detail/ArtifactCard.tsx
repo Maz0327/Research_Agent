@@ -195,7 +195,7 @@ function XIcon({ className = 'w-5 h-5' }: { className?: string }) {
 
 /** Accent color per artifact type (used for icon tint and progress bar) */
 const ACCENT_COLORS: Record<ArtifactType, { icon: string; bar: string; glow: string }> = {
-  doc_0: { icon: 'text-gray-400', bar: 'from-gray-500 to-gray-400', glow: 'rgba(156,163,175,0.3)' },
+  doc_0: { icon: 'text-muted-foreground', bar: 'from-gray-500 to-gray-400', glow: 'rgba(156,163,175,0.3)' },
   doc_1: { icon: 'text-blue-400', bar: 'from-blue-500 to-blue-400', glow: 'rgba(59,130,246,0.3)' },
   doc_2: { icon: 'text-purple-400', bar: 'from-purple-500 to-purple-400', glow: 'rgba(139,92,246,0.3)' },
   doc_3: { icon: 'text-amber-400', bar: 'from-amber-500 to-amber-400', glow: 'rgba(245,158,11,0.3)' },
@@ -390,7 +390,7 @@ export function ArtifactCard({
               </h3>
               {readingOrder && state === 'completed' && (
                 <span className={`
-                  text-[10px] px-1.5 py-0.5 rounded-full font-medium
+                  text-caption px-1.5 py-0.5 rounded-full font-medium
                   ${type === 'doc_3'
                     ? 'bg-amber-500/15 text-amber-300 border border-amber-500/20'
                     : 'bg-white/[0.06] text-white/40 border border-white/[0.06]'
@@ -460,7 +460,7 @@ export function ArtifactCard({
               />
             </div>
             {iterationId && (
-              <p className="text-[11px] text-white/25 mt-1.5 font-mono">{iterationId}</p>
+              <p className="text-caption text-white/25 mt-1.5 font-mono">{iterationId}</p>
             )}
           </div>
         )}
@@ -478,7 +478,7 @@ export function ArtifactCard({
             <div className="flex items-center justify-between w-full">
               <span className="text-xs text-white/40">{getStatusText()}</span>
               {state === 'running' && (
-                <span className="text-[11px] font-mono text-white/30">{progressPercent}%</span>
+                <span className="text-caption font-mono text-white/30">{progressPercent}%</span>
               )}
             </div>
           ) : state === 'failed' ? (
@@ -494,7 +494,7 @@ export function ArtifactCard({
 
         {/* Error preview */}
         {state === 'failed' && error && (
-          <p className="mt-2 text-[11px] text-red-400/60 line-clamp-2">{error}</p>
+          <p className="mt-2 text-caption text-red-400/60 line-clamp-2">{error}</p>
         )}
       </div>
     </motion.div>

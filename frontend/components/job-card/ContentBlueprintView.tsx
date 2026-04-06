@@ -54,7 +54,7 @@ const techniqueColors: Record<string, { bg: string; text: string; border: string
   'provocative question': { bg: 'bg-blue-900/30', text: 'text-blue-400', border: 'border-blue-700' },
   'shocking statement': { bg: 'bg-red-900/30', text: 'text-red-400', border: 'border-red-700' },
   'story tease': { bg: 'bg-amber-900/30', text: 'text-amber-400', border: 'border-amber-700' },
-  'default': { bg: 'bg-gray-800/50', text: 'text-gray-400', border: 'border-gray-700' },
+  'default': { bg: 'bg-card/50', text: 'text-muted-foreground', border: 'border-border' },
 };
 
 function getYouTubeTimestampUrl(videoUrl: string, timestamp: string): string {
@@ -119,14 +119,14 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h5 className="font-medium text-gray-200 truncate" title={blueprint.title}>
+          <h5 className="font-medium text-foreground truncate" title={blueprint.title}>
             {blueprint.title}
           </h5>
           <a
             href={blueprint.video_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-gray-500 hover:text-gray-400 truncate block"
+            className="text-xs text-muted-foreground/70 hover:text-muted-foreground truncate block"
           >
             {blueprint.video_url.replace(/https?:\/\/(www\.)?/, '').substring(0, 50)}...
           </a>
@@ -134,7 +134,7 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
         {/* M-006: ARIA labels for accessibility */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="ml-2 text-gray-400 hover:text-gray-300"
+          className="ml-2 text-muted-foreground hover:text-muted-foreground"
           aria-expanded={expanded}
           aria-label={expanded ? 'Collapse blueprint details' : 'Expand blueprint details'}
         >
@@ -165,29 +165,29 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
             0:00 - {blueprint.hook_timestamp}
           </a>
         </div>
-        <p className="text-sm text-gray-300">{blueprint.hook_description}</p>
+        <p className="text-sm text-muted-foreground">{blueprint.hook_description}</p>
       </div>
 
       {/* Structure & Style Tags */}
       <div className="flex flex-wrap gap-2 mb-3">
-        <span className="inline-flex items-center rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
+        <span className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
           {blueprint.structure_type}
         </span>
-        <span className="inline-flex items-center rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
+        <span className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
           {blueprint.pacing} pacing
         </span>
-        <span className="inline-flex items-center rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300">
+        <span className="inline-flex items-center rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
           {blueprint.editing_style}
         </span>
       </div>
 
       {/* Expanded content */}
       {expanded && (
-        <div className="mt-4 pt-4 border-t border-gray-700 space-y-4">
+        <div className="mt-4 pt-4 border-t border-border space-y-4">
           {/* Act Breakdown */}
           {blueprint.act_breakdown.length > 0 && (
             <div>
-              <h6 className="text-xs font-medium text-gray-400 uppercase mb-2">Narrative Structure</h6>
+              <h6 className="text-xs font-medium text-muted-foreground uppercase mb-2">Narrative Structure</h6>
               <div className="space-y-2">
                 {blueprint.act_breakdown.map((act, idx) => (
                   <div key={idx} className="flex items-start gap-3 text-sm">
@@ -200,8 +200,8 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
                       {act.timestamp_start}
                     </a>
                     <div>
-                      <span className="font-medium text-gray-300">{act.name}</span>
-                      <p className="text-gray-400 text-xs">{act.description}</p>
+                      <span className="font-medium text-muted-foreground">{act.name}</span>
+                      <p className="text-muted-foreground text-xs">{act.description}</p>
                     </div>
                   </div>
                 ))}
@@ -212,7 +212,7 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
           {/* Open Loops */}
           {blueprint.open_loops.length > 0 && (
             <div>
-              <h6 className="text-xs font-medium text-gray-400 uppercase mb-2">Re-engagement Points</h6>
+              <h6 className="text-xs font-medium text-muted-foreground uppercase mb-2">Re-engagement Points</h6>
               <div className="space-y-2">
                 {blueprint.open_loops.map((loop, idx) => (
                   <div key={idx} className="flex items-start gap-3 text-sm">
@@ -228,7 +228,7 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
                       <span className="text-xs bg-yellow-900/50 text-yellow-400 rounded px-1.5 py-0.5">
                         {loop.technique}
                       </span>
-                      <p className="text-gray-400 text-xs mt-1">{loop.description}</p>
+                      <p className="text-muted-foreground text-xs mt-1">{loop.description}</p>
                     </div>
                   </div>
                 ))}
@@ -239,19 +239,19 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
           {/* Sources */}
           {(blueprint.likely_primary_sources.length > 0 || blueprint.referenced_materials.length > 0) && (
             <div>
-              <h6 className="text-xs font-medium text-gray-400 uppercase mb-2">Source Tracing</h6>
+              <h6 className="text-xs font-medium text-muted-foreground uppercase mb-2">Source Tracing</h6>
               {blueprint.likely_primary_sources.length > 0 && (
                 <div className="mb-2">
-                  <span className="text-xs text-gray-500">Likely Sources: </span>
-                  <span className="text-sm text-gray-300">
+                  <span className="text-xs text-muted-foreground/70">Likely Sources: </span>
+                  <span className="text-sm text-muted-foreground">
                     {blueprint.likely_primary_sources.join(', ')}
                   </span>
                 </div>
               )}
               {blueprint.referenced_materials.length > 0 && (
                 <div>
-                  <span className="text-xs text-gray-500">Referenced: </span>
-                  <span className="text-sm text-gray-300">
+                  <span className="text-xs text-muted-foreground/70">Referenced: </span>
+                  <span className="text-sm text-muted-foreground">
                     {blueprint.referenced_materials.join(', ')}
                   </span>
                 </div>
@@ -266,7 +266,7 @@ function BlueprintCard({ blueprint }: { blueprint: ContentBlueprint }) {
               className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition ${
                 copied
                   ? 'bg-green-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-muted text-muted-foreground hover:bg-secondary'
               }`}
               aria-label={copied ? 'Blueprint copied to clipboard' : 'Copy blueprint as Markdown'}
             >
@@ -324,10 +324,10 @@ export function ContentBlueprintView({ blueprints, isLoading }: ContentBlueprint
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-gray-300">
+          <h4 className="text-sm font-medium text-muted-foreground">
             Content Blueprints
           </h4>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground/70">
             Analyzing video structures...
           </p>
         </div>
@@ -342,15 +342,15 @@ export function ContentBlueprintView({ blueprints, isLoading }: ContentBlueprint
   if (blueprints.length === 0) {
     return (
       <div 
-        className="text-center py-8 px-4 rounded-lg border border-dashed border-gray-700"
+        className="text-center py-8 px-4 rounded-lg border border-dashed border-border"
         role="status"
         aria-label="No content blueprints available"
       >
-        <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="mx-auto h-12 w-12 text-muted-foreground/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <h5 className="mt-3 text-sm font-medium text-gray-400">No Content Blueprints</h5>
-        <p className="mt-1 text-xs text-gray-500">
+        <h5 className="mt-3 text-sm font-medium text-muted-foreground">No Content Blueprints</h5>
+        <p className="mt-1 text-xs text-muted-foreground/70">
           Structure analysis will appear here once videos are processed.
         </p>
       </div>
@@ -363,7 +363,7 @@ export function ContentBlueprintView({ blueprints, isLoading }: ContentBlueprint
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-300">
+        <h4 className="text-sm font-medium text-muted-foreground">
           Content Blueprints ({blueprints.length})
           {errorCount > 0 && (
             <span className="ml-2 text-xs text-yellow-500">
@@ -371,7 +371,7 @@ export function ContentBlueprintView({ blueprints, isLoading }: ContentBlueprint
             </span>
           )}
         </h4>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground/70">
           Reverse-engineered video structures
         </p>
       </div>

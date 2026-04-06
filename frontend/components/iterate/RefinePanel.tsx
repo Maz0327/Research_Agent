@@ -121,17 +121,17 @@ export function RefinePanel({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.95, y: 20 }}
                   transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
-                  className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-[60] overflow-hidden"
+                  className="fixed inset-x-4 top-1/2 -translate-y-1/2 sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-lg bg-background border border-border rounded-2xl shadow-2xl z-[60] overflow-hidden"
                 >
             {/* Header */}
-            <div className="border-b border-gray-800 px-6 py-4">
+            <div className="border-b border-border px-6 py-4">
               <div className="flex items-center justify-between">
-                <h2 id="refine-panel-title" className="text-lg font-semibold text-gray-100">
+                <h2 id="refine-panel-title" className="text-lg font-semibold text-foreground">
                   Improve Research
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-2.5 -mr-1 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+                  className="p-2.5 -mr-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
                   aria-label="Close"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,7 +145,7 @@ export function RefinePanel({
             <div className="px-6 py-5 space-y-4">
               {/* Suggestion chips */}
               <div>
-                <p className="text-xs text-gray-500 mb-2">Quick actions</p>
+                <p className="text-xs text-muted-foreground/70 mb-2">Quick actions</p>
                 <div className="flex flex-wrap gap-2">
                   {suggestions.map((suggestion, i) => (
                     <button
@@ -155,7 +155,7 @@ export function RefinePanel({
                         text-xs px-3 py-1.5 rounded-full border transition-all
                         ${userInput === suggestion
                           ? 'border-blue-500/50 bg-blue-900/20 text-blue-300'
-                          : 'border-gray-700 bg-gray-800/50 text-gray-400 hover:border-gray-600 hover:text-gray-300'
+                          : 'border-border bg-card/50 text-muted-foreground hover:border-border hover:text-muted-foreground'
                         }
                       `}
                     >
@@ -167,7 +167,7 @@ export function RefinePanel({
 
               {/* Text input */}
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">
+                <label className="block text-sm text-muted-foreground mb-1.5">
                   What would you like to improve?
                 </label>
                 <textarea
@@ -176,7 +176,7 @@ export function RefinePanel({
                   onKeyDown={handleKeyDown}
                   placeholder="e.g., Find more sources about the economic impact..."
                   rows={3}
-                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-sm text-gray-200 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   style={{ fontSize: '16px' }}
                   autoFocus
                 />
@@ -187,7 +187,7 @@ export function RefinePanel({
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-xs text-gray-500"
+                  className="text-xs text-muted-foreground/70"
                 >
                   {getModeHint(inferred.mode)}
                 </motion.p>
@@ -202,11 +202,11 @@ export function RefinePanel({
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-800 px-6 py-4">
+            <div className="border-t border-border px-6 py-4">
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors min-h-[44px]"
+                  className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors min-h-[44px]"
                 >
                   Cancel
                 </button>
@@ -217,7 +217,7 @@ export function RefinePanel({
                     px-5 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px]
                     ${userInput.trim() && !submitting
                       ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                      : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                      : 'bg-card text-muted-foreground/60 cursor-not-allowed'
                     }
                   `}
                 >

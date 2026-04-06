@@ -40,12 +40,12 @@ export function StoryArcCard({ arc }: StoryArcCardProps) {
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${colors.bg} ${colors.text} border border-current/20`}>
+            <span className={`text-caption font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${colors.bg} ${colors.text} border border-current/20`}>
               {ARC_TYPE_LABELS[arc.arc_type] || arc.arc_type}
             </span>
           </div>
-          <p className="text-[15px] font-semibold text-gray-100">{arc.arc_name}</p>
-          <p className="text-[12px] text-gray-500 mt-0.5">{arc.topic_fit_reason}</p>
+          <p className="text-body-lg font-semibold text-foreground">{arc.arc_name}</p>
+          <p className="text-body-sm text-muted-foreground/70 mt-0.5">{arc.topic_fit_reason}</p>
         </div>
       </div>
 
@@ -67,12 +67,12 @@ export function StoryArcCard({ arc }: StoryArcCardProps) {
               </div>
               {/* Beat content */}
               <div className="pb-3 min-w-0">
-                <p className="text-[13px] font-medium text-gray-200">{beat.label}</p>
-                <p className="text-[12px] text-gray-400 mt-0.5">{beat.description}</p>
+                <p className="text-body-sm font-medium text-foreground">{beat.label}</p>
+                <p className="text-body-sm text-muted-foreground mt-0.5">{beat.description}</p>
                 {beat.mapped_ids && beat.mapped_ids.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {beat.mapped_ids.map((id) => (
-                      <span key={id} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 border border-gray-700/50">
+                      <span key={id} className="text-caption px-1.5 py-0.5 rounded bg-card text-muted-foreground/70 border border-border/50">
                         {id}
                       </span>
                     ))}
@@ -87,7 +87,7 @@ export function StoryArcCard({ arc }: StoryArcCardProps) {
       {/* Scripting preview toggle */}
       <button
         onClick={() => setShowPreview(!showPreview)}
-        className="mt-3 text-[12px] text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
+        className="mt-3 text-body-sm text-muted-foreground/70 hover:text-muted-foreground transition-colors flex items-center gap-1"
       >
         <svg
           className={`w-3 h-3 transition-transform ${showPreview ? 'rotate-90' : ''}`}
@@ -99,9 +99,9 @@ export function StoryArcCard({ arc }: StoryArcCardProps) {
       </button>
 
       {showPreview && (
-        <div className="mt-2 p-3 rounded-lg bg-gray-800/60 border border-gray-700/30">
-          <p className="text-[12px] text-gray-500 font-medium mb-1 uppercase tracking-wider">If you were scripting this...</p>
-          <p className="text-[13px] text-gray-300 italic leading-relaxed">{arc.scripting_preview}</p>
+        <div className="mt-2 p-3 rounded-lg bg-card/60 border border-border/30">
+          <p className="text-body-sm text-muted-foreground/70 font-medium mb-1 uppercase tracking-wider">If you were scripting this...</p>
+          <p className="text-body-sm text-muted-foreground italic leading-relaxed">{arc.scripting_preview}</p>
         </div>
       )}
     </CardWrapper>

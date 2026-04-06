@@ -19,10 +19,10 @@ const styles: Record<string, { bg: string; text: string; dot: string }> = {
 
 export function ConfidenceBadge({ level, size = 'sm' }: ConfidenceBadgeProps) {
   const normalized = level?.toLowerCase() || 'unknown';
-  const s = styles[normalized] || { bg: 'bg-gray-800/50', text: 'text-gray-400', dot: 'bg-gray-500' };
+  const s = styles[normalized] || { bg: 'bg-card/50', text: 'text-muted-foreground', dot: 'bg-gray-500' };
 
   const sizeClasses = size === 'sm'
-    ? 'px-2 py-0.5 text-[11px]'
+    ? 'px-2 py-0.5 text-caption'
     : 'px-2.5 py-1 text-xs';
 
   return (

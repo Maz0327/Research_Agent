@@ -39,7 +39,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/40 hover:text-zinc-200 transition-colors"
+      className="text-caption px-2 py-0.5 rounded bg-card text-muted-foreground border border-border/40 hover:text-foreground transition-colors"
     >
       {copied ? 'Copied!' : 'Copy'}
     </button>
@@ -62,10 +62,10 @@ function getPostText(post: PlatformPost): string {
 
 function PlatformContent({ post, showDetails }: { post: PlatformPost; showDetails?: boolean }) {
   return (
-    <Card className="bg-zinc-900/40 border-border">
+    <Card className="bg-background/40 border-border">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-zinc-500">{post.char_count} chars</span>
+          <span className="text-caption text-muted-foreground/70">{post.char_count} chars</span>
           <CopyButton text={getPostText(post)} />
         </div>
 
@@ -73,12 +73,12 @@ function PlatformContent({ post, showDetails }: { post: PlatformPost; showDetail
         {post.platform === 'twitter_thread' && post.tweets && (
           <div className="space-y-2">
             {post.tweets.map((tweet: any) => (
-              <div key={tweet.tweet_number} className="bg-zinc-800/40 rounded-lg p-3 border border-border">
+              <div key={tweet.tweet_number} className="bg-card/40 rounded-lg p-3 border border-border">
                 <div className="flex items-start gap-2">
-                  <span className="text-[10px] text-zinc-500 font-mono flex-shrink-0">{tweet.tweet_number}.</span>
-                  <p className="text-sm text-zinc-200">{tweet.text}</p>
+                  <span className="text-caption text-muted-foreground/70 font-mono flex-shrink-0">{tweet.tweet_number}.</span>
+                  <p className="text-sm text-foreground">{tweet.text}</p>
                 </div>
-                <p className="text-[10px] text-zinc-600 mt-1 text-right">{tweet.text.length}/280</p>
+                <p className="text-caption text-muted-foreground/60 mt-1 text-right">{tweet.text.length}/280</p>
               </div>
             ))}
           </div>
@@ -87,13 +87,13 @@ function PlatformContent({ post, showDetails }: { post: PlatformPost; showDetail
         {/* YouTube description */}
         {post.platform === 'youtube_description' && (
           <div className="space-y-3">
-            {post.description_body && <p className="text-sm text-zinc-200 whitespace-pre-wrap">{post.description_body}</p>}
+            {post.description_body && <p className="text-sm text-foreground whitespace-pre-wrap">{post.description_body}</p>}
             {(post.timestamps?.length ?? 0) > 0 && (
-              <div className="bg-zinc-800/30 rounded-lg p-3 border border-border">
-                <p className="text-xs font-medium text-zinc-500 mb-2">Timestamps</p>
+              <div className="bg-card/30 rounded-lg p-3 border border-border">
+                <p className="text-xs font-medium text-muted-foreground/70 mb-2">Timestamps</p>
                 {(post.timestamps ?? []).map((ts: any, i: number) => (
-                  <div key={i} className="flex gap-3 text-sm text-zinc-400">
-                    <span className="font-mono text-zinc-500 w-12">{ts.timestamp}</span>
+                  <div key={i} className="flex gap-3 text-sm text-muted-foreground">
+                    <span className="font-mono text-muted-foreground/70 w-12">{ts.timestamp}</span>
                     <span>{ts.label}</span>
                   </div>
                 ))}
@@ -104,14 +104,14 @@ function PlatformContent({ post, showDetails }: { post: PlatformPost; showDetail
 
         {/* Single-body platforms */}
         {post.body && post.platform !== 'twitter_thread' && post.platform !== 'youtube_description' && (
-          <p className="text-sm text-zinc-200 whitespace-pre-wrap">{post.body}</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap">{post.body}</p>
         )}
 
         {/* Hashtags */}
         {post.hashtags?.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {post.hashtags.map((tag: string) => (
-              <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 text-zinc-500 border-zinc-700/40 bg-zinc-800/60">
+              <Badge key={tag} variant="outline" className="text-caption px-1.5 py-0 text-muted-foreground/70 border-border/40 bg-card/60">
                 {tag}
               </Badge>
             ))}
@@ -139,24 +139,24 @@ export function SocialKitRenderer({ content, showDetails = false }: SocialKitRen
   const platforms = data?.platforms ?? [];
 
   if (!platforms.length) {
-    return <p className="text-sm text-zinc-500">No platform content available.</p>;
+    return <p className="text-sm text-muted-foreground/70">No platform content available.</p>;
   }
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-zinc-100">Social Media Kit</h1>
-        <div className="flex items-center gap-3 mt-1 text-xs text-zinc-500">
+        <h1 className="text-xl font-bold text-foreground">Social Media Kit</h1>
+        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground/70">
           <span>{platforms.length} platform{platforms.length !== 1 ? 's' : ''}</span>
           {data?.source_count != null && (
-            <><span className="w-1 h-1 rounded-full bg-zinc-600" /><span>{data.source_count} source{data.source_count !== 1 ? 's' : ''}</span></>
+            <><span className="w-1 h-1 rounded-full bg-secondary" /><span>{data.source_count} source{data.source_count !== 1 ? 's' : ''}</span></>
           )}
         </div>
       </div>
 
       <Tabs defaultValue={platforms[0]?.platform}>
-        <TabsList className="bg-zinc-900/60 border border-border flex-wrap h-auto gap-1 p-1">
+        <TabsList className="bg-background/60 border border-border flex-wrap h-auto gap-1 p-1">
           {platforms.map((post: PlatformPost) => (
             <TabsTrigger
               key={post.platform}

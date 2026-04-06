@@ -40,7 +40,7 @@ function buildEvents(job: Job): FeedEvent[] {
   const a = job.artifacts;
   if (a) {
     if (a.doc_0_path || a.source_ledger) {
-      events.push({ id: 'doc0', icon: <FileText className="h-3.5 w-3.5 text-zinc-400" />, label: 'Source Ledger generated' });
+      events.push({ id: 'doc0', icon: <FileText className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Source Ledger generated' });
     }
     if (a.doc_1_path || a.jump_start) {
       events.push({ id: 'doc1', icon: <FileText className="h-3.5 w-3.5 text-blue-400" />, label: 'Jump-Start generated' });
@@ -114,7 +114,7 @@ export function ActivityFeed({ job }: ActivityFeedProps) {
             <div className="min-w-0">
               <p className="text-xs text-foreground leading-snug">{ev.label}</p>
               {ev.time && (
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-caption text-muted-foreground mt-0.5">
                   {formatTimestampWithRelative(ev.time)}
                 </p>
               )}

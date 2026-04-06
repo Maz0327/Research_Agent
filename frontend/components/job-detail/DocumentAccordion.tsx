@@ -46,7 +46,7 @@ export function DocumentAccordion({ job, onOpenDoc }: DocumentAccordionProps) {
       docNumber: 0,
       title: 'All Sources',
       subtitle: 'Source metadata, URLs, and analysis modes',
-      accentColor: 'border-gray-500/40 text-gray-400',
+      accentColor: 'border-border/40 text-muted-foreground',
       available: !!(artifacts?.doc_0_path || artifacts?.source_ledger),
     },
     {
@@ -64,7 +64,7 @@ export function DocumentAccordion({ job, onOpenDoc }: DocumentAccordionProps) {
 
   return (
     <div className="space-y-1">
-      <p className="text-[11px] text-white/25 uppercase tracking-wider font-medium mb-2">Supporting Documents</p>
+      <p className="text-caption text-white/25 uppercase tracking-wider font-medium mb-2">Supporting Documents</p>
       {availableItems.map((item) => {
         const isExpanded = expandedDoc === item.docNumber;
 
@@ -81,10 +81,10 @@ export function DocumentAccordion({ job, onOpenDoc }: DocumentAccordionProps) {
               <div className="flex items-center gap-3">
                 <div className={`w-1 h-6 rounded-full border-l-2 ${item.accentColor.split(' ')[0]}`} />
                 <div className="text-left">
-                  <p className="text-[13px] font-medium text-white/80">
+                  <p className="text-body-sm font-medium text-white/80">
                     Doc {item.docNumber}: {item.title}
                   </p>
-                  <p className="text-[11px] text-white/30">{item.subtitle}</p>
+                  <p className="text-caption text-white/30">{item.subtitle}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -109,10 +109,10 @@ export function DocumentAccordion({ job, onOpenDoc }: DocumentAccordionProps) {
                 >
                   <div className="px-4 pb-3 border-t border-white/[0.04]">
                     <div className="pt-3 flex items-center justify-between">
-                      <p className="text-[12px] text-white/40">{item.subtitle}</p>
+                      <p className="text-body-sm text-white/40">{item.subtitle}</p>
                       <button
                         onClick={() => onOpenDoc(item.docNumber, item.title)}
-                        className={`text-[12px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${item.accentColor} hover:bg-white/[0.04]`}
+                        className={`text-body-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${item.accentColor} hover:bg-white/[0.04]`}
                       >
                         Open Document
                       </button>

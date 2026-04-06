@@ -43,9 +43,9 @@ const verificationConfig = {
   unverified: {
     icon: '?',
     label: 'Unverified',
-    bgColor: 'bg-gray-800/50',
-    textColor: 'text-gray-400',
-    borderColor: 'border-gray-700',
+    bgColor: 'bg-card/50',
+    textColor: 'text-muted-foreground',
+    borderColor: 'border-border',
   },
 };
 
@@ -113,8 +113,8 @@ function ClipCard({ clip }: { clip: Clip }) {
           >
             {formatTimestamp(clip.timestamp_start)} - {formatTimestamp(clip.timestamp_end)}
           </a>
-          <span className="text-gray-600">|</span>
-          <span className="text-xs text-gray-500 capitalize">{clip.quote_type}</span>
+          <span className="text-muted-foreground/60">|</span>
+          <span className="text-xs text-muted-foreground/70 capitalize">{clip.quote_type}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -129,10 +129,10 @@ function ClipCard({ clip }: { clip: Clip }) {
       </div>
 
       {/* Speaker */}
-      <p className="text-sm font-medium text-gray-300 mb-1">{clip.speaker}</p>
+      <p className="text-sm font-medium text-muted-foreground mb-1">{clip.speaker}</p>
 
       {/* Quote */}
-      <blockquote className="text-gray-200 italic border-l-2 border-gray-600 pl-3 mb-3">
+      <blockquote className="text-foreground italic border-l-2 border-border pl-3 mb-3">
         &ldquo;{clip.quote}&rdquo;
       </blockquote>
 
@@ -142,7 +142,7 @@ function ClipCard({ clip }: { clip: Clip }) {
           href={timestampUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-gray-500 hover:text-gray-400 truncate max-w-[200px]"
+          className="text-xs text-muted-foreground/70 hover:text-muted-foreground truncate max-w-[200px]"
           onClick={(e) => e.stopPropagation()}
         >
           {clip.video_url.replace(/https?:\/\/(www\.)?/, '').substring(0, 40)}...
@@ -153,7 +153,7 @@ function ClipCard({ clip }: { clip: Clip }) {
           className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition ${
             copied
               ? 'bg-green-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              : 'bg-muted text-muted-foreground hover:bg-secondary'
           }`}
         >
           {copied ? (
@@ -214,7 +214,7 @@ export function ClipSheet({ clips, showVerifiedOnly = false }: ClipSheetProps) {
 
   if (clips.length === 0) {
     return (
-      <div className="text-center py-6 text-gray-500">
+      <div className="text-center py-6 text-muted-foreground/70">
         No clips extracted from videos.
       </div>
     );
@@ -224,7 +224,7 @@ export function ClipSheet({ clips, showVerifiedOnly = false }: ClipSheetProps) {
     <div className="space-y-4">
       {/* Header with filter */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-300">
+        <h4 className="text-sm font-medium text-muted-foreground">
           Clips ({clips.length})
         </h4>
 
@@ -232,7 +232,7 @@ export function ClipSheet({ clips, showVerifiedOnly = false }: ClipSheetProps) {
           <button
             onClick={() => setFilter('all')}
             className={`rounded px-2 py-1 transition ${
-              filter === 'all' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              filter === 'all' ? 'bg-muted text-white' : 'text-muted-foreground hover:text-muted-foreground'
             }`}
           >
             All
@@ -240,7 +240,7 @@ export function ClipSheet({ clips, showVerifiedOnly = false }: ClipSheetProps) {
           <button
             onClick={() => setFilter('verified')}
             className={`rounded px-2 py-1 transition ${
-              filter === 'verified' ? 'bg-green-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              filter === 'verified' ? 'bg-green-700 text-white' : 'text-muted-foreground hover:text-muted-foreground'
             }`}
           >
             Verified ({counts.verified || 0})
@@ -248,7 +248,7 @@ export function ClipSheet({ clips, showVerifiedOnly = false }: ClipSheetProps) {
           <button
             onClick={() => setFilter('probable')}
             className={`rounded px-2 py-1 transition ${
-              filter === 'probable' ? 'bg-yellow-700 text-white' : 'text-gray-400 hover:text-gray-300'
+              filter === 'probable' ? 'bg-yellow-700 text-white' : 'text-muted-foreground hover:text-muted-foreground'
             }`}
           >
             Probable ({counts.probable || 0})
@@ -264,7 +264,7 @@ export function ClipSheet({ clips, showVerifiedOnly = false }: ClipSheetProps) {
       </div>
 
       {filteredClips.length === 0 && filter !== 'all' && (
-        <div className="text-center py-4 text-gray-500 text-sm">
+        <div className="text-center py-4 text-muted-foreground/70 text-sm">
           No clips match the selected filter.
         </div>
       )}

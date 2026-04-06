@@ -94,7 +94,7 @@ export function ResearchDocumentRenderer({
 
   // Last resort: raw JSON
   return (
-    <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap bg-gray-800/50 rounded-lg p-4 overflow-x-auto">
+    <pre className="text-sm text-muted-foreground font-mono whitespace-pre-wrap bg-card/50 rounded-lg p-4 overflow-x-auto">
       {JSON.stringify(data, null, 2)}
     </pre>
   );

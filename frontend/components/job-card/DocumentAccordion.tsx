@@ -47,12 +47,12 @@ const colorConfig: Record<ColorScheme, {
   button: string;
 }> = {
   gray: {
-    headerBg: 'bg-gray-800/50 hover:bg-gray-800/70',
-    headerBorder: 'border-gray-700',
-    badge: 'bg-gray-700 text-gray-300',
-    chevron: 'text-gray-400',
-    contentBg: 'bg-gray-900/50',
-    button: 'bg-gray-700 hover:bg-gray-600 text-gray-300',
+    headerBg: 'bg-card/50 hover:bg-card/70',
+    headerBorder: 'border-border',
+    badge: 'bg-muted text-muted-foreground',
+    chevron: 'text-muted-foreground',
+    contentBg: 'bg-background/50',
+    button: 'bg-muted hover:bg-secondary text-muted-foreground',
   },
   blue: {
     headerBg: 'bg-blue-900/20 hover:bg-blue-900/30',
@@ -230,8 +230,8 @@ export function DocumentAccordion({
             {docNum !== null ? `DOC ${docNum}` : 'BOOST'}
           </span>
           <div className="text-left min-w-0">
-            <h4 className="font-medium text-gray-100 text-sm sm:text-base truncate">{title}</h4>
-            <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p>
+            <h4 className="font-medium text-foreground text-sm sm:text-base truncate">{title}</h4>
+            <p className="text-xs text-muted-foreground/70 mt-0.5 truncate">{subtitle}</p>
           </div>
         </div>
 
@@ -278,7 +278,7 @@ export function DocumentAccordion({
               {isLoading && (
                 <div className="flex items-center justify-center py-8 sm:py-12">
                   <Spinner size="lg" />
-                  <span className="ml-3 text-gray-400 text-sm sm:text-base">Loading document...</span>
+                  <span className="ml-3 text-muted-foreground text-sm sm:text-base">Loading document...</span>
                 </div>
               )}
 
@@ -298,7 +298,7 @@ export function DocumentAccordion({
 
               {/* No content */}
               {!markdown && !isLoading && !error && (
-                <p className="text-sm text-gray-500 italic py-4">No content available</p>
+                <p className="text-sm text-muted-foreground/70 italic py-4">No content available</p>
               )}
             </div>
           </motion.div>

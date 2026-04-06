@@ -95,13 +95,13 @@ export const SCREENSHOT_PLATFORM_HINTS = [
  */
 export const STAGE_LABELS: Record<string, { label: string; description: string }> = {
   // Main pipeline stages
-  source_identity: { label: 'Identifying Sources', description: 'Cataloging and analyzing your source content…' },
-  semantic_extraction: { label: 'Extracting Claims', description: 'Pulling key points, claims, and quotes from each source…' },
-  semantic_validation: { label: 'Validating Claims', description: 'Cross-checking extracted claims for accuracy…' },
-  gap_analysis: { label: 'Finding Gaps', description: 'Identifying missing research angles and blind spots…' },
-  semantic_synthesis: { label: 'Connecting Themes', description: 'Finding patterns and tensions across all sources…' },
-  document_assembly: { label: 'Assembling Documents', description: 'Building your research documents from validated insights…' },
-  completion: { label: 'Finalizing', description: 'Wrapping up and saving your research…' },
+  source_identity: { label: 'Finding your sources', description: 'Fetching videos and articles...' },
+  semantic_extraction: { label: 'Reading everything', description: 'Pulling key points from each source...' },
+  semantic_validation: { label: 'Checking the facts', description: 'Verifying quotes and claims...' },
+  gap_analysis: { label: 'Finding untold angles', description: 'What did nobody else cover?' },
+  semantic_synthesis: { label: 'Connecting the dots', description: 'Cross-referencing across all sources...' },
+  document_assembly: { label: 'Building your research', description: 'Assembling findings into documents...' },
+  completion: { label: 'Done!', description: 'Your research is ready' },
 
   // Transcript stages
   extracting_transcripts: { label: 'Extracting Transcripts', description: 'Getting video transcripts' },
@@ -126,7 +126,7 @@ export const STAGE_LABELS: Record<string, { label: string; description: string }
   no_pending_sources: { label: 'No Pending Sources', description: 'Nothing to process' },
 
   // Creator Brief stage
-  creator_brief_assembly: { label: 'Assembling Creator Brief', description: 'Distilling hooks, core facts, and narrative structure from your research…' },
+  creator_brief_assembly: { label: 'Crafting story angles', description: 'Finding the best narrative hooks...' },
 
   // Booster stages
   booster_running: { label: 'Deep Research', description: 'Exploring new research directions and filling knowledge gaps…' },
@@ -135,12 +135,12 @@ export const STAGE_LABELS: Record<string, { label: string; description: string }
   producer_running: { label: 'Creating Producer Packet', description: 'Generating production-ready content with B-roll notes and script cues…' },
 
   // Iteration stages (5 modes via unified iterate endpoint)
-  iteration_running: { label: 'Running Iteration', description: 'Processing your research iteration…' },
-  iterate_deep_dive: { label: 'Deep Dive', description: 'Searching for gaps and unexplored research directions…' },
-  iterate_expand_sources: { label: 'Expanding Sources', description: 'Discovering and analyzing new sources for your research…' },
-  iterate_deeper: { label: 'Going Deeper', description: 'Re-extracting your sources with greater depth and detail…' },
-  iterate_different_angle: { label: 'Different Angle', description: 'Re-analyzing your research from a fresh perspective…' },
-  iterate_custom: { label: 'Custom Iteration', description: 'Running your custom instructions across the pipeline…' },
+  iteration_running: { label: 'Running update', description: 'Processing your research update...' },
+  iterate_deep_dive: { label: 'Find What\'s Missing', description: 'Uncovering gaps and new research directions...' },
+  iterate_expand_sources: { label: 'Adding More Sources', description: 'Discovering and analyzing new sources...' },
+  iterate_deeper: { label: 'Digging Deeper', description: 'Re-analyzing your sources with greater depth...' },
+  iterate_different_angle: { label: 'Trying a New Angle', description: 'Same research, fresh perspective...' },
+  iterate_custom: { label: 'Custom Request', description: 'Running your custom instructions across the pipeline...' },
 } as const;
 
 /**

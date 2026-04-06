@@ -76,7 +76,7 @@ export function DisambiguationPanel({ jobId, interpretations }: DisambiguationPa
             className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
               selectedIndices.includes(idx)
                 ? 'bg-yellow-800/40 border border-yellow-500/50'
-                : 'bg-gray-800/50 border border-gray-700 hover:border-gray-600'
+                : 'bg-card/50 border border-border hover:border-border'
             }`}
           >
             <input
@@ -84,11 +84,11 @@ export function DisambiguationPanel({ jobId, interpretations }: DisambiguationPa
               checked={selectedIndices.includes(idx)}
               onChange={() => toggleSelection(idx)}
               disabled={isSubmitting}
-              className="mt-1 h-4 w-4 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0"
+              className="mt-1 h-4 w-4 rounded border-border bg-muted text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0"
             />
             <div className="flex-1 min-w-0">
-              <span className="font-medium text-gray-100">{interp.label}</span>
-              <p className="text-sm text-gray-400 mt-0.5">{interp.description}</p>
+              <span className="font-medium text-foreground">{interp.label}</span>
+              <p className="text-sm text-muted-foreground mt-0.5">{interp.description}</p>
             </div>
           </label>
         ))}
@@ -109,7 +109,7 @@ export function DisambiguationPanel({ jobId, interpretations }: DisambiguationPa
         <button
           onClick={handleResearchAll}
           disabled={isSubmitting}
-          className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? 'Starting...' : 'Research All'}
         </button>
