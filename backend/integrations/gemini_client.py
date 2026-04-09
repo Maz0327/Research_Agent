@@ -326,6 +326,21 @@ except ImportError:
     GEMINI_AVAILABLE = False
     logger.warning("google-genai not installed. Install with: pip install google-genai")
 
+# =============================================================================
+# Safety Settings — disable all adjustable safety filters
+# =============================================================================
+# Gemini's safety filters cause false-positive refusals on politically sensitive
+# but legitimate research content (documented: ADL March 2025, TechCrunch March 2025).
+# CIVIC_INTEGRITY is the primary culprit for political topic over-caution.
+# Built-in protections (child safety, etc.) remain active regardless of these settings.
+SAFETY_SETTINGS = [
+    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF"),
+    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
+    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
+    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
+    types.SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="OFF"),
+] if GEMINI_AVAILABLE else []
+
 
 class GeminiClient:
     """Client for Google Gemini 2.5 Flash/Pro.
@@ -388,6 +403,7 @@ class GeminiClient:
                 temperature=temperature,
                 max_output_tokens=max_tokens,
                 system_instruction=system_instruction,
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(
@@ -443,6 +459,7 @@ class GeminiClient:
                 thinking_config=types.ThinkingConfig(
                     thinking_budget=thinking_budget
                 ),
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(
@@ -527,6 +544,7 @@ class GeminiClient:
             response = self._client.models.generate_content(
                 model=model,
                 contents=[prompt, image_part],
+                config=types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS),
             )
             text = response.text
 
@@ -594,6 +612,7 @@ class GeminiClient:
                 max_output_tokens=16384,
                 system_instruction=system_message,
                 response_mime_type="application/json",
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(
@@ -674,6 +693,7 @@ class GeminiClient:
             response = self._client.models.generate_content(
                 model=model,
                 contents=[prompt, uploaded_file],
+                config=types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS),
             )
             text = response.text
 
@@ -756,6 +776,7 @@ class GeminiClient:
                 system_instruction=system_message,
                 response_mime_type="application/json",  # Force JSON output
                 response_schema=response_schema,  # Enforce JSON structure if provided
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(
@@ -907,6 +928,7 @@ RULES:
             config = types.GenerateContentConfig(
                 temperature=TEMP_FACTUAL,  # 0.0 for verbatim extraction
                 max_output_tokens=4096,
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(
@@ -1051,6 +1073,7 @@ YouTube Video URL: {chunk_url}"""
                 response = self._client.models.generate_content(
                     model=model,
                     contents=[video_part, chunk_prompt],
+                    config=types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS),
                 )
                 text = response.text
 
@@ -1310,6 +1333,7 @@ YouTube Video URL: {chunk_url}"""
             config = types.GenerateContentConfig(
                 temperature=get_temperature(TaskType.STRUCTURE_ANALYSIS),  # 0.3
                 max_output_tokens=4096,
+                safety_settings=SAFETY_SETTINGS,
             )
 
             # Create video Part from YouTube URL - Gemini fetches and analyzes the actual video
@@ -1504,6 +1528,7 @@ YouTube Video URL: {chunk_url}"""
             config = types.GenerateContentConfig(
                 temperature=get_temperature(TaskType.GAP_ANALYSIS),  # 0.4
                 max_output_tokens=4096,
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(
@@ -1661,6 +1686,7 @@ YouTube Video URL: {chunk_url}"""
             config = types.GenerateContentConfig(
                 temperature=get_temperature(TaskType.RESEARCH_STARTER),  # 0.5
                 max_output_tokens=4096,
+                safety_settings=SAFETY_SETTINGS,
             )
 
             response = self._client.models.generate_content(

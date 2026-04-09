@@ -239,25 +239,19 @@ class SourceEntry:
             "",
         ]
 
-        # Metadata table (more scannable than list)
-        meta_rows = []
+        # Metadata (explicit bold labels; tests expect this format)
         if self.creator:
-            meta_rows.append(f"| Creator | {self.creator} |")
+            lines.append(f"**Creator:** {self.creator}")
         if self.published:
-            meta_rows.append(f"| Published | {self.published} |")
+            lines.append(f"**Published:** {self.published}")
         if self.duration:
-            meta_rows.append(f"| Duration | {self.duration} |")
+            lines.append(f"**Duration:** {self.duration}")
         if self.word_count:
-            meta_rows.append(f"| Words | {self.word_count:,} |")
-        meta_rows.append(f"| URL | [{self.url[:50]}...]({self.url}) |" if len(self.url) > 50 else f"| URL | {self.url} |")
-
-        if meta_rows:
-            lines.extend([
-                "| Field | Value |",
-                "|-------|-------|",
-            ])
-            lines.extend(meta_rows)
-            lines.append("")
+            lines.append(f"**Words:** {self.word_count:,}")
+        lines.append(
+            f"**URL:** [{self.url[:50]}...]({self.url})" if len(self.url) > 50 else f"**URL:** {self.url}"
+        )
+        lines.append("")
 
         # Failure alert (prominent for failed sources)
         if self.status == SourceStatus.FAILED and self.failure_reason:
@@ -271,7 +265,7 @@ class SourceEntry:
         if self.skim_summary:
             lines.extend([
                 "",
-                "#### 📋 Quick Summary",
+                "#### Quick Summary",
                 "",
             ])
             for bullet in self.skim_summary:
@@ -281,7 +275,7 @@ class SourceEntry:
         # Extracted index (compact)
         has_extracted = self.claim_ids or self.entity_names or self.theme_ids
         if has_extracted:
-            lines.extend(["", "#### 🏷️ Extracted Index", ""])
+            lines.extend(["", "#### Extracted Index", ""])
             if self.claim_ids:
                 count = len(self.claim_ids)
                 preview = ", ".join(self.claim_ids[:5])
@@ -303,7 +297,7 @@ class SourceEntry:
 
             lines.extend([
                 "",
-                "#### 🎙️ Transcript Quality",
+                "#### Transcript Quality",
                 "",
                 f"| Attribute | Value |",
                 f"|-----------|-------|",
@@ -390,7 +384,7 @@ class SourceLedger:
         type_summary = ", ".join(f"{_type_icon(k)} {v}" for k, v in type_counts.items())
 
         lines = [
-            "# 📚 SOURCE LEDGER",
+            "# SOURCE LEDGER",
             "",
         ]
 
@@ -398,7 +392,7 @@ class SourceLedger:
         lines.extend([
             _github_alert(
                 "NOTE",
-                f"**Topic:** {self.topic}\n> \n> "
+                f"**Research Topic:** {self.topic}\n> \n> "
                 f"**Sources:** {total} total | {ingested} ✅ | {partial} ⚠️ | {failed} ❌\n> \n> "
                 f"**Types:** {type_summary}"
             ),
@@ -417,6 +411,19 @@ class SourceLedger:
                 "",
             ])
 
+        # Overview section (simple + scannable)
+        lines.extend([
+            "## Overview",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| Total Sources | {total} |",
+            f"| Ingested | {ingested} |",
+            f"| Partial | {partial} |",
+            f"| Failed | {failed} |",
+            "",
+        ])
+
         lines.append("---")
         lines.append("")
 
@@ -434,7 +441,7 @@ class SourceLedger:
 
         # Source manifest with emoji badges
         lines.extend([
-            "## 📋 Source Manifest",
+            "## Source Manifest",
             "",
             "| # | ID | Type | Title | Status |",
             "|--:|-----|:----:|-------|:------:|",
@@ -450,7 +457,7 @@ class SourceLedger:
 
         # Detailed sources section
         lines.extend([
-            "## 🔍 Detailed Source Analysis",
+            "## Detailed Source Analysis",
             "",
         ])
 
@@ -597,7 +604,7 @@ class JumpStartDirections:
         conf_badge = _confidence_badge(self.confidence)
 
         lines = [
-            "# 🚀 JUMP-START RESEARCH BRIEF",
+            "# JUMP-START RESEARCH BRIEF",
             "",
         ]
 
@@ -615,22 +622,20 @@ class JumpStartDirections:
             "",
         ])
 
-        # Scope Lock (collapsible for less visual noise)
+        # Scope Lock
         lines.extend([
-            "## 🎯 Scope Lock",
+            "## SCOPE LOCK",
             "",
-            "| Scope | Items |",
-            "|-------|-------|",
         ])
         scope_in_str = ", ".join(self.scope_in) if self.scope_in else "Not specified"
         scope_out_str = ", ".join(self.scope_out) if self.scope_out else "Not specified"
-        lines.append(f"| ✅ **IN** | {scope_in_str} |")
-        lines.append(f"| ❌ **OUT** | {scope_out_str} |")
+        lines.append(f"IN: {scope_in_str}")
+        lines.append(f"OUT: {scope_out_str}")
         lines.extend(["", "---", ""])
 
         # Corpus Overview
         lines.extend([
-            "## 📊 Current Corpus",
+            "## CURRENT CORPUS",
             "",
             f"| Metric | Value |",
             f"|--------|-------|",
@@ -714,14 +719,10 @@ class JumpStartDirections:
 
         # Next Steps (prominent)
         lines.extend([
-            "## ✅ TOP 3 NEXT STEPS",
+            "## TOP 3 NEXT STEPS (MANDATORY)",
             "",
         ])
         if self.next_steps:
-            lines.extend([
-                _github_alert("IMPORTANT", "Complete these steps to advance your research:"),
-                "",
-            ])
             for i, step in enumerate(self.next_steps[:3], 1):
                 lines.append(f"**{i}.** {step}")
                 lines.append("")

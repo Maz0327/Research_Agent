@@ -45,7 +45,6 @@ async def check_admin_status(user: AuthUser = Depends(get_current_user)):
 @router.get("/stats")
 async def get_admin_stats(
     user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
 ):
     """Get admin dashboard statistics.
 
@@ -57,6 +56,9 @@ async def get_admin_stats(
     if cached_stats:
         logger.debug("Admin stats served from cache")
         return cached_stats
+
+    # Only require Supabase if we actually need to query it (i.e., cache miss)
+    require_supabase()
 
     try:
         supabase = get_supabase_client()
@@ -110,7 +112,6 @@ async def get_admin_stats(
 @router.get("/users")
 async def list_admin_users(
     user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=MAX_PAGE_SIZE, description="Items per page (max 100)"),
 ):
@@ -118,6 +119,7 @@ async def list_admin_users(
 
     Performance: Uses batch queries to avoid N+1 query problem.
     """
+    require_supabase()
     try:
         supabase = get_supabase_client()
         # Cap page_size to prevent abuse
@@ -200,7 +202,6 @@ async def list_admin_users(
 @router.get("/jobs")
 async def list_admin_jobs(
     user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
     page: int = 1,
     page_size: int = 20,
     status: Optional[str] = None,
@@ -209,6 +210,7 @@ async def list_admin_jobs(
     date_to: Optional[str] = None,
 ):
     """List all jobs with filters."""
+    require_supabase()
     try:
         supabase = get_supabase_client()
         offset = (page - 1) * page_size
@@ -289,9 +291,9 @@ async def admin_cancel_job(
 async def admin_delete_job(
     job_id: str,
     user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
 ):
     """Delete a job as admin."""
+    require_supabase()
     try:
         uuid.UUID(job_id)
     except ValueError:
@@ -324,9 +326,9 @@ async def admin_delete_job(
 async def ban_user(
     user_id: str,
     admin_user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
 ):
     """Ban a user."""
+    require_supabase()
     if user_id == admin_user.user_id:
         raise HTTPException(status_code=400, detail="Cannot ban yourself")
 
@@ -345,9 +347,9 @@ async def ban_user(
 async def unban_user(
     user_id: str,
     admin_user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
 ):
     """Unban a user."""
+    require_supabase()
     try:
         supabase = get_supabase_client()
         supabase.table("user_settings").update({"is_banned": False}).eq("user_id", user_id).execute()
@@ -362,7 +364,6 @@ async def unban_user(
 @router.get("/errors")
 async def list_error_logs(
     user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
     page: int = 1,
     page_size: int = 20,
     category: Optional[str] = None,
@@ -371,6 +372,7 @@ async def list_error_logs(
     date_to: Optional[str] = None,
 ):
     """List error logs with filters."""
+    require_supabase()
     try:
         supabase = get_supabase_client()
         offset = (page - 1) * page_size
@@ -421,9 +423,9 @@ async def list_error_logs(
 async def resolve_error(
     error_id: str,
     user: AuthUser = Depends(require_admin),
-    _: bool = Depends(require_supabase),
 ):
     """Mark an error as resolved."""
+    require_supabase()
     try:
         supabase = get_supabase_client()
         supabase.table("error_logs").update({
