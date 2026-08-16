@@ -23,6 +23,7 @@ from backend.pipeline.style_enforcer import (
     RESEARCH_REGISTER,
     TIC_PATTERNS,
     _SOURCE_OPENER,
+    find_consensus_violations,
 )
 
 # One repair round only. If the document still fails after that, it ships
@@ -50,13 +51,20 @@ Rules for every rewrite:
 - Sentences must not OPEN with a source reference ("One source says", "Both
   essays", "A separate article"). Say the fact first; if the speaker matters,
   they trail the fact: "..., and one of the essayists admits that outright."
+- A sentence flagged as narrating agreement without content must be rewritten
+  to lead with WHAT is claimed, with the agreement as a short trailing clause,
+  or deleted outright (see the deletion rule below).
 - No research-essay words: corpus, posits, corroborates, testimony,
   articulates, underscores.
 - No em-dashes. No "not just X, it's Y". No internal IDs.
 - Plain spoken English, the way a person explains something to a friend.
 
 Return the rewrites as edits. `old` must be the sentence EXACTLY as given,
-byte for byte. `new` is your rewrite. Never merge, drop or add sentences."""
+byte for byte. `new` is your rewrite. One special case: when a flagged
+sentence carries no information worth keeping (pure agreement-talk with no
+facts in it), DELETE it by returning `new` as an empty string. Deleting a
+contentless sentence is better than rewording it. Never merge sentences and
+never add new ones."""
 
 
 def _offending_sentences(text: str) -> list[tuple[str, str]]:
@@ -73,6 +81,7 @@ def _offending_sentences(text: str) -> list[tuple[str, str]]:
         if _SOURCE_OPENER.match(stripped) or _SOURCE_OPENER.search(f". {stripped}"):
             found.append((stripped, "opens with a source reference"))
             continue
+
         for pattern, label in RESEARCH_REGISTER + TIC_PATTERNS:
             if re.search(pattern, stripped, re.IGNORECASE):
                 found.append((stripped, f"contains banned pattern: {label}"))
@@ -137,6 +146,12 @@ def repair_voice(
     offenders: list[tuple[str, str]] = []
     for text, _ in _prose_fields(graph):
         offenders.extend(_offending_sentences(text))
+        for sentence in find_consensus_violations(text):
+            offenders.append(
+                (sentence,
+                 "agreement-only sentence leading a paragraph or stacked in a "
+                 "run; state the content instead, or delete it")
+            )
 
     # De-duplicate while keeping order; the same stock sentence can appear
     # in more than one field.
@@ -173,11 +188,12 @@ def repair_voice(
     fields = _prose_fields(graph)
 
     for edit in edits:
-        if not edit.new.strip() or edit.old == edit.new:
+        is_deletion = not edit.new.strip()
+        if edit.old == edit.new:
             stats["skipped"] += 1
             continue
-        # The cure must not be a new disease.
-        if _offending_sentences(edit.new):
+        # The cure must not be a new disease. (A deletion cannot offend.)
+        if not is_deletion and _offending_sentences(edit.new):
             stats["skipped"] += 1
             logger.warning(f"[{job_id}] Repair rewrite still offends; skipped")
             continue
@@ -185,7 +201,10 @@ def repair_voice(
         applied = False
         for text, setter in fields:
             if edit.old in text:
-                setter(text.replace(edit.old, edit.new))
+                updated = text.replace(edit.old, edit.new if not is_deletion else "")
+                if is_deletion:
+                    updated = re.sub(r"[ \t]{2,}", " ", updated).strip()
+                setter(updated)
                 applied = True
                 break
         if applied:

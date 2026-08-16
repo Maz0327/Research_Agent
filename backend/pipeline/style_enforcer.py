@@ -235,6 +235,83 @@ _SOURCE_OPENER = re.compile(
     re.IGNORECASE,
 )
 
+# Consensus narration: prose about the fact THAT sources agree, rather than
+# about what they actually say. Owner rejection, 2026-08-16: "the first 3
+# paragraphs is just you telling me a lot of people came to the same
+# conclusion... what you're not telling me is what the actual conclusion IS."
+# Meta earns a trailing clause after content, not paragraphs of its own, so
+# this is a density cap rather than a ban.
+_CONSENSUS_NARRATION = re.compile(
+    r"(?:independen(?:t|tly)|without (?:citing|referencing|talking to|reference to) "
+    r"(?:each other|one another)|(?:came?|land(?:s|ed)?|arriv(?:e|es|ed)) (?:at|on|to) "
+    r"the same|same (?:conclusion|complaint|observation|point|place|culprit|mechanism)"
+    r"|across (?:all|every|the) (?:sources?|material)|all agree)",
+    re.IGNORECASE,
+)
+
+# Neither raw phrase density (rejected doc 3.6/1000 vs approved 3.5/1000)
+# nor pure-meta sentence density (2.1 vs 1.9) separates good from bad -
+# measured on real documents, the ranges overlap. What separates them is
+# POSITION. The owner-approved register allows a SHORT agreement sentence
+# trailing a point that was already made ("Two essayists independently
+# reject this."). What he rejected is agreement talk LEADING a paragraph, or
+# stacked in runs. So a violation is a pure-meta sentence that either opens
+# a paragraph or sits adjacent to another pure-meta sentence.
+MAX_META_VIOLATIONS = 2
+
+_META_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+
+def _is_pure_meta(sentence: str) -> bool:
+    """A sentence about agreement that states none of the agreed content."""
+    if not _CONSENSUS_NARRATION.search(sentence):
+        return False
+    has_content = bool(re.search(r"\d", sentence)) or bool(
+        re.findall(r"\b[A-Z][a-z]+ [A-Z][a-z]+", sentence)
+    )
+    return not has_content
+
+
+def find_consensus_violations(text: str) -> list[str]:
+    """Return pure-meta sentences that lead a paragraph or run in clusters.
+
+    A single short pure-meta sentence trailing content is the approved
+    register and is not returned.
+    """
+    violations: list[str] = []
+    for paragraph in text.split("\n\n"):
+        paragraph = paragraph.strip()
+        if not paragraph or paragraph.startswith("#"):
+            continue
+        sentences = [
+            s.strip() for s in _META_SENTENCE_SPLIT.split(paragraph) if len(s.strip()) > 15
+        ]
+        flags = [_is_pure_meta(s) for s in sentences]
+        for i, (sentence, is_meta) in enumerate(zip(sentences, flags)):
+            if not is_meta:
+                continue
+            leads = i == 0
+            clustered = (i > 0 and flags[i - 1]) or (i + 1 < len(flags) and flags[i + 1])
+            if leads or clustered:
+                violations.append(sentence)
+    return violations
+
+
+def check_consensus_narration(text: str) -> list[str]:
+    """Flag documents that narrate agreement instead of content."""
+    if len(text.split()) < 200:
+        return []
+    violations = find_consensus_violations(text)
+    if len(violations) <= MAX_META_VIOLATIONS:
+        return []
+    return [
+        f"Consensus-narration: {len(violations)} agreement-only sentences "
+        f"leading paragraphs or stacked in runs (max {MAX_META_VIOLATIONS}). "
+        f"e.g. '{violations[0][:80]}'. State what is actually said first; "
+        f"agreement earns one short trailing sentence at most."
+    ]
+
+
 # Allowed sentence-initial source references per 1000 words. Calibrated
 # against the failed fixture run (8.9 per 1000 — rejected) and the approved
 # mockup (~2 per 1000). The occasional deliberate opener survives; using
@@ -324,7 +401,8 @@ def lint_rendered_document(text: str) -> LintResult:
         errors=check_internal_ids(text)
         + check_tics(text)
         + check_research_register(text)
-        + check_source_narration(text),
+        + check_source_narration(text)
+        + check_consensus_narration(text),
         advisories=check_rule_of_three(text),
     )
 
