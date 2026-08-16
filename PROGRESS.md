@@ -12,7 +12,7 @@
 ```
 P0: ✅ COMPLETE — Stabilize (working tree committed, pushed)
 P1: ✅ COMPLETE — Claim Graph distillation stage
-P2: 🟡 BUILT, AWAITING MAZ'S READ — Briefing renderer  [MAZ GATE]
+P2: 🟡 v2 BUILT (Decision 024, Shape B), AWAITING MAZ'S READ  [MAZ GATE]
 P3: ⏳ Model swap + head-to-head  ⏰ before 2026-08-31
 P4-P8: ⏳ not started
 ```
@@ -75,6 +75,18 @@ Validator tests: 40 passed. Full suite: 1234 passed, 1 failed.
 fails identically on the P0 commit. Left alone — outside this phase.
 
 ### P2 — Briefing renderer 🟡 BUILT, AWAITING MAZ'S READ (commit bcb286b)
+
+**REDIRECTED AT THE GATE (2026-08-15/16), rebuilt as v2 — see Decision 024.**
+Owner's read: claim-unit layout is a research dissertation; document must
+teach the topic and enable story-finding without choosing an angle; no
+cross-references ever; details told in full where the point is made. Shape
+chosen by mockup comparison (three offered, owner picked B). v2 commit
+22da739: telling layer (sections/noticings/landscape), two-pass distillation
+(combined schema exceeds the structured-output grammar ceiling - measured),
+Shape B renderer, cross-references as lint errors. Fixture: 9 sections, 1
+connection, 5 noticings, $0.34 telling pass, lint PASS, 20,230 chars.
+Awaiting owner's read of the v2 BRIEFING.
+
 
 The renderer, the tic-lint, and the wiring are done and tested. The gate is
 Maz's read, so P2 is not complete until he signs off.
