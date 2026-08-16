@@ -12,7 +12,7 @@
 ```
 P0: ✅ COMPLETE — Stabilize (working tree committed, pushed)
 P1: ✅ COMPLETE — Claim Graph distillation stage
-P2: 🔄 IN PROGRESS — Briefing renderer  [MAZ GATE: his read is the acceptance test]
+P2: 🟡 BUILT, AWAITING MAZ'S READ — Briefing renderer  [MAZ GATE]
 P3: ⏳ Model swap + head-to-head  ⏰ before 2026-08-31
 P4-P8: ⏳ not started
 ```
@@ -73,6 +73,40 @@ Validator tests: 40 passed. Full suite: 1234 passed, 1 failed.
 **Known pre-existing failure (not from this build):**
 `test_semantic_extraction_stages.py::TestVerifyQuotesInExtraction::test_verify_claim_supporting_quotes`
 fails identically on the P0 commit. Left alone — outside this phase.
+
+### P2 — Briefing renderer 🟡 BUILT, AWAITING MAZ'S READ (commit bcb286b)
+
+The renderer, the tic-lint, and the wiring are done and tested. The gate is
+Maz's read, so P2 is not complete until he signs off.
+
+```
+fixture Briefing: 29,411 chars, 4,663 words, 260 lines
+  replaces:       35,488 (Jump-Start) + 21,745 (Semantic Brief)
+tic-lint:         PASS — 0 errors, 1 advisory
+formatter tests:  29 passed
+full suite:       1263 passed, 1 pre-existing failure
+```
+
+Rendered fixture Briefing for the read:
+`/private/tmp/claude-502/.../scratchpad/BRIEFING.md` (regenerate any time with
+`scratchpad/render_briefing.py`).
+
+**Two decisions waiting on Maz**
+
+1. **P2 sign-off.** Does the Briefing support the telling? That is the
+   acceptance test, not the lint.
+2. **P2.2 polish pass** (plan Section 5, decision 4): the plan says to decide
+   by reading, not by default. My read is that it does *not* need one. The
+   prose is already spoken and specific, and a Sonnet rewrite pass risks
+   flattening the distinctive lines for no clear gain. Recommend skipping it
+   and spending the budget on P3 instead. Maz's call.
+
+**Deliberate deviations from spec Section 3, both worth confirming**
+- Story goods render inline under their claim as "Worth using", rather than
+  being left for the script projection. They are the concrete detail a teller
+  needs at the moment the claim is made.
+- No connective sentences between claim units. Writing those needs generation,
+  which is exactly what P2.2 would add. Structure reads clean without them.
 
 **Repo issues found, not acted on (flagged for the owner):**
 - `docs/authoritative/INDEX.md` — the Repo Constitution — was overwritten with
