@@ -231,7 +231,7 @@ def distill_corpus(
                 raise ValueError("; ".join(problems[:5]))
 
             logger.info(
-                f"[{job_id}] Distillation succeeded on {label} ({model_id}): "
+                f"[{job_id}] Provenance pass succeeded on {label} ({model_id}): "
                 f"{len(graph.claims)} claims, {len(graph.story_goods)} story goods, "
                 f"{len(graph.holes)} holes"
             )
@@ -246,6 +246,147 @@ def distill_corpus(
 
     raise ValueError(
         "Distillation failed on both the primary and escalation models. "
+        + " | ".join(failures)
+    )
+
+
+def _claims_for_telling(graph: ClaimGraph, source_titles: dict[str, str]) -> str:
+    """Serialize the provenance layer for the telling pass.
+
+    Source IDs are resolved to names so the writer can name sources in prose
+    naturally instead of leaking identifiers. Claim IDs stay: the telling pass
+    cites them in ``claim_ids``, never in prose.
+    """
+
+    def name(source_id: str) -> str:
+        return source_titles.get(source_id) or source_id
+
+    payload = {
+        "thesis": graph.thesis.model_dump(mode="json"),
+        "claims": [
+            {
+                "id": c.id,
+                "title": c.title,
+                "what_sources_say": c.what_sources_say,
+                "pushback": c.pushback,
+                "my_read": c.my_read,
+                "say_it_like": c.say_it_like,
+                "confidence": c.confidence.model_dump(mode="json"),
+                "evidence_status": c.evidence_status,
+                "sources": sorted({name(e.source_id) for e in c.evidence}),
+            }
+            for c in graph.claims_in_spine_order()
+        ],
+        "concrete_details": [
+            {
+                "detail": s.text,
+                "from": name(s.source_id),
+                "belongs_to_claims": s.claim_ids,
+            }
+            for s in graph.story_goods
+        ],
+        "holes": [
+            {
+                "attached_to": h.attached_to,
+                "missing": h.missing,
+                "hurts_because": h.hurts_because,
+                "how_to_fill": h.how_to_fill,
+                "severity": h.severity,
+            }
+            for h in graph.holes
+        ],
+    }
+    return json.dumps(payload, indent=2, default=str)
+
+
+def write_telling_layer(
+    job_id: str,
+    graph: ClaimGraph,
+    source_titles: dict[str, str],
+) -> tuple[ClaimGraph, list[dict]]:
+    """Run the telling pass and merge its output into the graph.
+
+    Same retry policy as the provenance pass: one escalation retry, then an
+    honest failure. The provenance graph is returned untouched on the happy
+    path only as the base the telling fields are merged onto.
+
+    Args:
+        job_id: Job the graph belongs to.
+        graph: The validated provenance layer.
+        source_titles: source_id -> human title, for natural prose.
+
+    Returns:
+        Tuple of (graph with telling layer merged, per-attempt usage dicts).
+
+    Raises:
+        ValueError: If both attempts fail to produce a valid telling layer.
+    """
+    from backend.integrations.anthropic_client import (
+        AnthropicError,
+        SchemaInvalidError,
+        get_anthropic_client,
+    )
+    from backend.models.claim_graph import TellingLayer, telling_json_schema
+    from backend.pipeline.prompts.distillation_prompt import (
+        TELLING_ROLE,
+        build_telling_prompt,
+    )
+
+    settings = get_settings()
+    prompt = build_telling_prompt(
+        claims_json=_claims_for_telling(graph, source_titles),
+        topic=graph.topic,
+    )
+    schema = telling_json_schema()
+
+    attempts = [settings.model_distill, settings.model_escalation]
+    usages: list[dict] = []
+    failures: list[str] = []
+
+    for index, model_id in enumerate(attempts):
+        label = "telling pass" if index == 0 else "telling escalation retry"
+        try:
+            client = get_anthropic_client(model=model_id)
+            data, usage = client.generate_structured(
+                prompt=prompt,
+                schema=schema,
+                system=TELLING_ROLE,
+                max_tokens=DISTILL_MAX_TOKENS,
+                model=model_id,
+            )
+            usages.append(usage)
+
+            telling = TellingLayer.model_validate(normalize_wire_payload(data))
+
+            # Merge and revalidate as one graph so the section validators
+            # (provenance present, connections span sources) run against the
+            # real claims.
+            merged = graph.model_dump(mode="json")
+            merged["sections"] = [s.model_dump(mode="json") for s in telling.sections]
+            merged["noticings"] = [n.model_dump(mode="json") for n in telling.noticings]
+            merged["landscape"] = telling.landscape.model_dump(mode="json")
+            full = ClaimGraph.model_validate(merged)
+
+            if not full.sections:
+                raise ValueError("telling pass returned no sections")
+
+            logger.info(
+                f"[{job_id}] Telling pass succeeded on {label} ({model_id}): "
+                f"{len(full.sections)} sections "
+                f"({sum(1 for s in full.sections if s.is_connection)} connections), "
+                f"{len(full.noticings)} noticings"
+            )
+            return full, usages
+
+        except (SchemaInvalidError, ValidationError, ValueError) as e:
+            failures.append(f"{model_id}: {e}")
+            logger.warning(f"[{job_id}] {label} produced an invalid layer: {e}")
+        except AnthropicError as e:
+            failures.append(f"{model_id}: {e}")
+            logger.error(f"[{job_id}] {label} call failed: {e}")
+
+    raise ValueError(
+        "Telling pass failed on both the primary and escalation models. "
         + " | ".join(failures)
     )
 
@@ -371,14 +512,25 @@ def stage_distillation(ctx: PipelineContext) -> None:
         known_source_ids=known_source_ids,
     )
 
+    source_titles = {
+        s["source_id"]: s.get("title") or "" for s in sources if s.get("source_id")
+    }
+
+    # Second call: the telling layer (Decision 024). Two calls because the
+    # combined schema exceeds the structured-output grammar ceiling, and
+    # because writing deserves a pass that thinks about nothing else.
+    graph, telling_usages = write_telling_layer(
+        job_id=ctx.job_id,
+        graph=graph,
+        source_titles=source_titles,
+    )
+    usages.extend(telling_usages)
+
     ctx.claim_graph = graph
     ctx.outputs["claim_graph"] = graph.model_dump(mode="json")
 
     # Render the Briefing here rather than in a separate stage: it is a pure
     # projection of the graph we just built, with no other inputs.
-    source_titles = {
-        s["source_id"]: s.get("title") or "" for s in sources if s.get("source_id")
-    }
     briefing_md = render_briefing(graph, source_titles)
     ctx.outputs["briefing_md"] = briefing_md
 

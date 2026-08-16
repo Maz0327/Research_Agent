@@ -138,6 +138,66 @@ class Hole(_Base):
         return v
 
 
+class StorySection(_Base):
+    """One named story in the telling layer (Decision 024).
+
+    The Briefing is built from these, not from claim units. Rules the prompt
+    enforces and the lint checks:
+
+    - ``title`` is a full sentence that carries meaning on its own
+      ("The money might explain the cameras"), never a label ("Thread 2").
+    - ``body`` is self-contained prose, readable alone and in any order. It
+      never references another section by position or number. When it draws on
+      something covered elsewhere, it re-says it in plain words.
+    - Concrete examples are told IN the body, in full, where the point is
+      made. An abstraction is never split from its example.
+    - ``claim_ids`` is the provenance: every fact in the body traces to a
+      claim, which traces to the ledger. IDs never appear in the body itself.
+
+    ``is_connection`` marks sections whose subject is something sitting
+    between sources that no single source assembles. They render identically;
+    the flag exists so validators can require the connection to cite claims
+    from more than one source.
+    """
+
+    id: str
+    title: str
+    body: str
+    claim_ids: list[str] = Field(default_factory=list)
+    is_connection: bool = False
+
+    @field_validator("id")
+    @classmethod
+    def _check_id(cls, v: str) -> str:
+        if not v.startswith("STY_"):
+            raise ValueError(f"story section id must start with 'STY_': {v}")
+        return v
+
+
+class Noticing(_Base):
+    """A 'huh, that could be something' moment — the junior researcher's eye.
+
+    Not a recommendation and not a claim. One or two sentences, concrete,
+    traceable. Rendered as 'the stuff that made me stop'.
+    """
+
+    text: str
+    claim_ids: list[str] = Field(default_factory=list)
+
+
+class Landscape(_Base):
+    """What everyone already does with this topic, and the unopened doors.
+
+    ``everyone_does`` names the worn path so the owner knows what the standard
+    telling is. ``nobody_has`` names the angles present in the material that
+    no source has assembled. Neither field chooses — mapping the doors is the
+    document's job, walking through one is the owner's.
+    """
+
+    everyone_does: str
+    nobody_has: str
+
+
 class Thesis(_Base):
     text: str
     confidence: ThesisConfidence
@@ -167,6 +227,11 @@ class ClaimGraph(_Base):
     claims: list[Claim] = Field(default_factory=list)
     story_goods: list[StoryGood] = Field(default_factory=list)
     holes: list[Hole] = Field(default_factory=list)
+    # The telling layer (Decision 024). Claims are the provenance atoms;
+    # sections are what a human actually reads.
+    sections: list[StorySection] = Field(default_factory=list)
+    noticings: list[Noticing] = Field(default_factory=list)
+    landscape: Optional[Landscape] = None
     weakest_ground: Optional[Ground] = None
     strongest_ground: Optional[Ground] = None
     sources_ranked: list[RankedSource] = Field(default_factory=list)
@@ -237,6 +302,47 @@ class ClaimGraph(_Base):
         orders = sorted(c.spine_order for c in self.claims)
         if len(set(orders)) != len(orders):
             raise ValueError(f"duplicate spine_order values: {orders}")
+        return self
+
+    @model_validator(mode="after")
+    def _check_sections(self) -> "ClaimGraph":
+        if not self.sections:
+            return self
+
+        ids = [s.id for s in self.sections]
+        dupes = {i for i in ids if ids.count(i) > 1}
+        if dupes:
+            raise ValueError(f"duplicate section ids: {sorted(dupes)}")
+
+        claim_ids = {c.id for c in self.claims}
+        claims_by_id = {c.id: c for c in self.claims}
+
+        for section in self.sections:
+            if not section.claim_ids:
+                raise ValueError(f"{section.id} cites no claims: no provenance")
+            for ref in section.claim_ids:
+                if ref not in claim_ids:
+                    raise ValueError(f"{section.id} cites unknown claim {ref}")
+
+            # A connection's whole point is assembling material from more than
+            # one source; a single-source "connection" is just a claim.
+            if section.is_connection:
+                sources = {
+                    ref.source_id
+                    for cid in section.claim_ids
+                    for ref in claims_by_id[cid].evidence
+                }
+                if len(sources) < 2:
+                    raise ValueError(
+                        f"{section.id} is marked as a connection but draws on "
+                        f"only one source"
+                    )
+
+        for noticing in self.noticings:
+            for ref in noticing.claim_ids:
+                if ref not in claim_ids:
+                    raise ValueError(f"noticing cites unknown claim {ref}")
+
         return self
 
     # -- ledger-dependent invariant -------------------------------------------
@@ -416,10 +522,43 @@ def _sanitize(node: Any) -> Any:
     return out
 
 
-def api_json_schema() -> dict:
-    """JSON Schema for the distillation call's structured output.
+class TellingLayer(_Base):
+    """Wire model for the second distillation call (Decision 024).
 
-    Pydantic emits ``$defs`` + ``$ref``, which structured outputs support.
-    Recursion is not present in this schema and must not be introduced.
+    Distillation is two calls because the combined schema exceeds the
+    structured-output grammar ceiling (measured 2026-08-16: the full graph
+    with telling fields is rejected as "compiled grammar too large" on both
+    Sonnet 5 and Opus 5; each half compiles). Call one produces the provenance
+    layer; call two receives those claims and writes the telling, citing
+    claim IDs. The split also separates the jobs: atomize faithfully first,
+    write well second.
     """
-    return _sanitize(ClaimGraph.model_json_schema())
+
+    sections: list[StorySection] = Field(default_factory=list)
+    noticings: list[Noticing] = Field(default_factory=list)
+    landscape: Landscape
+
+
+# Fields that belong to the telling layer, excluded from the provenance call.
+_TELLING_FIELDS = ("sections", "noticings", "landscape")
+_TELLING_DEFS = ("StorySection", "Noticing", "Landscape")
+
+
+def api_json_schema() -> dict:
+    """JSON Schema for the PROVENANCE call's structured output.
+
+    The telling fields are stripped: they are produced by the second call
+    (see TellingLayer). Pydantic emits ``$defs`` + ``$ref``, which structured
+    outputs support. Recursion is not present and must not be introduced.
+    """
+    schema = ClaimGraph.model_json_schema()
+    for field in _TELLING_FIELDS:
+        schema["properties"].pop(field, None)
+    for definition in _TELLING_DEFS:
+        schema.get("$defs", {}).pop(definition, None)
+    return _sanitize(schema)
+
+
+def telling_json_schema() -> dict:
+    """JSON Schema for the TELLING call's structured output."""
+    return _sanitize(TellingLayer.model_json_schema())

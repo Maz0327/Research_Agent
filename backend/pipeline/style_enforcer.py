@@ -182,6 +182,16 @@ TIC_PATTERNS: list[tuple[str, str]] = [
     (r"\bsemantic\b", "'Semantic' (internal vocabulary)"),
     (r"\bit is worth noting\b", "'it is worth noting'"),
     (r"\ba recurring pattern\b", "'a recurring pattern'"),
+    # Cross-references (Decision 024). The reader must never have to decode a
+    # label or scroll to understand the sentence they are on. Owner stopped
+    # reading at "Thread 4 sits underneath threads 2 and 3".
+    (r"\bthreads? \d", "numbered thread reference"),
+    (r"\bsections? \d", "numbered section reference"),
+    (r"\b(see|mentioned|noted|discussed|described) (above|below|earlier|previously)\b",
+     "cross-reference (say it again in place instead)"),
+    (r"\bthe (previous|next|following|preceding) section\b",
+     "cross-reference to another section"),
+    (r"\bas (we|I) (said|mentioned|noted)\b", "cross-reference (re-say it in place)"),
 ]
 
 # Rule-of-three adjective stacks used for rhythm. Deliberately narrow: three

@@ -32,40 +32,6 @@ _SOURCE_ID_IN_PROSE = re.compile(r"\bSRC_(\d+)\b")
 _FILLED = "▮"
 _EMPTY = "▯"
 
-def _evidence_line(status: str, source_count: int) -> str:
-    """Say where a claim came from, the way a person would.
-
-    Built from the actual source count rather than one stock sentence per
-    status. The first version of this repeated "More than one source lands
-    here independently" under all fifteen claims, and that repetition is
-    itself the essay texture the voice laws exist to prevent.
-    """
-    if status == "all_sources":
-        return "Everything we found says this."
-    if status == "conflicted":
-        return "The sources don't agree on this one."
-    if status == "one_source":
-        return "Only one source says this, so treat it as a lead."
-    if status == "multi_source":
-        if source_count >= 3:
-            return f"{source_count} sources say this, separately."
-        return "Two sources got here on their own."
-    return ""
-
-_THESIS_CONFIDENCE_PHRASE = {
-    "solid": "This holds up. The evidence is there.",
-    "usable": "Good enough to build on, with the gaps below called out honestly.",
-    "thin": "Treat this as a working read, not a finding. The evidence is thin.",
-}
-
-_ROLE_PHRASE = {
-    "backbone": "the whole thing leans on this one",
-    "confirmation": "backs up what the others said",
-    "color": "good detail and quotes",
-    "lead": "worth chasing, but settles nothing on its own",
-}
-
-
 def confidence_bar(grade: int) -> str:
     """Render a 1-5 confidence grade as a block scale."""
     grade = max(1, min(5, int(grade)))
@@ -122,167 +88,171 @@ def _humanize(text: Optional[str], source_titles: dict[str, str]) -> str:
     )
 
 
-def _render_map(graph: ClaimGraph, source_titles: dict[str, str]) -> list[str]:
-    """Page one: the whole argument, re-readable in about three minutes."""
-    lines = [f"# {_clean_topic(graph.topic)}", ""]
-    lines += [_humanize(graph.thesis.text, source_titles), ""]
 
-    phrase = _THESIS_CONFIDENCE_PHRASE.get(graph.thesis.confidence, "")
-    if phrase:
-        lines += [f"**How sure:** {phrase}", ""]
 
-    lines += ["## The map", ""]
-    for claim in graph.claims_in_spine_order():
-        bar = confidence_bar(claim.confidence.grade)
-        title = _humanize(claim.title, source_titles)
-        lines.append(f"{claim.spine_order}. **{title}** {bar}")
-    lines.append("")
+# -----------------------------------------------------------------------------
+# Shape B rendering (Decision 024)
+#
+# The document is built from the telling layer: named story sections whose
+# titles are full sentences, self-contained bodies with the details woven in,
+# noticings, and the landscape. Claims render only inside the closing
+# "out loud" section, as plain talk about what is safe to say.
+# -----------------------------------------------------------------------------
 
-    worst = sorted(graph.holes, key=lambda h: h.severity, reverse=True)[:2]
-    if worst:
-        lines += ["### What is missing most", ""]
-        for hole in worst:
-            missing = _humanize(hole.missing, source_titles)
-            hurts = _humanize(hole.hurts_because, source_titles)
+_THESIS_CONFIDENCE_PHRASE = {
+    "solid": "This picture holds up. The backing is there.",
+    "usable": "Good enough to build on, with the soft spots called out below.",
+    "thin": "Treat this as a working read, not a finding. The backing is thin.",
+}
+
+
+def _sentence_case_header(title: str) -> str:
+    """Make sure a section title reads as a sentence, not a label."""
+    title = title.strip().rstrip(".")
+    return title[:1].upper() + title[1:] if title else title
+
+
+def _render_out_loud(graph: ClaimGraph, titles: dict[str, str]) -> list[str]:
+    """The closing section: what to say with your chest, and where to tread.
+
+    Derived from the claims and holes rather than written by the model, so it
+    cannot drift from the provenance layer.
+    """
+    lines = ["## If you end up talking about this out loud", ""]
+
+    solid = [
+        c
+        for c in graph.claims_in_spine_order()
+        if c.confidence.grade >= 4 or c.evidence_status == "all_sources"
+    ]
+    careful = [
+        c
+        for c in graph.claims_in_spine_order()
+        if c.evidence_status in ("one_source", "conflicted") and c not in solid
+    ]
+
+    if solid:
+        lines.append("**Say these with your chest:**")
+        for claim in solid:
+            lines.append(f"- {_humanize(claim.title, titles)}")
+        lines.append("")
+
+    if careful:
+        lines.append(
+            "**Use these, but say who's claiming them, because if someone "
+            "pushes back this is all you've got:**"
+        )
+        for claim in careful:
+            note = (
+                "the sources don't agree on this one"
+                if claim.evidence_status == "conflicted"
+                else "one source only"
+            )
+            lines.append(f"- {_humanize(claim.title, titles)} ({note})")
+        lines.append("")
+
+    honest = sorted(graph.holes, key=lambda h: h.severity, reverse=True)
+    if honest:
+        lines.append(
+            "**The honest-on-camera moments, if you want them.** Saying these "
+            "out loud is what makes the rest believable:"
+        )
+        for hole in honest[:4]:
+            missing = _humanize(hole.missing, titles)
+            hurts = _humanize(hole.hurts_because, titles)
             lines.append(f"- {missing} {hurts}")
         lines.append("")
 
-    return lines
+        chase = [h for h in honest if h.how_to_fill]
+        if chase:
+            lines.append("**And if you want to chase any of it down:**")
+            for hole in chase[:4]:
+                lines.append(f"- {_humanize(hole.how_to_fill, titles)}")
+            lines.append("")
 
-
-def _render_claim(
-    claim: Claim, graph: ClaimGraph, source_titles: dict[str, str]
-) -> list[str]:
-    """One claim unit, with its holes and story goods attached."""
-    lines = [f"### {_humanize(claim.title, source_titles)}", ""]
-
-    says = _humanize(claim.what_sources_say, source_titles)
-    lines += [f"**What the sources say:** {says}", ""]
-
-    names = [
-        _source_name(ref.source_id, source_titles)
-        for ref in claim.evidence
-        if ref.source_id
-    ]
-    seen: list[str] = []
-    for name in names:
-        if name not in seen:
-            seen.append(name)
-
-    status = _evidence_line(claim.evidence_status, len(seen))
-    if seen:
-        who = seen[0] if len(seen) == 1 else ", ".join(seen[:-1]) + f" and {seen[-1]}"
-        lines += [f"*{status} From {who}.*", ""]
-    elif status:
-        lines += [f"*{status}*", ""]
-
-    if claim.pushback:
-        lines += [f"**The pushback:** {_humanize(claim.pushback, source_titles)}", ""]
-
-    if claim.my_read:
-        lines += [f"**My read:** {_humanize(claim.my_read, source_titles)}", ""]
-
-    bar = confidence_bar(claim.confidence.grade)
-    reason = _humanize(claim.confidence.reason, source_titles)
-    lines += [f"**How sure:** {reason} {bar}", ""]
-
-    if claim.say_it_like:
-        said = _humanize(claim.say_it_like, source_titles)
-        lines += [f'*Say it like:* "{said}"', ""]
-
-    goods = [s for s in graph.story_goods if claim.id in s.claim_ids]
-    if goods:
-        lines.append("**Worth using:**")
-        for good in goods:
-            text = _humanize(good.text, source_titles)
-            lines.append(f"- {text} ({_source_name(good.source_id, source_titles)})")
-        lines.append("")
-
-    for hole in graph.holes_for(claim.id):
-        missing = _humanize(hole.missing, source_titles)
-        hurts = _humanize(hole.hurts_because, source_titles)
-        detail = f" {_humanize(hole.how_to_fill, source_titles)}" if hole.how_to_fill else ""
-        lines += [f"**What's missing here:** {missing} {hurts}{detail}", ""]
-
-    return lines
-
-
-def _render_closers(graph: ClaimGraph, source_titles: dict[str, str]) -> list[str]:
-    """Challenge prep, source ranking, and the pointer to the receipts."""
-    lines: list[str] = []
-    claims_by_id = {c.id: c for c in graph.claims}
-
-    if graph.weakest_ground or graph.strongest_ground:
-        lines += ["## If someone challenges you", ""]
-
-        if graph.strongest_ground:
-            claim = claims_by_id.get(graph.strongest_ground.claim_id)
-            if claim:
-                title = _humanize(claim.title, source_titles)
-                why = _humanize(graph.strongest_ground.why, source_titles)
-                lines += [f"**Stand here.** {title} {why}", ""]
-
-        if graph.weakest_ground:
-            claim = claims_by_id.get(graph.weakest_ground.claim_id)
-            if claim:
-                title = _humanize(claim.title, source_titles)
-                why = _humanize(graph.weakest_ground.why, source_titles)
-                lines += [f"**Expect the hit here.** {title} {why}", ""]
-
-    if graph.sources_ranked:
-        lines += ["## Sources, ranked by how useful they were", ""]
-        for ranked in graph.sources_ranked:
-            name = _source_name(ranked.source_id, source_titles)
-            role = _ROLE_PHRASE.get(ranked.role, ranked.role)
-            note = f" {_humanize(ranked.note, source_titles)}" if ranked.note else ""
-            lines.append(f"- **{name}** ({role}).{note}")
-        lines.append("")
-
-    lines += [
-        "## Where the receipts are",
-        "",
-        "Full source text, verbatim quotes and timestamps are in the source "
-        "ledger that ships with this job.",
-        "",
-    ]
     return lines
 
 
 def render_briefing(
     graph: ClaimGraph, source_titles: Optional[dict[str, str]] = None
 ) -> str:
-    """Render the Claim Graph as the Research Briefing.
+    """Render the Claim Graph as the Research Briefing (Shape B).
+
+    Named stories with the details told in place, the noticings, the
+    landscape, and a derived "out loud" closer. Falls back to a minimal
+    claims-only rendering when the telling layer is absent (a legacy graph),
+    so old stored graphs still produce something readable.
 
     Args:
-        graph: The validated claim graph.
-        source_titles: Maps source_id to human-readable title. Without it the
-            renderer falls back to positional names, since raw IDs must never
-            reach the page.
+        graph: The validated claim graph, telling layer included.
+        source_titles: Maps source_id to human-readable title.
 
     Returns:
         The Briefing as markdown.
     """
     titles = source_titles or {}
+    lines: list[str] = [f"# {_clean_topic(graph.topic)}", ""]
 
-    lines = _render_map(graph, titles)
-    lines += ["## The argument", ""]
+    source_count = len({s.source_id for s in graph.sources_ranked}) or len(titles)
+    if source_count:
+        lines += [
+            f"**Read this like I'm telling you what I found, because that's "
+            f"what it is.** Everything here comes from the {source_count} "
+            f"sources on this job. Where something's shaky, I say so in the "
+            f"sentence.",
+            "",
+        ]
 
-    for claim in graph.claims_in_spine_order():
-        lines += _render_claim(claim, graph, titles)
+    lines += ["## The whole thing in one breath", ""]
+    lines += [_humanize(graph.thesis.text, titles), ""]
+    phrase = _THESIS_CONFIDENCE_PHRASE.get(graph.thesis.confidence, "")
+    if phrase:
+        lines += [f"*{phrase}*", ""]
 
-    thesis_holes = graph.holes_for("thesis")
-    if thesis_holes:
-        lines += ["## What would change the whole picture", ""]
-        for hole in thesis_holes:
-            missing = _humanize(hole.missing, titles)
-            hurts = _humanize(hole.hurts_because, titles)
-            detail = f" {_humanize(hole.how_to_fill, titles)}" if hole.how_to_fill else ""
-            lines.append(f"- {missing} {hurts}{detail}")
+    if graph.sections:
+        for section in graph.sections:
+            lines += [f"## {_sentence_case_header(_humanize(section.title, titles))}", ""]
+            for paragraph in section.body.split("\n\n"):
+                paragraph = paragraph.strip()
+                if paragraph:
+                    lines += [_humanize(paragraph, titles), ""]
+    else:
+        # Legacy graph without a telling layer: fall back to claim prose so
+        # the document is still readable, without the old field anatomy.
+        for claim in graph.claims_in_spine_order():
+            lines += [f"## {_sentence_case_header(_humanize(claim.title, titles))}", ""]
+            lines += [_humanize(claim.what_sources_say, titles), ""]
+            if claim.my_read:
+                lines += [_humanize(claim.my_read, titles), ""]
+
+    if graph.noticings:
+        lines += [
+            "## The stuff that made me stop",
+            "",
+            "Little things that could be something, or nothing.",
+            "",
+        ]
+        for noticing in graph.noticings:
+            lines.append(f"- {_humanize(noticing.text, titles)}")
         lines.append("")
 
-    lines += _render_closers(graph, titles)
+    if graph.landscape:
+        lines += ["## What everyone already does with this topic", ""]
+        lines += [_humanize(graph.landscape.everyone_does, titles), ""]
+        if graph.landscape.nobody_has:
+            lines += [_humanize(graph.landscape.nobody_has, titles), ""]
 
-    # Collapse any accidental triple blank line from an omitted optional block.
+    lines += _render_out_loud(graph, titles)
+
+    lines += [
+        "---",
+        "",
+        "*Receipts: full quotes, timestamps and source text are in the source "
+        "ledger that ships with this job. Nothing here is outside knowledge; "
+        "if it's not in the sources, it's not in this document.*",
+        "",
+    ]
+
     text = "\n".join(lines)
     while "\n\n\n" in text:
         text = text.replace("\n\n\n", "\n\n")

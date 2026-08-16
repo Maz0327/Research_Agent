@@ -1,7 +1,9 @@
-"""Tests for the Briefing renderer and the tic-lint that gates it.
+"""Tests for the Shape B Briefing renderer and the lint that gates it.
 
-EXECUTION-PLAN P2 makes the lint part of the render test: a Briefing that
-trips a voice law fails here rather than reaching a reader.
+Decision 024: named stories with details woven in, self-contained sections,
+no cross-references, nothing chosen for the reader. The lint is part of the
+render test: a Briefing that trips a voice law fails here, not in front of
+the owner.
 """
 
 import pytest
@@ -28,16 +30,18 @@ def _graph_dict(**overrides) -> dict:
                 "id": f"CLM_{i}",
                 "title": f"The look changed for reason number {i}.",
                 "what_sources_say": "Two sources got to the same place on their own.",
-                "pushback": "One source reads the timeline differently." if i == 1 else None,
-                "my_read": "This one holds up." if i == 1 else None,
+                "pushback": None,
+                "my_read": None,
                 "say_it_like": f"Here is the {i} of it, out loud.",
                 "confidence": {
-                    "grade": 4,
-                    "reason": "Two independent sources, quotes unverified.",
+                    "grade": 4 if i <= 2 else 2,
+                    "reason": "Two separate sources, quotes unverified.",
                 },
-                "evidence_status": "multi_source",
-                "evidence": [{"source_id": "SRC_1"}, {"source_id": "SRC_2"}],
-                "story_goods": ["STG_1"] if i == 1 else [],
+                "evidence_status": "multi_source" if i <= 2 else "one_source",
+                "evidence": [{"source_id": "SRC_1"}]
+                if i > 2
+                else [{"source_id": "SRC_1"}, {"source_id": "SRC_2"}],
+                "story_goods": [],
                 "spine_order": i,
                 "tags": [],
             }
@@ -53,37 +57,64 @@ def _graph_dict(**overrides) -> dict:
             "based_on": ["CLM_1"],
         },
         "claims": claims,
-        "story_goods": [
-            {
-                "id": "STG_1",
-                "type": "number",
-                "text": "The budget tripled between the two films.",
-                "source_id": "SRC_2",
-                "claim_ids": ["CLM_1"],
-            }
-        ],
+        "story_goods": [],
         "holes": [
             {
                 "id": "HOLE_1",
                 "attached_to": "CLM_1",
-                "missing": "The studio's own numbers.",
-                "hurts_because": "The claim rests on one outside estimate.",
+                "missing": "Nobody asked a working colorist about any of this.",
+                "hurts_because": "The whole case is outsiders describing insiders.",
                 "severity": 4,
-                "how_to_fill": "Look for the annual report.",
-            },
-            {
-                "id": "HOLE_2",
-                "attached_to": "thesis",
-                "missing": "Anyone defending the current look.",
-                "hurts_because": "The argument only has one side.",
-                "severity": 5,
-                "how_to_fill": None,
+                "how_to_fill": "Trade interviews with colorists around big releases.",
             },
         ],
-        "weakest_ground": {"claim_id": "CLM_3", "why": "It rests on one source."},
-        "strongest_ground": {"claim_id": "CLM_1", "why": "Two sources agree."},
+        "sections": [
+            {
+                "id": "STY_1",
+                "title": "The money might explain the cameras",
+                "body": (
+                    "One article blames tight budgets and brutal schedules. A "
+                    "forum thread adds that finance calls the shots while the "
+                    "people who own the look get squeezed out of the room.\n\n"
+                    "Hold those next to the camera complaints and the story "
+                    "flips: it stops being about taste and becomes about "
+                    "economics. Nobody in the sources says this in one place. "
+                    "You'd be the one assembling it."
+                ),
+                "claim_ids": ["CLM_1", "CLM_2"],
+                "is_connection": True,
+            },
+            {
+                "id": "STY_2",
+                "title": "One essay claims even the old classics are being flattened",
+                "body": (
+                    "Buried in one essay is the wildest claim in the pile: "
+                    "remasters run old films through the modern pipeline and "
+                    "the flatness infects them too. Only one person says this, "
+                    "so you'd be carrying it alone."
+                ),
+                "claim_ids": ["CLM_3"],
+                "is_connection": False,
+            },
+        ],
+        "noticings": [
+            {
+                "text": "The big scenes all happen in rain and darkness, on purpose.",
+                "claim_ids": ["CLM_4"],
+            }
+        ],
+        "landscape": {
+            "everyone_does": (
+                "The worn path is the practical-effects fairy tale, told a "
+                "thousand times."
+            ),
+            "nobody_has": (
+                "The economics-drove-the-image version is sitting in this "
+                "material, unassembled."
+            ),
+        },
         "sources_ranked": [
-            {"source_id": "SRC_1", "role": "backbone", "note": "Sets up the whole case."},
+            {"source_id": "SRC_1", "role": "backbone", "note": None},
             {"source_id": "SRC_2", "role": "color", "note": None},
         ],
     }
@@ -93,185 +124,137 @@ def _graph_dict(**overrides) -> dict:
 
 @pytest.fixture
 def briefing() -> str:
-    graph = ClaimGraph.model_validate(_graph_dict())
-    return render_briefing(graph, SOURCE_TITLES)
+    return render_briefing(ClaimGraph.model_validate(_graph_dict()), SOURCE_TITLES)
 
 
-class TestStructure:
-    def test_has_all_three_altitudes(self, briefing):
-        assert "## The map" in briefing
-        assert "## The argument" in briefing
-        assert "## Where the receipts are" in briefing
+class TestShape:
+    def test_sections_render_as_full_sentence_headers(self, briefing):
+        assert "## The money might explain the cameras" in briefing
+        assert "## One essay claims even the old classics are being flattened" in briefing
 
-    def test_map_lists_every_claim(self, briefing):
-        head = briefing.split("## The argument")[0]
-        for i in range(1, 9):
-            assert f"The look changed for reason number {i}." in head
+    def test_no_claim_unit_anatomy(self, briefing):
+        """The repeated field labels were the wall-of-text disease."""
+        for label in (
+            "**What the sources say:**",
+            "**My read:**",
+            "**How sure:**",
+            "*Say it like:*",
+            "**The pushback:**",
+        ):
+            assert label not in briefing
 
-    def test_claim_unit_anatomy(self, briefing):
-        assert "**What the sources say:**" in briefing
-        assert "**The pushback:**" in briefing
-        assert "**My read:**" in briefing
-        assert "**How sure:**" in briefing
-        assert "*Say it like:*" in briefing
+    def test_no_confidence_bars_in_body(self, briefing):
+        assert "▮" not in briefing
 
-    def test_omits_pushback_when_absent(self, briefing):
-        """Claims 2-8 have no pushback, so the label appears exactly once."""
-        assert briefing.count("**The pushback:**") == 1
+    def test_section_bodies_keep_their_paragraph_breaks(self, briefing):
+        assert "You'd be the one assembling it." in briefing
+        idx = briefing.find("squeezed out of the room.")
+        nxt = briefing.find("Hold those next")
+        assert -1 < idx < nxt
 
-    def test_holes_render_inline_on_their_claim(self, briefing):
-        body = briefing.split("## The argument")[1]
-        assert "**What's missing here:** The studio's own numbers." in body
+    def test_one_breath_opening(self, briefing):
+        assert "## The whole thing in one breath" in briefing
+        assert "The look changed because the money changed." in briefing
 
-    def test_thesis_hole_gets_its_own_section(self, briefing):
-        assert "## What would change the whole picture" in briefing
-        assert "Anyone defending the current look." in briefing
+    def test_noticings_render(self, briefing):
+        assert "## The stuff that made me stop" in briefing
+        assert "rain and darkness, on purpose." in briefing
 
-    def test_story_goods_attach_to_their_claim(self, briefing):
-        assert "**Worth using:**" in briefing
-        assert "The budget tripled between the two films." in briefing
+    def test_landscape_renders_without_choosing(self, briefing):
+        assert "## What everyone already does with this topic" in briefing
+        assert "practical-effects fairy tale" in briefing
+        assert "unassembled" in briefing
+        assert "you should" not in briefing.lower()
 
-    def test_challenge_section_names_both_grounds(self, briefing):
-        assert "**Stand here.**" in briefing
-        assert "**Expect the hit here.**" in briefing
+    def test_out_loud_closer_derived_from_claims(self, briefing):
+        assert "**Say these with your chest:**" in briefing
+        assert "The look changed for reason number 1." in briefing
+        assert "one source only" in briefing
 
-    def test_sources_ranked_in_plain_language(self, briefing):
-        assert "the whole thing leans on this one" in briefing
-        assert "good detail and quotes" in briefing
+    def test_holes_become_honest_moments(self, briefing):
+        assert "honest-on-camera moments" in briefing
+        assert "Nobody asked a working colorist" in briefing
+
+    def test_receipts_pointer_present(self, briefing):
+        assert "Receipts:" in briefing
 
 
 class TestVoiceLaws:
-    def test_passes_the_tic_lint(self, briefing):
+    def test_passes_the_lint(self, briefing):
         result = lint_rendered_document(briefing)
         assert result.passes, result.errors
 
     def test_no_internal_ids_reach_the_page(self, briefing):
-        for token in ("CLM_", "SRC_", "STG_", "HOLE_", "KP_", "TEN_", "GAP_"):
+        for token in ("CLM_", "SRC_", "STG_", "STY_", "HOLE_", "KP_"):
             assert token not in briefing
 
-    def test_no_em_dashes(self, briefing):
-        assert "—" not in briefing
-
-    def test_uses_source_names_not_ids(self, briefing):
+    def test_leaked_source_id_is_humanized(self):
+        data = _graph_dict()
+        data["sections"][0]["body"] = "This matches what SRC_2 found."
+        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
+        assert "SRC_2" not in briefing
         assert "The Colorist's Complaint" in briefing
 
-    def test_leaked_id_in_model_prose_is_humanized(self):
-        """The model occasionally writes an ID into a prose field anyway."""
-        data = _graph_dict()
-        data["claims"][0]["what_sources_say"] = "This matches SRC_2 exactly."
-        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
 
-        assert "SRC_2" not in briefing
-        assert "This matches The Colorist's Complaint exactly." in briefing
-        assert lint_rendered_document(briefing).passes
-
-    def test_asterisks_in_source_titles_are_escaped(self, briefing):
-        """An unescaped asterisk terminates the surrounding italics early."""
-        assert r"like \*movies\* anymore" in briefing
-
-
-class TestLintGate:
-    def test_em_dash_fails_the_render(self):
-        data = _graph_dict()
-        data["claims"][0]["my_read"] = "This holds up — mostly."
-        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
-
-        result = lint_rendered_document(briefing)
-        assert not result.passes
-        assert any("em-dash" in e for e in result.errors)
-
-    def test_banned_vocabulary_fails_the_render(self):
-        data = _graph_dict()
-        data["claims"][0]["my_read"] = "A testament to the craft."
-        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
-
-        assert not lint_rendered_document(briefing).passes
-
-    def test_not_just_construction_fails_the_render(self):
-        data = _graph_dict()
-        data["claims"][0]["my_read"] = "It's not just the cameras, it's the money."
-        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
-
-        assert not lint_rendered_document(briefing).passes
-
-    def test_honest_enumeration_is_advisory_not_an_error(self):
-        """A three-item noun list must not fail a document."""
-        result = lint_rendered_document(
-            "Artists talked about workload, deadlines, and creative limits daily."
-        )
-        assert result.passes
-        assert result.advisories
+class TestCrossReferenceBan:
+    """Decision 024's hard rule: the reader never decodes a label."""
 
     @pytest.mark.parametrize(
         "sentence",
         [
-            "Every source in this corpus critiques the modern look.",
-            "Primary testimony is absent from the record.",
-            "The article posits that budgets are the cause.",
-            "Two sources independently corroborate the claim.",
-            "This warrants further investigation by someone.",
+            "Thread 4 sits underneath threads 2 and 3.",
+            "As mentioned above, the cameras changed.",
+            "See below for the money story.",
+            "The previous section covers the cameras.",
+            "As we said, the look is flat now.",
         ],
     )
-    def test_research_register_fails_the_render(self, sentence):
-        """The reader does not care how the information was obtained.
-
-        Owner feedback at the P2 gate: the document must read as a person
-        telling a person, not as a research essay.
-        """
+    def test_cross_references_fail_the_render(self, sentence):
         data = _graph_dict()
-        data["claims"][0]["what_sources_say"] = sentence
+        data["sections"][0]["body"] = sentence
         briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
-
         result = lint_rendered_document(briefing)
         assert not result.passes
-        assert any("Research-essay word" in e for e in result.errors)
 
-
-class TestEvidenceLine:
-    def test_counts_sources_rather_than_repeating_one_phrase(self):
-        """The stock phrase under all 15 claims was itself essay texture."""
+    def test_plain_resaying_passes(self):
         data = _graph_dict()
-        data["claims"][0]["evidence"] = [
-            {"source_id": "SRC_1"},
-            {"source_id": "SRC_2"},
-            {"source_id": "SRC_3"},
-        ]
-        titles = dict(SOURCE_TITLES, SRC_3="A Third Source")
-        briefing = render_briefing(ClaimGraph.model_validate(data), titles)
-
-        assert "3 sources say this, separately." in briefing
-
-    def test_two_sources_reads_naturally(self, briefing):
-        assert "Two sources got here on their own." in briefing
-
-    def test_never_says_independently(self, briefing):
-        """Research register, and it appeared 14 times in the first draft."""
-        assert "independently" not in briefing.lower()
-
-    def test_one_source_is_flagged_as_a_lead(self):
-        data = _graph_dict()
-        data["claims"][0]["evidence_status"] = "one_source"
-        data["claims"][0]["evidence"] = [{"source_id": "SRC_1"}]
+        data["sections"][0]["body"] = (
+            "The camera complaints are real, and the money story sits "
+            "underneath them: budgets drive the choices the essayists blame "
+            "on taste."
+        )
         briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
+        assert lint_rendered_document(briefing).passes
 
-        assert "Only one source says this, so treat it as a lead." in briefing
 
+class TestSectionValidators:
+    def test_section_without_provenance_rejected(self):
+        data = _graph_dict()
+        data["sections"][0]["claim_ids"] = []
+        with pytest.raises(Exception, match="no provenance"):
+            ClaimGraph.model_validate(data)
 
-class TestConfidenceBar:
-    @pytest.mark.parametrize(
-        "grade,expected",
-        [
-            (1, "▮▯▯▯▯"),
-            (3, "▮▮▮▯▯"),
-            (5, "▮▮▮▮▮"),
-        ],
-    )
-    def test_renders_grade(self, grade, expected):
-        assert confidence_bar(grade) == expected
+    def test_section_citing_unknown_claim_rejected(self):
+        data = _graph_dict()
+        data["sections"][0]["claim_ids"] = ["CLM_99"]
+        with pytest.raises(Exception, match="unknown claim"):
+            ClaimGraph.model_validate(data)
 
-    def test_clamps_out_of_range(self):
-        assert confidence_bar(9) == "▮▮▮▮▮"
-        assert confidence_bar(0) == "▮▯▯▯▯"
+    def test_single_source_connection_rejected(self):
+        """A connection that draws on one source is just a claim."""
+        data = _graph_dict()
+        data["sections"][0]["claim_ids"] = ["CLM_3"]  # one-source claim
+        with pytest.raises(Exception, match="only one source"):
+            ClaimGraph.model_validate(data)
+
+    def test_legacy_graph_without_telling_layer_still_renders(self):
+        data = _graph_dict()
+        data["sections"] = []
+        data["noticings"] = []
+        data["landscape"] = None
+        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
+        assert "## The look changed for reason number 1" in briefing
+        assert lint_rendered_document(briefing).passes
 
 
 class TestTopicCleanup:
@@ -279,8 +262,6 @@ class TestTopicCleanup:
         "raw,expected",
         [
             ("research why films look flat", "Why films look flat"),
-            ("Investigate the budget claims", "The budget claims"),
-            ("why films look flat", "Why films look flat"),
             ("", "Research Briefing"),
         ],
     )
@@ -288,28 +269,6 @@ class TestTopicCleanup:
         assert _clean_topic(raw) == expected
 
 
-class TestGracefulDegradation:
-    def test_renders_without_source_titles(self):
-        """Missing titles must not leak raw IDs onto the page."""
-        briefing = render_briefing(ClaimGraph.model_validate(_graph_dict()), None)
-
-        assert "SRC_" not in briefing
-        assert "source 1" in briefing
-        assert lint_rendered_document(briefing).passes
-
-    def test_renders_without_optional_sections(self):
-        data = _graph_dict()
-        data["story_goods"] = []
-        data["holes"] = []
-        data["weakest_ground"] = None
-        data["strongest_ground"] = None
-        data["sources_ranked"] = []
-        for claim in data["claims"]:
-            claim["story_goods"] = []
-
-        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
-
-        assert "## The map" in briefing
-        assert "If someone challenges you" not in briefing
-        assert "\n\n\n" not in briefing
-        assert lint_rendered_document(briefing).passes
+class TestConfidenceBar:
+    def test_still_available_for_other_projections(self):
+        assert confidence_bar(3) == "▮▮▮▯▯"

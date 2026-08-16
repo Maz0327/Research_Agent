@@ -353,3 +353,124 @@ def build_distillation_prompt(
             "field the way you would say it out loud.",
         ]
     )
+
+
+# -----------------------------------------------------------------------------
+# The telling pass (Decision 024)
+#
+# Second call. Receives the validated claims and writes what a human actually
+# reads: named story sections, noticings, and the landscape. Separate call for
+# two reasons: the combined schema exceeds the structured-output grammar
+# ceiling (measured), and splitting lets this pass think about nothing except
+# the writing.
+# -----------------------------------------------------------------------------
+
+TELLING_ROLE = """You did the reading, and now you're writing the one document your friend will actually use. They make YouTube videos. They need two things from you and nothing else:
+
+1. After reading, they can hold a real conversation about this topic without
+   you in the room.
+2. They can see the threads, the connections, and the openings well enough to
+   start shaping a story that is THEIRS. You never choose it for them.
+
+You write like a sharp person explaining what they found to a friend at a
+desk. Plain words, short paragraphs, and the reader never has to hold
+anything in their head to understand the sentence they are on."""
+
+
+TELLING_RULES = """
+## THE RULES THAT MAKE OR BREAK THIS DOCUMENT
+
+**Every section title is a full sentence that means something on its own.**
+"The money might explain the cameras" is a title. "Economic factors" is not.
+"Thread 2" gets the whole document rejected.
+
+**Every section is self-contained.** It must survive being read alone, first,
+last, or in any order. NEVER refer to another section by position, number, or
+existence: no "as mentioned above", no "the previous section", no "thread
+three". When something covered elsewhere matters here, re-say it in plain
+words right where the reader is standing. Repetition in plain words is
+correct; a cross-reference is a defect.
+
+**The example rides inside the explanation.** When a claim has a concrete
+story behind it, tell the story in full where you make the point: what
+happened, to what, and why it stung. Never write the abstraction in one place
+and park the detail somewhere else. If the input gives you the specific film,
+the specific person, the specific number, USE THEM in the sentence. A section
+built on assertions the reader cannot retell has failed.
+
+**Connections are sections of their own.** When two pieces from different
+sources quietly explain or undercut each other and no single source puts them
+together, that is a section: name both pieces in plain words, say how they
+touch, and say plainly that nobody in the sources assembles this. Mark it
+with is_connection: true. These are often the most valuable sections in the
+document.
+
+**Weave confidence into the sentence.** "That's the strongest thing in the
+pile", "only one essay argues this, so you'd be carrying it alone", "every
+source lands here". Never grades, never badges. When something is one
+person's argument, the reader must know it from the sentence itself.
+
+**Never choose for the reader.** Map the territory, mark the doors, stop.
+No "you should", no "the best angle is", no ranking of stories. Noticing that
+a door is unopened is your job; walking through it is theirs.
+
+**Provenance stays exact underneath.** Every section lists the claim IDs it
+draws on in claim_ids. Every fact in your prose must trace to one of those
+claims. No outside knowledge, even when obviously true. IDs never appear in
+the prose itself.
+
+**Section IDs are STY_1, STY_2, ... exactly.** (STY_, not SEC_, not S.) A
+wrong prefix fails the whole layer. Claim IDs in claim_ids are used exactly
+as given in the material. These are plumbing and never appear in prose.
+"""
+
+
+TELLING_SHAPE = """
+## WHAT TO PRODUCE
+
+**sections** (aim for 5 to 9): the named stories that together cover
+everything in the claims. Include the connective sections (is_connection:
+true) where material from different sources assembles into something no
+single source says. Between them, the sections must cover every claim worth
+knowing about. Bodies run two to six short paragraphs.
+
+**noticings** (0 to 6): the "huh, that could be something" moments. One or
+two sentences each, concrete, pointing at the claims they come from. These
+are observations, never suggestions. If nothing genuinely made you stop,
+return fewer or none.
+
+**landscape**: two prose fields.
+  everyone_does: what the standard telling of this topic is, based on what
+  the sources themselves keep doing. Plain and honest, so the reader knows
+  the worn path.
+  nobody_has: the angles sitting in this material that none of the sources
+  assemble. Doors, named and left closed. Not recommendations.
+"""
+
+
+def build_telling_prompt(claims_json: str, topic: str) -> str:
+    """Assemble the telling-pass prompt.
+
+    Args:
+        claims_json: The validated provenance layer, serialized with source
+            names resolved so prose can name sources naturally.
+        topic: The research topic.
+
+    Returns:
+        The full user-turn prompt.
+    """
+    return "\n".join(
+        [
+            TELLING_RULES,
+            TELLING_SHAPE,
+            VOICE_LAWS,
+            f"\n## THE MATERIAL\n\nTopic: {topic}\n",
+            claims_json,
+            "\n## YOUR TASK\n",
+            "Write the telling layer: the named story sections that teach "
+            "this topic completely, the connections nobody assembled, the "
+            "noticings, and the landscape. Self-contained sections, details "
+            "told in full where the point is made, nothing numbered, nothing "
+            "chosen for the reader.",
+        ]
+    )
