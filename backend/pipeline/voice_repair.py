@@ -20,9 +20,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.models.claim_graph import ClaimGraph
 from backend.pipeline.style_enforcer import (
+    MAX_PURE_META_TOTAL,
     RESEARCH_REGISTER,
     TIC_PATTERNS,
     _SOURCE_OPENER,
+    all_pure_meta_sentences,
     find_consensus_violations,
 )
 
@@ -144,6 +146,7 @@ def repair_voice(
     from backend.integrations.anthropic_client import get_anthropic_client
 
     offenders: list[tuple[str, str]] = []
+    pure_meta_all: list[str] = []
     for text, _ in _prose_fields(graph):
         offenders.extend(_offending_sentences(text))
         for sentence in find_consensus_violations(text):
@@ -151,6 +154,18 @@ def repair_voice(
                 (sentence,
                  "agreement-only sentence leading a paragraph or stacked in a "
                  "run; state the content instead, or delete it")
+            )
+        pure_meta_all.extend(all_pure_meta_sentences(text))
+
+    # Counting chorus over budget: every agreement-only sentence beyond the
+    # allowance becomes a repair target, keeping the earliest ones (which are
+    # most likely the single legitimate credibility signal).
+    if len(pure_meta_all) > MAX_PURE_META_TOTAL:
+        for sentence in pure_meta_all[MAX_PURE_META_TOTAL:]:
+            offenders.append(
+                (sentence,
+                 "counting chorus over budget; attribute by naming the person "
+                 "or outlet, or delete this sentence")
             )
 
     # De-duplicate while keeping order; the same stock sentence can appear

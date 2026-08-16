@@ -192,6 +192,14 @@ TIC_PATTERNS: list[tuple[str, str]] = [
     (r"\bthe (previous|next|following|preceding) section\b",
      "cross-reference to another section"),
     (r"\bas (we|I) (said|mentioned|noted)\b", "cross-reference (re-say it in place)"),
+    # Evidence-gesturing: announcing that specifics exist without giving them.
+    # Cold-reader finding, 2026-08-16: "It tells me evidence exists without
+    # giving me the evidence" - the worst kind of sentence in a brief.
+    (r"\b(using|with|citing|naming|drawing on) (different|various|several|multiple) "
+     r"[a-z][a-z ]{2,30}? as (examples|evidence|proof|illustrations)\b",
+     "evidence-gesture (name the examples or cut the clause)"),
+    (r"\b(different|various|several) (examples|specifications|cases|instances)\b",
+     "evidence-gesture (name them or cut the clause)"),
 ]
 
 # Rule-of-three adjective stacks used for rhythm. Deliberately narrow: three
@@ -259,6 +267,11 @@ _CONSENSUS_NARRATION = re.compile(
 # a paragraph or sits adjacent to another pure-meta sentence.
 MAX_META_VIOLATIONS = 2
 
+# Absolute cap on agreement-only sentences anywhere in the document, trailing
+# included. Cold reader, 2026-08-16: the chorus is "useful once as a
+# credibility signal; as a recurring chorus it's throat-clearing."
+MAX_PURE_META_TOTAL = 3
+
 _META_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
@@ -297,19 +310,35 @@ def find_consensus_violations(text: str) -> list[str]:
     return violations
 
 
+def all_pure_meta_sentences(text: str) -> list[str]:
+    """Every agreement-only sentence in the document, position regardless."""
+    return [
+        s.strip()
+        for s in _META_SENTENCE_SPLIT.split(text)
+        if len(s.strip()) > 15 and _is_pure_meta(s.strip())
+    ]
+
+
 def check_consensus_narration(text: str) -> list[str]:
     """Flag documents that narrate agreement instead of content."""
     if len(text.split()) < 200:
         return []
+    errors = []
     violations = find_consensus_violations(text)
-    if len(violations) <= MAX_META_VIOLATIONS:
-        return []
-    return [
-        f"Consensus-narration: {len(violations)} agreement-only sentences "
-        f"leading paragraphs or stacked in runs (max {MAX_META_VIOLATIONS}). "
-        f"e.g. '{violations[0][:80]}'. State what is actually said first; "
-        f"agreement earns one short trailing sentence at most."
-    ]
+    if len(violations) > MAX_META_VIOLATIONS:
+        errors.append(
+            f"Consensus-narration: {len(violations)} agreement-only sentences "
+            f"leading paragraphs or stacked in runs (max {MAX_META_VIOLATIONS}). "
+            f"e.g. '{violations[0][:80]}'. State what is actually said first."
+        )
+    total = all_pure_meta_sentences(text)
+    if len(total) > MAX_PURE_META_TOTAL:
+        errors.append(
+            f"Counting chorus: {len(total)} agreement-only sentences in the "
+            f"document (max {MAX_PURE_META_TOTAL} total, trailing included). "
+            f"Attribute by naming people and outlets, not by counting sources."
+        )
+    return errors
 
 
 # Allowed sentence-initial source references per 1000 words. Calibrated

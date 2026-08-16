@@ -262,7 +262,11 @@ def distill_corpus(
     )
 
 
-def _claims_for_telling(graph: ClaimGraph, source_titles: dict[str, str]) -> str:
+def _claims_for_telling(
+    graph: ClaimGraph,
+    source_titles: dict[str, str],
+    source_bylines: Optional[list[dict]] = None,
+) -> str:
     """Serialize the provenance layer for the telling pass.
 
     Source IDs are resolved to names so the writer can name sources in prose
@@ -275,6 +279,10 @@ def _claims_for_telling(graph: ClaimGraph, source_titles: dict[str, str]) -> str
 
     payload = {
         "thesis": graph.thesis.model_dump(mode="json"),
+        # Who wrote each source, so attribution can name people rather than
+        # count documents (the CFR register: "according to Juan Zarate, a top
+        # Bush administration official", never "two sources agree").
+        "source_bylines": source_bylines or [],
         "claims": [
             {
                 "id": c.id,
@@ -321,6 +329,7 @@ def write_telling_layer(
     job_id: str,
     graph: ClaimGraph,
     source_titles: dict[str, str],
+    source_bylines: Optional[list[dict]] = None,
 ) -> tuple[ClaimGraph, list[dict]]:
     """Run the telling pass and merge its output into the graph.
 
@@ -352,7 +361,7 @@ def write_telling_layer(
 
     settings = get_settings()
     prompt = build_telling_prompt(
-        claims_json=_claims_for_telling(graph, source_titles),
+        claims_json=_claims_for_telling(graph, source_titles, source_bylines),
         topic=graph.topic,
     )
     schema = telling_json_schema()
@@ -418,6 +427,8 @@ def _sources_from_context(ctx: PipelineContext) -> list[dict]:
                 "source_id": getattr(pkg, "source_id", None),
                 "title": getattr(pkg, "title", None),
                 "type": getattr(pkg, "source_type", None),
+                "creator": getattr(pkg, "creator", None),
+                "url": getattr(pkg, "url", None),
                 "status": "ingested"
                 if getattr(pkg, "is_accessible", True)
                 else "failed",
@@ -549,14 +560,27 @@ def stage_distillation(ctx: PipelineContext) -> None:
     source_titles = {
         s["source_id"]: s.get("title") or "" for s in sources if s.get("source_id")
     }
+    source_urls = {
+        s["source_id"]: s["url"] for s in sources if s.get("source_id") and s.get("url")
+    }
 
     # Second call: the telling layer (Decision 024). Two calls because the
     # combined schema exceeds the structured-output grammar ceiling, and
     # because writing deserves a pass that thinks about nothing else.
+    source_bylines = [
+        {
+            "source": s.get("title"),
+            "author": s.get("creator"),
+            "type": s.get("type"),
+        }
+        for s in sources
+        if s.get("title")
+    ]
     graph, telling_usages = write_telling_layer(
         job_id=ctx.job_id,
         graph=graph,
         source_titles=source_titles,
+        source_bylines=source_bylines,
     )
     usages.extend(telling_usages)
 
@@ -565,7 +589,7 @@ def stage_distillation(ctx: PipelineContext) -> None:
 
     # Render the Briefing here rather than in a separate stage: it is a pure
     # projection of the graph we just built, with no other inputs.
-    briefing_md = render_briefing(graph, source_titles)
+    briefing_md = render_briefing(graph, source_titles, source_urls)
 
     lint = lint_rendered_document(briefing_md)
     if not lint.passes:
@@ -580,7 +604,7 @@ def stage_distillation(ctx: PipelineContext) -> None:
             ctx.add_cost("anthropic_voice_repair", repair_stats.get("cost", 0.0))
             ctx.claim_graph = graph
             ctx.outputs["claim_graph"] = graph.model_dump(mode="json")
-            briefing_md = render_briefing(graph, source_titles)
+            briefing_md = render_briefing(graph, source_titles, source_urls)
             lint = lint_rendered_document(briefing_md)
         except Exception as e:
             logger.warning(f"[{ctx.job_id}] Voice repair failed, keeping draft: {e}")

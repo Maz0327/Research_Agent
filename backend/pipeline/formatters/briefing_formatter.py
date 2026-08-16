@@ -51,6 +51,11 @@ def _clean_topic(topic: str) -> str:
         if title.lower().startswith(prefix):
             title = title[len(prefix) :]
             break
+    # Instruction tails ("...and use jurassic park as an example") are the
+    # user talking to the tool, not part of the subject.
+    title = re.sub(
+        r"\s+and use .{2,60} as an example$", "", title, flags=re.IGNORECASE
+    )
     return title[:1].upper() + title[1:] if title else "Research Briefing"
 
 
@@ -168,7 +173,9 @@ def _render_out_loud(graph: ClaimGraph, titles: dict[str, str]) -> list[str]:
 
 
 def render_briefing(
-    graph: ClaimGraph, source_titles: Optional[dict[str, str]] = None
+    graph: ClaimGraph,
+    source_titles: Optional[dict[str, str]] = None,
+    source_urls: Optional[dict[str, str]] = None,
 ) -> str:
     """Render the Claim Graph as the Research Briefing (Shape B).
 
@@ -234,6 +241,19 @@ def render_briefing(
             lines += [_humanize(graph.landscape.nobody_has, titles), ""]
 
     lines += _render_out_loud(graph, titles)
+
+    # The genre's norm (CFR, Kurzgesagt) is linked evidence, not a bare
+    # pointer. Titles link to their URLs where the job recorded one.
+    urls = source_urls or {}
+    if titles:
+        lines += ["## Sources", ""]
+        for source_id, title in titles.items():
+            if not title:
+                continue
+            shown = _escape_markdown(title.strip())
+            url = urls.get(source_id)
+            lines.append(f"- [{shown}]({url})" if url else f"- {shown}")
+        lines.append("")
 
     lines += [
         "---",

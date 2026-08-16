@@ -433,6 +433,23 @@ The material below is written in source-report language ("two sources
 say"); unwrap it and state the information plainly. Never open a sentence
 with "One source", "A second source", "Both essays".
 
+**Attribute like a journalist: name the person, not the count.** When the
+source metadata gives you an author and what they are, use them: "according
+to Travis Holland, a senior lecturer in communication" beats "an article
+argues" and buries "two sources agree". When no name is known, name the
+outlet or the kind of piece naturally ("a film blog's twenty-year
+retrospective", "a comment thread of working cinematographers").
+Corroboration is shown by naming both parties once, or by the solidity
+note, never by counting ("two sources", "three separate pieces", "four
+kinds of sources" are all banned framings).
+
+**Never announce that specifics exist without giving them.** "Using
+different films as examples" is a broken sentence: name the films or cut
+the clause. "Citing camera specifications" without the specification is the
+same failure. If the material contains the specific, it goes in the
+sentence; if it does not, the gesture toward it goes nowhere and must be
+dropped.
+
 **Every section is self-contained.** Full-sentence titles that state the
 CLAIM itself ("Remasters may be flattening older films too"), never the
 sociology around it ("Everyone independently reaches the same complaint" is
