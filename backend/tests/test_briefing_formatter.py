@@ -153,30 +153,30 @@ class TestShape:
         assert -1 < idx < nxt
 
     def test_one_breath_opening(self, briefing):
-        assert "## The whole thing in one breath" in briefing
+        assert "## The short version" in briefing
         assert "The look changed because the money changed." in briefing
 
     def test_noticings_render(self, briefing):
-        assert "## The stuff that made me stop" in briefing
+        assert "## Things that stood out" in briefing
         assert "rain and darkness, on purpose." in briefing
 
     def test_landscape_renders_without_choosing(self, briefing):
-        assert "## What everyone already does with this topic" in briefing
+        assert "## How this topic is usually covered, and what is not" in briefing
         assert "practical-effects fairy tale" in briefing
         assert "unassembled" in briefing
         assert "you should" not in briefing.lower()
 
     def test_out_loud_closer_derived_from_claims(self, briefing):
-        assert "**Say these with your chest:**" in briefing
+        assert "**Solid, safe to state plainly:**" in briefing
         assert "The look changed for reason number 1." in briefing
         assert "one source only" in briefing
 
-    def test_holes_become_honest_moments(self, briefing):
-        assert "honest-on-camera moments" in briefing
+    def test_holes_become_open_questions(self, briefing):
+        assert "Open questions nobody in the sources answers" in briefing
         assert "Nobody asked a working colorist" in briefing
 
     def test_receipts_pointer_present(self, briefing):
-        assert "Receipts:" in briefing
+        assert "source ledger" in briefing
 
 
 class TestVoiceLaws:

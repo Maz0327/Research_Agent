@@ -100,9 +100,9 @@ def _humanize(text: Optional[str], source_titles: dict[str, str]) -> str:
 # -----------------------------------------------------------------------------
 
 _THESIS_CONFIDENCE_PHRASE = {
-    "solid": "This picture holds up. The backing is there.",
-    "usable": "Good enough to build on, with the soft spots called out below.",
-    "thin": "Treat this as a working read, not a finding. The backing is thin.",
+    "solid": "Well supported across the sources.",
+    "usable": "Reasonably supported; the thin spots are flagged where they occur.",
+    "thin": "Lightly supported; treat as a working read.",
 }
 
 
@@ -118,7 +118,7 @@ def _render_out_loud(graph: ClaimGraph, titles: dict[str, str]) -> list[str]:
     Derived from the claims and holes rather than written by the model, so it
     cannot drift from the provenance layer.
     """
-    lines = ["## If you end up talking about this out loud", ""]
+    lines = ["## What is solid and what is thin", ""]
 
     solid = [
         c
@@ -132,16 +132,13 @@ def _render_out_loud(graph: ClaimGraph, titles: dict[str, str]) -> list[str]:
     ]
 
     if solid:
-        lines.append("**Say these with your chest:**")
+        lines.append("**Solid, safe to state plainly:**")
         for claim in solid:
             lines.append(f"- {_humanize(claim.title, titles)}")
         lines.append("")
 
     if careful:
-        lines.append(
-            "**Use these, but say who's claiming them, because if someone "
-            "pushes back this is all you've got:**"
-        )
+        lines.append("**Thin, attribute these if you use them:**")
         for claim in careful:
             note = (
                 "the sources don't agree on this one"
@@ -153,10 +150,7 @@ def _render_out_loud(graph: ClaimGraph, titles: dict[str, str]) -> list[str]:
 
     honest = sorted(graph.holes, key=lambda h: h.severity, reverse=True)
     if honest:
-        lines.append(
-            "**The honest-on-camera moments, if you want them.** Saying these "
-            "out loud is what makes the rest believable:"
-        )
+        lines.append("**Open questions nobody in the sources answers:**")
         for hole in honest[:4]:
             missing = _humanize(hole.missing, titles)
             hurts = _humanize(hole.hurts_because, titles)
@@ -165,7 +159,7 @@ def _render_out_loud(graph: ClaimGraph, titles: dict[str, str]) -> list[str]:
 
         chase = [h for h in honest if h.how_to_fill]
         if chase:
-            lines.append("**And if you want to chase any of it down:**")
+            lines.append("**Where those answers would likely be found:**")
             for hole in chase[:4]:
                 lines.append(f"- {_humanize(hole.how_to_fill, titles)}")
             lines.append("")
@@ -196,14 +190,13 @@ def render_briefing(
     source_count = len({s.source_id for s in graph.sources_ranked}) or len(titles)
     if source_count:
         lines += [
-            f"**Read this like I'm telling you what I found, because that's "
-            f"what it is.** Everything here comes from the {source_count} "
-            f"sources on this job. Where something's shaky, I say so in the "
-            f"sentence.",
+            f"Everything in this brief comes from the {source_count} sources "
+            f"on this job. Where something is thin or contested, the sentence "
+            f"says so.",
             "",
         ]
 
-    lines += ["## The whole thing in one breath", ""]
+    lines += ["## The short version", ""]
     lines += [_humanize(graph.thesis.text, titles), ""]
     phrase = _THESIS_CONFIDENCE_PHRASE.get(graph.thesis.confidence, "")
     if phrase:
@@ -227,17 +220,15 @@ def render_briefing(
 
     if graph.noticings:
         lines += [
-            "## The stuff that made me stop",
+            "## Things that stood out",
             "",
-            "Little things that could be something, or nothing.",
-            "",
-        ]
+                    ]
         for noticing in graph.noticings:
             lines.append(f"- {_humanize(noticing.text, titles)}")
         lines.append("")
 
     if graph.landscape:
-        lines += ["## What everyone already does with this topic", ""]
+        lines += ["## How this topic is usually covered, and what is not", ""]
         lines += [_humanize(graph.landscape.everyone_does, titles), ""]
         if graph.landscape.nobody_has:
             lines += [_humanize(graph.landscape.nobody_has, titles), ""]
@@ -247,9 +238,8 @@ def render_briefing(
     lines += [
         "---",
         "",
-        "*Receipts: full quotes, timestamps and source text are in the source "
-        "ledger that ships with this job. Nothing here is outside knowledge; "
-        "if it's not in the sources, it's not in this document.*",
+        "*Full quotes, timestamps and source text are in the source ledger "
+        "for this job. Nothing here comes from outside the sources.*",
         "",
     ]
 

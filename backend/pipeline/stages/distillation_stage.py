@@ -273,7 +273,10 @@ def _claims_for_telling(graph: ClaimGraph, source_titles: dict[str, str]) -> str
                 "the_information": c.what_sources_say,
                 "pushback": c.pushback,
                 "my_read": c.my_read,
-                "say_it_like": c.say_it_like,
+                # say_it_like is deliberately NOT passed: it is hook material
+                # for the script projections, and feeding hooks to the brief's
+                # writer produced script-voiced briefs (owner rejection,
+                # 2026-08-16). The brief informs; it does not perform.
                 "how_solid": f"{c.confidence.grade}/5: {c.confidence.reason}",
                 "backing": c.evidence_status,
                 "from": sorted({name(e.source_id) for e in c.evidence}),

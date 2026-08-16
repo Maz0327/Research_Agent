@@ -365,130 +365,109 @@ def build_distillation_prompt(
 # the writing.
 # -----------------------------------------------------------------------------
 
-TELLING_ROLE = """You did the reading, and now you're writing the one document your friend will actually use. They make YouTube videos. They need two things from you and nothing else:
+TELLING_ROLE = """You are writing a research brief: the working document that makes its reader fully informed about a topic they are researching.
 
-1. After reading, they can hold a real conversation about this topic without
-   you in the room.
-2. They can see the threads, the connections, and the openings well enough to
-   start shaping a story that is THEIRS. You never choose it for them.
+Its only jobs are these. After reading it, the reader understands the topic
+well enough to discuss it with anyone. They can see what is known, what is
+merely claimed, how solid each piece is, what connects to what, and what is
+missing. That is all.
 
-You write like a sharp person explaining what they found to a friend at a
-desk. Plain words, short paragraphs, and the reader never has to hold
-anything in their head to understand the sentence they are on."""
+This is not an essay, not an article, and not entertainment. Do not
+dramatize, do not editorialize for effect, do not write hooks or punchlines,
+do not rank things by how exciting they are. The reader decides what is
+interesting. You inform, in plain, clear, natural language, the way a
+capable researcher writes notes for a colleague they respect."""
 
 
 TELLING_RULES = """
-## THE RULES THAT MAKE OR BREAK THIS DOCUMENT
+## THE RULES
 
-**Every section title is a full sentence that means something on its own.**
-"The money might explain the cameras" is a title. "Economic factors" is not.
-"Thread 2" gets the whole document rejected.
+**Plain register.** Write the way you would explain something clearly in
+conversation: ordinary words, short sentences, no performance. Here is the
+register, on an unrelated topic:
 
-**Every section is self-contained.** It must survive being read alone, first,
-last, or in any order. NEVER refer to another section by position, number, or
-existence: no "as mentioned above", no "the previous section", no "thread
-three". When something covered elsewhere matters here, re-say it in plain
-words right where the reader is standing. Repetition in plain words is
-correct; a cross-reference is a defect.
+  "Se7en was shot on film and graded in a very specific way. When it was
+  digitized, the original negatives had degraded too far, and the remaster
+  lost the look of the original grade. The director himself has said he
+  would not know how to recreate it."
 
-**The example rides inside the explanation.** When a claim has a concrete
-story behind it, tell the story in full where you make the point: what
-happened, to what, and why it stung. Never write the abstraction in one place
-and park the detail somewhere else. If the input gives you the specific film,
-the specific person, the specific number, USE THEM in the sentence. A section
-built on assertions the reader cannot retell has failed.
+Notice what that paragraph does not do: no "here's the wild part", no
+"scariest claim in the pile", no verdict on how the reader should feel. The
+information is simply told, in order, with the concrete specifics kept in.
+Every paragraph you write should pass that comparison.
 
-**Connections are sections of their own.** When two pieces from different
-sources quietly explain or undercut each other and no single source puts them
-together, that is a section: name both pieces in plain words, say how they
-touch, and say plainly that nobody in the sources assembles this. Mark it
-with is_connection: true. These are often the most valuable sections in the
-document.
+**Explain the subject, not the sourcing.** Teach the thing itself. The
+material you receive below is written in source-report language ("two
+sources say"); unwrap it and state the information plainly. Note sourcing
+only where it changes how much weight a statement can bear, as a short
+trailing remark, at most about once per section: "...though only one essay
+makes this claim." Never open a sentence with "One source", "A second
+source", "Both essays".
 
-**Explain the subject, not the sourcing.** This is the rule most likely to
-save or sink the whole document. The reader is here to learn about dinosaurs
-and cameras and murders, not about your bibliography. So teach the thing
-itself, in its own terms, the way you'd explain it out loud:
+**Every section is self-contained.** Full-sentence titles that state the
+section's content plainly ("Remasters may be flattening older films too"),
+never labels and never numbers. A section must survive being read alone, in
+any order. Never refer to another section by position or existence; if
+something covered elsewhere matters here, restate it in plain words where
+the reader is standing.
 
-  WRONG: "One source says modern films favor wider lenses. A second source,
-  coming from a different angle, argues that deep focus mirrors how eyes
-  work. A third source contends that..."
+**Details stay inside the explanation.** When a concrete specific exists in
+the material (a film, a person, a number, what exactly happened), it belongs
+in the sentence that makes the point, not summarized away and not parked in
+a list. A paragraph of assertions the reader cannot restate in their own
+words has failed.
 
-  RIGHT: "Filmmakers fell in love with wide lenses and blurry backgrounds,
-  and the price was the deep, everything-in-focus frame that used to feel
-  like actually being in the room. Your eyes don't see the world with the
-  background melted away, which is why the old look reads as real and the
-  new one reads as a photo shoot."
+**Connections are sections of their own.** When pieces from different
+sources bear on each other and no single source puts them together, write
+that as its own section: state both pieces plainly, state the relationship,
+and note that none of the sources connect them. Mark it is_connection: true.
+State the relationship as what it is - "if the budget claims are right, the
+technique complaints are a symptom, not a cause" - without promoting it into
+a conclusion the material has not earned.
 
-The material you receive below is written in source-report language ("two
-sources say", "one essay argues"). Your job is to UNWRAP it: extract the
-actual information and say it plainly. Then flag sourcing only where it
-changes what the reader can safely repeat, as a short aside at the END of
-the point, roughly once per section and no more:
+**Nothing is decided for the reader.** No recommendations, no "the best
+angle", no ranking by appeal. Map what is there, note what is absent, stop.
 
-  "...though heads up, the lighting stuff is one essay's argument, so you'd
-  be carrying it alone."
-
-Never open a sentence with "One source", "A second source", "Another
-article", "Both sources", "Neither source". When the speaker matters, they
-trail the fact instead of leading it:
-
-  WRONG: "One source admits younger viewers might see older films as dated."
-  RIGHT: "Younger viewers might look at the old high-contrast style and see
-  something glitchy and dated, and one of the essayists admits that
-  outright."
-
-Never inventory who said what unless the disagreement itself is the story.
-Agreement is only worth a sentence when it's genuinely striking ("two people
-studied this separately and landed on the same word"), and even then, once.
-As a hard budget: across the whole document, sentences that OPEN with a
-source reference should be countable on one hand. A lint counts them and
-fails the document above three per thousand words.
-
-**Never choose for the reader.** Map the territory, mark the doors, stop.
-No "you should", no "the best angle is", no ranking of stories. Noticing that
-a door is unopened is your job; walking through it is theirs.
-
-**Provenance stays exact underneath.** Every section lists the claim IDs it
-draws on in claim_ids. Every fact in your prose must trace to one of those
-claims. No outside knowledge, even when obviously true. IDs never appear in
-the prose itself.
-
-**Section IDs are STY_1, STY_2, ... exactly.** (STY_, not SEC_, not S.) A
-wrong prefix fails the whole layer. Claim IDs in claim_ids are used exactly
-as given in the material. These are plumbing and never appear in prose.
+**Provenance stays exact.** Every section lists the claim IDs it draws on in
+claim_ids. Every fact in the prose traces to one of those claims. No outside
+knowledge, even when obviously true. Section IDs are STY_1, STY_2, ...
+exactly. IDs never appear in prose.
 """
 
 
 TELLING_SHAPE = """
 ## WHAT TO PRODUCE
 
-**sections** (aim for 5 to 9): the named stories that together cover
-everything in the claims. Include the connective sections (is_connection:
-true) where material from different sources assembles into something no
-single source says. Between them, the sections must cover every claim worth
-knowing about. Bodies run two to six short paragraphs.
+**sections** (5 to 9): together they must cover everything in the claims
+worth knowing. Bodies run two to six short paragraphs. Include the
+connective sections (is_connection: true) where material assembles across
+sources.
 
-**noticings** (0 to 6): the "huh, that could be something" moments. One or
-two sentences each, concrete, pointing at the claims they come from. These
-are observations, never suggestions. If nothing genuinely made you stop,
-return fewer or none.
+**noticings** (0 to 6): observations a careful reader of the material would
+make that do not fit inside a section - a source quietly contradicting
+itself, the same fact appearing in two unrelated places, a claim resting on
+less than it appears to. One or two sentences each, stated as observations,
+never as suggestions. Fewer or none is a fine answer.
 
-**landscape**: two prose fields.
-  everyone_does: what the standard telling of this topic is, based on what
-  the sources themselves keep doing. Plain and honest, so the reader knows
-  the worn path.
-  nobody_has: the angles sitting in this material that none of the sources
-  assemble. Doors, named and left closed. Not recommendations.
+**landscape**: two prose fields, both plain description.
+  everyone_does: how this topic is usually covered, judging strictly from
+  what these sources themselves do.
+  nobody_has: what is present in the material but not assembled or addressed
+  by any source. Description of absence, not advice.
 """
 
 
 def build_telling_prompt(claims_json: str, topic: str) -> str:
     """Assemble the telling-pass prompt.
 
+    Deliberately short. Style prohibitions live in the lint and the repair
+    pass, not here: a writer buried under style laws performs the style
+    instead of writing (three measured failures, 2026-08-15/16). The writer
+    gets the register, the structural rules, and the material.
+
     Args:
         claims_json: The validated provenance layer, serialized with source
-            names resolved so prose can name sources naturally.
+            names resolved.
         topic: The research topic.
 
     Returns:
@@ -498,14 +477,12 @@ def build_telling_prompt(claims_json: str, topic: str) -> str:
         [
             TELLING_RULES,
             TELLING_SHAPE,
-            VOICE_LAWS,
             f"\n## THE MATERIAL\n\nTopic: {topic}\n",
             claims_json,
             "\n## YOUR TASK\n",
-            "Write the telling layer: the named story sections that teach "
-            "this topic completely, the connections nobody assembled, the "
-            "noticings, and the landscape. Self-contained sections, details "
-            "told in full where the point is made, nothing numbered, nothing "
-            "chosen for the reader.",
+            "Write the brief's sections, noticings and landscape from the "
+            "material above. Plain register, self-contained sections, "
+            "details kept inside the explanation, nothing decided for the "
+            "reader.",
         ]
     )
