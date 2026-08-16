@@ -2,8 +2,88 @@
 
 **Last Updated:** 2026-08-15
 **Current Phase:** ⭐ CLAIM GRAPH + BRIEFING BUILD — `plans/260814-claim-graph-briefing/EXECUTION-PLAN.md` (Decision 023; supersedes the PP-4..7 track for now)
-**Current Task:** P0 — commit loose working tree, then P1 distillation stage
+**Current Task:** P2 — Briefing renderer (P0 and P1 complete)
 **Branch:** feature/product-viability-overhaul
+
+---
+
+## Claim Graph + Briefing Build (Decision 023)
+
+```
+P0: ✅ COMPLETE — Stabilize (working tree committed, pushed)
+P1: ✅ COMPLETE — Claim Graph distillation stage
+P2: 🔄 IN PROGRESS — Briefing renderer  [MAZ GATE: his read is the acceptance test]
+P3: ⏳ Model swap + head-to-head  ⏰ before 2026-08-31
+P4-P8: ⏳ not started
+```
+
+### P0 — Stabilize ✅ (commit e1a5fc3)
+Committed the loose working tree as-is: CI workflow, pre-commit config, Cypress
+scaffold, migration 002, two plan folders, and pending doc edits. `git status`
+clean, branch pushed.
+
+### P1 — Claim Graph distillation ✅ (commit 6b3a2d1)
+
+**Gate: PASSED, demonstrated on the golden fixture.**
+
+Ran `distill_corpus` against fixture job `51c97825-4840-44e8-b93a-593688b31a07`
+(8 sources, 40 key points, 18 themes, 16 tensions, 5 gaps):
+
+```
+claims:       15   (folded down from 40 key points)
+story goods:   5
+holes:         5
+evidence:     35 refs, 1-6 per claim, ledger check clean
+confidence:   max grade 4, ceiling 4 (respected)
+attempts:      1   (no escalation needed)
+cost:      $0.514, 279s
+voice lint:    0 violations across 77 prose fields
+market_context: empty, correctly — the sources do not discuss the market
+```
+
+Validator tests: 40 passed. Full suite: 1234 passed, 1 failed.
+
+**Files added**
+- `backend/models/claim_graph.py` — models + structural validators
+- `backend/integrations/anthropic_client.py` — first Claude client in the repo
+- `backend/pipeline/prompts/distillation_prompt.py`
+- `backend/pipeline/stages/distillation_stage.py`
+- `backend/tests/test_claim_graph.py`
+
+**Files modified**
+- `backend/config.py` — `MODEL_DISTILL`, `MODEL_ESCALATION` (env-driven)
+- `backend/pipeline/context.py` — `ctx.claim_graph`
+- `backend/pipeline/stages/__init__.py`, `backend/worker.py` — stage wiring
+
+**Two things measured against the live API, worth carrying forward**
+
+1. **Structured outputs reject any nullable branch in this schema.** The first
+   fixture run failed with "the compiled grammar is too large". Bisecting
+   against the API: 40 plain string properties compile fine, 20 nullable ones
+   do not, and the graph schema compiles only at *zero* nullable branches.
+   Optionality is now encoded as emptiness on the wire (`""` for absent
+   strings) and restored by `normalize_wire_payload`. A test locks this — if
+   someone reintroduces `Optional`-as-nullable on the wire, every distillation
+   call starts 400ing.
+
+2. **A 15-claim graph truncates at 32K output tokens.** Ceiling is 64K.
+
+**Model IDs verified callable 2026-08-15:** `claude-sonnet-5`, `claude-opus-5`.
+
+**Known pre-existing failure (not from this build):**
+`test_semantic_extraction_stages.py::TestVerifyQuotesInExtraction::test_verify_claim_supporting_quotes`
+fails identically on the P0 commit. Left alone — outside this phase.
+
+**Repo issues found, not acted on (flagged for the owner):**
+- `docs/authoritative/INDEX.md` — the Repo Constitution — was overwritten with
+  a ClaudeKit ignore file by commit `bd6042b` (2026-01-20, "repo hygiene
+  cleanup"); the real 420-line constitution is recoverable at `bd6042b~1`. Every
+  session since has been reading an ignore file as law. Not restored mid-build:
+  restoring 415 lines of rules the last seven months may have drifted from is
+  the owner's call, not a P1 side effect.
+- Doc 2's `source_coverage` map is keyed on bare key-point IDs, which collide
+  across sources. The fixture's 40 key points collapse into 8 entries. The
+  distillation stage sidesteps this by keying on `source_id:key_point_id`.
 
 ---
 
