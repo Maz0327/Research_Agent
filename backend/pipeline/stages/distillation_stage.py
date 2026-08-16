@@ -85,6 +85,7 @@ def build_corpus(
     tensions: list[dict],
     gaps: list[dict],
     semantic_core: Optional[str] = None,
+    verbatim_specifics: Optional[list[dict]] = None,
 ) -> dict:
     """Assemble the distillation input.
 
@@ -100,6 +101,12 @@ def build_corpus(
         tensions: Detected tensions.
         gaps: Identified gaps.
         semantic_core: The synthesis stage's core statement, if present.
+        verbatim_specifics: Extraction-layer quotes and concrete passages,
+            each {source_id, text}. Without these, distillation only ever
+            sees the abstraction layer and the concrete detail dies in
+            compression. Measured on the fixture: "about 50 shots of
+            digital-only creatures, the first being a Brachiosaurus" sat in
+            two sources' text and reached neither the graph nor the brief.
 
     Returns:
         A JSON-serializable corpus dict.
@@ -159,6 +166,11 @@ def build_corpus(
                 "suggested_research_direction": g.get("suggested_research_direction"),
             }
             for g in gaps
+        ],
+        "verbatim_specifics": [
+            {"source_id": v.get("source_id"), "text": v.get("text")}
+            for v in (verbatim_specifics or [])
+            if v.get("text")
         ],
     }
 
@@ -416,15 +428,30 @@ def _sources_from_context(ctx: PipelineContext) -> list[dict]:
 
 def _units_from_context(
     ctx: PipelineContext,
-) -> tuple[list[dict], list[dict], list[dict], list[ConfidenceLevel]]:
+) -> tuple[list[dict], list[dict], list[dict], list[ConfidenceLevel], list[dict]]:
     """Aggregate key points, themes, tensions and ceilings from extractions."""
     key_points: list[dict] = []
     themes: list[dict] = []
     tensions: list[dict] = []
     ceilings: list[ConfidenceLevel] = []
+    specifics: list[dict] = []
+
+    # Cap per source so one transcript-heavy video cannot drown the corpus.
+    max_quotes_per_source = 12
 
     for extraction in getattr(ctx, "semantic_extractions", []) or []:
         ceilings.append(extraction.confidence_ceiling)
+
+        kept = 0
+        for quote in extraction.quotes:
+            if kept >= max_quotes_per_source:
+                break
+            if quote.text and len(quote.text) > 20:
+                specifics.append(
+                    {"source_id": quote.source_id or extraction.source_id,
+                     "text": quote.text}
+                )
+                kept += 1
 
         for kp in extraction.key_points:
             key_points.append(
@@ -470,7 +497,7 @@ def _units_from_context(
             }
         )
 
-    return key_points, themes, tensions, ceilings
+    return key_points, themes, tensions, ceilings, specifics
 
 
 def stage_distillation(ctx: PipelineContext) -> None:
@@ -491,7 +518,7 @@ def stage_distillation(ctx: PipelineContext) -> None:
         ctx.add_warning("Distillation skipped: no semantic extractions available")
         return
 
-    key_points, themes, tensions, ceilings = _units_from_context(ctx)
+    key_points, themes, tensions, ceilings, specifics = _units_from_context(ctx)
     gaps = [g.to_dict() for g in getattr(ctx, "identified_gaps", []) or []]
     sources = _sources_from_context(ctx)
 
@@ -506,6 +533,7 @@ def stage_distillation(ctx: PipelineContext) -> None:
         tensions=tensions,
         gaps=gaps,
         semantic_core=getattr(ctx, "semantic_core", None) or None,
+        verbatim_specifics=specifics,
     )
 
     known_source_ids = {s["source_id"] for s in sources if s.get("source_id")}

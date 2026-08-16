@@ -239,6 +239,13 @@ source.
 Every story good has to quote or closely paraphrase what you were given.
 A number you did not receive is a fabrication. A scene nobody described is a
 fabrication. If the sources are abstract all the way down, give few or none.
+
+The input's `verbatim_specifics` list is your raw material for this: actual
+passages from the sources, with their source IDs. Mine it. A number, a named
+thing, or a described moment in there is worth more than any summary of it,
+so carry the specific itself into the story good, never a paraphrase that
+drops the number or the name. Key points are abstractions; the
+specifics list is where the concrete lives.
 """
 
 
