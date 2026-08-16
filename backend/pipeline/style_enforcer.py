@@ -220,6 +220,47 @@ def check_tics(text: str) -> list[str]:
     return violations
 
 
+# A sentence that OPENS with a source reference is narrating the bibliography
+# instead of explaining the subject. Owner rejection, 2026-08-16: "the entire
+# thing is 'one source says this, one source says that' — it needs to be
+# written like a person is explaining it to me." A trailing aside ("...though
+# that's one essay's argument") does not match this pattern and stays legal.
+_SOURCE_OPENER = re.compile(
+    r"(?:^|[.!?]\s+|\n)"
+    r"(?:One|A|Another|A second|A third|A fourth|A different, |A separate |Two|"
+    r"Three|Four|Both|Several|Multiple|Many|Most|Each|Neither|Every)"
+    r"[a-z ,]{0,25}?"
+    r"(?:sources?|essays?|articles?|videos?|essayists?|writers?|commentators?|"
+    r"threads?|pieces?)\b",
+    re.IGNORECASE,
+)
+
+# Allowed sentence-initial source references per 1000 words. Calibrated
+# against the failed fixture run (8.9 per 1000 — rejected) and the approved
+# mockup (~2 per 1000). The occasional deliberate opener survives; using
+# sourcing as the skeleton does not.
+MAX_SOURCE_OPENERS_PER_1000_WORDS = 3.0
+
+
+def check_source_narration(text: str) -> list[str]:
+    """Flag documents that narrate their sourcing instead of their subject."""
+    words = len(text.split())
+    if words < 200:
+        return []
+
+    hits = _SOURCE_OPENER.findall(text)
+    density = len(hits) / (words / 1000)
+    if density <= MAX_SOURCE_OPENERS_PER_1000_WORDS:
+        return []
+
+    return [
+        f"Source-narration: {len(hits)} sentences open with a source reference "
+        f"({density:.1f} per 1000 words, max {MAX_SOURCE_OPENERS_PER_1000_WORDS:.0f}). "
+        f"Explain the subject; flag sourcing as a short aside at the end of a "
+        f"point instead."
+    ]
+
+
 def check_research_register(text: str) -> list[str]:
     """Flag research-essay vocabulary in a document meant to sound spoken."""
     violations = []
@@ -280,7 +321,10 @@ def lint_rendered_document(text: str) -> LintResult:
         LintResult. ``passes`` is False only when there are hard errors.
     """
     result = LintResult(
-        errors=check_internal_ids(text) + check_tics(text) + check_research_register(text),
+        errors=check_internal_ids(text)
+        + check_tics(text)
+        + check_research_register(text)
+        + check_source_narration(text),
         advisories=check_rule_of_three(text),
     )
 

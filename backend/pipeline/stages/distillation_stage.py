@@ -267,13 +267,16 @@ def _claims_for_telling(graph: ClaimGraph, source_titles: dict[str, str]) -> str
             {
                 "id": c.id,
                 "title": c.title,
-                "what_sources_say": c.what_sources_say,
+                # Deliberately NOT named what_sources_say: the telling pass
+                # must unwrap the source-report framing, and the field name
+                # itself was part of what kept re-infecting the prose.
+                "the_information": c.what_sources_say,
                 "pushback": c.pushback,
                 "my_read": c.my_read,
                 "say_it_like": c.say_it_like,
-                "confidence": c.confidence.model_dump(mode="json"),
-                "evidence_status": c.evidence_status,
-                "sources": sorted({name(e.source_id) for e in c.evidence}),
+                "how_solid": f"{c.confidence.grade}/5: {c.confidence.reason}",
+                "backing": c.evidence_status,
+                "from": sorted({name(e.source_id) for e in c.evidence}),
             }
             for c in graph.claims_in_spine_order()
         ],
@@ -532,17 +535,33 @@ def stage_distillation(ctx: PipelineContext) -> None:
     # Render the Briefing here rather than in a separate stage: it is a pure
     # projection of the graph we just built, with no other inputs.
     briefing_md = render_briefing(graph, source_titles)
-    ctx.outputs["briefing_md"] = briefing_md
 
     lint = lint_rendered_document(briefing_md)
     if not lint.passes:
-        # A voice-law violation is a defect in the rendered document, but it is
-        # not worth discarding a valid graph over at runtime. The render test
-        # is where this fails the build; here it is surfaced and carried.
+        # One mechanical repair round: pairs proposed by the model, applied by
+        # code (never re-emission). Prompting alone does not converge on the
+        # voice laws; measured 3.3-7.1 source-openers per 1000 words across
+        # runs of the same job.
+        from backend.pipeline.voice_repair import repair_voice
+
+        try:
+            graph, repair_stats = repair_voice(ctx.job_id, graph)
+            ctx.add_cost("anthropic_voice_repair", repair_stats.get("cost", 0.0))
+            ctx.claim_graph = graph
+            ctx.outputs["claim_graph"] = graph.model_dump(mode="json")
+            briefing_md = render_briefing(graph, source_titles)
+            lint = lint_rendered_document(briefing_md)
+        except Exception as e:
+            logger.warning(f"[{ctx.job_id}] Voice repair failed, keeping draft: {e}")
+
+    ctx.outputs["briefing_md"] = briefing_md
+
+    if not lint.passes:
+        # Still failing after repair: ship with warnings rather than loop.
         for violation in lint.errors:
             ctx.add_warning(f"Briefing lint: {violation}")
         logger.warning(
-            f"[{ctx.job_id}] Briefing has {len(lint.errors)} lint errors"
+            f"[{ctx.job_id}] Briefing has {len(lint.errors)} lint errors after repair"
         )
 
     total_cost = sum(u.get("cost", 0.0) for u in usages)

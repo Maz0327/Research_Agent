@@ -29,7 +29,7 @@ def _graph_dict(**overrides) -> dict:
             {
                 "id": f"CLM_{i}",
                 "title": f"The look changed for reason number {i}.",
-                "what_sources_say": "Two sources got to the same place on their own.",
+                "what_sources_say": "The camera and the money ended up telling the same story here.",
                 "pushback": None,
                 "my_read": None,
                 "say_it_like": f"Here is the {i} of it, out loud.",
@@ -73,10 +73,10 @@ def _graph_dict(**overrides) -> dict:
                 "id": "STY_1",
                 "title": "The money might explain the cameras",
                 "body": (
-                    "One article blames tight budgets and brutal schedules. A "
-                    "forum thread adds that finance calls the shots while the "
-                    "people who own the look get squeezed out of the room.\n\n"
-                    "Hold those next to the camera complaints and the story "
+                    "Budgets are tight, schedules are brutal, and finance "
+                    "calls the shots while the people who own the look get "
+                    "squeezed out of the room.\n\n"
+                    "Hold that next to the camera complaints and the story "
                     "flips: it stops being about taste and becomes about "
                     "economics. Nobody in the sources says this in one place. "
                     "You'd be the one assembling it."
@@ -86,7 +86,7 @@ def _graph_dict(**overrides) -> dict:
             },
             {
                 "id": "STY_2",
-                "title": "One essay claims even the old classics are being flattened",
+                "title": "Even the old classics might be getting flattened",
                 "body": (
                     "Buried in one essay is the wildest claim in the pile: "
                     "remasters run old films through the modern pipeline and "
@@ -130,7 +130,7 @@ def briefing() -> str:
 class TestShape:
     def test_sections_render_as_full_sentence_headers(self, briefing):
         assert "## The money might explain the cameras" in briefing
-        assert "## One essay claims even the old classics are being flattened" in briefing
+        assert "## Even the old classics might be getting flattened" in briefing
 
     def test_no_claim_unit_anatomy(self, briefing):
         """The repeated field labels were the wall-of-text disease."""
@@ -149,7 +149,7 @@ class TestShape:
     def test_section_bodies_keep_their_paragraph_breaks(self, briefing):
         assert "You'd be the one assembling it." in briefing
         idx = briefing.find("squeezed out of the room.")
-        nxt = briefing.find("Hold those next")
+        nxt = briefing.find("Hold that next")
         assert -1 < idx < nxt
 
     def test_one_breath_opening(self, briefing):

@@ -405,10 +405,45 @@ touch, and say plainly that nobody in the sources assembles this. Mark it
 with is_connection: true. These are often the most valuable sections in the
 document.
 
-**Weave confidence into the sentence.** "That's the strongest thing in the
-pile", "only one essay argues this, so you'd be carrying it alone", "every
-source lands here". Never grades, never badges. When something is one
-person's argument, the reader must know it from the sentence itself.
+**Explain the subject, not the sourcing.** This is the rule most likely to
+save or sink the whole document. The reader is here to learn about dinosaurs
+and cameras and murders, not about your bibliography. So teach the thing
+itself, in its own terms, the way you'd explain it out loud:
+
+  WRONG: "One source says modern films favor wider lenses. A second source,
+  coming from a different angle, argues that deep focus mirrors how eyes
+  work. A third source contends that..."
+
+  RIGHT: "Filmmakers fell in love with wide lenses and blurry backgrounds,
+  and the price was the deep, everything-in-focus frame that used to feel
+  like actually being in the room. Your eyes don't see the world with the
+  background melted away, which is why the old look reads as real and the
+  new one reads as a photo shoot."
+
+The material you receive below is written in source-report language ("two
+sources say", "one essay argues"). Your job is to UNWRAP it: extract the
+actual information and say it plainly. Then flag sourcing only where it
+changes what the reader can safely repeat, as a short aside at the END of
+the point, roughly once per section and no more:
+
+  "...though heads up, the lighting stuff is one essay's argument, so you'd
+  be carrying it alone."
+
+Never open a sentence with "One source", "A second source", "Another
+article", "Both sources", "Neither source". When the speaker matters, they
+trail the fact instead of leading it:
+
+  WRONG: "One source admits younger viewers might see older films as dated."
+  RIGHT: "Younger viewers might look at the old high-contrast style and see
+  something glitchy and dated, and one of the essayists admits that
+  outright."
+
+Never inventory who said what unless the disagreement itself is the story.
+Agreement is only worth a sentence when it's genuinely striking ("two people
+studied this separately and landed on the same word"), and even then, once.
+As a hard budget: across the whole document, sentences that OPEN with a
+source reference should be countable on one hand. A lint counts them and
+fails the document above three per thousand words.
 
 **Never choose for the reader.** Map the territory, mark the doors, stop.
 No "you should", no "the best angle is", no ranking of stories. Noticing that
