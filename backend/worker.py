@@ -181,6 +181,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
         stage_semantic_validation,
         stage_gap_analysis,
         stage_semantic_synthesis,
+        stage_distillation,
         stage_document_assembly,
         stage_10_completion,
     )
@@ -467,6 +468,14 @@ def _run_mixed_input_job(ctx, job) -> dict:
 
         update_job(job_id, stage="semantic_synthesis", progress_percent=65)
         run_stage_with_recovery(stage_semantic_synthesis, ctx, "semantic_synthesis")
+
+        # Claim Graph distillation. Non-critical while the legacy documents are
+        # still the primary output: a Claude outage should degrade to the old
+        # docs plus a recorded warning rather than fail the whole job. This
+        # flips to critical=True at P8, when legacy docs retire and every
+        # document projects from the graph.
+        update_job(job_id, stage="distillation", progress_percent=72)
+        run_stage_with_recovery(stage_distillation, ctx, "distillation")
 
         update_job(job_id, stage="document_assembly", progress_percent=80)
         run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")

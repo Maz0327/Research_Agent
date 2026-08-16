@@ -71,6 +71,10 @@ class PipelineContext:
     confidence_reasoning: list = field(default_factory=list)  # Reasons for confidence level
     overall_confidence: Optional[str] = None  # "high", "medium", "low"
 
+    # Claim Graph (distillation stage) — the canonical layer every downstream
+    # document projects from. Typed as object to avoid a circular import.
+    claim_graph: Optional[object] = None
+
     # Phase 2B: Extended Inputs
     ocr_result: Optional[object] = None  # OCRResult from screenshot extraction
     job_config_dict: dict = field(default_factory=dict)  # Raw config dict from job

@@ -15,6 +15,7 @@ from .source_identity import stage_source_identity
 from .semantic_extraction import stage_semantic_extraction
 from .gap_analysis import stage_gap_analysis
 from .semantic_synthesis import stage_semantic_synthesis
+from .distillation_stage import stage_distillation
 from .document_assembly import stage_document_assembly
 
 # Extended Input Stages (Phase 2B)
@@ -47,6 +48,7 @@ __all__ = [
     "stage_semantic_extraction",
     "stage_gap_analysis",
     "stage_semantic_synthesis",
+    "stage_distillation",
     "stage_document_assembly",
     # Extended Input Stages (Phase 2B)
     "stage_ocr_extraction",

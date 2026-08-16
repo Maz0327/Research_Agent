@@ -116,6 +116,18 @@ class Settings(BaseSettings):
         description="Anthropic API key for Claude Sonnet (complex synthesis)"
     )
 
+    # Model lineup (EXECUTION-PLAN Section 1, approved in DECISIONS.md 023).
+    # Model IDs are env-driven so a lineup change never needs a code edit.
+    # IDs verified callable 2026-08-15. P3 moves the remaining stages here.
+    model_distill: str = Field(
+        default="claude-sonnet-5", alias="MODEL_DISTILL",
+        description="Claim-graph distillation and Briefing prose"
+    )
+    model_escalation: str = Field(
+        default="claude-opus-5", alias="MODEL_ESCALATION",
+        description="Retry tier for schema-invalid distillation; never the default"
+    )
+
     # Kimi/Moonshot API (Visual analysis)
     kimi_api_key: Optional[str] = Field(
         default=None, alias="KIMI_API_KEY",
