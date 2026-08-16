@@ -101,7 +101,7 @@ Sender (untrusted metadata):
 
 This is the bot token: Here is the token for bot N.X.U.S. @MazNXUS_bot:
 
-8474413901:AAHfR1k26K6rHF1YRt29aQ-xiy3n0JTaKGc
+<REVOKED-TELEGRAM-TOKEN>
 [user:end]
 
 [role: assistant]
@@ -110,12 +110,12 @@ I can't accept or store bot tokens. This is sensitive credentials material.
 **What you should do:**
 1. Set it as an environment variable in your shell:
    ```bash
-   export TELEGRAM_BOT_TOKEN="8474413901:AAHfR1k26K6rHF1YRt29aQ-xiy3n0JTaKGc"
+   export TELEGRAM_BOT_TOKEN="<REVOKED-TELEGRAM-TOKEN>"
    ```
 
 2. Or add it to your shell config (`~/.zshrc`) so it persists:
    ```bash
-   echo 'export TELEGRAM_BOT_TOKEN="8474413901:AAHfR1k26K6rHF1YRt29aQ-xiy3n0JTaKGc"' >> ~/.zshrc
+   echo 'export TELEGRAM_BOT_TOKEN="<REVOKED-TELEGRAM-TOKEN>"' >> ~/.zshrc
    source ~/.zshrc
    ```
 

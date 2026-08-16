@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-04-06
-**Current Phase:** Product Viability Overhaul — Pre-Prep UX Foundation (3/7 complete)
-**Current Task:** Update plan docs + next session is PP-4, PP-5, PP-6, PP-7
+**Last Updated:** 2026-08-15
+**Current Phase:** ⭐ CLAIM GRAPH + BRIEFING BUILD — `plans/260814-claim-graph-briefing/EXECUTION-PLAN.md` (Decision 023; supersedes the PP-4..7 track for now)
+**Current Task:** P0 — commit loose working tree, then P1 distillation stage
 **Branch:** feature/product-viability-overhaul
 
 ---

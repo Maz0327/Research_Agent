@@ -35,6 +35,8 @@ created: 2026-04-06
 
 **Blocks:** Phase 00 (Cleanup & Removals) can start immediately. Phases 01-10 blocked until Pre-Prep complete.
 
+**Blocked by:** `plans/260409-engine-optimization/` — Engine speed + quality fixes must land first (Flash swap, deferred verification, Sonnet editorial, genre prompts).
+
 ---
 
 ## Phase Map

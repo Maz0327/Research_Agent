@@ -771,3 +771,34 @@ Owner found design inspiration in okara.ai's AI CMO dashboard: multi-column layo
 ---
 
 **All decisions are FINAL unless explicitly changed by project owner.**
+
+---
+
+## Decision 023: Claim Graph + Briefing Architecture — Owner-Approved Build (2026-08-15)
+
+**Status:** Accepted (project owner, in-session, 2026-08-15)
+
+The active build is the Claim Graph + Research Briefing architecture:
+**`plans/260814-claim-graph-briefing/`** (spec.md · EXECUTION-PLAN.md · MODEL-DOSSIER.md ·
+KICKOFF-PROMPT.md). For the duration of this build, that folder is the owner-approved phase plan,
+superseding the Product Viability Overhaul phase list in PROGRESS.md.
+
+**What this decision explicitly supersedes (owner-approved changes to previously-FINAL rules):**
+- **Architecture Rule 12–13 (document structure):** Doc 1 (Jump-Start) and Doc 2 (Semantic Brief)
+  merge into the Research Briefing, rendered from a canonical Claim Graph; all other documents
+  become projections of the graph. Doc numbering is retired in USER-FACING output (internal IDs remain).
+- **Architecture Rule 15–16 (LLM config):** the model lineup and per-stage config now come from
+  EXECUTION-PLAN §1 (env-driven; Sonnet 5 distillation; Gemini 3.6-flash extraction with
+  thinking_level minimal; judge contest). Note newer models reject temperature entirely — Rule 16's
+  temperature table applies only where a model accepts it.
+- **research-agent.md cost guidance** ("GPT-4o-mini for extraction") — stale; superseded by the
+  MODEL-DOSSIER lineup.
+
+**What REMAINS law and the build must respect:** source isolation (Rule 1–3) · confidence ceilings
+(Rule 4–6) · the five prompt guardrail components (Rule 7–8, adapted per model) · provenance chain
+(Rule 9–11, 14a — the claim graph STRENGTHENS it) · document versioning (13b) · implementation
+rules (phases, tests, commit discipline) · empty-output permission (never invent to fill arrays).
+
+**Authority note:** where `plans/260814-claim-graph-briefing/EXECUTION-PLAN.md` explicitly changes
+a rule, this Decision is the owner approval the constitution requires. Everything the plan does not
+explicitly change still answers to `docs/authoritative/INDEX.md`.
