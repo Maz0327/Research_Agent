@@ -802,3 +802,44 @@ rules (phases, tests, commit discipline) · empty-output permission (never inven
 **Authority note:** where `plans/260814-claim-graph-briefing/EXECUTION-PLAN.md` explicitly changes
 a rule, this Decision is the owner approval the constitution requires. Everything the plan does not
 explicitly change still answers to `docs/authoritative/INDEX.md`.
+
+## Decision 024: Briefing Format v2 — Named Stories, Details Woven In (2026-08-16)
+
+**Status:** Accepted (project owner, in-session, 2026-08-16, at the P2 gate)
+
+Owner read the P2 fixture Briefing and redirected the format. The claim-unit
+layout (15 units, repeated field anatomy, argument spine) reads as a research
+dissertation and fails the document's two real jobs, which the owner defined:
+
+1. **Teach the topic** well enough to hold a conversation about it.
+2. **Enable story-finding** — see the threads, the connections, and the
+   openings, WITHOUT the document choosing an angle or hiding anything.
+
+Format decided by mockup comparison (three shapes offered; owner chose B):
+
+- **Named stories, said in place.** Sections whose headers are full sentences
+  that carry meaning on their own. Every section self-contained and readable
+  in any order.
+- **NO cross-references, ever.** Nothing is called "thread 2" or "the claim
+  above". When a connection matters it is re-said in plain words where the
+  reader is standing. (Owner stopped reading at "Thread 4 sits underneath
+  threads 2 and 3" — numbered references are a hard failure.)
+- **Details ride inside the explanation.** The concrete example is told in
+  full where the claim is made (the owner's example: the Se7en remaster story
+  told as a story, not "remasters flatten old films" + a detail parked in a
+  list). Never split an abstraction from its example.
+- **Connections are first-class.** Things sitting between sources that no
+  single source assembles are sections of their own.
+- **The document never picks the angle.** It maps what everyone already does
+  with the topic and names the unopened doors; choosing is the owner's job.
+- Confidence is woven into sentences, not badges. Evidence handling follows
+  the earlier voice decision (person telling a person; research register is a
+  lint error).
+
+The Claim Graph remains the canonical provenance layer (claims with receipts,
+holes, story goods) — projections P4-P7 still consume it. What changes is that
+distillation now ALSO produces the telling layer (story sections, noticings,
+the landscape read), and the Briefing renders the telling layer.
+
+Supersedes the spec Section 3 rendering (map page → claim units on spine).
+Spec Sections 1, 2, 4, 5 stand.
