@@ -32,13 +32,25 @@ _SOURCE_ID_IN_PROSE = re.compile(r"\bSRC_(\d+)\b")
 _FILLED = "▮"
 _EMPTY = "▯"
 
-# Plain-language rendering of evidence status. The reader never sees the enum.
-_EVIDENCE_PHRASE = {
-    "all_sources": "Every source lands here.",
-    "multi_source": "More than one source lands here independently.",
-    "one_source": "One source only, so treat it as a lead.",
-    "conflicted": "The sources disagree on this one.",
-}
+def _evidence_line(status: str, source_count: int) -> str:
+    """Say where a claim came from, the way a person would.
+
+    Built from the actual source count rather than one stock sentence per
+    status. The first version of this repeated "More than one source lands
+    here independently" under all fifteen claims, and that repetition is
+    itself the essay texture the voice laws exist to prevent.
+    """
+    if status == "all_sources":
+        return "Everything we found says this."
+    if status == "conflicted":
+        return "The sources don't agree on this one."
+    if status == "one_source":
+        return "Only one source says this, so treat it as a lead."
+    if status == "multi_source":
+        if source_count >= 3:
+            return f"{source_count} sources say this, separately."
+        return "Two sources got here on their own."
+    return ""
 
 _THESIS_CONFIDENCE_PHRASE = {
     "solid": "This holds up. The evidence is there.",
@@ -47,10 +59,10 @@ _THESIS_CONFIDENCE_PHRASE = {
 }
 
 _ROLE_PHRASE = {
-    "backbone": "the argument leans on this",
-    "confirmation": "corroborates what others established",
-    "color": "texture, quotes and detail",
-    "lead": "points somewhere worth chasing",
+    "backbone": "the whole thing leans on this one",
+    "confirmation": "backs up what the others said",
+    "color": "good detail and quotes",
+    "lead": "worth chasing, but settles nothing on its own",
 }
 
 
@@ -144,7 +156,6 @@ def _render_claim(
     """One claim unit, with its holes and story goods attached."""
     lines = [f"### {_humanize(claim.title, source_titles)}", ""]
 
-    status = _EVIDENCE_PHRASE.get(claim.evidence_status, "")
     says = _humanize(claim.what_sources_say, source_titles)
     lines += [f"**What the sources say:** {says}", ""]
 
@@ -157,6 +168,8 @@ def _render_claim(
     for name in names:
         if name not in seen:
             seen.append(name)
+
+    status = _evidence_line(claim.evidence_status, len(seen))
     if seen:
         who = seen[0] if len(seen) == 1 else ", ".join(seen[:-1]) + f" and {seen[-1]}"
         lines += [f"*{status} From {who}.*", ""]

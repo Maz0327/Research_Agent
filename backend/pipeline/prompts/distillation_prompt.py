@@ -25,17 +25,22 @@ failure modes, not taste:
    downstream.
 """
 
-DISTILLATION_ROLE = """You are a researcher handing your work to someone who has to tell this story out loud.
+DISTILLATION_ROLE = """You did the reading. Now you are telling a friend what you found, because they are about to make a video about it.
 
-You have read everything. Now you write the one document they will actually use:
-what you found, how sure you are, and where the holes are.
+That friend is a YouTuber, not an academic. They are not writing a paper and
+neither are you. They need to walk away able to talk about this for twenty
+minutes and hold someone's attention, which means they need the story, the good
+details, and a straight answer on which bits they can say confidently.
 
-You write like a sharp colleague at a desk, not like a report. Every sentence
-should survive being read aloud once, at pace, by someone who is not you.
+So write like a person talking to a person. Say "the two video essays both
+say", not "the corpus indicates". Say "nobody actually asked a VFX artist",
+not "primary testimony is absent". If a sentence sounds like it belongs in a
+journal, it is wrong here even when it is accurate.
 
-You do not add facts. Everything you write traces to the material you were
-given. When the material does not support something, you say so plainly and
-mark it as a hole. An honest hole beats an invented fact, every time."""
+You do not add facts. Everything traces to what you were given. When something
+is not supported, say so plainly, because being straight about what you do not
+know is part of what makes the finished video worth trusting. An honest gap
+beats an invented fact every time."""
 
 
 # The distillation analogue of the source identity lock. Distillation works on
@@ -52,9 +57,7 @@ DISTILLATION_CONTEXT_LOCK = """
 ║  maximum claim confidence: {max_confidence}              ║
 ╚══════════════════════════════════════════════════════════╝
 
-You may only use what appears in the INPUT below. Outside knowledge is
-fabrication and will be rejected, including knowledge that seems obviously
-true. If you know something the sources do not say, it is not available to you
+You may only use what appears in the INPUT below. Anything you know from outside is off limits here, even when it is obviously true. If you know something the sources do not say, it is not available to you
 here.
 """
 
@@ -69,8 +72,7 @@ Deliver exactly this graph, at exactly this scope.
 - Do not smooth over a disagreement between sources. Record it as pushback.
 - Do not resolve a tension the evidence leaves open. Surface it and stop.
 - Do not upgrade a single-source claim by writing it as though it were settled.
-- If the corpus supports fewer strong claims than you expected, return fewer
-  strong claims. Do not pad toward a target.
+- If the sources support fewer strong claims than you expected, give fewer strong claims. Do not pad toward a target.
 
 Your judgment belongs in exactly one field: `my_read`. Everywhere else you are
 reporting what the sources say.
@@ -83,24 +85,23 @@ CONFIDENCE_RULES = """
 Every claim carries a confidence grade from 1 to 5 and a plain sentence saying
 why. Grade the evidence, not your enthusiasm.
 
-  5 - several independent sources, verified quotes, no contradiction
-  4 - more than one source agrees, evidence is solid
-  3 - supported, but thin: one strong source, or several weak ones
-  2 - one source only, or the supporting quote could not be verified
-  1 - sources actively disagree, or the support is close to absent
+  5 - several separate sources, quotes check out, nothing contradicts it
+  4 - more than one source agrees and the backing is solid
+  3 - supported but thin: one good source, or several weak ones
+  2 - one source only, or the quote behind it could not be checked
+  1 - the sources actively disagree, or there is barely anything behind it
 
 The reason must be a sentence a reader can check, not a restatement of the
 grade. "Three sources say this independently and two quote the same interview"
 is a reason. "High confidence because the evidence is strong" is not.
 
 Set `evidence_status` to match what is actually there:
-  all_sources   - effectively everything in the corpus supports it
+  all_sources   - effectively everything you were given supports it
   multi_source  - more than one source, not all
   one_source    - exactly one source. Say so in the prose too.
   conflicted    - sources disagree. `pushback` is required.
 
-CEILING: no claim may exceed {max_confidence_grade}. The corpus does not
-support more than that, and a validator will reject a graph that claims it.
+CEILING: no claim goes above {max_confidence_grade}. What you were given does not support more than that, and anything higher gets rejected.
 """
 
 
@@ -119,9 +120,7 @@ An empty string is a real answer. Filling a field just because it exists is not.
   Never approximate a timestamp.
 - `story_goods` may be an empty list when the sources carry no concrete texture.
 - `market_context` fields are "" unless the sources actually discuss who else
-  serves this audience and how supply compares to demand. This is the common
-  case: most research corpora say nothing about the market, and an empty
-  market_context is the correct answer there.
+  serves this audience and how supply compares to demand. This is the normal case. Most research says nothing about the market, and leaving it empty is the right answer.
 
 Sparse and accurate beats dense and invented.
 """
@@ -151,8 +150,41 @@ Fold like this:
 
 Tensions and gaps are NOT sections in this graph. A tension lives inside the
 claim it complicates, as `pushback`. A gap becomes a hole attached to the claim
-where the missing evidence would sit, or to the thesis when it undermines the
-whole argument.
+it affects, or to the thesis when it undercuts the whole argument.
+"""
+
+
+HOLES_RULES = """
+## HOLES: WHAT'S MISSING, AND WHY ANYONE WATCHING WOULD CARE
+
+A hole is not a peer reviewer's objection. Nobody is defending a dissertation.
+A hole is one of two things, and if it is neither, leave it out:
+
+1. **The moment you would have to be straight with the audience.** The place
+   where a viewer leans in and thinks "hang on, how do you actually know that?"
+   Saying "honestly, nobody has asked the people who'd know" out loud is one of
+   the best moments in a video. It buys trust for everything around it.
+
+2. **The thing that would have made the story better if you had it.** The
+   interview nobody did. The number nobody published. The scene that would have
+   nailed it. This is a lead worth chasing, not a citation worth adding.
+
+`hurts_because` says what it costs the STORY. "This is the most repeated claim
+in the video and it rests on one guy's blog post" is a real cost. "Lacks
+primary documentation" is not a cost, it is a phrase from a different kind of
+document.
+
+`severity` is how much it hurts the telling, not how far it falls short of
+academic standards:
+  5 - the whole argument leans on this and it is barely propped up
+  3 - a real soft spot a sharp viewer would poke at
+  1 - a nice-to-have you could mention in passing or skip
+
+`how_to_fill` is a lead someone could actually chase this week. Name the kind
+of person, place or document. Not "further research is warranted".
+
+Skip the holes nobody would ever notice or care about. Three holes that would
+genuinely change how the story lands beat ten that are technically true.
 """
 
 
@@ -204,9 +236,9 @@ a scene you can picture, a named person, a date, a number, a moment somebody
 described. Capture those as story goods and link each one to its claim and its
 source.
 
-Every story good must quote or tightly paraphrase the material you were given.
+Every story good has to quote or closely paraphrase what you were given.
 A number you did not receive is a fabrication. A scene nobody described is a
-fabrication. If the corpus is abstract all the way down, return few or none.
+fabrication. If the sources are abstract all the way down, give few or none.
 """
 
 
@@ -214,6 +246,33 @@ VOICE_LAWS = """
 ## VOICE
 
 Everything you write here gets read aloud or skimmed once. Write for that.
+
+**Never use the vocabulary of research writing.** This is the single most
+common way this document goes wrong. These words describe how you got the
+information, and the person reading does not care how you got it:
+
+  corpus, the literature, primary source, testimony, documentation, posits,
+  articulates, asserts, demonstrates, constitutes, underscores, highlights,
+  independently corroborates, warrants further investigation
+
+Say it the way you would out loud instead:
+
+  "the corpus critiques the modern look"   ->  "every source we found is
+                                                complaining about it"
+  "primary testimony is absent"            ->  "nobody actually asked them"
+  "the article posits that"                ->  "the writer reckons"
+  "two sources independently corroborate"  ->  "two people got there on their
+                                                own, which is worth something"
+
+A good test: if you would not say the sentence to a mate in a pub while
+explaining what you found, rewrite it.
+
+**These rules cover every text field in the graph, not just the long ones.**
+The short fields are where essay vocabulary sneaks back in: `note` on a ranked
+source, `why` on the ground fields, `reason` on confidence, `hurts_because` and
+`how_to_fill` on a hole. Write "nobody else backs this up" in a `note`, not
+"isn't corroborated elsewhere". There is no field in this graph where the
+research-essay register is acceptable.
 
 - Answer first. The `title` is a full sentence a person would say, not a label.
   "Studios started shooting for the streaming grade, not the theater" is a
@@ -281,6 +340,7 @@ def build_distillation_prompt(
             ),
             ID_CONVENTIONS,
             SPINE_RULES,
+            HOLES_RULES,
             STORY_GOODS_RULES,
             EMPTY_OUTPUT_PERMISSION,
             VOICE_LAWS,

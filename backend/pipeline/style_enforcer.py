@@ -143,13 +143,40 @@ def check_readability(text: str) -> str | None:
 # names and plain evidence-status language instead.
 _INTERNAL_ID_PATTERN = re.compile(r"\b(CLM|SRC|KP|TEN|GAP|STG|HOLE|QT|OBS|THEME)_\d+\b")
 
+# The vocabulary of research writing. These describe how the information was
+# obtained, which the reader does not care about, and they are what makes a
+# document read as an essay rather than as a person talking. Owner feedback at
+# the P2 gate, 2026-08-15: "words like corpus, that doesn't make sense... more
+# like a person telling a person, not a research essay".
+RESEARCH_REGISTER: list[tuple[str, str]] = [
+    (r"\bcorpus\b", "corpus"),
+    (r"\bthe literature\b", "the literature"),
+    (r"\bprimary (source|testimony|documentation)\b", "primary source/testimony"),
+    # Bare "testimony" is deliberately NOT banned: on a court or inquiry topic
+    # it is the subject matter, not the register. "primary testimony" above is
+    # the research-writing form and stays an error.
+    (r"\bposits\b", "posits"),
+    (r"\barticulates\b", "articulates"),
+    (r"\bconstitutes\b", "constitutes"),
+    (r"\bunderscores\b", "underscores"),
+    (r"\bcorroborat(e|es|ed|ing|ion)\b", "corroborates"),
+    (r"\bwarrants further\b", "warrants further investigation"),
+    (r"\blacks? primary\b", "lacks primary documentation"),
+    (r"\bthis (paper|study|analysis) \b", "this paper/study/analysis"),
+]
+
 TIC_PATTERNS: list[tuple[str, str]] = [
     (r"—", "em-dash (use a comma, a full stop, or a new sentence)"),
     (r"\bdelve\b", "delve"),
     (r"\btapestry\b", "tapestry"),
     (r"\btestament\b", "testament"),
     (r"\bthe .{0,20}landscape\b", "landscape used as metaphor"),
-    (r"\bnot just .{1,60}?,? (it'?s|but)\b", "'not just X, it's Y' construction"),
+    # The banned shape is the rhetorical "not just X, it's Y", where the comma
+    # runs straight into "it's". An earlier, looser pattern also flagged
+    # "not just a feeling, and it's the one place...", which is an ordinary
+    # qualifier followed by a new clause and perfectly fine.
+    (r"\bnot just .{1,60}?,['\"’]? (it'?s|it is)\b", "'not just X, it's Y' construction"),
+    (r"\bnot just [^,.;]{1,60} but\b", "'not just X but Y' construction"),
     (r"\bas extracted\b", "'As extracted'"),
     (r"\bgoverning insight\b", "'Governing Insight'"),
     (r"\bsemantic\b", "'Semantic' (internal vocabulary)"),
@@ -180,6 +207,19 @@ def check_tics(text: str) -> list[str]:
     for pattern, label in TIC_PATTERNS:
         if re.search(pattern, text, re.IGNORECASE):
             violations.append(f"Voice law violation: {label}")
+    return violations
+
+
+def check_research_register(text: str) -> list[str]:
+    """Flag research-essay vocabulary in a document meant to sound spoken."""
+    violations = []
+    for pattern, label in RESEARCH_REGISTER:
+        hits = re.findall(pattern, text, re.IGNORECASE)
+        if hits:
+            violations.append(
+                f"Research-essay word ({len(hits)}x): '{label}'. Say it the way "
+                f"you would out loud instead."
+            )
     return violations
 
 
@@ -230,7 +270,7 @@ def lint_rendered_document(text: str) -> LintResult:
         LintResult. ``passes`` is False only when there are hard errors.
     """
     result = LintResult(
-        errors=check_internal_ids(text) + check_tics(text),
+        errors=check_internal_ids(text) + check_tics(text) + check_research_register(text),
         advisories=check_rule_of_three(text),
     )
 

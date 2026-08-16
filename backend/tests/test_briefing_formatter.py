@@ -27,7 +27,7 @@ def _graph_dict(**overrides) -> dict:
             {
                 "id": f"CLM_{i}",
                 "title": f"The look changed for reason number {i}.",
-                "what_sources_say": "Two sources land here independently.",
+                "what_sources_say": "Two sources got to the same place on their own.",
                 "pushback": "One source reads the timeline differently." if i == 1 else None,
                 "my_read": "This one holds up." if i == 1 else None,
                 "say_it_like": f"Here is the {i} of it, out loud.",
@@ -136,8 +136,8 @@ class TestStructure:
         assert "**Expect the hit here.**" in briefing
 
     def test_sources_ranked_in_plain_language(self, briefing):
-        assert "the argument leans on this" in briefing
-        assert "texture, quotes and detail" in briefing
+        assert "the whole thing leans on this one" in briefing
+        assert "good detail and quotes" in briefing
 
 
 class TestVoiceLaws:
@@ -201,6 +201,60 @@ class TestLintGate:
         )
         assert result.passes
         assert result.advisories
+
+    @pytest.mark.parametrize(
+        "sentence",
+        [
+            "Every source in this corpus critiques the modern look.",
+            "Primary testimony is absent from the record.",
+            "The article posits that budgets are the cause.",
+            "Two sources independently corroborate the claim.",
+            "This warrants further investigation by someone.",
+        ],
+    )
+    def test_research_register_fails_the_render(self, sentence):
+        """The reader does not care how the information was obtained.
+
+        Owner feedback at the P2 gate: the document must read as a person
+        telling a person, not as a research essay.
+        """
+        data = _graph_dict()
+        data["claims"][0]["what_sources_say"] = sentence
+        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
+
+        result = lint_rendered_document(briefing)
+        assert not result.passes
+        assert any("Research-essay word" in e for e in result.errors)
+
+
+class TestEvidenceLine:
+    def test_counts_sources_rather_than_repeating_one_phrase(self):
+        """The stock phrase under all 15 claims was itself essay texture."""
+        data = _graph_dict()
+        data["claims"][0]["evidence"] = [
+            {"source_id": "SRC_1"},
+            {"source_id": "SRC_2"},
+            {"source_id": "SRC_3"},
+        ]
+        titles = dict(SOURCE_TITLES, SRC_3="A Third Source")
+        briefing = render_briefing(ClaimGraph.model_validate(data), titles)
+
+        assert "3 sources say this, separately." in briefing
+
+    def test_two_sources_reads_naturally(self, briefing):
+        assert "Two sources got here on their own." in briefing
+
+    def test_never_says_independently(self, briefing):
+        """Research register, and it appeared 14 times in the first draft."""
+        assert "independently" not in briefing.lower()
+
+    def test_one_source_is_flagged_as_a_lead(self):
+        data = _graph_dict()
+        data["claims"][0]["evidence_status"] = "one_source"
+        data["claims"][0]["evidence"] = [{"source_id": "SRC_1"}]
+        briefing = render_briefing(ClaimGraph.model_validate(data), SOURCE_TITLES)
+
+        assert "Only one source says this, so treat it as a lead." in briefing
 
 
 class TestConfidenceBar:
