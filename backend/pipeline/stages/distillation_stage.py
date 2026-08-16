@@ -28,10 +28,12 @@ from backend.models.claim_graph import (
 )
 from backend.models.semantic_units import ConfidenceLevel
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.formatters.briefing_formatter import render_briefing
 from backend.pipeline.prompts.distillation_prompt import (
     DISTILLATION_ROLE,
     build_distillation_prompt,
 )
+from backend.pipeline.style_enforcer import lint_rendered_document
 from backend.state import update_job
 
 # Output ceiling for the distillation call. Measured, not guessed: a 15-claim
@@ -371,6 +373,25 @@ def stage_distillation(ctx: PipelineContext) -> None:
 
     ctx.claim_graph = graph
     ctx.outputs["claim_graph"] = graph.model_dump(mode="json")
+
+    # Render the Briefing here rather than in a separate stage: it is a pure
+    # projection of the graph we just built, with no other inputs.
+    source_titles = {
+        s["source_id"]: s.get("title") or "" for s in sources if s.get("source_id")
+    }
+    briefing_md = render_briefing(graph, source_titles)
+    ctx.outputs["briefing_md"] = briefing_md
+
+    lint = lint_rendered_document(briefing_md)
+    if not lint.passes:
+        # A voice-law violation is a defect in the rendered document, but it is
+        # not worth discarding a valid graph over at runtime. The render test
+        # is where this fails the build; here it is surfaced and carried.
+        for violation in lint.errors:
+            ctx.add_warning(f"Briefing lint: {violation}")
+        logger.warning(
+            f"[{ctx.job_id}] Briefing has {len(lint.errors)} lint errors"
+        )
 
     total_cost = sum(u.get("cost", 0.0) for u in usages)
     ctx.add_cost("anthropic_distillation", total_cost)

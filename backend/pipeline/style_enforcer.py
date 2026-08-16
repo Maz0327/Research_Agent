@@ -7,6 +7,7 @@ No external dependencies required. textstat is optional for readability scoring.
 """
 
 import re
+from dataclasses import dataclass, field
 
 from loguru import logger
 
@@ -128,6 +129,117 @@ def check_readability(text: str) -> str | None:
     except Exception:
         pass  # Any other error — skip gracefully
     return None
+
+
+# -----------------------------------------------------------------------------
+# Tic-lint for rendered documents (EXECUTION-PLAN P2.3)
+#
+# These are the tells that make a document read as machine output. They are
+# enforceable, not aspirational: a rendered document that trips one of these
+# fails its render test rather than shipping.
+# -----------------------------------------------------------------------------
+
+# Internal IDs must never appear in a document body. Rendering uses source
+# names and plain evidence-status language instead.
+_INTERNAL_ID_PATTERN = re.compile(r"\b(CLM|SRC|KP|TEN|GAP|STG|HOLE|QT|OBS|THEME)_\d+\b")
+
+TIC_PATTERNS: list[tuple[str, str]] = [
+    (r"—", "em-dash (use a comma, a full stop, or a new sentence)"),
+    (r"\bdelve\b", "delve"),
+    (r"\btapestry\b", "tapestry"),
+    (r"\btestament\b", "testament"),
+    (r"\bthe .{0,20}landscape\b", "landscape used as metaphor"),
+    (r"\bnot just .{1,60}?,? (it'?s|but)\b", "'not just X, it's Y' construction"),
+    (r"\bas extracted\b", "'As extracted'"),
+    (r"\bgoverning insight\b", "'Governing Insight'"),
+    (r"\bsemantic\b", "'Semantic' (internal vocabulary)"),
+    (r"\bit is worth noting\b", "'it is worth noting'"),
+    (r"\ba recurring pattern\b", "'a recurring pattern'"),
+]
+
+# Rule-of-three adjective stacks used for rhythm. Deliberately narrow: three
+# comma-separated single words immediately before a noun. A genuine
+# enumeration of multi-word items is not this and must not be flagged.
+_RULE_OF_THREE_PATTERN = re.compile(
+    r"\b([a-z]{3,}), ([a-z]{3,}),? and ([a-z]{3,})\b(?= [a-z]+)",
+    re.IGNORECASE,
+)
+
+
+def check_internal_ids(text: str) -> list[str]:
+    """Flag internal IDs leaking into rendered prose."""
+    found = sorted({f"{prefix}_" for prefix in _INTERNAL_ID_PATTERN.findall(text)})
+    if not found:
+        return []
+    return [f"Internal ID in document body: {', '.join(found)}"]
+
+
+def check_tics(text: str) -> list[str]:
+    """Flag the banned constructions from the voice laws."""
+    violations = []
+    for pattern, label in TIC_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            violations.append(f"Voice law violation: {label}")
+    return violations
+
+
+def check_rule_of_three(text: str) -> list[str]:
+    """Flag three-word adjective stacks used for rhythm."""
+    matches = _RULE_OF_THREE_PATTERN.findall(text)
+    if not matches:
+        return []
+    sample = ", ".join(" ".join(m) for m in matches[:2])
+    return [f"Rule-of-three stack ({len(matches)}): {sample}"]
+
+
+@dataclass
+class LintResult:
+    """Outcome of the tic-lint.
+
+    Errors and advisories are separated because they carry different
+    certainty. An em-dash or a leaked ID is unambiguous and blocks the render.
+    Rule-of-three detection cannot tell an adjective stack from an honest
+    enumeration without a part-of-speech tagger, so it reports rather than
+    blocks. Failing a document over "workload, deadlines, and creative
+    constraints" would train everyone to ignore the lint.
+    """
+
+    errors: list[str] = field(default_factory=list)
+    advisories: list[str] = field(default_factory=list)
+
+    @property
+    def passes(self) -> bool:
+        return not self.errors
+
+    @property
+    def all_findings(self) -> list[str]:
+        return self.errors + [f"advisory: {a}" for a in self.advisories]
+
+
+def lint_rendered_document(text: str) -> LintResult:
+    """Run the tic-lint over a rendered document.
+
+    This is the gate for anything a human reads. Separate from enforce_style,
+    which runs on LLM output mid-pipeline and whose sentence-length and
+    passive-voice checks are advisory by nature.
+
+    Args:
+        text: The rendered markdown document.
+
+    Returns:
+        LintResult. ``passes`` is False only when there are hard errors.
+    """
+    result = LintResult(
+        errors=check_internal_ids(text) + check_tics(text),
+        advisories=check_rule_of_three(text),
+    )
+
+    if result.errors:
+        logger.warning(f"Tic-lint: {len(result.errors)} errors in rendered document")
+    if result.advisories:
+        logger.info(f"Tic-lint: {len(result.advisories)} advisories")
+
+    return result
 
 
 def enforce_style(text: str) -> tuple[bool, list[str]]:

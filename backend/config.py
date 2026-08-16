@@ -116,6 +116,15 @@ class Settings(BaseSettings):
         description="Anthropic API key for Claude Sonnet (complex synthesis)"
     )
 
+    # Transition flag for the Claim Graph build. With LEGACY_DOCS=1 the old
+    # Jump-Start and Semantic Brief keep their document slots; with it off the
+    # Research Briefing is served in the Semantic Brief's place. The legacy
+    # path is retired at P8.
+    legacy_docs: bool = Field(
+        default=False, alias="LEGACY_DOCS",
+        description="Serve the pre-Briefing documents instead of the Briefing"
+    )
+
     # Model lineup (EXECUTION-PLAN Section 1, approved in DECISIONS.md 023).
     # Model IDs are env-driven so a lineup change never needs a code edit.
     # IDs verified callable 2026-08-15. P3 moves the remaining stages here.

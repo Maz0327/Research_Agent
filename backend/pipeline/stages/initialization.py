@@ -5,9 +5,34 @@ Updated: 2026-01-19 - Removed Slack usage.
 from typing import Optional
 from loguru import logger
 
+from backend.config import get_settings
 from backend.pipeline.context import PipelineContext
 from backend.state import get_job, update_job
 from backend.integrations.supabase_storage import get_storage_client
+
+
+def _brief_document(ctx: PipelineContext) -> Optional[dict]:
+    """Return whatever should occupy the brief slot for this job.
+
+    During the Claim Graph transition the Research Briefing supersedes the
+    Semantic Brief in the same slot, so existing readers and routes keep
+    working without a migration. LEGACY_DOCS=1 restores the old document; the
+    legacy path is retired at P8.
+    """
+    briefing_md = ctx.outputs.get("briefing_md")
+    if briefing_md and not get_settings().legacy_docs:
+        return {
+            "data": ctx.outputs.get("claim_graph"),
+            "markdown": briefing_md,
+        }
+
+    if ctx.outputs.get("semantic_brief"):
+        return {
+            "data": ctx.outputs["semantic_brief"],
+            "markdown": ctx.outputs.get("semantic_brief_md"),
+        }
+
+    return None
 
 
 def stage_0_initialize(ctx: PipelineContext) -> None:
@@ -50,13 +75,10 @@ def _try_upload_documents_to_storage(ctx: PipelineContext) -> Optional[dict]:
             }
             paths["doc_1_path"] = storage_client.upload_document(ctx.job_id, "doc_1", doc_data)
 
-        # Doc 2: Semantic Brief
-        if ctx.outputs.get("semantic_brief"):
-            doc_data = {
-                "data": ctx.outputs["semantic_brief"],
-                "markdown": ctx.outputs.get("semantic_brief_md"),
-            }
-            paths["doc_2_path"] = storage_client.upload_document(ctx.job_id, "doc_2", doc_data)
+        # Doc 2 slot: the Research Briefing, or the Semantic Brief under LEGACY_DOCS
+        brief_doc = _brief_document(ctx)
+        if brief_doc:
+            paths["doc_2_path"] = storage_client.upload_document(ctx.job_id, "doc_2", brief_doc)
 
         # Doc 3: Creator Brief (auto-generated core document)
         if ctx.outputs.get("creator_brief"):
@@ -100,12 +122,10 @@ def _build_inline_artifacts(ctx: PipelineContext) -> dict:
             "markdown": ctx.outputs.get("jump_start_md"),
         }
 
-    # Doc 2: Semantic Brief
-    if ctx.outputs.get("semantic_brief"):
-        artifacts_dict["semantic_brief"] = {
-            "data": ctx.outputs["semantic_brief"],
-            "markdown": ctx.outputs.get("semantic_brief_md"),
-        }
+    # Doc 2 slot: the Research Briefing, or the Semantic Brief under LEGACY_DOCS
+    brief_doc = _brief_document(ctx)
+    if brief_doc:
+        artifacts_dict["semantic_brief"] = brief_doc
 
     # Doc 3: Creator Brief (inline fallback)
     if ctx.outputs.get("creator_brief"):
@@ -233,8 +253,16 @@ def _build_artifact_manifest(
                 "title": "Jump Start",
             },
             "22": {
-                "present": bool(ctx.outputs.get("semantic_brief_md") or storage_paths.get("doc_2_path")),
-                "title": "Semantic Brief",
+                "present": bool(
+                    ctx.outputs.get("briefing_md")
+                    or ctx.outputs.get("semantic_brief_md")
+                    or storage_paths.get("doc_2_path")
+                ),
+                "title": (
+                    "Semantic Brief"
+                    if get_settings().legacy_docs or not ctx.outputs.get("briefing_md")
+                    else "Research Briefing"
+                ),
             },
             "23": {
                 "present": bool(ctx.outputs.get("creator_brief_md") or storage_paths.get("doc_3_path")),
