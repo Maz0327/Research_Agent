@@ -1,0 +1,994 @@
+{
+  "graph_version": "1.0",
+  "job_id": "fixture",
+  "topic": "Research why films dont look like films anymore and use jurassic park as an example",
+  "thesis": {
+    "text": "Audiences are openly complaining that modern movies look flat, dull, and sludgy despite having the biggest budgets ever, and the sources agree it's not really the CGI or the digital cameras themselves, it's how filmmakers are choosing to use them. Jurassic Park still gets held up as the gold standard because Spielberg used the new technology as little as possible, about 50 fully digital shots total, and hid the rest behind animatronics, rain, and motion blur.",
+    "confidence": "usable",
+    "based_on": [
+      "CLM_1",
+      "CLM_2",
+      "CLM_4",
+      "CLM_7",
+      "CLM_9",
+      "CLM_10"
+    ]
+  },
+  "claims": [
+    {
+      "id": "CLM_1",
+      "title": "Everybody's noticing the same thing: movies with the biggest budgets ever look flat, plastic, and cheap.",
+      "what_sources_say": "Both YouTube essays open with basically the same complaint: movies with bigger budgets than film has ever seen still look flat, plastic, and cheap, and some TV shows look more cinematic than what's playing in theaters. The Stage 32 comment thread backs this up too, with a working cinematographer wondering out loud why movies from the 80s, 90s, and early 2000s look better than what's coming out now. It's not a fringe gripe, it's the starting point for three separate pieces of content.",
+      "pushback": null,
+      "my_read": "This is the hook that gets people watching, and it's genuinely three separate groups landing on the same complaint, which is worth more than one person's pet peeve.",
+      "say_it_like": "Movies have never had bigger budgets, and somehow they've never looked cheaper.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Two independent video essays and a working cinematographers' comment thread all open with the same complaint, without citing each other."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_1",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_2",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_10",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_5",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 1,
+      "tags": [
+        "audience-reaction",
+        "opening-complaint"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_2",
+      "title": "The two main video essays agree: CGI, digital cameras, and AI are not actually why movies look different now.",
+      "what_sources_say": "Both essayists go out of their way to knock down the easy answer. One says straight up that digital cameras themselves are not the reason movies look boring, and the other calls CGI, visual effects, AI, and filters scapegoats rather than the real cause. One of them even backs it up with a specific example: Superbad was shot on a digital camera with less dynamic range than an iPhone, but it still looks great because of a red car and deliberate 1970s-style brown, wood-paneled interiors.",
+      "pushback": null,
+      "my_read": "This is the pivot the whole story needs. If you let the audience blame 'CGI' and stop there, you don't have a video, you have a rant. This claim is what earns everything that follows.",
+      "say_it_like": "It's not the CGI's fault, it's what people are choosing to do with it.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Two separate creators make the identical argument without referencing each other, and one backs it with a concrete, checkable example."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_11",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_3",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_18",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_19",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_20",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_21",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_1"
+      ],
+      "spine_order": 2,
+      "tags": [
+        "technology-not-culprit"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_3",
+      "title": "Plenty of movies still look great right now, which proves the tools aren't the problem.",
+      "what_sources_say": "One essayist lists Dune, The Substance, Smile, Nosferatu, and The Brutalist as proof modern cinematography can absolutely look good, calling The Brutalist one of the best-looking films of the decade. Over on the Stage 32 comment thread, a working filmmaker separately singles out Nosferatu for the same reason, praising Robert Eggers and cinematographer Blaschke for giving audiences still frames worth sitting with. Two different sources land on the same film as the counterexample.",
+      "pushback": "This cuts against any argument that says the whole industry has lost the ability to shoot well. If Nosferatu can look like that, the skill hasn't disappeared, it's just not being used everywhere.",
+      "my_read": "This is the detail that keeps the whole video honest. It's not 'movies are dead,' it's 'most movies aren't trying,' and that's a much more useful claim to build a video around.",
+      "say_it_like": "Nosferatu looks incredible, so don't tell me the tools can't do it anymore.",
+      "confidence": {
+        "grade": 3,
+        "reason": "Two sources independently praise Nosferatu specifically, though the wider list of 'good-looking' films only comes from one of them."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_8",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_9",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_25",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_26",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_2"
+      ],
+      "spine_order": 3,
+      "tags": [
+        "counterexample",
+        "craft-still-exists"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_4",
+      "title": "Modern cameras can capture so much light and shadow now that filmmakers show everything, and that's what makes the image look flat and gray.",
+      "what_sources_say": "Both essays land here independently. One calls it a 'gray sludgy aesthetic' created by high dynamic range cameras, while the other describes filmmakers obsessing over maximizing dynamic range so nothing clips, keeping the whole image inside a narrow 10 to 90 percent exposure range. The argument in both cases is the same: just because a camera can capture everything doesn't mean a film should show everything, because real contrast, like stepping outside and being blinded, is what the human eye actually experiences.",
+      "pushback": null,
+      "my_read": "This is the single clearest, most testable idea in the whole pile of research, and it's the one I'd build the video's visual demonstration around.",
+      "say_it_like": "Cameras got so good at seeing in the dark and the light that filmmakers forgot contrast was ever the point.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Two separate essayists give the same technical explanation using different camera specs and different films as examples, and neither seems to be quoting the other."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_12",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_13",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_14",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_14",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_15",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_16",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 4,
+      "tags": [
+        "dynamic-range",
+        "contrast"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_5",
+      "title": "Lighting itself got softer and lazier, with filmmakers leaning on high ISO instead of actually lighting the scene.",
+      "what_sources_say": "One essay walks through this in detail: softboxes, domes, china balls, and book lights replaced the harsh, hard lighting that used to carve out shape and texture, and cleaner high-ISO sensors let filmmakers skip lighting dim scenes altogether, which is why some modern night scenes look like night-vision footage instead of the deliberately lit blue night scenes in something like Lord of the Rings. The other essay backs this up from a different angle, saying the industry is losing the taste to light a scene like David Fincher's Se7en, and that teaching someone to light a green screen takes about 20 minutes.",
+      "pushback": null,
+      "my_read": "The green screen line is the detail that will actually land with people. Twenty minutes to light something versus the days it takes to properly light a real set says everything about where the effort is going.",
+      "say_it_like": "Why light a room properly when you can just crank the ISO and fix it later?",
+      "confidence": {
+        "grade": 3,
+        "reason": "Both essays describe the same shift away from deliberate lighting, but with different specifics, so it's more a shared conclusion than a shared data point."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_17",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_18",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_20",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_21",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_22",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_24",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_28",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_9"
+      ],
+      "spine_order": 5,
+      "tags": [
+        "lighting",
+        "effort"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_6",
+      "title": "Wide lenses and constantly moving cameras make modern shots feel like a vlog or a video game instead of a composed film.",
+      "what_sources_say": "One essay lays out the mechanics: bigger sensors and wider lenses pull the camera physically closer to actors, breaking the distant, eye-level framing traditional cinema used, and cheap digital recording plus lightweight gimbals and drones mean cameras never stop moving, which can make a shot feel like a video game rather than cinema. It's mostly a one-source technical argument, but it lines up with a much more casual complaint from a Stage 32 commenter, who separately calls out shaky cam as nauseating when it's overused.",
+      "pushback": null,
+      "my_read": "This is a case where the polished technical explanation and the blunt gut reaction from a working filmmaker are describing the same thing from two different altitudes, which makes me trust it more than either alone.",
+      "say_it_like": "When the camera never stops moving and never steps back, it stops feeling like a movie and starts feeling like someone's vlog.",
+      "confidence": {
+        "grade": 3,
+        "reason": "The detailed technical breakdown comes from one source, but a separate comment thread flags the same symptom, constant camera movement, independently."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_4",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_6",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_7",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_27",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "F_28",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_24",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 6,
+      "tags": [
+        "camera-movement",
+        "lenses"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_7",
+      "title": "Once a movie is built around thousands of VFX shots and green screens, nobody on set commits to a final look anymore, because it might all get changed later.",
+      "what_sources_say": "This one shows up from several directions. One essayist points out that TV shows with 2,000 to 3,000 VFX shots make it hard to commit to lighting because rooms and windows might get altered or removed in post, leading to bland, uncommitted images. A VFX artist writing about The Lost World makes almost the same point about modern movies leaning on green screens and virtual production volumes, saying it can make actors feel like they're not actually in an environment. The Stage 32 comment thread adds that colorists and post houses can sometimes wreck a good image after the fact, which is why some cinematographers now fight to sit in on their own color sessions. And the philosophy-flavored take on Jurassic World Rebirth argues that the shift from committing to an image on set to fixing it in post is a big part of why modern films feel fake, even when they use real locations.",
+      "pushback": null,
+      "my_read": "This is the connective tissue of the whole video. It's the actual mechanism behind the flat, sludgy look everyone's complaining about: not the tools, but the fact that nobody has to make a final decision on set anymore.",
+      "say_it_like": "When you can fix it in post, you stop deciding what the shot actually looks like on the day, and it shows.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Four different sources, a video essayist, a VFX writer, a comment thread of working DPs, and a philosophy-focused essay, all describe the same fix-it-later problem from their own angle."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_22",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "F_23",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_9",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_10",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_9",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_10",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_10",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_11",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_10"
+      ],
+      "spine_order": 7,
+      "tags": [
+        "post-production",
+        "commitment"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_8",
+      "title": "Some cinematographers think this whole thing is really about money and algorithms, not artistic choices at all.",
+      "what_sources_say": "This one only comes from the Stage 32 comment thread, but it's a real pushback worth including: one commenter argues the video everyone's discussing doesn't consider the business side enough, and that today's visual style is driven more by financiers, the people holding the purse strings, and algorithms than by creative people making choices. Another commenter, Maurice Vaughan, agrees, and adds that indie films often look as good as older movies specifically because indie cinematographers have more creative freedom than people working inside the studio system.",
+      "pushback": "This is a direct counter to every 'filmmakers got lazy' argument above. If indie films with the same tools still look great, the problem might not be craft at all, it might be who's allowed to make the decisions.",
+      "my_read": "I'd treat this as the honest complication of the whole video, not a footnote. It's the difference between blaming artists and blaming the system they work inside.",
+      "say_it_like": "Maybe it's not that filmmakers forgot how to light a scene, maybe it's that nobody's letting them.",
+      "confidence": {
+        "grade": 2,
+        "reason": "This only comes from one comment thread on one article, and it's opinion from commenters, not something checked against actual production data."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_2",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_3",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_6",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "F_7",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 8,
+      "tags": [
+        "business",
+        "money"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_9",
+      "title": "Jurassic Park is the film everyone points to as the gold standard, and the reason given again and again is that Spielberg barely used CGI at all.",
+      "what_sources_say": "This is the most repeated point across the whole pile of research. A VFX artist breaking down The Lost World says late-90s CGI wasn't advanced enough to use heavily, so Spielberg balanced practical effects with sparing digital work. Two separate history-style articles say the same thing: Spielberg originally planned to use only practical effects, stop-motion raptors and an animatronic T-Rex, and only added digital dinosaurs after ILM showed him test footage, with the finished film landing at about 50 shots of fully digital creatures. A film blog looking back twenty years later agrees, saying the filmmakers relied primarily on animatronics and used CGI only for creatures that couldn't be built practically.",
+      "pushback": null,
+      "my_read": "This is the one fact in this whole pile of research I'd bet money on. Four sources, made for completely different audiences, all land on the same number and the same story.",
+      "say_it_like": "The reason Jurassic Park still looks real is that it barely used the fake stuff.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Four separate sources, a VFX-focused article, two history overviews, and a film blog, all independently describe the same practical-first, sparing-CGI approach and the roughly 50-shot figure."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_5",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_6",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_7",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_7",
+          "quote_ref": "F_8",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_7",
+          "quote_ref": "F_9",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_7",
+          "quote_ref": "F_12",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_8",
+          "quote_ref": "F_8",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_8",
+          "quote_ref": "F_9",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_8",
+          "quote_ref": "F_12",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_3",
+        "STG_4",
+        "STG_5"
+      ],
+      "spine_order": 9,
+      "tags": [
+        "jurassic-park",
+        "restraint"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_10",
+      "title": "Because there were so few CGI shots, the crew could obsess over each one, and they hid the weak ones in rain, dusk, and motion blur.",
+      "what_sources_say": "One film blog lays this out in detail: using less CGI overall meant more attention could be lavished on every individual digital frame, and the effects team hid key CGI sequences in low light, the T-Rex chasing the jeep in the rain, the T-Rex and raptor fight in a dim park building, the brachiosaurs at sunset. The one big effects sequence shot in full daylight, the gallimimus stampede, hides its seams with speed and motion blur instead of darkness. This only comes from one source, but a reader comment on the same piece backs it up with a comparison to how Disney's Dinosaur ride hides its animatronics in the dark for the same reason.",
+      "pushback": null,
+      "my_read": "This is the detail I'd want on screen side by side, the rainy T-Rex chase against a modern CGI creature standing in broad daylight. It's the clearest visual proof of the whole argument.",
+      "say_it_like": "Spielberg didn't fix his CGI's weak spots, he just never let you see them in the light.",
+      "confidence": {
+        "grade": 2,
+        "reason": "This comes from a single film blog, and though a reader comment on that same post offers a supporting comparison, it's really one source telling a consistent story rather than independent corroboration."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_9",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_10",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_11",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_12",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_26",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_6",
+        "STG_7"
+      ],
+      "spine_order": 10,
+      "tags": [
+        "jurassic-park",
+        "concealment"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_11",
+      "title": "Modern movies flip that ratio: CGI is everywhere in full daylight, and the artists making it are spread way too thin.",
+      "what_sources_say": "The VFX artist writing about The Lost World says movies that use CGI for everything place a huge burden on artists working under tight deadlines, and that spreading artists thin across thousands of shots leads to an overall drop in quality, because the meticulous shot-by-shot planning the original Jurassic Park team did tends to get abandoned. The film blog adds that modern blockbusters with CGI in every frame don't get the low-light or motion-blur cover Jurassic Park used, so their effects have to hold up in plain view, with nowhere to hide.",
+      "pushback": null,
+      "my_read": "This is basically the production-side mirror of the audience complaint that opened the whole video. More shots, less time each, no hiding spot, worse result. It's not mysterious.",
+      "say_it_like": "You can't give a thousand shots the same love Spielberg gave fifty.",
+      "confidence": {
+        "grade": 3,
+        "reason": "Two sources make the same point about scale and workload, though neither cites actual numbers for a modern film's shot count or schedule."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_14",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_15",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_16",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "F_17",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_13",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 11,
+      "tags": [
+        "vfx-workload",
+        "scale"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_12",
+      "title": "In 1993 audiences would not have forgiven bad dinosaurs, but today's audiences are so used to CGI that mediocre effects barely hurt a movie.",
+      "what_sources_say": "This is a single film blog's argument, but it's a sharp one: by 2013 audiences were so used to CGI that even bad effects just fade into the background, so weak effects work in something like The Avengers or The Hobbit doesn't cost those films a penny at the box office. Back in 1993 there was no such acceptance, so the Jurassic Park team had to spend maximum time, energy, and money getting the dinosaurs exactly right, because a bad effect back then would have been a real problem.",
+      "pushback": "This is a big claim to hang on one blog post from 2013, and it doesn't have any box office or audience survey data behind it, it's an assertion, not a measurement.",
+      "my_read": "I actually buy the logic even without the receipts, because it explains something the other claims don't, why there's less external pressure on studios to fix the workload and scale problems above. But say it as a theory, not a fact.",
+      "say_it_like": "Nobody in 1993 was going to shrug off a fake-looking dinosaur, but we shrug off fake CGI every week now.",
+      "confidence": {
+        "grade": 2,
+        "reason": "This whole argument rests on one blog post's claim about audience tolerance, with no box office data or survey cited to back it up."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_14",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_15",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "F_16",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 12,
+      "tags": [
+        "audience-tolerance",
+        "stakes"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_13",
+      "title": "The 'realness' gap has less to do with how much CGI a film uses and more to do with deep focus, film grain, and literal light hitting film versus a sensor converting it, one video essay argues.",
+      "what_sources_say": "This is a single article covering one video essayist's argument, but it's a genuinely different angle from everything else here. It claims older films used more deep focus, keeping backgrounds sharp so your eyes could scan the frame the way you scan a real room, while modern shallow-focus shots don't work that way. It also leans on the idea that celluloid is authentic because light physically struck the film, while a digital sensor just converts light into data. To make the point concrete, it compares the sweaty, struggling actors in Sorcerer from 1977 to a similar humid scene in Jurassic World Rebirth, where flat lighting and clean makeup make the actors look comfortable instead of authentic.",
+      "pushback": "This is a much more academic, philosophy-driven argument than the camera and lighting explanations from the other essays, and it never really reconciles with them. It's possible both are true at once, but nobody in the sources tries to connect the two.",
+      "my_read": "I'd use this as the emotional close of the video rather than a technical point, because it's not really arguing about specs, it's arguing that a movie has to feel like something happened to real people in a real place, and Jurassic Park managed that in a way the newer film in the same franchise apparently doesn't.",
+      "say_it_like": "It's not just how much CGI a film uses, it's whether it still feels like light actually touched something real.",
+      "confidence": {
+        "grade": 2,
+        "reason": "This entire argument comes from a single article summarizing one YouTube essayist's video, with no other source engaging with these specific ideas."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_5",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_6",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_12",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_13",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_22",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "F_23",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_8"
+      ],
+      "spine_order": 13,
+      "tags": [
+        "realism",
+        "philosophy"
+      ],
+      "market_context": null
+    }
+  ],
+  "story_goods": [
+    {
+      "id": "STG_1",
+      "type": "scene",
+      "text": "Superbad was shot on the Panavision Genesis HD camera, which had less dynamic range than an iPhone, but its strong look came from a red car and 1970s-style mahogany-wood, brown-carpet interiors.",
+      "source_id": "SRC_1",
+      "claim_ids": [
+        "CLM_2"
+      ]
+    },
+    {
+      "id": "STG_2",
+      "type": "quote",
+      "text": "Eggers' Nosferatu was terrific to me because of all the gorgeous still frames he and Blaschke created where the audience could sit with them and let the images resonate.",
+      "source_id": "SRC_5",
+      "claim_ids": [
+        "CLM_3"
+      ]
+    },
+    {
+      "id": "STG_3",
+      "type": "scene",
+      "text": "In The Lost World, visceral moments like the T-Rex's tongue were achieved with practical effects rather than CGI.",
+      "source_id": "SRC_4",
+      "claim_ids": [
+        "CLM_9"
+      ]
+    },
+    {
+      "id": "STG_4",
+      "type": "number",
+      "text": "Jurassic Park features about 50 shots of digital-only prehistoric creatures, including the first full-body dinosaur shot ever, the Brachiosaurus.",
+      "source_id": "SRC_7",
+      "claim_ids": [
+        "CLM_9"
+      ]
+    },
+    {
+      "id": "STG_5",
+      "type": "quote",
+      "text": "a perfect collision of coming-of-age computer generated imagery... with state of the art puppetry",
+      "source_id": "SRC_7",
+      "claim_ids": [
+        "CLM_9"
+      ]
+    },
+    {
+      "id": "STG_6",
+      "type": "scene",
+      "text": "The VFX team hid key CGI sequences in low light: the T-Rex chasing the jeep in the rain, and the T-Rex fighting raptors in the dusky park headquarters.",
+      "source_id": "SRC_6",
+      "claim_ids": [
+        "CLM_10"
+      ]
+    },
+    {
+      "id": "STG_7",
+      "type": "scene",
+      "text": "The gallimimus stampede, the one major effects sequence shot in full daylight, hides its flaws with high speed and motion blur instead of darkness.",
+      "source_id": "SRC_6",
+      "claim_ids": [
+        "CLM_10"
+      ]
+    },
+    {
+      "id": "STG_8",
+      "type": "scene",
+      "text": "Van der Linden compares the gritty, sweaty shots of Sorcerer (1977), starring Roy Scheider, to a similar humid, tropical scene in Jurassic World Rebirth, where flat lighting and vanity makeup make the actors look comfortable rather than authentic.",
+      "source_id": "SRC_3",
+      "claim_ids": [
+        "CLM_13"
+      ]
+    },
+    {
+      "id": "STG_9",
+      "type": "number",
+      "text": "The speaker says teaching someone to light a green screen takes only about 20 minutes.",
+      "source_id": "SRC_1",
+      "claim_ids": [
+        "CLM_5"
+      ]
+    },
+    {
+      "id": "STG_10",
+      "type": "number",
+      "text": "TV shows with 2,000 to 3,000 VFX shots make it hard to commit to lighting choices, because rooms and windows may be altered or removed later.",
+      "source_id": "SRC_1",
+      "claim_ids": [
+        "CLM_7"
+      ]
+    }
+  ],
+  "holes": [
+    {
+      "id": "HOLE_1",
+      "attached_to": "CLM_11",
+      "missing": "nobody actually asked a VFX artist working on a current blockbuster why crews are stretched thin or why studios greenlight thousand-shot movies",
+      "hurts_because": "the whole 'artists are spread too thin' claim is asserted by outside writers, not by anyone who's actually sat in that chair, so a sharp viewer will ask how anyone would know",
+      "severity": 4,
+      "how_to_fill": "Find a VFX artist or supervisor, maybe through r/vfx or a trade outlet like Cartoon Brew, and just ask them what a typical shot count and deadline looks like on a modern tentpole."
+    },
+    {
+      "id": "HOLE_2",
+      "attached_to": "CLM_7",
+      "missing": "no cinematographer or director working today defending the soft, flat modern look with their own reasoning",
+      "hurts_because": "right now every voice in this video is a critic, so it plays as one-sided even if the criticism is fair, and a real pushback would actually make the argument stronger",
+      "severity": 3,
+      "how_to_fill": "Look for interviews with a current blockbuster's DP about their color grading choices or camera pick, ideally someone explaining an HDR-first workflow."
+    },
+    {
+      "id": "HOLE_3",
+      "attached_to": "CLM_8",
+      "missing": "nobody from the studio or financing side is in here explaining the business logic behind these choices",
+      "hurts_because": "claim 8 blames financiers and algorithms but only ever hears from cinematographers complaining about them, so it's a one-sided account of a fight we only see one side of",
+      "severity": 3,
+      "how_to_fill": "Chase a producer or studio executive interview, or a trade piece in Variety or The Hollywood Reporter about how a modern tentpole's visual style gets approved."
+    },
+    {
+      "id": "HOLE_4",
+      "attached_to": "CLM_9",
+      "missing": "no actual shot-count or budget comparison between Jurassic Park and a modern blockbuster of similar scale",
+      "hurts_because": "the whole 'they used fewer shots and had more time' argument would hit so much harder with real numbers side by side instead of 'about 50 shots' from one movie and vague 'thousands' from another",
+      "severity": 3,
+      "how_to_fill": "Look for a making-of book or VFX trade retrospective, like Cinefex archives, that lists actual shot counts and schedules for Jurassic Park and a comparable modern film."
+    },
+    {
+      "id": "HOLE_5",
+      "attached_to": "thesis",
+      "missing": "nothing here about how people actually watch movies now, on a phone, a laptop, or an HDR TV, and whether that's shaping how films get graded",
+      "hurts_because": "if colorists are grading for ten different screen types instead of one dark cinema, that could explain a lot of the flat, safe look, and none of these sources even raise it",
+      "severity": 2,
+      "how_to_fill": "Find an interview with a working colorist about grading for Dolby Vision, HDR10, and standard screens at the same time."
+    }
+  ],
+  "sections": [
+    {
+      "id": "STY_1",
+      "title": "How movies look right now is drawing the same complaint from audiences, video essayists, and working cinematographers, all independently.",
+      "body": "Movies today have bigger budgets than film has ever had, yet a lot of people say the pictures look flat, plastic, and cheap. Some even say certain television shows look more cinematic than what's currently playing in theaters. Why do movies from the 1980s, 1990s, and early 2000s look better than what's coming out now? That question opens two separate YouTube video essays, and a comment thread among working cinematographers on the industry site Stage 32 raises it independently too. None of these three sources appear to be quoting or citing each other. They arrive at the same starting point separately, which is worth noting, since it means this isn't one person's pet peeve.",
+      "claim_ids": [
+        "CLM_1"
+      ],
+      "is_connection": false
+    },
+    {
+      "id": "STY_2",
+      "title": "The people making these arguments go out of their way to say CGI, digital cameras, and AI are not actually the cause.",
+      "body": "The easy answer gets rejected in both video essays before they make their real argument. One says plainly that digital cameras themselves are not why movies look boring. The other calls CGI, visual effects, AI, and filters scapegoats rather than the real cause, and backs it with an example: Superbad was shot on the Panavision Genesis, a digital camera with less dynamic range than an iPhone, but it still looks good because of deliberate choices, a red car, and 1970s-style interiors with mahogany wood paneling and brown carpet. The camera was unremarkable. The choices made with it were not.\n\nThe same point gets made a second way, by pointing at films that look good right now. Dune, The Substance, Smile, Nosferatu, and The Brutalist prove that modern cinematography can absolutely look good, according to one essayist, who calls The Brutalist one of the best-looking films of the decade. Separately, on the Stage 32 thread, a working filmmaker singles out Nosferatu for the same reason, praising director Robert Eggers and cinematographer Jarin Blaschke for creating still frames worth sitting with. The same film turns up as the counterexample in two unconnected sources. If the tools themselves were the problem, films made with the same tools wouldn't look this different from each other. The skill hasn't disappeared, it just isn't being applied everywhere.",
+      "claim_ids": [
+        "CLM_2",
+        "CLM_3"
+      ],
+      "is_connection": false
+    },
+    {
+      "id": "STY_3",
+      "title": "Modern cameras can capture so much light and shadow now that filmmakers are showing everything, and that is what makes the image look flat and gray.",
+      "body": "This same technical point turns up independently in two essays, just phrased slightly differently. One describes a 'gray sludgy aesthetic' created by high-dynamic-range cameras. The other describes filmmakers obsessing over maximizing dynamic range so nothing clips, keeping the whole image inside a narrow 10 to 90 percent exposure range instead of letting parts of the frame go properly dark or bright.\n\nThe underlying argument in both cases is the same: just because a camera can capture everything doesn't mean a film should show everything. Real contrast, the kind you experience stepping outside into bright sun after being indoors, is part of how the human eye actually sees. Flattening that range so nothing is lost in post-production is also flattening the image's sense of depth and drama.",
+      "claim_ids": [
+        "CLM_4"
+      ],
+      "is_connection": false
+    },
+    {
+      "id": "STY_4",
+      "title": "Lighting got softer and camera work got looser, trading deliberate choices for faster defaults.",
+      "body": "Lighting has shifted from harsh, hard sources that carved out shape and texture to softboxes, domes, china balls, and book lights, a softer default, one essay describes. It also points out that cleaner high-ISO sensors now let filmmakers skip lighting dim scenes altogether, which is why some modern night scenes look like night-vision footage rather than the deliberately lit blue-tinted night scenes in something like Lord of the Rings. The industry is losing the taste to light a scene the way David Fincher lit Se7en, a second essay argues from a different angle, noting that teaching someone to light a green screen takes about twenty minutes, a rough measure of how much less deliberate effort now goes into lighting a shot.\n\nCamera movement and lens choice tell a similar story. Bigger sensors and wider lenses pull the camera physically closer to actors, breaking the more distant, eye-level framing traditional cinema used. Cheap digital recording combined with lightweight gimbals and drones means cameras rarely stop moving, which can make a shot feel more like a video game than cinema. This detailed technical account comes from one essay, but it lines up with a blunter, independent complaint on the Stage 32 thread, where a commenter separately calls out overused shaky camera work as nauseating.",
+      "claim_ids": [
+        "CLM_5",
+        "CLM_6"
+      ],
+      "is_connection": false
+    },
+    {
+      "id": "STY_5",
+      "title": "Once a movie leans on thousands of visual-effects shots, nobody on set has to commit to a final look, because it might all change later.",
+      "body": "This same mechanism shows up from four separate directions that don't reference each other. Television shows built around 2,000 to 3,000 visual-effects shots make it hard to commit to lighting on set, one video essayist points out, because rooms and windows might be altered or removed entirely in post-production, leading to bland, uncommitted images. A visual-effects artist writing about The Lost World: Jurassic Park makes almost the same point about modern movies leaning on green screens and virtual-production volumes, saying it can leave actors feeling like they aren't actually standing in an environment.\n\nThe Stage 32 comment thread adds a related piece: colorists and post-production houses can sometimes wreck a good image after the fact, which is why some working cinematographers now insist on sitting in on their own color-grading sessions rather than leaving it to be finished without them. And a more philosophy-flavored piece about Jurassic World Rebirth argues that this general shift, from committing to an image on set to fixing it later, is a big part of why modern films feel fake even when they're shot on real locations rather than in front of a green screen.\n\nA documentary-style video essayist, a visual-effects artist, a thread of working cinematographers, and a philosophy-focused essay all describe the same underlying problem from their own vantage point, without citing each other. None of them puts it together as one mechanism explicitly; that's an assembly made across the four accounts, not something any single one of them states.",
+      "claim_ids": [
+        "CLM_7"
+      ],
+      "is_connection": true
+    },
+    {
+      "id": "STY_6",
+      "title": "Jurassic Park is held up as the gold standard, and the reason given again and again is that Spielberg used digital effects as little as possible.",
+      "body": "This point is the most repeated one across the material. A visual-effects artist writing about the sequel, The Lost World, explains that late-1990s computer graphics simply weren't advanced enough to use heavily, so Spielberg balanced practical effects with sparing digital work rather than leaning on CGI by default. Two separate history-focused articles describe the same production choice in more detail: Spielberg originally planned to use only practical effects, stop-motion raptors and an animatronic Tyrannosaurus rex, and only added digital dinosaurs after Industrial Light and Magic showed him test footage that changed his mind. The finished film ended up with about fifty shots of fully digital creatures, including what's described as the first full-body digital dinosaur ever put on screen, the Brachiosaurus. A film blog looking back twenty years later agrees, saying the filmmakers relied primarily on animatronics and used CGI only for creatures that couldn't be built practically. The same story and the same number turn up across four sources made for very different audiences: a visual-effects piece, two history overviews, and a film blog.\n\nBecause there were so few digital shots, the crew could give unusual attention to each one, and the film blog lays out how the effects team hid the more difficult ones in low light: the Tyrannosaurus chasing the jeep in a rainstorm, the Tyrannosaurus fighting the raptors in the dim park headquarters building, the brachiosaurs shown at sunset. The one major effects sequence shot in full daylight, the gallimimus stampede, hides its seams with speed and motion blur rather than darkness. This detail comes from a single film blog, though a reader comment on that same post adds a supporting comparison, noting that Disney's Dinosaur ride hides its animatronics in the dark for the same reason.",
+      "claim_ids": [
+        "CLM_9",
+        "CLM_10"
+      ],
+      "is_connection": false
+    },
+    {
+      "id": "STY_7",
+      "title": "Modern movies reverse that ratio: computer-generated effects appear everywhere, often in full daylight, spread across artists working under tight deadlines.",
+      "body": "A visual-effects artist argues that movies which lean on CGI for nearly everything place a heavy burden on artists working under tight schedules, spreading them thin across thousands of shots, and that this tends to lower overall quality, because the kind of meticulous, shot-by-shot planning the original Jurassic Park team did gets abandoned when there's simply too much to plan for. A film blog adds a related point: modern blockbusters with computer-generated imagery in nearly every frame don't get the low-light or motion-blur cover Jurassic Park used, so their effects have to hold up in plain view, with nowhere to hide.\n\nThe same film blog offers a further explanation for why this doesn't seem to cost studios much: it argues that by 2013, audiences had grown so used to CGI that even weak effects work fades into the background, so mediocre effects in something like The Avengers or The Hobbit don't cost those films at the box office. Back in 1993, it argues, no such tolerance existed, so the Jurassic Park team had to spend maximum time, energy, and money getting the dinosaurs exactly right, because a bad effect then would have been a real problem for the film. This whole argument about audience tolerance rests on one blog post's assertion, without any box-office figures or survey data cited to support it.",
+      "claim_ids": [
+        "CLM_11",
+        "CLM_12"
+      ],
+      "is_connection": false
+    },
+    {
+      "id": "STY_8",
+      "title": "Jurassic Park's habit of hiding its digital shots in rain and shadow is a concrete example of the exact discipline the modern-film critiques say has disappeared.",
+      "body": "The same underlying craft shows up in two groups of sources, even though they never discuss the same film. On one side, the Jurassic Park retrospective material describes a specific tactic: because there were only about fifty fully digital shots in the film, the crew could hide the harder ones in low light and motion, the Tyrannosaurus chasing the jeep in rain, the Tyrannosaurus and raptors fighting in a dim building, the brachiosaurs at sunset, with only the daylight gallimimus stampede covered by speed and blur instead of darkness.\n\nOn the other side, the essays diagnosing why current movies look flat describe a general loss of exactly that kind of restraint. One explains that modern cameras capture so much dynamic range that filmmakers show everything evenly instead of using real contrast the way the eye actually experiences light. Another describes lighting shifting away from hard, deliberate sources that carve out shape and texture, toward flatter, softer defaults that require less planning.\n\nPut together, Jurassic Park's rain, dusk, and motion blur were a specific application of exactly the kind of deliberate, shape-carving, uneven lighting and exposure that the modern-craft essays say has been replaced by flatter, more even images. Neither side makes this connection itself: the Jurassic Park retrospective pieces never mention the modern dynamic-range or lighting arguments, and the modern-film essays never bring up Jurassic Park's specific hiding techniques.",
+      "claim_ids": [
+        "CLM_9",
+        "CLM_10",
+        "CLM_4",
+        "CLM_5"
+      ],
+      "is_connection": true
+    },
+    {
+      "id": "STY_9",
+      "title": "Two other explanations sit outside the main craft argument and don't fully reconcile with it.",
+      "body": "One is about money rather than skill. On the Stage 32 comment thread, one commenter argues that the video everyone is discussing doesn't account enough for the business side, and that today's visual style is driven more by financiers and algorithms than by creative people making choices. A second commenter agrees and adds that indie films often look as good as older movies specifically because indie cinematographers have more creative freedom than people working inside the studio system. This directly complicates the idea that filmmakers simply got lazy or lost their taste: if indie films made with the same tools still look good, the problem may be less about craft and more about who is allowed to make the decisions. This argument comes only from anonymous comments on one thread, not from either of the video essays that frame the wider question.\n\nThe second is more philosophical. The gap in 'realness' isn't really about how much CGI a film uses at all, according to a single article summarizing one YouTube essayist. It claims older films used more deep focus, keeping backgrounds sharp so the eye could scan the frame the way it scans a real room, while modern shallow-focus shots don't work that way. It also argues that celluloid feels authentic because light physically struck the film, while a digital sensor just converts light into data. To make the point concrete, it compares the sweaty, struggling actors in Sorcerer, the 1977 film starring Roy Scheider, to a similarly humid, tropical scene in Jurassic World Rebirth, where flat lighting and clean makeup make the actors look comfortable rather than authentic. This entire argument comes from one article about one video essay, and nothing else in the material engages with these specific ideas about deep focus or film grain; it's possible both this argument and the dynamic-range and lighting arguments described elsewhere are true at once, but no source tries to connect them.",
+      "claim_ids": [
+        "CLM_8",
+        "CLM_13"
+      ],
+      "is_connection": false
+    }
+  ],
+  "noticings": [
+    {
+      "text": "The claim about Jurassic Park hiding its CGI shots in rain and dusk, and the separate claim that audiences by 2013 had grown too tolerant of bad effects to punish The Avengers or The Hobbit, both come from the same single film blog. They read as two independent pieces of evidence but are really one writer's argument told in two parts.",
+      "claim_ids": [
+        "CLM_10",
+        "CLM_12"
+      ]
+    },
+    {
+      "text": "Nosferatu is named as a modern film that still looks like a film by two completely unconnected sources, a video essayist and a filmmaker commenting on an industry thread, without either referencing the other.",
+      "claim_ids": [
+        "CLM_3"
+      ]
+    },
+    {
+      "text": "The pushback that this might be about financiers and algorithms rather than creative laziness comes only from anonymous comments on one article; neither of the two video essays that set up the whole 'why don't movies look like movies' question engages with that possibility.",
+      "claim_ids": [
+        "CLM_8"
+      ]
+    },
+    {
+      "text": "Jurassic Park's digital effects get a specific figure everywhere, about fifty shots, but modern effects-heavy movies never get an equivalent number for a current blockbuster, so the comparison ends up as a precise figure set against a vague one.",
+      "claim_ids": [
+        "CLM_9",
+        "CLM_11"
+      ]
+    }
+  ],
+  "landscape": {
+    "everyone_does": "The sources split into two camps that don't talk to each other. Video essays and cinematographer comment threads diagnose what changed in cinematography generally, dynamic range, lighting, lens choice, reliance on post-production, using modern films as symptom examples. Separately, Jurassic Park retrospective articles and a visual-effects piece on its sequel celebrate that film's practical-effects approach on its own terms, as a story about one production rather than as evidence in the wider argument about why films look different now.",
+    "nobody_has": "No source explicitly connects Jurassic Park's specific hiding techniques, rain, dusk, motion blur, to the modern-craft complaints about flat dynamic range and soft lighting, even though they describe the same kind of restraint. No source offers actual production data, shot counts, budgets, or schedules, comparing Jurassic Park to a modern blockbuster of similar scale; the fifty-shot figure for Jurassic Park sits next to only vague references to modern films' 'thousands' of shots. And nobody with actual decision-making power on the business or technical side, a studio executive, a financier, or a colorist grading for multiple screen formats, appears anywhere in the material; every voice is a critic, an essayist, or a cinematographer complaining about choices made by people who aren't in the room."
+  },
+  "weakest_ground": {
+    "claim_id": "CLM_12",
+    "why": "This entire claim about audience tolerance shifting between 1993 and today comes from a single 2013 blog post with no box office data or survey to back up the tolerance claim, so it's the easiest one to push back on."
+  },
+  "strongest_ground": {
+    "claim_id": "CLM_9",
+    "why": "Four independent sources made for completely different audiences, a VFX breakdown, two historical overviews, and a film blog, all land on the same account: Spielberg planned practical-only, added about 50 digital shots after seeing ILM's tests, and used CGI sparingly."
+  },
+  "sources_ranked": [
+    {
+      "source_id": "SRC_1",
+      "role": "backbone",
+      "note": "carries most of the technical argument about dynamic range, lighting, and choices vs tools, and supplies key illustrative examples like Superbad"
+    },
+    {
+      "source_id": "SRC_2",
+      "role": "backbone",
+      "note": "gives the most detailed technical breakdown, lenses, apertures, ISO, camera movement, and backs up SRC_1's argument independently"
+    },
+    {
+      "source_id": "SRC_3",
+      "role": "lead",
+      "note": "a genuinely different, more philosophical angle on why old films feel more real, but it's one article covering one person's video essay, worth chasing further rather than settled"
+    },
+    {
+      "source_id": "SRC_4",
+      "role": "confirmation",
+      "note": "a VFX artist's take that backs up the Jurassic Park sparing-CGI story from the production side"
+    },
+    {
+      "source_id": "SRC_5",
+      "role": "color",
+      "note": "a comment thread that adds texture, the business angle, the Nosferatu praise, the shaky cam complaint, but it's opinions from commenters, not a reported piece"
+    },
+    {
+      "source_id": "SRC_6",
+      "role": "backbone",
+      "note": "the most detailed breakdown of exactly how Jurassic Park's CGI holds up and how it hides its weak spots"
+    },
+    {
+      "source_id": "SRC_7",
+      "role": "confirmation",
+      "note": "solid historical background on Jurassic Park's production, mostly overlaps with SRC_8"
+    },
+    {
+      "source_id": "SRC_8",
+      "role": "confirmation",
+      "note": "near-identical to SRC_7, corroborates the same production history but adds nothing new"
+    }
+  ],
+  "market_context": null
+}

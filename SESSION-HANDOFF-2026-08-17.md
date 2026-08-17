@@ -77,6 +77,11 @@ other projections (P4–P7) regardless.
   restores None. Tests lock this. Also why distillation is TWO calls
   (combined schema too large; each half compiles).
 - 15-claim graph truncates at 32K output tokens → `DISTILL_MAX_TOKENS=64_000`.
+- Confidence ceiling rule (`confidence_ceiling_grade`): best source ceiling
+  sets the cap (HIGH→5, MEDIUM→4, LOW→2) and a fully unverified corpus drops
+  it one grade — the fixture runs at ceiling 4 because verification_rate=0.
+- Owner approval chain: Decision 023 (DECISIONS.md) authorizes this build and
+  the rule changes; Decision 024 is the Shape-B format.
 - Key-point IDs collide per-source (KP_1 ×6 in fixture) → always
   `source_id:kp_id`. Doc-2 `source_coverage` is lossy for same reason (flagged,
   not fixed).
@@ -117,9 +122,12 @@ corroborates/…); "not just X, it's Y"; cross-references (see above/thread N);
 research register; source-openers >3/1000w; evidence-gestures; consensus
 narration (positional: agreement-only sentences leading a paragraph or
 stacked; plus absolute cap 3/doc). Advisory: rule-of-three. 74 tests green
-across claim_graph/briefing_formatter/voice_repair. Full suite: 1263 pass,
-1 pre-existing unrelated failure
-(`test_verify_claim_supporting_quotes`, fails on P0 commit too).
+across claim_graph/briefing_formatter/voice_repair (last run after the genre
+changes). ⚠️ HONESTY NOTE: the last FULL-suite run was at the Shape B commit
+(1260 passed, 1 pre-existing unrelated failure:
+`test_verify_claim_supporting_quotes`, which fails on the P0 commit too);
+only the 74-test subset has run since. Re-run the full suite at next session
+start before claiming green.
 
 ### Key files
 - Models: `backend/models/claim_graph.py`
@@ -132,9 +140,19 @@ across claim_graph/briefing_formatter/voice_repair. Full suite: 1263 pass,
   `backend/pipeline/voice_repair.py`
 - Config: `MODEL_DISTILL`, `MODEL_ESCALATION`, `LEGACY_DOCS` in
   `backend/config.py`
-- Artifacts: `plans/260814-claim-graph-briefing/artifacts/` (approved sample,
-  BRIEFING-V3, enriched brief, harvest.json, graphs). Desktop copy:
-  `~/Desktop/BRIEFING-V3.md`.
+- Artifacts: `plans/260814-claim-graph-briefing/artifacts/` — approved
+  sample, BRIEFING-V3 + ENRICHED, harvest.json, all graphs
+  (original/enriched/v2/v3), the fixture inputs `doc_0.json` (source ledger
+  WITH full raw text — the Section-1 pass input) and `doc_2.json`, plus the
+  rejected MOCKUP-BRIEF and THREE-SHAPES for the format-decision record.
+  `artifacts/scripts/` has every experiment script: `fetch_docs.py` (pull
+  fixture docs from Supabase), `harvest.py` (the proven fact-harvest system
+  prompt), `distill_fixture.py`, `telling_fixture.py`,
+  `full_chain_enriched.py`, `retell_v3.py`, `render_briefing.py`,
+  `bisect_schema.py` (the grammar-ceiling probe), `embed_test.py` (the
+  embeddings verdict). ⚠️ Scripts have hardcoded scratchpad paths from the
+  08-16 session — point them at this artifacts dir when reusing. Desktop
+  copy: `~/Desktop/BRIEFING-V3.md`.
 
 ---
 

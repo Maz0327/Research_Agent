@@ -1,0 +1,639 @@
+{
+  "graph_version": "1.0",
+  "job_id": "51c97825-4840-44e8-b93a-593688b31a07",
+  "topic": "Research why films dont look like films anymore and use jurassic park as an example",
+  "thesis": {
+    "text": "Audiences keep saying modern movies look flat and plastic, and that traces back to real technical and business choices, chasing dynamic range, wider lenses and bokeh, fixing things in post instead of committing on set, and squeezed VFX budgets, while Jurassic Park stays the gold standard for looking real precisely because it used its new CGI as little as possible and let practical animatronics and story carry the weight.",
+    "confidence": "usable",
+    "based_on": [
+      "CLM_1",
+      "CLM_2",
+      "CLM_7",
+      "CLM_10",
+      "CLM_12"
+    ]
+  },
+  "claims": [
+    {
+      "id": "CLM_1",
+      "title": "Everyone's noticing the same thing: modern movies look flat, dull, plastic, even sludgy.",
+      "what_sources_say": "Two of our video sources land on nearly the same complaint. One calls the modern look flat, dull, or sludgy and says audiences are questioning it, while the other describes it as flat and plastic and less cinematic than older films or even some TV shows. Both stop short of saying every modern movie looks bad.",
+      "pushback": null,
+      "my_read": "This is the entry point of the whole video, state the complaint plainly before getting into the why.",
+      "say_it_like": "Ask anyone why modern movies look off and you'll get some version of flat or plastic, that's not just internet whining, two separate people who study this landed on the same word.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Two separate video essays independently use almost the same language, flat, dull, plastic, without citing each other."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "flat, dull, or sludgy look",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "flat and plastic",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_1"
+      ],
+      "spine_order": 1,
+      "tags": [
+        "look-and-feel",
+        "complaint"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_2",
+      "title": "Chasing maximum dynamic range is a big reason the image looks flat.",
+      "what_sources_say": "Both sources point at HDR and dynamic range as a technical culprit. One says digital cameras' push for HDR creates a look that lacks contrast, and the other says the emphasis on squeezing out maximum dynamic range makes images flat and low-contrast, even unnatural compared to how our eyes actually see.",
+      "pushback": null,
+      "my_read": "This is probably the single clearest technical explanation in the whole pile, concrete enough to show side by side footage.",
+      "say_it_like": "Cameras today can capture way more shadow and highlight detail than they used to, and ironically that's part of what's making pictures look washed out.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Two separate sources, one video essay and one article, arrive at the same technical explanation independently."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "HDR enabling a look that lacks contrast",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "maximizing dynamic range produces flat, low-contrast images",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 2,
+      "tags": [
+        "hdr",
+        "dynamic-range",
+        "cinematography"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_3",
+      "title": "Wider lenses and the hunt for bokeh changed the whole shape of the shot.",
+      "what_sources_say": "One source says modern films favor wider lenses that put you closer to the action than the more distant view of traditional cinema, and that chasing shallow depth of field blurs backgrounds that used to be kept sharp. A different source makes a related point from the other direction, arguing deep focus, where everything stays sharp, mirrors how human eyes actually see, while today's shallow focus is a departure from that.",
+      "pushback": "The two sources are attacking the same shift from different angles, one is about lens choice and bokeh, the other is a perception argument about deep focus, so it's not a perfect one to one match.",
+      "my_read": null,
+      "say_it_like": "Old movies liked to keep everything in focus so your eye could wander the frame, new movies blur out everything except the face in front of you.",
+      "confidence": {
+        "grade": 3,
+        "reason": "Two sources back the same underlying shift but describe it with different frameworks, one technical and one perceptual, so it's not a clean match."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "wider lenses creating a closer, more intimate perspective",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "pursuit of bokeh leading to shallow depth of field",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "deep focus enhancing perceptual realism versus shallow focus",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 3,
+      "tags": [
+        "lenses",
+        "depth-of-field"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_4",
+      "title": "Lighting went soft, sometimes there's barely any light at all, and that's costing shape and texture.",
+      "what_sources_say": "Only one source raises this, saying modern lighting favors soft, pervasive light, and cameras are now sensitive enough that some scenes are shot with no light at all, a sharp contrast to the harsh lighting of older films that gave faces and objects visible shape and texture.",
+      "pushback": null,
+      "my_read": "Nobody else in the pile backs this up directly, but it fits the broader pattern everyone else is describing, so treat it as one piece of a bigger puzzle rather than a proven law.",
+      "say_it_like": "Cameras got so good in the dark that some productions just stopped lighting properly, and you can see it.",
+      "confidence": {
+        "grade": 2,
+        "reason": "Only one source makes this specific point and nothing else in the pile corroborates it directly."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "pervasive soft lighting and sometimes no light",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 4,
+      "tags": [
+        "lighting"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_5",
+      "title": "Digital lets the camera move constantly, where film used to force short, deliberate shots.",
+      "what_sources_say": "One source only says digital tech enables long takes and constant fluid camera movement, which is a real departure from the precise, intentionally paced, often static shots that older film equipment's physical limits forced on productions.",
+      "pushback": null,
+      "my_read": null,
+      "say_it_like": "Old cameras were heavy and film reels were short, so every shot had to count, now the camera can just float forever.",
+      "confidence": {
+        "grade": 2,
+        "reason": "Single source, no other source in the pile raises camera movement specifically."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "digital enables long takes and constant, fluid camera movements",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 5,
+      "tags": [
+        "camera-movement"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_6",
+      "title": "In trying to imitate film so closely, digital cinematography overshot and made something new, and less cinematic.",
+      "what_sources_say": "One source argues the current look isn't really a rejection of the classic film look, it's digital overcompensating while trying to emulate it, pushing things like bokeh and dynamic range past the limits that made them work on actual film.",
+      "pushback": null,
+      "my_read": "This is the neatest one line explanation for why more capable cameras produced a worse-looking image, worth building a whole segment around even though only one source says it outright.",
+      "say_it_like": "It's not that digital gave up on looking like film, it tried too hard and blew straight past the mark.",
+      "confidence": {
+        "grade": 2,
+        "reason": "Only one source frames it this way, the idea of overshooting emulation, and nothing else confirms it directly."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "digital filmmaking overcompensating in its attempt to emulate film",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 6,
+      "tags": [
+        "digital-emulation"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_7",
+      "title": "It's not just the camera, filmmakers stopped committing on set and started fixing everything in post.",
+      "what_sources_say": "Three sources converge here. One says a lack of intentionality in VFX-heavy workflows leads to flatter cinematography, another argues the shift from committing in camera to heavy post-production manipulation creates artificiality even when real elements are used, and a third makes the same point about modern films leaning on fully digital fixes that end up looking less tangible.",
+      "pushback": null,
+      "my_read": "This is the strongest technical claim in the whole set because three different pieces landed on it separately, this is the one to hang the why of the whole video on.",
+      "say_it_like": "They used to have to get it right on the day, now they just say we'll fix it in post, and you can feel the difference.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Three separate sources make essentially the same point about in-camera commitment versus post-production fixing, without quoting each other."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "lack of intentionality and commitment during production",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "shift from in-camera commitment to extensive post-production manipulation",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "heavy reliance on fully digital effects can result in visuals that feel less tangible",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 7,
+      "tags": [
+        "post-production",
+        "vfx-workflow"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_8",
+      "title": "The industry might actually be losing the skill to shoot with real contrast, even old classics are getting flattened in their remasters.",
+      "what_sources_say": "Only one source raises this, but it's a striking point, it says the film industry is losing the talent, taste, and knowledge needed to create high-contrast cinematography, and that even remasters of classic films are having their contrast reduced.",
+      "pushback": null,
+      "my_read": "If true this is the scariest claim in the pile, it's not just a style choice anymore, it's a skill actually disappearing, but it's resting on one source's say-so.",
+      "say_it_like": "It's not just that new movies look flat, apparently they're flattening the old ones too when they remaster them.",
+      "confidence": {
+        "grade": 2,
+        "reason": "Single source claim, no other source in the set mentions remasters or a skills shortage."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "losing the talent, taste, and knowledge required, even remastered classics having their contrast reduced",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_5"
+      ],
+      "spine_order": 8,
+      "tags": [
+        "remasters",
+        "skills"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_9",
+      "title": "The it's-for-realism excuse doesn't really hold up, real life has contrast, and deep focus matches how eyes actually see.",
+      "what_sources_say": "One source directly dismisses the idea that a flat, high-detail look is more realistic, pointing out real life has plenty of color and contrast. A different source builds a bigger case for the opposite technique, arguing deep focus and grain-heavy texture feel more real because they mirror ordinary human perception, while shallow, overly clean digital images are the actual departure from how we see.",
+      "pushback": "The second source leans on fairly heavy philosophical language, ideas like haptic visuality and qualia, which is a much bigger theoretical claim than the first source's simple observation, so treat the perception argument as more speculative.",
+      "my_read": "Both sources are circling the same idea, that flat and clean isn't actually real, but one makes it in a sentence and the other builds a whole theory of perception around it, worth flagging that gap in confidence.",
+      "say_it_like": "People say the flat look is more real, but real life has shadows and color, if anything the old deep-focus, grainy stuff matches how your eyes actually work.",
+      "confidence": {
+        "grade": 3,
+        "reason": "Two sources agree flat isn't more realistic, but one argument is a plain observation and the other rests on unproven perceptual theory, so the combined claim is only moderately solid."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_1",
+          "quote_ref": "real life possesses color and contrast",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_3",
+          "quote_ref": "perceptual realism, haptic visuality, and qualia",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 9,
+      "tags": [
+        "realism",
+        "perception"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_10",
+      "title": "Money and overworked VFX crews shape the look just as much as any artistic choice does.",
+      "what_sources_say": "One source says budget constraints and heavy workloads on VFX artists push productions toward over-relying on CGI and can hurt its quality. Another source, from a cinematography discussion, says finance and business decisions have real power over how a film looks, sometimes limiting creative freedom outright.",
+      "pushback": null,
+      "my_read": "This is the least glamorous explanation but probably the most important one, nobody is choosing the flat look for art's sake if the budget and schedule already decided it for them.",
+      "say_it_like": "A lot of this isn't a creative decision at all, it's a spreadsheet decision, someone decided the VFX team gets six weeks instead of six months.",
+      "confidence": {
+        "grade": 3,
+        "reason": "Two different sources point at money and workload pressure, but neither goes deep or gives numbers, so it's supported but thin."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "budget constraints and heavy workloads on VFX artists contribute to over-reliance on CGI",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "finance and business decisions exert significant influence over the aesthetic",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 10,
+      "tags": [
+        "business",
+        "vfx-workload"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_11",
+      "title": "Not everyone agrees this is even a real decline, some call it subjective, generational, or just wrong.",
+      "what_sources_say": "One source admits what counts as cinematic might be subjective and generational, younger viewers might see older films as glitchy or dated rather than superior. Separately, a discussion thread shows real disagreement, some commenters think modern movies are worse across the board, others argue they're better in a lot of ways despite specific flaws like shaky cam or casting choices.",
+      "pushback": "This directly complicates the whole argument up to this point, if the perception is generational or contested, the flat-is-objectively-worse framing doesn't hold up as cleanly as the earlier claims suggest.",
+      "my_read": "Worth saying out loud in the video, because pretending everyone agrees would be dishonest, this is a real fault line, not just a footnote.",
+      "say_it_like": "Plenty of people will tell you modern movies actually look fine, or that liking the old stuff is just nostalgia talking, and that's a fair point.",
+      "confidence": {
+        "grade": 2,
+        "reason": "The sources directly disagree with each other and with the earlier claims, so this sits low on confidence by design."
+      },
+      "evidence_status": "conflicted",
+      "evidence": [
+        {
+          "source_id": "SRC_2",
+          "quote_ref": "younger viewers might see the aesthetics of older films as glitchy or dated",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_5",
+          "quote_ref": "conflicting views, some arguing decline, others asserting movies are better in many ways",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 11,
+      "tags": [
+        "debate",
+        "subjectivity"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_12",
+      "title": "Jurassic Park is the film everyone points to because it used CGI sparingly and let animatronics do the heavy lifting.",
+      "what_sources_say": "This is about as close to a consensus as the material gets. Five sources land on the same basic point: Jurassic Park paired practical, on-set animatronics with computer effects used only where physical building wasn't possible, giving it a grounded feel, and that mix is why the effects still hold up decades later while a lot of CGI-heavy films from the same era don't.",
+      "pushback": "One reader comment offers a totally different explanation, that the dinosaurs still look convincing simply because nobody has a real dinosaur to compare them against, so we can't actually tell if the CGI itself is even good.",
+      "my_read": "This is the strongest, best-supported idea in the whole pile, and it's the natural payoff of everything said earlier about committing on set instead of fixing it in post.",
+      "say_it_like": "Spielberg's team basically only used the computer for the shots you couldn't build, everything else was a real robot dinosaur on set, and that's why it still looks real today.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Five separate sources, videos and articles alike, all describe the same practical-plus-sparing-CGI approach without contradicting each other."
+      },
+      "evidence_status": "all_sources",
+      "evidence": [
+        {
+          "source_id": "SRC_4",
+          "quote_ref": "integration of practical effects with sparingly used CGI created a grounded feel",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "favored on-set animatronics and used CGI sparingly",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_7",
+          "quote_ref": "successfully integrating practical effects with computer-generated imagery",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_8",
+          "quote_ref": "successfully integrating a limited number of digital effects with traditional practical effects",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_2",
+        "STG_4"
+      ],
+      "spine_order": 12,
+      "tags": [
+        "jurassic-park",
+        "practical-effects"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_13",
+      "title": "They also hid the CGI's rough edges on purpose, low light and motion blur did a lot of the work.",
+      "what_sources_say": "One source describes how the filmmakers strategically placed the big CGI sequences in low-light environments or added motion blur to mask the limits of then-new technology, and argues this was driven by real pressure in 1993 to convince an audience who'd never seen anything like it, unlike today's audiences who'll accept rougher CGI.",
+      "pushback": null,
+      "my_read": "Great concrete detail for the video, this is the kind of specific trick people can actually picture on screen.",
+      "say_it_like": "A lot of those dinosaur scenes happen at night or in the rain, and that's not just mood, that's the effects team covering their tracks.",
+      "confidence": {
+        "grade": 2,
+        "reason": "Only one source describes this specific technique, nothing else in the set corroborates the low-light, motion-blur masking claim."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "masked potential imperfections by placing major effects sequences in low-light environments or using motion blur",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_3"
+      ],
+      "spine_order": 13,
+      "tags": [
+        "jurassic-park",
+        "vfx-technique"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_14",
+      "title": "The effects served the story instead of being the whole point, which modern blockbusters get accused of flipping.",
+      "what_sources_say": "One source argues the main reason Jurassic Park's effects worked is that they were subordinated to the story, while modern blockbusters are often seen as prioritizing spectacle over story.",
+      "pushback": null,
+      "my_read": "This is a good closing thought but it's one source's opinion about the whole modern blockbuster industry, don't oversell it as proven.",
+      "say_it_like": "You remember the characters and the tension in Jurassic Park, the dinosaurs serve that story, a lot of modern blockbusters just want you to remember the spectacle.",
+      "confidence": {
+        "grade": 2,
+        "reason": "Single source making a broad claim about modern blockbusters generally, nothing else in the pile backs the comparison up."
+      },
+      "evidence_status": "one_source",
+      "evidence": [
+        {
+          "source_id": "SRC_6",
+          "quote_ref": "subordination to the film's narrative, unlike modern blockbusters",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [],
+      "spine_order": 14,
+      "tags": [
+        "story-vs-spectacle",
+        "jurassic-park"
+      ],
+      "market_context": null
+    },
+    {
+      "id": "CLM_15",
+      "title": "Jurassic Park's impact went way beyond the screen, it sparked real interest in paleontology, even though its science got picked apart.",
+      "what_sources_say": "Two sources make the same case here: the film is credited with reviving public interest in dinosaurs and paleontology and inspiring a new generation of scientists, tied to what's called a golden age of discovery in the field, and both note this happened even as scientists rejected a lot of the film's actual science, one source even points out researchers leaned on the film's popularity to promote their own work anyway.",
+      "pushback": null,
+      "my_read": "Nice full circle moment for the video, the movie that got the paleontology wrong is also the reason a chunk of today's paleontologists picked the field.",
+      "say_it_like": "A movie that got the science wrong somehow talked a generation of kids into becoming actual scientists, that's a pretty wild legacy.",
+      "confidence": {
+        "grade": 4,
+        "reason": "Two independent articles make the same claim about inspiring scientists and both flag the science criticism at the same time."
+      },
+      "evidence_status": "multi_source",
+      "evidence": [
+        {
+          "source_id": "SRC_7",
+          "quote_ref": "credited with inspiring a new generation of scientists",
+          "timestamp": null
+        },
+        {
+          "source_id": "SRC_8",
+          "quote_ref": "coinciding with a golden age of discovery in the field",
+          "timestamp": null
+        }
+      ],
+      "story_goods": [
+        "STG_6"
+      ],
+      "spine_order": 15,
+      "tags": [
+        "jurassic-park",
+        "legacy",
+        "science"
+      ],
+      "market_context": null
+    }
+  ],
+  "story_goods": [
+    {
+      "id": "STG_1",
+      "type": "quote",
+      "text": "One essay calls the new look flat, dull, or even sludgy, the other calls it flat and plastic.",
+      "source_id": "SRC_2",
+      "claim_ids": [
+        "CLM_1"
+      ]
+    },
+    {
+      "id": "STG_2",
+      "type": "scene",
+      "text": "The Lost World: Jurassic Park pairs practical animatronics with CGI used sparingly, giving it a grounded feel.",
+      "source_id": "SRC_4",
+      "claim_ids": [
+        "CLM_12"
+      ]
+    },
+    {
+      "id": "STG_3",
+      "type": "scene",
+      "text": "Big dinosaur effects sequences were deliberately shot in low light or with motion blur to hide the limits of the new CGI.",
+      "source_id": "SRC_6",
+      "claim_ids": [
+        "CLM_13"
+      ]
+    },
+    {
+      "id": "STG_4",
+      "type": "quote",
+      "text": "A reader comment points out the dinosaurs still look convincing simply because nobody alive has ever seen a real one to compare them to.",
+      "source_id": "SRC_6",
+      "claim_ids": [
+        "CLM_12"
+      ]
+    },
+    {
+      "id": "STG_5",
+      "type": "moment",
+      "text": "Even remasters of classic films are having their contrast quietly turned down.",
+      "source_id": "SRC_1",
+      "claim_ids": [
+        "CLM_8"
+      ]
+    },
+    {
+      "id": "STG_6",
+      "type": "moment",
+      "text": "The film is credited with inspiring a new generation of paleontologists during what's called a golden age of discovery in the field.",
+      "source_id": "SRC_8",
+      "claim_ids": [
+        "CLM_15"
+      ]
+    }
+  ],
+  "holes": [
+    {
+      "id": "HOLE_1",
+      "attached_to": "CLM_10",
+      "missing": "Nobody actually asked a VFX artist what it's like working under these budgets and deadlines.",
+      "hurts_because": "This is one of the more damning claims in the video, that money and overwork are driving the look, and right now it's resting on two outside observers, not the people actually doing the work.",
+      "severity": 4,
+      "how_to_fill": "Look for VFX artists talking openly on places like Reddit's r/vfx, or trade press pieces where they describe deadline pressure on specific blockbusters."
+    },
+    {
+      "id": "HOLE_2",
+      "attached_to": "CLM_1",
+      "missing": "There's no cinematographer or director actually defending the flat, low-contrast look on the record.",
+      "hurts_because": "The whole video is built on critics of the look, without anyone who actually shoots that way explaining why, it plays as one-sided even if the criticism is fair.",
+      "severity": 3,
+      "how_to_fill": "Find interviews with cinematographers of recent big movies talking about why they chose their camera and grading approach, there's likely a case for HDR displays or a different kind of realism."
+    },
+    {
+      "id": "HOLE_3",
+      "attached_to": "CLM_12",
+      "missing": "No actual numbers, shot counts, budgets, schedules, comparing Jurassic Park to a modern blockbuster.",
+      "hurts_because": "Right now the comparison is all vibes, they used CGI sparingly, a couple of hard numbers next to a modern movie's VFX shot count would make the whole segment land much harder.",
+      "severity": 3,
+      "how_to_fill": "Check making-of books or VFX trade retrospectives for Jurassic Park's actual effects shot count and budget, then find the same for a comparable modern blockbuster."
+    },
+    {
+      "id": "HOLE_4",
+      "attached_to": "CLM_10",
+      "missing": "Nobody from the studio or producer side explains the business logic behind these decisions.",
+      "hurts_because": "The video blames money without ever hearing from the people actually controlling the money, so it's a one-sided guess at their reasoning.",
+      "severity": 2,
+      "how_to_fill": "Look for interviews or talks from studio heads of production about their VFX pipeline and scheduling decisions."
+    }
+  ],
+  "weakest_ground": {
+    "claim_id": "CLM_9",
+    "why": "It leans partly on heavy theory, haptic visuality and qualia, dressed up to explain why old films feel more real, and a sharp viewer will ask you to actually prove that rather than just assert it."
+  },
+  "strongest_ground": {
+    "claim_id": "CLM_12",
+    "why": "Five different sources, videos and articles, all independently land on the same explanation for Jurassic Park's effects holding up, that's about as solid as this pile gets."
+  },
+  "sources_ranked": [
+    {
+      "source_id": "SRC_1",
+      "role": "backbone",
+      "note": "Sets up the core complaint and gives the intentionality and remaster points nobody else raises."
+    },
+    {
+      "source_id": "SRC_2",
+      "role": "backbone",
+      "note": "Does the heavy lifting on the actual technical breakdown, lenses, lighting, HDR, camera movement."
+    },
+    {
+      "source_id": "SRC_3",
+      "role": "confirmation",
+      "note": "Backs the flat-isn't-more-real idea but wraps it in heavier theory than anyone else uses."
+    },
+    {
+      "source_id": "SRC_4",
+      "role": "backbone",
+      "note": "Bridges the modern complaint and the Jurassic Park comparison in one place."
+    },
+    {
+      "source_id": "SRC_5",
+      "role": "lead",
+      "note": "Raises money and business pressure but never digs deep, more a pointer than a settled case."
+    },
+    {
+      "source_id": "SRC_6",
+      "role": "backbone",
+      "note": "Does most of the real work explaining why Jurassic Park's effects specifically hold up."
+    },
+    {
+      "source_id": "SRC_7",
+      "role": "confirmation",
+      "note": "Backs up the paleontology legacy claim that SRC_8 also makes."
+    },
+    {
+      "source_id": "SRC_8",
+      "role": "confirmation",
+      "note": "Repeats and confirms what SRC_7 says about the film's scientific impact."
+    }
+  ],
+  "market_context": null
+}
