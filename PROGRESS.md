@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-15
 **Current Phase:** ⭐ CLAIM GRAPH + BRIEFING BUILD — `plans/260814-claim-graph-briefing/EXECUTION-PLAN.md` (Decision 023; supersedes the PP-4..7 track for now)
-**Current Task:** P2 — Briefing renderer (P0 and P1 complete)
+**Current Task:** ⏸️ Section-1 narrative pass (see SESSION-HANDOFF-2026-08-17.md — the resume file; P0/P1 done, P2 redirected at the gate)
 **Branch:** feature/product-viability-overhaul
 
 ---
