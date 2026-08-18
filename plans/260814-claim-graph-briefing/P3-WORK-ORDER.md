@@ -87,7 +87,19 @@ fields; code moves, checks, links, counts, and renders.
   (session scratchpad, 08-17) is the code path once a token is re-minted.
 - Local runs need no Redis/Celery: `create_job()` + call `run_research_job()`
   directly (proven on c5d32615).
+- **Kimi (judge contest, item 17):** repo `.env` KIMI_API_KEY is DEAD (401).
+  Use the key in `~/.openclaw/service-env/kimi-coding.env` against
+  `https://api.moonshot.ai/v1` — the `.cn` endpoint rejects that key.
+- **Railway:** if services pause again, `railway redeploy` fails on
+  no-deployment services — GraphQL `serviceInstanceDeployV2`, order
+  Redis→API→Worker; walkthrough + service IDs in
+  `content-pipeline/SESSION-HANDOFF-2026-08-15.md` §2. Worker Copy is OFF on
+  purpose. Old RAILWAY_TOKEN dead.
 - ⏰ Aug 31: kimi-k2.5 sunset + Sonnet 5 intro pricing ends.
+- ⏰ **Oct 16: the entire Gemini 2.5 line retires** — hits RA
+  extraction/reasoning defaults; the env-driven model sweep (item 17) must
+  land successors before then (evidence: MODEL-DOSSIER.md; 3.x regressed on
+  grounding — the swap is a decision, not a find-replace).
 
 ## G. Considered, not yet scheduled (owner-aware, from the 08-17 IFF research-brief analysis)
 
