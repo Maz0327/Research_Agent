@@ -843,3 +843,68 @@ the landscape read), and the Briefing renders the telling layer.
 
 Supersedes the spec Section 3 rendering (map page → claim units on spine).
 Spec Sections 1, 2, 4, 5 stand.
+
+## Decision 025: The Hybrid Briefing — Locked Format (2026-08-18)
+
+**Status:** Accepted (project owner, in-session, 2026-08-18, after two-topic validation)
+
+The Briefing format is now FIXED, validated on two topics (films fixture,
+Hawara labyrinth job c5d32615) and iterated through owner review on a live
+mockup ("The Hawara Briefing" artifact + "The Hawara Sources" vault). The
+owner's verdict on the Section-1 read: approved on the fresh topic — the
+format generalizes. This supersedes D-024's rendering as the reading
+document; D-024's telling-layer models and the Claim Graph provenance layer
+remain underneath.
+
+**The document = 8 sections, in this order:**
+1. **The Read** — the argument told once, linear, from RAW source text (never
+   claim atoms). Judgment allowed: rank the pile, point at the heat, stage
+   the fights. The only section built for top-to-bottom reading.
+2. **The Players** — consolidated cast cards, collapsible to name + role.
+   RULE: a name mentioned in 2+ sections gets a card (lintable); a one-off is
+   introduced inline where it appears ("Eric Uphill, the Middle Kingdom
+   specialist, argued…").
+3. **The Record** — dated chronology, every entry cited, each with a light
+   "More" context dropdown (2–4 sentences).
+4. **The Files** — the lossless layer (Human-Research-Brief spec): facts
+   merged by SUBJECT, never dropped as "unimportant"; true duplicates merged
+   (shingle detector, not model judgment); disagreements stay visible; each
+   file opens with evidence-status chips. Coverage enforced MECHANICALLY
+   against the harvest inventory — never by the model grading itself.
+5. **Disputed & Uncertain** — each dispute: title + one-line holders + status
+   chip, opening into "Full case, both sides" with each side's actual
+   evidence, cited. Chip vocabulary: established / contested / single source /
+   unverifiable / belief migration. Never resolved unless the sources resolve it.
+6. **Details & Anecdotes** — the texture bin with per-item Context dropdowns.
+   Exists so small material cannot vanish in synthesis.
+7. **Info Gaps** — what the corpus does NOT contain, phrased as go-get-it
+   instructions; doubles as the expand-pass shopping list.
+8. **Source Trail** — every source + its one unique contribution; every SRC id
+   links to the raw text in the companion vault.
+
+**Companion: the Source Vault** — full unedited raw texts of every source,
+anchor-linked per SRC id, generated 100% BY CODE from doc_0 (no model).
+
+**Locked writing rules** (enforcement lives in lint/repair, never the writer):
+- Named citations in prose ("Johanna's video (SRC_4) adds…"), bare IDs only
+  in trailing citation tags.
+- Staging disclosure: when a source dramatizes/performs a fact, say so and
+  name where the underlying fact lives (STORY/THEORY/REALITY doctrine).
+- One-hearing clarity: compression that forces a re-read is a defect.
+- No cross-references (D-024) except inside Section 1, where linearity
+  replaces self-containment.
+- The document never picks the owner's angle.
+
+**Output medium:** canonical artifact = structured JSON (sections, players,
+disputes-with-both-sides, timeline+context, files, gaps, source refs).
+HTML is the primary render — a deterministic code renderer (like the vault
+generator), because the format's dropdowns/chips/anchors exceed Markdown.
+Markdown/Drive exports are lossy secondary renders when needed. LLM calls
+write CONTENT FIELDS only; all assembly, linking, and rendering is code.
+
+**Effect on legacy docs:** the Briefing + Vault replace Doc 1 and Doc 2 as
+the reading surface (already merged on paper by D-023) and absorb Doc 0's
+reading role (Doc 0 remains the canonical data). Doc 3 (Creator Brief) is
+NOT part of the Briefing and conflicts with "the brief informs, never
+performs" — its retirement or reshaping is a separate owner decision, not
+made here.
