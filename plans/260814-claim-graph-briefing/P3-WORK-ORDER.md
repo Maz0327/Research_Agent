@@ -101,3 +101,33 @@ fields; code moves, checks, links, counts, and renders.
   Fits naturally as a small block in the Briefing header or Info Gaps.
 - **Structured intake** (purpose / how findings will be used) — the fuller
   version of the above; deferred, revisit if the product lane wakes up.
+
+## H. Lint upgrades (from the 08-18 slop-detector survey; owner-approved)
+
+Surveyed: TypeTruth (dead — wraps OpenAI's discontinued classifier),
+distil-ai-slop-detector (local 270M binary classifier — rejected: no
+positional findings, self-evaluated accuracy), avoid-ai-writing (harvest the
+pattern tables + preservation-validator idea; REJECT its architecture —
+rules-in-the-rewrite-prompt is the measured-nonconvergent pattern),
+ai-writing-detector (harvest the statistical analyzers). Decision: NO
+integration/dependency — port ideas into our closed system.
+
+19. **Statistical module** in `style_enforcer.py` (pure code, advisory tier):
+    sentence-length variance (the mechanical detector for enumerate-and-march
+    — currently invisible to phrase-based lint), lexical diversity,
+    passive-voice rate, transition-word density.
+20. **Document slop score (0–100)** aggregated from all lint signals — used
+    for repair-convergence tracking across rounds and as a regression metric
+    in writer-model contests. Never a gate by itself; a trend instrument.
+21. **Vocabulary expansion** — curate patterns from avoid-ai-writing's tiered
+    tables against OUR voice laws (their casual-register substitutions would
+    fight spoken-register rules): copula avoidance ("serves as"→"is"),
+    synonym cycling / elegant variation, significance inflation, false
+    ranges, false hedging.
+22. **Post-repair invariant validator (code)**: quotes, numbers, dates, and
+    citation ids byte-identical before/after the repair pass. Repair may fix
+    voice; it may never touch a fact. Complements the content-pipeline
+    fact-drift gate.
+23. **AI-fingerprint pre-flight** (for the publish builder, content-pipeline
+    side, noted here for the shared lint lib): unfilled placeholders,
+    citation markup tokens, UTM parameters in outbound text.
