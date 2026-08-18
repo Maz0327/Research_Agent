@@ -66,6 +66,19 @@ fields; code moves, checks, links, counts, and renders.
     Lint additions: players-card threshold (name in 2+ sections without a
     card = error), named-citations-in-prose, staging-disclosure presence
     check where a source performs a fact.
+16a. **Grounding gate (code) — the invention-direction check** (owner
+    requirement, 08-18; complements gate 13, which checks the LOSS
+    direction). Every hard atom in the generated Briefing — numbers, dates,
+    proper names, quoted strings — must exact/fuzzy-match doc_0 raw text or
+    the harvest inventory; unmatched = error → repair-or-strip, never
+    shipped. Plus narrowing by construction: each generation pass receives
+    ONLY its assigned facts + their raw source paragraphs (code-assembled
+    inputs), so provenance is constrained at the input as well as checked at
+    the output. Soft claims (no distinctive tokens) get an OPTIONAL
+    adversarial LLM verifier ("find the unsupported sentence") — advisory
+    only; code verdicts are the gate. Note the honest limit: no mechanism
+    can PREVENT a model emitting off-corpus tokens; the guarantee is
+    narrowed inputs + deterministic post-verification.
 16. **Doc 3 (Creator Brief)** — retired from the default run via config flag
     (owner discussion 08-18: hooks/twist/say-it-like violate "brief informs,
     never performs"; useful remainder is the description source list, which
