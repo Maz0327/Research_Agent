@@ -1,3 +1,9 @@
+> ⚠️ **SUPERSEDED 2026-08-18 — background reading only.** The build resumes
+> from `plans/260814-claim-graph-briefing/KICKOFF-PROMPT.md` (rewritten,
+> current) and executes `plans/260814-claim-graph-briefing/P3-WORK-ORDER.md`.
+> The Briefing format is LOCKED as Decision 025 — this file's Section-1
+> "propose first" instruction is fulfilled and closed.
+
 # SESSION HANDOFF — 2026-08-16/17 — Claim Graph build, P0–P2, and the Section-1 pivot
 
 **Resume file. Read this before touching anything.** The kickoff for this build
