@@ -156,3 +156,38 @@ integration/dependency — port ideas into our closed system.
 23. **AI-fingerprint pre-flight** (for the publish builder, content-pipeline
     side, noted here for the shared lint lib): unfilled placeholders,
     citation markup tokens, UTM parameters in outbound text.
+
+## I. Blind spots + update mechanism (owner-reviewed 08-18; solutions assigned code/LLM)
+
+24. **Corpus balance report** (code + 1 small LLM call): domain/date spread,
+    network overlap via shared entities/bylines + dup detector (the
+    "one crew" catch, mechanized) = code; per-source stance label
+    (believer/skeptic/neutral/institutional) = LLM. Rendered as a Briefing
+    header block. Advisory — skew may be deliberate, never invisible.
+25. **Harvest recall audit** (code + LLM sample): code stratified-samples raw
+    paragraphs; LLM re-extracts facts from the sample only; code
+    fuzzy-matches vs the harvest inventory → measured recall rate. Closes
+    the single-point-of-trust hole under coverage gate 13.
+26. **Staleness/freshness pass** (code + existing relevance gate): queries
+    built from Info Gaps' stored search instructions + after-job-date
+    filter → dated addendum. Doubles as the "check for updates" iterate
+    mode (item 29). Built for live topics (e.g. the ongoing Hawara dig).
+27. **Vault copyright flag** (code + policy): vault private by default;
+    paywall-marker detection flags sources; product mode renders
+    excerpt+link for flagged sources, never full text.
+28. **Injection hardening** (code): source text as delimited data in every
+    prompt; injection-pattern lint on raw text (assistant-addressed
+    imperatives) flags sources in the ledger; grounding gate 16a caps damage.
+29. **Update mechanism** (mostly exists — iterate system + doc versioning):
+    NEW pieces only: (a) `check_updates` iterate mode = item 26;
+    (b) addendum-first render — new material lands as a dated addendum,
+    affected sections chipped "updated," owner reads only the delta;
+    (c) human-facing version diff (code: fact-ID set + section text compare)
+    — "what changed since your read" — so a full re-version never costs a
+    full re-read. Existing modes already cover owner's yt_add/yt_notes/
+    yt_watch concepts: expand_sources = add sources, custom = notes,
+    videos are sources.
+30. **Read regression test** (LLM instrument, code harness): the proven
+    cold-reader comprehension test (blind subagent: "could you discuss this
+    topic?"; scored 8/10 on 08-15) run per Briefing + on any Read-model
+    change; harness, scoring collection, and trend tracking = code.
