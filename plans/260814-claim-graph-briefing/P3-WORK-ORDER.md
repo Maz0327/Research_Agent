@@ -88,3 +88,16 @@ fields; code moves, checks, links, counts, and renders.
 - Local runs need no Redis/Celery: `create_job()` + call `run_research_job()`
   directly (proven on c5d32615).
 - ⏰ Aug 31: kimi-k2.5 sunset + Sonnet 5 intro pricing ends.
+
+## G. Considered, not yet scheduled (owner-aware, from the 08-17 IFF research-brief analysis)
+
+- **Ask decomposition + coverage tie-back.** The pipeline's entire
+  situation-capture is one typed topic line; the Briefing never reports
+  against the original ask. Cheap version: decompose the topic into 2–4
+  explicit research questions at intake (LLM), carry them through, and have
+  the Briefing account for each — answered / partly / "the sources don't go
+  there" (code check against the questions). Catches the failure where a
+  brief is excellent on its own terms but quietly dropped half the request.
+  Fits naturally as a small block in the Briefing header or Info Gaps.
+- **Structured intake** (purpose / how findings will be used) — the fuller
+  version of the above; deferred, revisit if the product lane wakes up.
