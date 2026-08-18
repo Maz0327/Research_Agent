@@ -28,6 +28,13 @@ repos:
         args: [--config-file=pyproject.toml]
         pass_filenames: false
 
+  # Spelling — typos in code, prompts, and docs are defects (EXECUTION-PLAN §0b.12)
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.3.0
+    hooks:
+      - id: codespell
+        args: ['--skip', '*.json,*.lock,venv,node_modules,docs/_archive_do_not_read', '--ignore-words-list', 'hawara,fayoum,herodotus']
+
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

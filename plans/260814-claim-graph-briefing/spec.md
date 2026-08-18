@@ -1,18 +1,19 @@
 # Claim Graph + Research Briefing — Architecture Spec
 
-**Date:** 2026-08-14 · **Status:** APPROVED direction (Maz), pre-implementation
-**Supersedes:** the per-document synthesis model for output docs. Doc 1 (Jump-Start) and Doc 2 (Semantic Brief) merge into the Briefing; all other docs become projections.
-**Why:** current outputs are LLM-speak (scaffold vocabulary, ID leakage, theme-marches) and each doc is a separate synthesis pass that can drift. One canonical distillation → every doc derives from it → consistency, provenance, and anti-hallucination by construction.
+**Date:** 2026-08-14 · **Rewritten 2026-08-18** to match Decisions 023/024/025 (pre-rewrite version archived; git history holds all states).
+**Status:** claim graph = implemented (P1). Briefing format = LOCKED (D-025). Generation passes = approved (work order §J).
+**Supersedes:** the per-document synthesis model. Doc 1 (Jump-Start) and Doc 2 (Semantic Brief) merge into the Briefing; Doc 3 (Creator Brief) is retired from the default run by flag; remaining docs become projections.
+**Why:** the old outputs were LLM-speak (scaffold vocabulary, ID leakage, theme-marches) and each doc was a separate synthesis pass that could drift. One canonical distillation → every doc derives from it → consistency, provenance, and anti-hallucination by construction.
 
 ---
 
 ## 1. The core idea
 
-After extraction + synthesis, ONE distillation stage produces the **Claim Graph** (JSON, canonical) and renders the **Research Briefing** (its human-readable form). Every downstream document is a **projection** of the graph: selection + ordering + voice. Downstream stages may not introduce facts — they select claims and re-voice them, citing claim IDs. Depth-on-demand: every claim keeps pointers into the raw source ledger (quotes, timestamps), so any doc and any reader can drill claim → evidence → verbatim source.
+After extraction + synthesis, ONE distillation stage produces the **Claim Graph** (JSON, canonical provenance layer). The human reading surface is the **Research Briefing** (D-025), whose Section 1 is generated from RAW source text and whose reference sections are checked mechanically against the harvest inventory. Every downstream document is a **projection** of the graph: selection + ordering + voice. Downstream stages may not introduce facts — they select claims and re-voice them, citing claim IDs. Depth-on-demand: every claim keeps pointers into the raw source ledger, so any doc and any reader can drill claim → evidence → verbatim source (the Source Vault is the human face of that bottom layer).
 
 Truth Lab parallel (the epistemology this borrows): the atom is the claim-with-receipts; the move is the climb (what sources literally say → the pattern → the researcher's judgment → confidence). One grounded read; everything else derives. Never fabricate; an honest hole beats an invented fact.
 
-## 2. Claim Graph schema (v1)
+## 2. Claim Graph schema (v1) — implemented in `backend/models/claim_graph.py`
 
 ```jsonc
 {
@@ -23,7 +24,7 @@ Truth Lab parallel (the epistemology this borrows): the atom is the claim-with-r
   "claims": [
     {
       "id": "CLM_…",
-      "title": "human headline, a sentence a person would say",   // becomes the unit's bold line
+      "title": "human headline, a sentence a person would say",
       "what_sources_say": "prose, 2-6 sentences, quotes woven in",
       "pushback": "counters/conflicts, or null",                   // tensions live HERE, not in a section
       "my_read": "researcher judgment, clearly opinionated, or null",
@@ -31,85 +32,73 @@ Truth Lab parallel (the epistemology this borrows): the atom is the claim-with-r
       "confidence": { "grade": 1-5, "reason": "plain sentence" },
       "evidence_status": "all_sources|multi_source|one_source|conflicted",
       "evidence": [ { "source_id": "SRC_…", "quote_ref": "…", "timestamp": "…" } ],
-      "story_goods": [ "STG_…" ],          // links to §2.1
-      "spine_order": 3,                     // position in the argument
+      "story_goods": [ "STG_…" ],
+      "spine_order": 3,
       "tags": ["mechanism","case-study","legacy","money", …]
     }
   ],
-  "story_goods": [                          // §2.1 — the script-texture layer
+  "story_goods": [
     { "id": "STG_…", "type": "scene|character|number|moment|quote",
       "text": "the concrete, visualizable detail with names/dates/numbers",
       "source_id": "SRC_…", "claim_ids": ["CLM_…"] }
   ],
-  "holes": [                                // gaps become first-class negative space
+  "holes": [
     { "id": "HOLE_…", "attached_to": "CLM_… or thesis", "missing": "what evidence would fill it",
       "hurts_because": "plain sentence", "severity": 1-5, "how_to_fill": "source-type suggestion" }
   ],
-  "weakest_ground": { "claim_id": "…", "why": "…" },   // the "if someone challenges you" seed
+  "weakest_ground": { "claim_id": "…", "why": "…" },
   "strongest_ground": { "claim_id": "…", "why": "…" },
   "sources_ranked": [ { "source_id": "…", "role": "backbone|confirmation|color|lead", "note": "…" } ]
 }
 ```
 
-**Schema addition for the Strategist Brief (2026-08-14):** optional `market_context` on claims and/or graph level — `{ "who_else_serves_this": "…", "supply_vs_demand": "…", "based_on": ["SRC_…"] }`. Only populated when sources support it; outside knowledge must be flagged as context, never presented as evidence from the input (same law as Truth Lab's Market rung).
+**Schema notes (implementation-proven):** optional `market_context` ships in v1 for the Strategist Brief (populated only when sources support it; outside knowledge flagged as context, never as evidence). Structured-outputs grammar ceiling: ZERO nullable branches per compiled schema — optionality = emptiness on wire, `normalize_wire_payload` restores None; distillation is TWO calls because the combined schema doesn't compile. `thesis.based_on` must cite CLM ids — SRC ids there are the known model error; the code reference normalizer (work order item 11) repairs it deterministically.
 
-**Positioning note (2026-08-14):** the interim workflow (§6) is a preview of the end state, not a rival to content-pipeline v4 — final ranking: v4 fed by the claim graph > interim placeholder > v4 with the old thin research. The grip gate (three blind readers) is pipeline-independent and SHOULD still be run on placeholder-era scripts.
-
-**Rules:** ~12–15 claims per job (multiple key points restating one claim are EVIDENCE for it, not new claims). Tensions and gaps are not sections — a tension is a claim's `pushback`; a gap is a `hole` attached where the missing evidence would sit. All IDs are internal only — never rendered in any document body; rendering uses source names and plain evidence-status language.
+**Rules:** ~12–15 claims per job (restatements are EVIDENCE, not new claims). Tensions are a claim's `pushback`; gaps are `holes` attached where the missing evidence would sit. Internal IDs never render in any document body.
 
 ### 2.1 Story goods (the scriptwriting layer)
 
-Claims are abstractions; scripts need texture. At distillation, capture the concrete: scenes you can see, named people, dates, numbers, verbatim moments — each linked to claim + source. This is the fix for the known research-depth bottleneck: the Briefing teaches the argument; story goods carry the storytelling raw material. No invented detail: story goods must quote or tightly paraphrase the ledger.
+Claims are abstractions; scripts need texture. At distillation, capture the concrete: scenes you can see, named people, dates, numbers, verbatim moments — each linked to claim + source. The Briefing's Details & Anecdotes section is the human rendering of this layer. No invented detail: story goods must quote or tightly paraphrase the ledger.
 
-## 3. The Research Briefing (human rendering)
+## 3. The Research Briefing (human rendering) — LOCKED as Decision 025
 
-Three altitudes, one file:
+**The full format definition is D-025 in root `DECISIONS.md`; the approved pass layout is work order §J; the visual spec is the mockup pair (`hawara-briefing-mockup.html` + the generated Source Vault). Summary:**
 
-1. **Page one — the map.** Thesis + confidence; the claims as one-line bold statements with confidence marks; top 2 holes. Re-readable in 3 minutes.
-2. **The body — claim units on the argument spine.** Fixed anatomy per claim, in `spine_order`, with 1–3 connective sentences between units:
-   - `### {claim.title}` (bold, human)
-   - **What the sources say:** … (evidence-status woven into the prose: "both essays arrive here independently", "one source only — treat as a lead")
-   - **The pushback:** … (omit if none)
-   - **My read:** … (always fenced as judgment)
-   - **How sure:** plain sentence + ▮-scale
-   - *Say it like:* "…"
-   - Holes render inline: **What's missing here:** …
-3. **Closers:** "If someone challenges you" (weakest/strongest ground) · sources ranked by usefulness · appendix pointer.
-4. **Appendix = source ledger** (existing): verbatim quotes, timestamps, full receipts.
+Eight sections: **The Read** (the argument told once, linear, from RAW source text — judgment allowed; the only read-through section) · **The Players** (collapsible cast cards; 2+-section names get cards, one-offs introduced inline) · **The Record** (cited chronology + context dropdowns) · **The Files** (lossless subject-merged layer; mechanical coverage gate vs the harvest inventory) · **Disputed & Uncertain** (holders + code-computed status chips + full for/against dropdowns) · **Details & Anecdotes** (texture bin + context dropdowns) · **Info Gaps** (what the corpus lacks, phrased as go-get instructions; feeds the expand pass) · **Source Trail** (each source's one unique contribution; every SRC id links into the **Source Vault** — full raw texts, generated 100% by code from doc_0).
 
-**Voice laws (all documents):** answer first; plain section names (no "Semantic", "SCQA", "Governing Insight", doc numbers); no internal IDs in body; no stats banners or emoji codes; no "As extracted"; no em-dashes; no "not X but Y" constructions; no rule-of-three stacks; confidence in sentences, not badges. Prose a person would say out loud.
+Canonical artifact = structured JSON; HTML rendered by deterministic code; Drive/Markdown are lossy secondary exports. Two directions of trust, both mechanical: the coverage gate (nothing lost vs harvest) and the grounding gate (no hard atom in the Briefing without a match in doc_0).
+
+**Voice laws (all documents; enforced by the lint stack, never the writer prompt):** answer first; plain section names; no internal IDs in body; no stats banners; no "As extracted"; no em-dashes; no "not X but Y"; no rule-of-three stacks; confidence in sentences, not badges; named citations in prose ("Johanna's video (SRC_4)…"); staging disclosure when a source performs a fact; one-hearing clarity; no cross-references outside Section 1. Prose a person would say out loud.
 
 ## 4. Projections (each = selection + ordering + voice; cite claim IDs; no new facts)
 
-| Document | Projection definition |
-|---|---|
-| **Creator Brief** | Hookiest high-confidence claims → hooks; spine → setup/twist; claims + say_it_like → core facts; conflicted claims → disputed section. Keep existing structure that works. |
-| **Jump-Start / research directions** | The graph's negative space: all `holes` by severity, every one_source claim, every conflicted claim → directions + verification items. Fully derivable, near-zero generation. |
-| **Producer Packet** | Claims × verification status, joined to clips/quotes via evidence refs. Quality gate reads confidence grades. |
-| **Script support** | Spine as outline; say_it_like as narration seeds; `story_goods` as the scene/texture layer; holes = "be honest on camera here" beats (trust-is-the-engine). |
-| **Blog / Social kit** | Top-N claims by punch, re-voiced per platform; hooks reused. |
-| **⭐ NEW: Strategist Brief ("Truth Lab lite")** | Same graph, strategist lens, **explicit ladder anatomy per finding** (decided 2026-08-14 — strategists are the audience that wants to see the climb; deck convention = signal → receipts → opportunity): (1) what's literally there (fact, quotable) → (2) the pattern → (3) THE MARKET (who else serves this; supply vs visible demand — requires new `market_context` field on the graph, see §2 note) → (4) why it exists → (5) the human truth → (6) so-what/whitespace, where every idea carries its BECAUSE pointing at specific evidence (WHY law). Strategist-voiced generative pass constrained to claim IDs. A Research Agent doc type — NOT a fork of the actual Truth Lab product: **no cohort machinery, no learning loop** (confirmed by Maz). May ship as multiple outputs later (belief map / opportunity read); v1 = one document. |
+| Document | Status | Projection definition |
+|---|---|---|
+| **Research Briefing** | LOCKED (D-025) | THE reading surface. Absorbs Doc 1 (Jump-Start → Info Gaps) and Doc 2 (Semantic Brief → Files/Disputed). |
+| **Creator Brief (Doc 3)** | RETIRED by flag | Violates "brief informs, never performs." Description source list moved to the content-pipeline publish builder (pure code from doc_0). Re-enable only for product experiments. |
+| **Producer Packet** | P6 | Claims × verification status, joined to clips/quotes via evidence refs. Quality gate reads confidence grades. |
+| **Script support** | via content pipeline | Spine as outline; say_it_like as narration seeds; `story_goods` as texture; holes = "be honest on camera here" beats. Outline artifact carries per-beat fact IDs into doc_0 (content-pipeline CODE-ONLY-LANE item 9). |
+| **Blog / Social kit** | P6 | Top-N claims by punch, re-voiced per platform. |
+| **Strategist Brief** | P7 (V2) | Ladder anatomy per finding: fact → pattern → market (`market_context`) → why → human truth → so-what+BECAUSE. Strategist-voiced pass constrained to claim IDs. No cohorts, no learning loop. |
 
-Genuinely generative artifacts (narrative-structure suggestions, platform mechanics) remain LLM calls but must cite claim IDs from the graph.
+Genuinely generative artifacts remain LLM calls but must cite claim IDs from the graph.
 
-## 5. Implementation order (incremental, test-gated per step)
+## 5. Implementation state & order
 
-1. **Distillation stage** (`pipeline/stages/distillation_stage.py` after synthesis): synthesis output + extractions → Claim Graph JSON. Prompt rewrite: produce connected prose fields (`what_sources_say`, `my_read`), not fragment sentences ("A recurring pattern where…" dies here, upstream).
-2. **Briefing renderer** (formatters): graph → Briefing md per §3. Editorial voice pass (async Sonnet, per the Apr-09 engine plan §4 — cross-model rewrite ≈44% quality gain) polishes prose fields.
-3. Rewire **Creator Brief** stage to consume the graph (closest to done already; mostly ID-cleanup + label softening).
-4. Derive **Jump-Start** from holes (replaces its 35k-char bullet dump).
-5. **Producer Packet**, then Doc 5/6/7, then **Strategist Brief** (new).
-6. Retire `jump_start_md` / `semantic_brief_md` as primary outputs once the Briefing ships (keep behind a flag during transition).
+1. ✅ Distillation stage (P1) — two-pass, escalation-then-honest-failure, fixture-proven.
+2. ▶ **P3 = `P3-WORK-ORDER.md`**: ingestion/validation fixes, harvest stage, reference normalizer, the Briefing build (schema → passes → gates → renderer → vault), lint upgrades, model swap + judge contest, blind-spot items.
+3. Then P4 (Doc 3 flag verification) → P6 (projections) → P7 (Strategist) → P8 (cleanup; legacy fields retired).
 
-Validation: Zod/pydantic-validate the graph; existing 960-test suite guards stages; add golden test = distill a fixture job → assert graph invariants (claim count bounds, no orphan evidence refs, every hole attached, no banned vocabulary in rendered output — reuse tic-lint regexes).
+Validation: pydantic-validate the graph; golden tests distill the fixtures (films `51c97825…`, Hawara `c5d32615…`) and assert graph invariants + lint-clean renders + coverage/grounding gates green.
 
 ## 6. Interim workflow (while content-pipeline v4 is being built)
 
-Run research in Research Agent → export Briefing md → use it as the research brief for script-telling sessions in Claude (v4 "tell it, don't build it" needs a teller who knows the material — that is the Briefing's design goal). This doubles as the live acceptance test of the format: if the Briefing can't support the telling, fix the graph before wiring more projections.
+Run research in Research Agent → the Briefing becomes the research brief for script-telling sessions (v4 "tell it, don't build it" needs a teller who knows the material — that is the Briefing's design goal). This doubles as the live acceptance test of the format; the Hawara job is the natural first case since it overlaps the active Hawara episode work. If the Briefing can't support the telling, fix the graph before wiring more projections.
 
-## 7. Open questions
+## 7. Resolved & open questions
 
-- Claim-count ceiling for very large jobs (20+ sources): shard by sub-topic or raise the cap?
-- Confidence grading: mechanical rule (source count × verification status) vs model judgment — lean mechanical with model tie-break.
-- Where the editorial Sonnet pass lives (distillation vs render time) — lean render time so the graph stays model-neutral.
-- Strategist Brief: which strategist questions are in v1 (belief map, tension, whitespace) vs later (personas, positioning).
+- ~~Claim-count ceiling for very large jobs~~ → RESOLVED: 20-source cap per job (owner, 08-18); keeps the Read single-call.
+- ~~Confidence grading: mechanical vs model~~ → RESOLVED: mechanical (chips computed by code from the graph; owner, 08-18).
+- ~~Where the editorial polish pass lives~~ → RESOLVED: no re-emission polish passes anywhere (pairs-only law); voice is enforced by lint + code-applied repair pairs.
+- OPEN: Strategist Brief v1 scope (belief map, tension, whitespace) vs later (personas, positioning) — decide at P7.
+- OPEN (flagged, §I): vault copyright posture if the product lane wakes; Exa in grounded search.

@@ -55,11 +55,11 @@ fields; code moves, checks, links, counts, and renders.
 13. **Coverage gate (code)** — harvest inventory vs. Briefing content;
     mechanical check, model never grades itself. No "omitted as unimportant"
     state.
-14. **Generation passes (LLM, content fields only)** — the pass layout is
-    APPROVED by the owner (2026-08-18) and recorded verbatim in §J below.
-    Build exactly that; do NOT re-propose it. The two approved Section-1
-    samples are the writing spec (films APPROVED-SECTION-1 sample + the
-    Hawara read inside the mockup).
+14. **Generation passes (LLM, content fields only)** — Section 1 from RAW
+    doc_0 text (the two approved samples are the spec: films +
+    APPROVED-SECTION-1 sample; Hawara read in the mockup); dispute
+    both-sides; context blurbs; file prose. Propose pass layout before
+    wiring (owner gate).
 15. **Renderer (pure code)** — Briefing JSON → HTML (mockup
     `hawara-briefing-mockup.html` is the visual spec) + Source Vault
     generator from doc_0 (script exists from 08-18 session, generalize it).
@@ -191,59 +191,3 @@ integration/dependency — port ideas into our closed system.
     cold-reader comprehension test (blind subagent: "could you discuss this
     topic?"; scored 8/10 on 08-15) run per Briefing + on any Read-model
     change; harness, scoring collection, and trend tracking = code.
-
-
-## J. APPROVED GENERATION-PASS LAYOUT (owner-approved 2026-08-18 — build this, don't re-propose)
-
-Owner's three calls, locked: **(a)** the Read runs on `claude-sonnet-5` for
-V1 (it wrote both approved samples — the calibrated instrument; contest it
-only after the slop score exists as a regression metric); **(b)** 20-source
-cap per job (keeps the Read single-call; matches the mixed-input limit);
-**(c)** NO mid-generation human gate — the owner's read of the finished
-Briefing is the acceptance.
-
-Principle: the LLM never assembles the document; it fills content fields.
-Code decides structure, checks coverage/grounding, renders.
-
-- **Pass 1 — The Read (LLM, 1 call):** input = ALL raw doc_0 full_texts +
-  source manifest (titles/types). NEVER claim atoms, never old docs. Short
-  prompt + the two worked examples. Output = plain prose. Then lint + ONE
-  code-applied repair round.
-- **Pass 2 — Subject map (code + 1 cheap LLM call):** code pre-routes
-  dated facts → Record and contradiction-linked facts → Disputes; the LLM
-  groups the remaining harvest facts into 4–8 File subjects + the anecdotes
-  bin (semantic grouping is the one thing code can't do here — measured:
-  embeddings rank restatements, not connections). Code then enforces
-  no-orphan BEFORE any writing: every harvest fact assigned somewhere.
-- **Pass 3 — Files (LLM, 1 small call per file, parallel):** input = that
-  subject's assigned facts + the raw source paragraphs containing them
-  (code-pulled). Per-file coverage gate after (code fuzzy-match of assigned
-  facts' numbers/names); misses → ONE append-only repair call with the
-  missing list.
-- **Pass 4 — Disputes (code selects, LLM writes):** dispute list = code
-  from synthesis tensions + graph contradiction edges (shingle-deduped);
-  status chips = code from graph provenance math (single source /
-  contested / established are counts, not judgment); 1 call per dispute for
-  the for/against prose.
-- **Pass 5 — The Record (code skeleton, LLM blurbs):** code extracts +
-  sorts dated facts (entries = the fact statements, placed by code); LLM
-  writes only the context blurbs; code validates every output date exists
-  in the input.
-- **Pass 6 — Players (code counts, LLM writes):** code counts name
-  recurrence across generated sections, applies the 2+-section threshold;
-  one call writes cards for qualifying names from that entity's facts;
-  one-offs handled by the inline-intro lint.
-- **Pass 7 — remainder:** anecdote context blurbs (1 small call); Info Gaps
-  = pure code transform of the existing gap-analysis output (it already
-  carries descriptions + suggested-research fields); Source Trail "one
-  unique contribution" lines (1 small call). Everything else in the trail
-  is code.
-- **Pass 8 — assembly & render (pure code):** JSON assembled by code from
-  pass outputs; full lint sweep; ONE repair round of pairs; invariant
-  validator (item §H.22); grounding gate (item 16a); renderer → HTML +
-  Source Vault.
-
-Budget: ~25–30 calls/job (harvest's per-source calls + the Read are the
-only substantial ones); ≈ $2–3/job at current pricing. Fixtures for the
-first end-to-end: Hawara `c5d32615` (fresh topic, 42k raw words), films
-`51c97825` (regression).
