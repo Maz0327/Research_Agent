@@ -363,3 +363,89 @@ def coverage_gate(briefing, harvest_inventory: Iterable[dict]) -> GateReport:
         )
 
     return report
+
+
+def _sentences(text: str) -> list[str]:
+    """Split prose into sentences, keeping their terminators."""
+    return [s for s in re.split(r"(?<=[.!?])\s+", text or "") if s.strip()]
+
+
+def strip_ungrounded(text: str, values: Iterable[str]) -> tuple[str, list[str]]:
+    """Remove the sentences that carry atoms the corpus does not contain.
+
+    The gate's contract is repair-or-strip, never ship (work order 16a).
+    Stripping is the half that needs no model: a sentence resting on a name or
+    a figure nobody wrote is removed, and the rest of the passage stands.
+
+    Args:
+        text: The generated passage.
+        values: The unmatched atoms found in it.
+
+    Returns:
+        Tuple of (surviving text, removed sentences).
+    """
+    wanted = [v for v in values if v]
+    if not text or not wanted:
+        return text, []
+
+    kept, removed = [], []
+    for sentence in _sentences(text):
+        lowered = normalize(sentence)
+        if any(normalize(value) in lowered for value in wanted):
+            removed.append(sentence)
+        else:
+            kept.append(sentence)
+
+    return " ".join(kept).strip(), removed
+
+
+def strip_ungrounded_fields(briefing, report: GateReport) -> list[dict]:
+    """Strip ungrounded sentences from the short generated fields.
+
+    Applied to context notes, player cards, and source-trail lines, which are
+    small enough that removing a sentence leaves something coherent. Findings
+    in the long prose sections are left for a repair round instead: deleting a
+    sentence out of the middle of an argument is its own kind of damage.
+
+    Args:
+        briefing: The assembled Briefing, modified in place.
+        report: The grounding report naming the unmatched atoms.
+
+    Returns:
+        A record of what was removed, for the job's warnings.
+    """
+    by_location: dict[str, list[str]] = {}
+    for finding in report.findings:
+        by_location.setdefault(finding.where, []).append(finding.value)
+
+    removals: list[dict] = []
+
+    def apply(where: str, text: str) -> Optional[str]:
+        values = by_location.get(where)
+        if not values:
+            return text
+        survived, removed = strip_ungrounded(text, values)
+        if removed:
+            removals.append({"where": where, "removed": removed, "atoms": values})
+        return survived or None
+
+    for index, entry in enumerate(briefing.record):
+        if entry.context:
+            entry.context = apply(f"record[{index}].context", entry.context)
+    for index, anecdote in enumerate(briefing.anecdotes):
+        if anecdote.context:
+            anecdote.context = apply(f"anecdotes[{index}].context", anecdote.context)
+    for player in briefing.players:
+        updated = apply(f"players[{player.name}]", f"{player.name}, {player.role}. {player.body}")
+        if updated is None:
+            player.body = ""
+        elif updated != f"{player.name}, {player.role}. {player.body}":
+            # Keep the card's identity line; only the body loses sentences.
+            player.body = updated
+    for entry in briefing.source_trail:
+        if entry.contribution:
+            entry.contribution = apply(
+                f"source_trail[{entry.source_id}]", entry.contribution
+            )
+
+    return removals

@@ -1,0 +1,234 @@
+{
+ "coverage": {
+  "gate": "coverage",
+  "passed": true,
+  "checked": 633,
+  "findings": [],
+  "notes": []
+ },
+ "grounding": {
+  "gate": "grounding",
+  "passed": false,
+  "checked": 2657,
+  "findings": [
+   {
+    "kind": "name",
+    "value": "Commentator",
+    "where": "players[Alan Lloyd]",
+    "detail": "not present in any source text"
+   },
+   {
+    "kind": "name",
+    "value": "Tutankhamun",
+    "where": "files[Underground tunnels and features around the Giza Plateau]",
+    "detail": "not present in any source text"
+   },
+   {
+    "kind": "name",
+    "value": "Tutankhamun",
+    "where": "files[Pre-flood origin theories and lost civilizations]",
+    "detail": "not present in any source text"
+   },
+   {
+    "kind": "name",
+    "value": "Rosae",
+    "where": "files[Pre-flood origin theories and lost civilizations]",
+    "detail": "not present in any source text"
+   }
+  ],
+  "notes": []
+ },
+ "grounding_strips": [
+  {
+   "where": "record[4].context",
+   "removed": [
+    "Incorporating Edgar Cayce's channeled readings created a core dogma for alternative researchers."
+   ],
+   "atoms": [
+    "Incorporating"
+   ]
+  },
+  {
+   "where": "record[20].context",
+   "removed": [
+    "The philosopher introduced the legendary sunken island into Western literature through his dialogues Timaeus and Critias.",
+    "This textual reference provided the primary anchor for later claims linking lost civilizations to the end of the Pleistocene."
+   ],
+   "atoms": [
+    "Pleistocene",
+    "Timaeus",
+    "Critias"
+   ]
+  },
+  {
+   "where": "record[22].context",
+   "removed": [
+    "The Boston University geologist brought scientific field analysis to a debate previously dominated by esoteric theories."
+   ],
+   "atoms": [
+    "Boston"
+   ]
+  },
+  {
+   "where": "record[23].context",
+   "removed": [
+    "Paleoclimate data indicates that the Neolithic Subpluvial brought significant rain to North Africa before the region transformed into arid desert."
+   ],
+   "atoms": [
+    "Subpluvial",
+    "Neolithic"
+   ]
+  },
+  {
+   "where": "record[24].context",
+   "removed": [
+    "Archaeological excavations at the Anatolian site revealed massive megalithic enclosures built long before the rise of agriculture or urban centers."
+   ],
+   "atoms": [
+    "Anatolian"
+   ]
+  },
+  {
+   "where": "record[30].context",
+   "removed": [
+    "The English anthropologist's observations documented the rapid decay and destruction of the site's above-ground architecture during the Ottoman period."
+   ],
+   "atoms": [
+    "Ottoman",
+    "English"
+   ]
+  },
+  {
+   "where": "record[34].context",
+   "removed": [
+    "By repeating dramatic claims regarding subterranean passages and hidden chambers, his work deeply influenced Victorian popular culture and early Egyptology."
+   ],
+   "atoms": [
+    "Victorian"
+   ]
+  },
+  {
+   "where": "record[41].context",
+   "removed": [
+    "By framing the lost island as the parent civilization for ancient Egypt and Mesoamerica, the book profoundly influenced nineteenth-century occultists and modern speculative history."
+   ],
+   "atoms": [
+    "Mesoamerica"
+   ]
+  },
+  {
+   "where": "record[45].context",
+   "removed": [
+    "Among these discoveries was the famous Hawara Portrait collection and important Greco-Roman texts, including fragments of the Iliad."
+   ],
+   "atoms": [
+    "Greco"
+   ]
+  },
+  {
+   "where": "record[48].context",
+   "removed": [
+    "The subterranean structure, built directly behind the temple of Seti I at Abydos, featured massive megalithic granite blocks that differed starkly from typical New Kingdom architecture."
+   ],
+   "atoms": [
+    "Seti"
+   ]
+  },
+  {
+   "where": "record[49].context",
+   "removed": [
+    "Howard Carter's uncovering of the virtually untouched royal tomb captured the global public imagination like no previous archaeological find."
+   ],
+   "atoms": [
+    "Carter"
+   ]
+  },
+  {
+   "where": "record[52].context",
+   "removed": [
+    "Established in Virginia Beach, the non-profit organization was created to preserve, index, and systematically analyze thousands of recorded trance transcripts."
+   ],
+   "atoms": [
+    "Beach",
+    "Virginia"
+   ]
+  },
+  {
+   "where": "record[59].context",
+   "removed": [
+    "Published by the founder of the AMORC Rosicrucian order, the work popularized mystical interpretations of the Giza monuments to a broad membership base."
+   ],
+   "atoms": [
+    "AMORC",
+    "Rosicrucian"
+   ]
+  },
+  {
+   "where": "record[64].context",
+   "removed": [
+    "This work challenged traditional Egyptological timelines by suggesting heavy rainfall had carved the stone long before the Dynastic era."
+   ],
+   "atoms": [
+    "Egyptological"
+   ]
+  },
+  {
+   "where": "record[69].context",
+   "removed": [
+    "The field research at this southeastern Anatolian site revealed massive T-shaped megaliths crafted by hunter-gatherer societies.",
+    "Its extraordinary age fundamentally reshaped the scientific understanding of the Neolithic Revolution and human social evolution."
+   ],
+   "atoms": [
+    "Revolution",
+    "Neolithic",
+    "Anatolian"
+   ]
+  },
+  {
+   "where": "anecdotes[3].context",
+   "removed": [
+    "The recommendation directs viewers toward resources that challenge mainstream Egyptological frameworks."
+   ],
+   "atoms": [
+    "Egyptological"
+   ]
+  },
+  {
+   "where": "anecdotes[6].context",
+   "removed": [
+    "Godley's standard translation remains a foundational English reference for studying classical Greek historiography."
+   ],
+   "atoms": [
+    "English"
+   ]
+  },
+  {
+   "where": "players[Alan Lloyd]",
+   "removed": [
+    "Alan Lloyd, Commentator on the classical sources who argues most ancient accounts of the labyrinth were secondhand."
+   ],
+   "atoms": [
+    "Commentator"
+   ]
+  },
+  {
+   "where": "players[Ancient Egypt]",
+   "removed": [
+    "The 1923 discovery of Tutankhamun's tomb is what drew the crowd of Egyptologists and treasure hunters in the first place."
+   ],
+   "atoms": [
+    "Tutankhamun"
+   ]
+  }
+ ],
+ "lint": {
+  "passes": false,
+  "errors": [
+   "Graham Hancock recurs across sections but has no card in The Players"
+  ],
+  "advisories": [
+   "files[The Mataha Expedition and the modern subsurface scans] describes a source performing a fact without saying where the underlying fact lives"
+  ]
+ },
+ "file_repairs": []
+}

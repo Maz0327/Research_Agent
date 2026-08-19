@@ -1913,7 +1913,7 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   citations. That took false positives from 34% to 4%, and the remainder is
   mostly my HTML-stripping harness rather than the gate, which reads JSON
   fields.
-- [~] D14 Generation passes per §J — all eight built and unit-tested; live end-to-end BLOCKED on API credits
+- [x] D14 Generation passes per §J — all eight built, and run end to end on the labyrinth fixture
   ```
   $ pytest backend/tests/test_briefing_passes.py backend/tests/test_briefing_model.py -q
   32 passed
@@ -1925,10 +1925,24 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   routed 633 facts: 133 dated events, 1 disputed, 500 to group
   subject map -> ✗ Anthropic 400: "Your credit balance is too low"
   ```
-  ⛔ **[MAZ] the Anthropic account is out of credits.** Everything up to pass 2
-  ran live and is cached on disk (harvest + the Read). The rest of the chain
-  needs roughly $1-2 of credit to finish the first end-to-end Briefing, which
-  is your acceptance gate. Nothing else in P3 is blocked by this.
+  ✅ **Completed 2026-08-19 without Anthropic credits**, on Maz's instruction:
+  prose passes (11 files, 8 disputes, the cast cards) answered by Claude Code
+  subagents through a bridge that keeps the production call path unchanged;
+  mechanical passes (record blurbs, anecdote context, source-trail lines) on
+  `gemini-3.6-flash` through the new provider adapter. Harvest and the Read
+  were already cached from the live Anthropic run.
+  ```
+  routes: 20 subagent, 10 gemini | assembled in 115s
+  read      4 paragraphs, 848 words        players   14
+  record    133 entries, all with context  files     11, 16,697 words
+  disputes  8                              anecdotes 24
+  gaps      6                              trail     16
+  coverage  633 checked, 0 uncovered
+  grounding 2,657 atoms checked, 4 unmatched (30 before repair-or-strip)
+  lint      1 error, 1 advisory | slop score 0 | sentence stdev 11.1
+  ```
+  Artifacts: the Briefing and its Source Vault are published for Maz's read;
+  the JSON, the gate report, and the HTML are in `artifacts/hawara-run/`.
   Also added after seeing the first grouping: the Files section is capped at 8
   subjects (§J's ceiling). Gemini's batched map produced 11, so `cap_subjects`
   folds the smallest into their nearest neighbour by title, moving facts rather

@@ -388,6 +388,17 @@ def evidence_chip(
     return chip("established")
 
 
+# Synthesis text often cites the key points it refers to ("the consensus
+# (KP_2) against the scan data (KP_3)"). Internal IDs never render in a
+# document body, so they are stripped before the text becomes a claim.
+_INTERNAL_ID = re.compile(r"\s*\((?:[A-Z]{2,6}_\d+(?:\s*[,;]\s*)?)+\)|\b[A-Z]{2,6}_\d+\b")
+
+
+def _strip_internal_ids(text: str) -> str:
+    """Remove internal unit IDs from text destined for the page."""
+    return re.sub(r"\s{2,}", " ", _INTERNAL_ID.sub("", text or "")).strip()
+
+
 def _dedupe_claims(claims: list[dict]) -> list[dict]:
     """Drop disputes that restate one already selected."""
     kept: list[dict] = []
@@ -454,7 +465,7 @@ def select_disputes(
 
     lookup = key_points or {}
     for tension in tensions or []:
-        description = getattr(tension, "description", "") or ""
+        description = _strip_internal_ids(getattr(tension, "description", "") or "")
         if not description.strip():
             continue
 

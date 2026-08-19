@@ -27,6 +27,7 @@ from backend.pipeline.briefing_gates import (
     coverage_gate,
     fact_is_covered,
     grounding_gate,
+    strip_ungrounded_fields,
 )
 from backend.pipeline.briefing_lint import lint_briefing
 from backend.pipeline.briefing_passes import (
@@ -262,13 +263,20 @@ def build_briefing(
         source_trail=trail,
     )
 
+    raw_texts = list(raw_by_source.values())
+    harvest_texts = [fact["text"] for fact in inventory]
+
+    grounding = grounding_gate(briefing, raw_texts, harvest_texts)
+    # Repair-or-strip, never ship (work order 16a). Short generated fields lose
+    # the sentences that rest on atoms the corpus does not contain; findings in
+    # the long prose are reported for a repair round instead, because cutting a
+    # sentence out of the middle of an argument is its own kind of damage.
+    stripped = strip_ungrounded_fields(briefing, grounding)
+    if stripped:
+        grounding = grounding_gate(briefing, raw_texts, harvest_texts)
+
     lint = lint_briefing(briefing)
     coverage = coverage_gate(briefing, inventory)
-    grounding = grounding_gate(
-        briefing,
-        list(raw_by_source.values()),
-        [fact["text"] for fact in inventory],
-    )
     logger.info(
         f"[{ctx.job_id}] briefing lint: {len(lint.errors)} error(s), "
         f"{len(lint.advisories)} advisory(ies)"
@@ -279,6 +287,7 @@ def build_briefing(
     report = {
         "coverage": coverage.to_dict(),
         "grounding": grounding.to_dict(),
+        "grounding_strips": stripped,
         "lint": lint.to_dict(),
         "file_repairs": repairs,
     }
