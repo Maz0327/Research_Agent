@@ -4,6 +4,8 @@ Pytest configuration and fixtures for backend tests.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from backend.utils.rate_limiter import reset_rate_limiter
+
 # Mock environment for tests
 TEST_ENV = {
     "ENVIRONMENT": "test",
@@ -13,6 +15,20 @@ TEST_ENV = {
     "SUPABASE_SERVICE_ROLE_KEY": "test-service-key",
     "OPENAI_API_KEY": "sk-test-key",
 }
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter_state():
+    """Give every test a clean rate limiter.
+
+    Limiter state is process-global. Without this, one test's mocked API
+    failures leave `consecutive_failures` high, and the next test that calls
+    the same API pays exponential backoff up to `max_delay` (60s) before its
+    first attempt. That accounted for ~5 minutes of the suite's runtime.
+    """
+    reset_rate_limiter()
+    yield
+    reset_rate_limiter()
 
 
 @pytest.fixture

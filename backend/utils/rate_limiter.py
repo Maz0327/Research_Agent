@@ -22,6 +22,13 @@ class RateLimitConfig:
     base_delay: float = 1.0  # Base delay in seconds
     max_delay: float = 60.0  # Maximum delay in seconds
     exponential_base: float = 2.0
+    # Minimum gap between two request STARTS for this API. The per-minute
+    # quota alone does not stop a burst (5 threads firing in the same second
+    # is inside a 60 RPM budget but still trips per-second limits), so APIs
+    # that rate-limit on instantaneous rate get a stagger. 0 = no stagger.
+    min_interval_seconds: float = 0.0
+    # Maximum requests in flight at once for this API. 0 = unlimited.
+    max_concurrent: int = 0
 
 
 @dataclass
@@ -31,11 +38,18 @@ class RateLimiterState:
     hour_requests: list[float] = field(default_factory=list)
     last_request: float = 0.0
     consecutive_failures: int = 0
+    # Next timestamp a staggered request is allowed to start. Reserved under
+    # the lock so concurrent threads queue instead of racing.
+    next_slot: float = 0.0
 
 
 # Per-API rate limiter states (guarded by _rate_limiter_lock)
 _rate_limiter_states: dict[str, RateLimiterState] = {}
 _rate_limiter_lock = threading.Lock()
+
+# Per-API concurrency gates as (configured_size, semaphore), guarded by
+# _rate_limiter_lock
+_rate_limiter_semaphores: dict[str, tuple[int, threading.BoundedSemaphore]] = {}
 
 
 # Default configurations per API service
@@ -60,7 +74,16 @@ DEFAULT_RATE_LIMITS: dict[str, RateLimitConfig] = {
     "reddit": RateLimitConfig(requests_per_minute=60, requests_per_hour=600),
     # Supadata: Free=60 RPM, Basic/Pro=600 RPM, Mega=3000 RPM.
     # Using 60 RPM (safe floor matching Free tier at 1 req/sec).
-    "supadata": RateLimitConfig(requests_per_minute=60, requests_per_hour=600),
+    # 2026-08-17: five parallel transcript pulls (each followed by a metadata
+    # call) returned 429 despite sitting inside the minute budget - the limit
+    # is instantaneous, not per-minute. Stagger starts 1.1s apart and cap
+    # in-flight calls at 2.
+    "supadata": RateLimitConfig(
+        requests_per_minute=60,
+        requests_per_hour=600,
+        min_interval_seconds=1.1,
+        max_concurrent=2,
+    ),
     # Whisper: 50 RPM default, keeping conservative due to upload time
     "whisper": RateLimitConfig(requests_per_minute=10, requests_per_hour=50),
     # Gemini Paid Tier 1: 150 RPM confirmed. Using full limit.
@@ -186,20 +209,98 @@ def get_backoff_delay(api_name: str) -> float:
     return min(delay, config.max_delay)
 
 
+def get_concurrency_gate(api_name: str) -> Optional[threading.BoundedSemaphore]:
+    """Get the concurrency gate for an API, or None when uncapped.
+
+    Args:
+        api_name: Name of the API.
+
+    Returns:
+        A bounded semaphore sized to the API's `max_concurrent`, or None when
+        the API has no concurrency cap.
+    """
+    config = get_rate_limit_config(api_name)
+    if config.max_concurrent <= 0:
+        return None
+
+    with _rate_limiter_lock:
+        entry = _rate_limiter_semaphores.get(api_name)
+        if entry is None or entry[0] != config.max_concurrent:
+            entry = (config.max_concurrent, threading.BoundedSemaphore(config.max_concurrent))
+            _rate_limiter_semaphores[api_name] = entry
+        return entry[1]
+
+
+def reserve_stagger_slot(api_name: str) -> float:
+    """Reserve the next staggered start slot for an API.
+
+    Reservation happens under the lock, so concurrent callers each get their
+    own slot instead of all reading the same "last request" timestamp and
+    firing together. The caller sleeps for the returned delay.
+
+    Args:
+        api_name: Name of the API.
+
+    Returns:
+        Seconds to wait before starting the request (0.0 when the API has no
+        stagger configured or the slot is already free).
+    """
+    config = get_rate_limit_config(api_name)
+    if config.min_interval_seconds <= 0:
+        return 0.0
+
+    state = get_rate_limiter_state(api_name)
+    with _rate_limiter_lock:
+        now = time.time()
+        start_at = max(now, state.next_slot)
+        state.next_slot = start_at + config.min_interval_seconds
+        return max(0.0, start_at - now)
+
+
+def get_retry_after(error: Exception) -> float:
+    """Read a server-supplied retry delay off an exception, if it carries one.
+
+    Clients raise errors with a `retry_after` attribute when the API sent a
+    `Retry-After` header (HTTP 429). Honoring it beats guessing with
+    exponential backoff.
+
+    Args:
+        error: The exception raised by the wrapped call.
+
+    Returns:
+        Seconds the server asked us to wait, or 0.0 when it did not.
+    """
+    retry_after = getattr(error, "retry_after", None)
+    try:
+        return max(0.0, float(retry_after))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 async def wait_for_rate_limit(api_name: str) -> None:
-    """Wait until rate limit allows a request."""
+    """Wait until rate limit and stagger allow a request."""
     can_proceed, wait_time = check_rate_limit(api_name)
     if not can_proceed:
         logger.info(f"Rate limiting {api_name}: waiting {wait_time:.1f}s")
         await asyncio.sleep(wait_time)
 
+    stagger = reserve_stagger_slot(api_name)
+    if stagger > 0:
+        logger.debug(f"Staggering {api_name}: waiting {stagger:.1f}s for the next slot")
+        await asyncio.sleep(stagger)
+
 
 def sync_wait_for_rate_limit(api_name: str) -> None:
-    """Synchronous version - wait until rate limit allows a request."""
+    """Synchronous version - wait until rate limit and stagger allow a request."""
     can_proceed, wait_time = check_rate_limit(api_name)
     if not can_proceed:
         logger.info(f"Rate limiting {api_name}: waiting {wait_time:.1f}s")
         time.sleep(wait_time)
+
+    stagger = reserve_stagger_slot(api_name)
+    if stagger > 0:
+        logger.debug(f"Staggering {api_name}: waiting {stagger:.1f}s for the next slot")
+        time.sleep(stagger)
 
 
 T = TypeVar('T')
@@ -237,9 +338,16 @@ def with_rate_limit(api_name: str):
                         logger.debug(f"Backoff {api_name}: waiting {backoff:.1f}s (attempt {attempt + 1})")
                         await asyncio.sleep(backoff)
 
+                    gate = get_concurrency_gate(api_name)
                     try:
                         record_request(api_name)
-                        result = await func(*args, **kwargs)
+                        if gate is not None:
+                            gate.acquire()
+                        try:
+                            result = await func(*args, **kwargs)
+                        finally:
+                            if gate is not None:
+                                gate.release()
                         record_success(api_name)
                         return result
                     except Exception as e:
@@ -250,6 +358,13 @@ def with_rate_limit(api_name: str):
                             logger.warning(
                                 f"{api_name} request failed (attempt {attempt + 1}/{config.max_retries + 1}): {e}"
                             )
+                            retry_after = get_retry_after(e)
+                            if retry_after > 0:
+                                capped = min(retry_after, config.max_delay)
+                                logger.info(
+                                    f"{api_name} asked for {retry_after:.1f}s; waiting {capped:.1f}s"
+                                )
+                                await asyncio.sleep(capped)
                         else:
                             logger.error(f"{api_name} request failed after {config.max_retries + 1} attempts: {e}")
 
@@ -275,9 +390,16 @@ def with_rate_limit(api_name: str):
                         logger.debug(f"Backoff {api_name}: waiting {backoff:.1f}s (attempt {attempt + 1})")
                         time.sleep(backoff)
 
+                    gate = get_concurrency_gate(api_name)
                     try:
                         record_request(api_name)
-                        result = func(*args, **kwargs)
+                        if gate is not None:
+                            gate.acquire()
+                        try:
+                            result = func(*args, **kwargs)
+                        finally:
+                            if gate is not None:
+                                gate.release()
                         record_success(api_name)
                         return result
                     except Exception as e:
@@ -288,6 +410,13 @@ def with_rate_limit(api_name: str):
                             logger.warning(
                                 f"{api_name} request failed (attempt {attempt + 1}/{config.max_retries + 1}): {e}"
                             )
+                            retry_after = get_retry_after(e)
+                            if retry_after > 0:
+                                capped = min(retry_after, config.max_delay)
+                                logger.info(
+                                    f"{api_name} asked for {retry_after:.1f}s; waiting {capped:.1f}s"
+                                )
+                                time.sleep(capped)
                         else:
                             logger.error(f"{api_name} request failed after {config.max_retries + 1} attempts: {e}")
 
@@ -312,8 +441,10 @@ def reset_rate_limiter(api_name: Optional[str] = None) -> None:
         if api_name:
             if api_name in _rate_limiter_states:
                 _rate_limiter_states[api_name] = RateLimiterState()
+            _rate_limiter_semaphores.pop(api_name, None)
         else:
             _rate_limiter_states.clear()
+            _rate_limiter_semaphores.clear()
 
 
 def get_rate_limit_stats(api_name: str) -> dict[str, Any]:

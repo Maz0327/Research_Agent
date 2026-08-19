@@ -1662,3 +1662,101 @@ checklist; check items only with demonstrated output.
 
 **Honesty note:** last FULL test-suite run was at the Shape-B commit (1260
 passed, 1 pre-existing unrelated failure). Re-run full suite at P3 start.
+
+---
+
+## P3 CHECKLIST — work-order items (session opened 2026-08-19)
+
+Rule: an item checks off ONLY with the demonstrating command's output pasted
+beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
+
+### §A Ingestion lane (pure code)
+- [x] A1 Whisper client fix — `whisper_client.py` `_segment_field`/`_normalize_segments` handle SDK objects and dicts
+  ```
+  $ pytest backend/tests/test_whisper_client.py -q
+  6 passed in 1.65s
+  ```
+  (`.get()` on `TranscriptionSegment` replaced by attribute access; None-valued
+  fields fall back to defaults; missing `segments` yields `[]` instead of raising.)
+- [x] A2 Supadata stagger/backoff — 1.1s spacing between starts, 2 in flight max, `Retry-After` honored
+  ```
+  $ pytest backend/tests/test_supadata_rate_limiting.py backend/tests/test_rate_limiter.py \
+      backend/tests/test_rate_limiter_thread_safety.py backend/tests/test_supadata_metadata.py -q
+  47 passed (13 new)
+  ```
+  Rate limiter gained `min_interval_seconds` (slot reserved under the lock, so
+  concurrent threads queue instead of racing), `max_concurrent` (per-API
+  semaphore), and `get_retry_after()`. Supadata client raises
+  `SupadataRateLimitError` with the parsed `Retry-After` on 429.
+  Side effect: `conftest.py` now resets limiter state per test — cross-test
+  failure accumulation was costing the suite ~5 minutes
+  (`test_supadata_metadata.py` alone: 312s → 34s).
+- [ ] A3 Byline capture — meta/JSON-LD/oEmbed first, LLM fallback
+- [ ] A4 Raw-text preservation contract — doc_0 `full_text` never optional
+- [ ] A5 Fetch fallbacks — archive.org/jina + navigation-chrome heuristic
+
+### §B Extraction / validation (pure code)
+- [ ] B6 KP-ID namespacing `source_id:kp_id` + supported_by attribution fix
+- [ ] B7 Syndication dup detector (8-word shingles)
+- [ ] B8 Theme dedup (shingle/string similarity)
+- [ ] B9 `llm_judge` counter fix (counts items, not flags)
+- [ ] B10 Harvest as a real pipeline stage → coverage inventory for gate 13
+
+### §C Distillation
+- [ ] C11 Reference normalizer — SRC→CLM repair in `thesis.based_on`
+
+### §D Briefing build (D-025)
+- [ ] D12 Briefing JSON schema (8 sections; zero nullable branches)
+- [ ] D13 Coverage gate (code) — harvest inventory vs Briefing
+- [ ] D14 Generation passes per §J (see pass checklist below)
+- [ ] D15 Renderer (JSON→HTML) + Source Vault generator + lint additions
+- [ ] D16a Grounding gate (code) — hard-atom match vs doc_0/harvest + narrowed inputs
+- [ ] D16 Doc 3 retired behind config flag
+
+### §E Existing P3 scope
+- [ ] E17 Judge contest (Terra vs kimi-k2.6; κ / position-swap / test-retest) + env-driven model sweep
+- [ ] E18 Exa into grounded search providers (optional, time permitting)
+
+### §H Lint upgrades
+- [ ] H19 Statistical module in `style_enforcer.py` (advisory tier)
+- [ ] H20 Document slop score 0–100 (trend instrument, never a gate)
+- [ ] H21 Vocabulary expansion (copula avoidance, synonym cycling, inflation, false ranges/hedging)
+- [ ] H22 Post-repair invariant validator (quotes/numbers/dates/ids byte-identical)
+- [ ] H23 AI-fingerprint pre-flight (shared lint lib)
+
+### §I Blind spots + update mechanism
+- [ ] I24 Corpus balance report (code + 1 small LLM call)
+- [ ] I25 Harvest recall audit (stratified sample re-extract, code fuzzy-match)
+- [ ] I26 Staleness/freshness pass → dated addendum
+- [ ] I27 Vault copyright flag (private default, paywall-marker detection)
+- [ ] I28 Injection hardening (delimited source data + injection lint)
+- [ ] I29 Update mechanism — check_updates mode, addendum-first render, version diff
+- [ ] I30 Read regression test (cold-reader harness + trend tracking)
+
+### §J generation passes (build exactly; approved 08-18)
+- [ ] J1 The Read (Sonnet 5, 1 call, raw doc_0 full_texts) + lint + one repair round
+- [ ] J2 Subject map (code pre-route + 1 cheap LLM call; no-orphan enforced before writing)
+- [ ] J3 Files (1 small call per file, parallel) + per-file coverage gate + one append-only repair
+- [ ] J4 Disputes (code selects + chips; LLM writes for/against)
+- [ ] J5 The Record (code skeleton/sort; LLM blurbs; date validation)
+- [ ] J6 Players (code counts 2+-section threshold; LLM writes cards)
+- [ ] J7 Remainder (anecdote blurbs, Info Gaps code transform, Source Trail lines)
+- [ ] J8 Assembly & render (pure code; lint sweep, repair pairs, H22, D16a, renderer + vault)
+
+### Gates
+- [ ] **[MAZ]** blind read: old-vs-new lineup Briefings (judge/model sweep ratification)
+- [ ] **[MAZ]** read of the first end-to-end D-025 Briefing (Hawara `c5d32615`)
+
+### Session log
+- 2026-08-19 session start: full test suite re-run (honesty note discharge):
+  `1 failed, 1268 passed, 2 skipped in 358.28s` — the single failure is the
+  known pre-existing `test_verify_claim_supporting_quotes`, which also fails at
+  the P0 commit. Baseline confirmed; nothing else is red.
+- ⚠️ `pre-commit run --all-files` is unusable in this repo as configured, three
+  ways: `detect-secrets` aborts (`.secrets.baseline` does not exist); `mypy`
+  reports 2227 pre-existing errors across 161 files; and `ruff --fix` +
+  `ruff-format` + the whitespace/EOF hooks rewrite ~300 files repo-wide,
+  including `Archive Docs/` and `docs/_archive_do_not_read/` (tried once,
+  reverted). Working practice until Maz decides: `codespell` and `ruff check`
+  on touched files only, new code kept ruff-clean, no reformatting of
+  untouched files. Flagged for the first gate.

@@ -47,6 +47,57 @@ class SupadataError(Exception):
     pass
 
 
+class SupadataRateLimitError(SupadataError):
+    """Raised on HTTP 429 so the rate limiter can honor Retry-After.
+
+    Attributes:
+        retry_after: Seconds the server asked us to wait, or None when the
+            response carried no usable `Retry-After` header.
+    """
+
+    def __init__(self, message: str, retry_after: Optional[float] = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+def _parse_retry_after(response: httpx.Response) -> Optional[float]:
+    """Read the `Retry-After` header off a 429 response.
+
+    Args:
+        response: The rate-limited HTTP response.
+
+    Returns:
+        Delay in seconds, or None when the header is absent or not a number
+        (the HTTP-date form is not used by this API).
+    """
+    raw = response.headers.get("Retry-After")
+    if raw is None:
+        return None
+    try:
+        return max(0.0, float(raw))
+    except (TypeError, ValueError):
+        return None
+
+
+def _raise_for_rate_limit(response: httpx.Response, what: str) -> None:
+    """Raise `SupadataRateLimitError` when the response is a 429.
+
+    Args:
+        response: The HTTP response to inspect.
+        what: Short label for the call, used in the error message.
+
+    Raises:
+        SupadataRateLimitError: If the response status is 429.
+    """
+    if response.status_code == 429:
+        retry_after = _parse_retry_after(response)
+        raise SupadataRateLimitError(
+            f"{what} rate limited (429)"
+            + (f", retry after {retry_after:.0f}s" if retry_after else ""),
+            retry_after=retry_after,
+        )
+
+
 class SupadataClient:
     """
     Supadata API client for multi-platform transcription (HTTP-only).
@@ -102,6 +153,8 @@ class SupadataClient:
             }
 
             response = self.http.get("/transcript", params=params)
+
+            _raise_for_rate_limit(response, "Transcript")
 
             if response.status_code != 200:
                 error_text = response.text[:200] if response.text else "No error message"
@@ -177,6 +230,8 @@ class SupadataClient:
 
             response = self.http.get("/web/scrape", params={"url": url})
 
+            _raise_for_rate_limit(response, "Scrape")
+
             if response.status_code != 200:
                 raise SupadataError(f"Scrape failed: {response.status_code}")
 
@@ -221,6 +276,8 @@ class SupadataClient:
             logger.info(f"Supadata metadata: {url[:50]}...")
 
             response = self.http.get("/metadata", params={"url": url})
+
+            _raise_for_rate_limit(response, "Metadata")
 
             if response.status_code != 200:
                 error_text = response.text[:200] if response.text else "No error message"
