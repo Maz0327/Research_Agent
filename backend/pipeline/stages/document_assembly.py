@@ -208,6 +208,7 @@ def build_source_ledger(
             ),
             transcript_provenance=transcript_provenance,
             failure_reason=source_data.get("failure_reason"),
+            duplicate_of=source_data.get("duplicate_of"),
         )
 
         ledger.sources.append(entry)
@@ -931,6 +932,7 @@ def stage_document_assembly(ctx: PipelineContext) -> dict:
             "transcript_source": pkg.transcript_source,
             "failed": not pkg.is_accessible,
             "failure_reason": pkg.failure_reason,
+            "duplicate_of": getattr(ctx, "duplicate_sources", {}).get(pkg.source_id),
             "captions_status": "success" if pkg.transcript_source == "youtube_captions" else "missing",
         })
 

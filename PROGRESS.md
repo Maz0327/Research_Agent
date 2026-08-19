@@ -1772,7 +1772,24 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   New shared module `text_similarity.py` (shingles, containment, grouping)
   also serves B7 and B8.
   Behaviour change recorded in 4 existing extraction tests (IDs now qualified).
-- [ ] B7 Syndication dup detector (8-word shingles)
+- [x] B7 Syndication dup detector — code-decided, first publisher kept
+  ```
+  $ python - <<'EOF'   # films fixture, 8 sources, all 28 pairs
+  SRC_7 vs SRC_8  0.976        # The Conversation, republished by ScreenHub
+  every other pair 0.000
+  with captured dates -> [{'duplicate': 'SRC_8', 'canonical': 'SRC_7', 'overlap': 0.976}]
+  independent sources: 7 of 8
+  EOF
+  $ pytest -q
+  1 failed, 1372 passed, 2 skipped in 78.69s   # the one known pre-existing failure
+  ```
+  `stage_duplicate_detection` runs right after sources are built and before
+  anything counts them. 8-word shingle containment decides (threshold 0.50
+  against a measured 0.976-vs-0.000 split); the first publisher is canonical
+  when dates exist (A3 captures them), the fuller text when they do not.
+  Nothing is deleted: the duplicate keeps its ledger entry, now carrying
+  `duplicate_of`, and stops counting as independent corroboration through
+  `build_source_coverage`. The pair is named in the job's warnings.
 - [ ] B8 Theme dedup (shingle/string similarity)
 - [ ] B9 `llm_judge` counter fix (counts items, not flags)
 - [ ] B10 Harvest as a real pipeline stage → coverage inventory for gate 13

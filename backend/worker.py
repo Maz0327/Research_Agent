@@ -186,6 +186,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
         stage_10_completion,
     )
     from backend.pipeline.stages.creator_brief_stage import run_creator_brief_stage
+    from backend.pipeline.stages.duplicate_detection import stage_duplicate_detection
     from backend.pipeline.stages.source_identity import (
         build_source_identity_from_video,
         build_source_identity_from_article,
@@ -481,6 +482,10 @@ def _run_mixed_input_job(ctx, job) -> dict:
             raise ValueError("No valid sources after processing - all inputs failed")
 
         logger.info(f"[{job_id}] Built {len(ctx.source_identity_packages)} source identity packages")
+
+        # Mark syndicated copies before anything counts sources, so four
+        # printings of one wire story never read as four sources agreeing.
+        stage_duplicate_detection(ctx)
 
         # Run semantic pipeline stages
         update_job(job_id, stage="semantic_extraction", progress_percent=20)

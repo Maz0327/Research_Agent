@@ -88,6 +88,8 @@ class PipelineContext:
     # Phase 5: Multi-Source Tracking
     source_coverage: dict = field(default_factory=dict)  # claim_id → [source_ids] that support it
     cross_source_conflicts: list = field(default_factory=list)  # Detected cross-source conflicts
+    duplicate_sources: dict = field(default_factory=dict)  # duplicate source_id → canonical source_id
+    duplicate_source_report: list = field(default_factory=list)  # detected syndication pairs + scores
     source_contributions: dict = field(default_factory=dict)  # source_id → {key_points: n, themes: n, ...}
 
     # Phase 6: Evolving Jobs (Add Sources to Completed Jobs)

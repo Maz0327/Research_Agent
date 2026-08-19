@@ -174,6 +174,10 @@ class SourceEntry:
     full_text: Optional[str] = None
     full_text_unavailable_reason: Optional[str] = None  # For degraded sources
 
+    # Syndication: set when this source is a republished copy of another one.
+    # The entry stays in the ledger; it just stops counting as independent.
+    duplicate_of: Optional[str] = None
+
     # Transcript Provenance (video sources only)
     transcript_provenance: Optional[TranscriptProvenance] = None
 
@@ -199,6 +203,7 @@ class SourceEntry:
             },
             "full_text": self.full_text,
             "full_text_unavailable_reason": self.full_text_unavailable_reason,
+            "duplicate_of": self.duplicate_of,
             "transcript_provenance": (
                 self.transcript_provenance.to_dict()
                 if self.transcript_provenance else None
