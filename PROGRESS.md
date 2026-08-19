@@ -1887,10 +1887,34 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   Also preserved into the repo: `artifacts/mockups/hawara-briefing-mockup.html`
   and `hawara-sources.html`, the visual spec, which were living in a session
   scratchpad.
-- [ ] D13 Coverage gate (code) — harvest inventory vs Briefing
+- [x] D13 Coverage gate + [x] D16a Grounding gate — both mechanical, both calibrated
+  ```
+  $ pytest backend/tests/test_briefing_gates.py -q
+  16 passed
+  $ PYTHONPATH=. python scratch/calibrate_gates.py   # the OWNER-APPROVED Hawara Briefing
+  prose: 5,310 words | atoms checked: 300 | unmatched: 12 (4.0%)
+  numbers:  63 checked,  1 unmatched -> ['4500']
+  names:   212 checked,  9 unmatched -> ['Briefing','Rebuilt','SETI','SRC','ScanPyramids',
+                                         'Snopes','Sophia','Streets','Underway']
+  quotes:   25 checked,  2 unmatched -> (two mispaired spans from stripping the mockup's HTML)
+  $ pytest -q
+  1 failed, 1435 passed, 2 skipped in 79.08s   # the one known pre-existing failure
+  ```
+  `backend/pipeline/briefing_gates.py`. Grounding checks the invention
+  direction: every number, name token, and quoted passage in model-written
+  prose must appear in the raw source text or the harvest. Coverage checks the
+  loss direction: every harvested fact must be said somewhere, by its
+  distinctive atoms or by a close restatement — there is no "omitted as
+  unimportant" state.
+  Calibration mattered and changed the design twice: whole-name runs failed 90
+  of 264 candidates on approved text (possessives and prepositions), so names
+  are checked token by token with hyphenated compounds split; quoted spans
+  under six words were all titles and scare quotes, so they are not treated as
+  citations. That took false positives from 34% to 4%, and the remainder is
+  mostly my HTML-stripping harness rather than the gate, which reads JSON
+  fields.
 - [ ] D14 Generation passes per §J (see pass checklist below)
 - [ ] D15 Renderer (JSON→HTML) + Source Vault generator + lint additions
-- [ ] D16a Grounding gate (code) — hard-atom match vs doc_0/harvest + narrowed inputs
 - [ ] D16 Doc 3 retired behind config flag
 
 ### §E Existing P3 scope
