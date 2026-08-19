@@ -292,6 +292,39 @@ def grounding_gate(
     return report
 
 
+def fact_is_covered(fact_text: str, passages: Iterable[str]) -> bool:
+    """Is this harvested fact said anywhere in these passages?
+
+    Covered means either the passage carries the fact's distinctive atoms (its
+    numbers and names), or it restates the fact closely enough. Used by the
+    coverage gate over a whole Briefing and by the file pass over one file.
+
+    Args:
+        fact_text: The harvested fact.
+        passages: Prose to check against.
+
+    Returns:
+        True when the fact is present.
+    """
+    passages = list(passages)
+    document = normalize(" ".join(passages))
+    document_numbers = numbers_in(document)
+
+    fact_numbers = numbers_in(fact_text)
+    fact_names = {normalize(n) for n in names_in(fact_text)}
+    if (
+        (fact_numbers or fact_names)
+        and all(n in document_numbers or n in document for n in fact_numbers)
+        and all(name in document for name in fact_names)
+    ):
+        return True
+
+    return any(
+        statement_similarity(fact_text, passage) >= _FACT_MATCH_THRESHOLD
+        for passage in passages
+    )
+
+
 def coverage_gate(briefing, harvest_inventory: Iterable[dict]) -> GateReport:
     """Check that everything the harvest found is somewhere in the Briefing.
 
@@ -311,29 +344,13 @@ def coverage_gate(briefing, harvest_inventory: Iterable[dict]) -> GateReport:
     if not passages:
         report.notes.append("Briefing carries no prose; nothing could be covered")
 
-    document = normalize(" ".join(passages))
-    document_numbers = numbers_in(document)
-
     for fact in harvest_inventory:
         text = fact.get("text", "")
         if not text.strip():
             continue
         report.checked += 1
 
-        fact_numbers = numbers_in(text)
-        fact_names = {normalize(n) for n in names_in(text)}
-        atoms_present = (
-            bool(fact_numbers or fact_names)
-            and all(n in document_numbers or n in document for n in fact_numbers)
-            and all(name in document for name in fact_names)
-        )
-        if atoms_present:
-            continue
-
-        if any(
-            statement_similarity(text, passage) >= _FACT_MATCH_THRESHOLD
-            for passage in passages
-        ):
+        if fact_is_covered(text, passages):
             continue
 
         report.findings.append(

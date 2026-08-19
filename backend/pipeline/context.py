@@ -93,6 +93,8 @@ class PipelineContext:
     theme_merges: list = field(default_factory=list)  # themes merged as restatements of each other
     harvest: dict = field(default_factory=dict)  # source_id → dense fact statements
     harvest_inventory: list = field(default_factory=list)  # flat facts with IDs, the coverage-gate input
+    briefing: Optional[object] = None  # the generated Research Briefing (D-025)
+    briefing_report: dict = field(default_factory=dict)  # coverage + grounding gate results
     source_contributions: dict = field(default_factory=dict)  # source_id → {key_points: n, themes: n, ...}
 
     # Phase 6: Evolving Jobs (Add Sources to Completed Jobs)
