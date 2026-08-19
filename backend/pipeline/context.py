@@ -91,6 +91,7 @@ class PipelineContext:
     duplicate_sources: dict = field(default_factory=dict)  # duplicate source_id → canonical source_id
     duplicate_source_report: list = field(default_factory=list)  # detected syndication pairs + scores
     theme_merges: list = field(default_factory=list)  # themes merged as restatements of each other
+    injection_flags: dict = field(default_factory=dict)  # source_id → model-addressed text found in it
     harvest: dict = field(default_factory=dict)  # source_id → dense fact statements
     harvest_inventory: list = field(default_factory=list)  # flat facts with IDs, the coverage-gate input
     briefing: Optional[object] = None  # the generated Research Briefing (D-025)

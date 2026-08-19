@@ -34,6 +34,7 @@ from backend.models.briefing import (
     RecordEntry,
 )
 from backend.pipeline.briefing_routing import paragraphs_for_fact
+from backend.pipeline.injection_guard import DATA_NOTICE, delimit
 from backend.pipeline.prompts.briefing_prompts import (
     BLURB_ROLE,
     CONTRIBUTION_ROLE,
@@ -44,6 +45,7 @@ from backend.pipeline.prompts.briefing_prompts import (
     READ_ROLE,
     SUBJECT_MAP_ROLE,
 )
+from backend.pipeline.text_similarity import statement_similarity
 
 # The Read is one call over all raw text (owner decision: 20-source cap keeps
 # it single-call). This is the character budget that keeps it inside context.
@@ -63,6 +65,11 @@ SUBJECT_MAP_BATCH = 150
 # Entries per blurb call. Context notes are a few sentences each, so a long
 # chronology needs several calls rather than one that truncates.
 BLURB_BATCH = 20
+
+# The Files section is a reader's map of the corpus, and a map with twenty
+# regions is not a map (work order Section J: 4-8 subjects). Batching pushes
+# the count up, so code caps it afterwards rather than asking harder.
+MAX_FILE_SUBJECTS = 8
 
 
 def _manifest_line(source: dict) -> str:
@@ -105,7 +112,11 @@ def run_read_pass(client: Any, topic: str, sources: list[dict]) -> Read:
             continue
         bodies.append(
             f"===== {source.get('source_id')} · {source.get('title') or 'Untitled'} =====\n"
-            f"{text[:READ_MAX_CHARS_PER_SOURCE]}"
+            + delimit(
+                text[:READ_MAX_CHARS_PER_SOURCE],
+                source.get("source_id") or "SOURCE",
+                notice=False,
+            )
         )
 
     prompt = (
@@ -113,6 +124,7 @@ def run_read_pass(client: Any, topic: str, sources: list[dict]) -> Read:
         f"SOURCE MANIFEST ({len(sources)} sources)\n{manifest}\n\n"
         f"{READ_EXAMPLES}\n\n"
         "Now write the read for the sources below. Same shape, same register.\n\n"
+        f"{DATA_NOTICE}\n\n"
         + "\n\n".join(bodies)
     )
 
@@ -202,7 +214,49 @@ def run_subject_map_pass(
         logger.warning(f"Subject map left {len(orphans)} fact(s) unassigned")
         subjects.append({"title": "Everything else", "fact_ids": sorted(orphans)})
 
-    return subjects, anecdotes
+    return cap_subjects(subjects), anecdotes
+
+
+def cap_subjects(
+    subjects: list[dict], maximum: int = MAX_FILE_SUBJECTS
+) -> list[dict]:
+    """Fold the smallest subjects into their nearest neighbour, keeping facts.
+
+    Batching the map across a large corpus produces more subjects than the
+    format wants. Merging is code's call and it is conservative: the smallest
+    subject joins whichever surviving subject its title is closest to, and its
+    facts move with it, so the merge changes where a fact is filed and never
+    whether it is filed.
+
+    Args:
+        subjects: Subjects from the map pass, largest-first order not required.
+        maximum: How many files the section may carry.
+
+    Returns:
+        At most `maximum` subjects, every fact still assigned.
+    """
+    if len(subjects) <= maximum:
+        return subjects
+
+    ordered = sorted(subjects, key=lambda s: -len(s["fact_ids"]))
+    # Copy what survives: callers keep their own list, and a merge that
+    # mutated the input would double-count facts for anyone measuring after.
+    kept = [{"title": s["title"], "fact_ids": list(s["fact_ids"])} for s in ordered[:maximum]]
+    overflow = ordered[maximum:]
+
+    for subject in overflow:
+        scored = [
+            (statement_similarity(subject["title"], candidate["title"]), index)
+            for index, candidate in enumerate(kept)
+        ]
+        _, best = max(scored) if scored else (0.0, 0)
+        kept[best]["fact_ids"].extend(subject["fact_ids"])
+        logger.info(
+            f"Subject '{subject['title']}' folded into '{kept[best]['title']}' "
+            f"({len(subject['fact_ids'])} facts)"
+        )
+
+    return kept
 
 
 def _fact_context(fact_texts: list[str], raw_by_source: dict[str, str], fact_sources: list[str]) -> str:
@@ -240,7 +294,12 @@ def run_file_pass(
 
     prompt = (
         f"SUBJECT: {title}\n\nFACTS TO WRITE (every one must appear)\n{listing}"
-        + (f"\n\nRAW SOURCE PARAGRAPHS THESE CAME FROM\n{context}" if context else "")
+        + (
+            "\n\nRAW SOURCE PARAGRAPHS THESE CAME FROM\n"
+            + delimit(context, f"{title}-context")
+            if context
+            else ""
+        )
     )
     data, _ = client.generate_structured(
         prompt=prompt,

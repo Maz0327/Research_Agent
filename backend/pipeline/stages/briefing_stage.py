@@ -59,6 +59,7 @@ def build_briefing(
     disputes_input: Optional[list[dict]] = None,
     gaps: Optional[list[dict]] = None,
     read: Optional[Read] = None,
+    subject_map: Optional[tuple[list[dict], list[str]]] = None,
 ) -> tuple[Briefing, dict]:
     """Run every pass and assemble the Briefing.
 
@@ -74,6 +75,8 @@ def build_briefing(
         read: An already-written Section 1. Supplying it skips pass 1, which is
             what an iterate run wants: the reference layer is rebuilt from new
             material while the read the owner already accepted stands.
+        subject_map: An already-decided (subjects, anecdote_ids) grouping.
+            Supplying it skips pass 2 the same way.
 
     Returns:
         Tuple of (Briefing, report). The report carries both gates and the
@@ -105,8 +108,12 @@ def build_briefing(
     )
 
     # --- Pass 2: subject map ------------------------------------------------
-    logger.info(f"[{ctx.job_id}] Briefing pass 2: subject map")
-    subjects, anecdote_ids = run_subject_map_pass(client, routed["remaining"])
+    if subject_map is None:
+        logger.info(f"[{ctx.job_id}] Briefing pass 2: subject map")
+        subjects, anecdote_ids = run_subject_map_pass(client, routed["remaining"])
+    else:
+        subjects, anecdote_ids = subject_map
+        logger.info(f"[{ctx.job_id}] Briefing pass 2 skipped: grouping supplied")
     by_id = {f["fact_id"]: f for f in inventory}
 
     # --- Pass 3: files, with a per-file coverage check ----------------------

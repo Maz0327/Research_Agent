@@ -140,6 +140,30 @@ class TestSubjectMapPass:
 
         assert subjects == [{"title": "Everything else", "fact_ids": ["SRC_1:F_1"]}]
 
+    def test_too_many_subjects_are_folded_together(self):
+        """A map with twenty regions is not a map; the cap is code's call."""
+        from backend.pipeline.briefing_passes import cap_subjects
+
+        subjects = [
+            {"title": f"Subject {i}", "fact_ids": [f"SRC_1:F_{i}_{j}" for j in range(10 - i)]}
+            for i in range(11)
+        ]
+        before = sum(len(s["fact_ids"]) for s in subjects)
+
+        capped = cap_subjects(subjects)
+
+        assert len(capped) == 8
+        assert sum(len(s["fact_ids"]) for s in capped) == before
+        assert sum(len(s["fact_ids"]) for s in subjects) == before  # input untouched
+
+    def test_a_small_map_is_left_alone(self):
+        """Under the ceiling, nothing is merged."""
+        from backend.pipeline.briefing_passes import cap_subjects
+
+        subjects = [{"title": "One", "fact_ids": ["a"]}, {"title": "Two", "fact_ids": ["b"]}]
+
+        assert cap_subjects(subjects) == subjects
+
     def test_no_facts_no_call(self):
         """Nothing to group means nothing is spent."""
         client = _client({"subjects": [], "anecdote_fact_ids": []})

@@ -16,6 +16,7 @@ from typing import Optional
 from loguru import logger
 
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.injection_guard import flag_sources, injection_warning
 from backend.pipeline.text_similarity import shingle_overlap
 
 # Calibrated on the films corpus: syndicated pair 0.976, all 27 other pairs
@@ -126,6 +127,18 @@ def stage_duplicate_detection(ctx: PipelineContext) -> None:
     duplicate_of, report = find_duplicate_sources(sources)
     ctx.duplicate_sources = duplicate_of
     ctx.duplicate_source_report = report
+
+    # The same walk over every source is the natural place to flag text that
+    # addresses a model rather than a reader (work order I.28).
+    flagged = flag_sources(
+        [{"source_id": sid, "full_text": text} for sid, text, *_ in sources]
+    )
+    ctx.injection_flags = flagged
+    for source_id, findings in flagged.items():
+        warning = injection_warning(source_id, findings)
+        if warning:
+            logger.warning(f"[{ctx.job_id}] {warning}")
+            ctx.add_warning(warning)
 
     if not report:
         logger.info(f"[{ctx.job_id}] No syndicated duplicates among {len(sources)} sources")

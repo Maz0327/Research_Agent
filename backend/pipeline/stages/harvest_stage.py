@@ -22,6 +22,7 @@ from loguru import logger
 
 from backend.config import get_settings
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.injection_guard import delimit
 from backend.state import update_job
 
 HARVEST_SCHEMA = {
@@ -112,7 +113,8 @@ def harvest_source(
 
     prompt = (
         _identity_block(source_id, title, mode, ceiling)
-        + f"\nTEXT FROM: {title}\n\n{text[:limit]}"
+        + f"\nTEXT FROM: {title}\n\n"
+        + delimit(text[:limit], source_id)
     )
 
     data, usage = client.generate_structured(
