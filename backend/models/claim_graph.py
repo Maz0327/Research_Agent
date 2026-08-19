@@ -493,6 +493,103 @@ def normalize_wire_payload(node: Any) -> Any:
     return out
 
 
+def repair_references(payload: Any) -> tuple[Any, list[str]]:
+    """Rewrite source IDs that appear where claim IDs belong.
+
+    Measured failure (2026-08-17, job c5d32615): both the primary and the
+    escalation model returned `thesis.based_on: ["SRC_2", "SRC_5"]`. The
+    thesis is grounded in claims, not sources, so validation rejected the
+    graph and the job burned an Opus escalation on an error class that has a
+    deterministic answer: the claims that cite that source ARE the claims the
+    thesis rests on.
+
+    Nothing is invented and nothing is dropped. A reference that cannot be
+    resolved mechanically is left exactly as it is, so validation still fails
+    loudly rather than shipping a graph with a dangling pointer.
+
+    Args:
+        payload: The wire payload, after `normalize_wire_payload`.
+
+    Returns:
+        Tuple of (payload, repairs). Each repair is a human-readable note of
+        what was rewritten, for the job's warnings.
+    """
+    if not isinstance(payload, dict):
+        return payload, []
+
+    claims = payload.get("claims")
+    if not isinstance(claims, list):
+        return payload, []
+
+    claims_by_source: dict[str, list[str]] = {}
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        claim_id = claim.get("id")
+        for evidence in claim.get("evidence") or []:
+            source_id = (evidence or {}).get("source_id") if isinstance(evidence, dict) else None
+            if not source_id or not claim_id:
+                continue
+            citing = claims_by_source.setdefault(source_id, [])
+            # A claim citing one source twice is still one claim.
+            if claim_id not in citing:
+                citing.append(claim_id)
+
+    repairs: list[str] = []
+
+    def resolve_list(refs: Any, where: str) -> Any:
+        """Expand source refs in a list of claim refs."""
+        if not isinstance(refs, list):
+            return refs
+        out: list[str] = []
+        for ref in refs:
+            replacements = claims_by_source.get(ref) if isinstance(ref, str) else None
+            if replacements:
+                repairs.append(
+                    f"{where}: {ref} -> {', '.join(replacements)} "
+                    f"(the claims citing that source)"
+                )
+                out.extend(r for r in replacements if r not in out)
+            elif ref not in out:
+                out.append(ref)
+        return out
+
+    def resolve_one(ref: Any, where: str) -> Any:
+        """Replace a single source ref with the first claim citing it."""
+        replacements = claims_by_source.get(ref) if isinstance(ref, str) else None
+        if not replacements:
+            return ref
+        repairs.append(f"{where}: {ref} -> {replacements[0]} (first claim citing that source)")
+        return replacements[0]
+
+    thesis = payload.get("thesis")
+    if isinstance(thesis, dict):
+        thesis["based_on"] = resolve_list(thesis.get("based_on"), "thesis.based_on")
+
+    market = payload.get("market_context")
+    if isinstance(market, dict):
+        market["based_on"] = resolve_list(market.get("based_on"), "market_context.based_on")
+
+    for story in payload.get("story_goods") or []:
+        if isinstance(story, dict):
+            story["claim_ids"] = resolve_list(
+                story.get("claim_ids"), f"{story.get('id', 'story good')}.claim_ids"
+            )
+
+    for hole in payload.get("holes") or []:
+        if isinstance(hole, dict) and hole.get("attached_to") != "thesis":
+            hole["attached_to"] = resolve_one(
+                hole.get("attached_to"), f"{hole.get('id', 'hole')}.attached_to"
+            )
+
+    for label in ("weakest_ground", "strongest_ground"):
+        ground = payload.get(label)
+        if isinstance(ground, dict):
+            ground["claim_id"] = resolve_one(ground.get("claim_id"), f"{label}.claim_id")
+
+    return payload, repairs
+
+
 def _sanitize(node: Any) -> Any:
     """Strip unsupported keywords, force additionalProperties, require all keys.
 

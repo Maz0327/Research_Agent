@@ -1848,7 +1848,23 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   lock, ceiling declaration, empty-output permission) per Rules 7-8.
 
 ### §C Distillation
-- [ ] C11 Reference normalizer — SRC→CLM repair in `thesis.based_on`
+- [x] C11 Reference normalizer — SRC→CLM repaired by code, no escalation call
+  ```
+  $ python - <<'EOF'   # films fixture graph, with the c5d32615 error reproduced
+  broken thesis.based_on: ['SRC_1', 'SRC_2']
+  BEFORE repair: rejected -> "thesis based_on references unknown claim SRC_1"
+  AFTER  repair: validated; 15 claims; thesis.based_on = ['CLM_1','CLM_2','CLM_7',...]
+     repair: thesis.based_on: SRC_1 -> CLM_1, CLM_2, CLM_7, CLM_8, CLM_9 (the claims citing that source)
+  EOF
+  $ pytest -q
+  1 failed, 1407 passed, 2 skipped in 78.20s   # the one known pre-existing failure
+  ```
+  `repair_references` runs between `normalize_wire_payload` and validation, and
+  covers every site where a claim ID is expected: `thesis.based_on`,
+  `market_context.based_on`, story-good `claim_ids`, hole attachments, and both
+  grounds. A source ref becomes the claims citing that source (all of them for
+  list fields, the first for single-value fields). Unresolvable refs are left
+  alone so validation still fails loudly, and every rewrite is logged.
 
 ### §D Briefing build (D-025)
 - [ ] D12 Briefing JSON schema (8 sections; zero nullable branches)

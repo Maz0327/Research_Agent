@@ -25,6 +25,7 @@ from backend.models.claim_graph import (
     ClaimGraph,
     api_json_schema,
     normalize_wire_payload,
+    repair_references,
 )
 from backend.models.semantic_units import ConfidenceLevel
 from backend.pipeline.context import PipelineContext
@@ -235,6 +236,11 @@ def distill_corpus(
             usages.append(usage)
 
             data = normalize_wire_payload(data)
+            # Source IDs where claim IDs belong is a solved-by-code error, not
+            # a reason to burn an escalation call. See repair_references.
+            data, repairs = repair_references(data)
+            for repair in repairs:
+                logger.info(f"[{job_id}] Reference repair: {repair}")
             data["job_id"] = job_id
             graph = ClaimGraph.model_validate(data)
 
