@@ -33,7 +33,9 @@ repos:
     rev: v2.3.0
     hooks:
       - id: codespell
-        args: ['--skip', '*.json,*.lock,venv,node_modules,docs/_archive_do_not_read', '--ignore-words-list', 'hawara,fayoum,herodotus']
+        # The artifacts folder holds verbatim source text and fixture data;
+        # a source's own typo is part of the record, not a defect to fix.
+        args: ['--skip', '*.json,*.lock,venv,node_modules,docs/_archive_do_not_read,plans/260814-claim-graph-briefing/artifacts', '--ignore-words-list', 'hawara,fayoum,herodotus,nomes,strabo']
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

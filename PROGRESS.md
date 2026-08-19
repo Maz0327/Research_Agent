@@ -1867,7 +1867,26 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   alone so validation still fails loudly, and every rewrite is logged.
 
 ### §D Briefing build (D-025)
-- [ ] D12 Briefing JSON schema (8 sections; zero nullable branches)
+- [x] D12 Briefing JSON schema — canonical model + per-pass wire schemas
+  ```
+  $ pytest backend/tests/test_briefing_model.py -q
+  12 passed
+  ```
+  `backend/models/briefing.py`: the 8-section canonical artifact (Read,
+  Players, Record, Files, Disputes, Anecdotes, Info Gaps, Source Trail) with
+  the invariants that are the document's guarantees — Section 1 must exist,
+  every citation must resolve to a Source Trail entry, a republication must
+  name a real source, unknown fields are rejected. Chip labels are locked to
+  the D-025 vocabulary and their tone is derived, so no caller can invent a
+  status.
+  The full schema is never sent to an API: code assembles the document (§J
+  pass 8). What does go over the wire is seven small pass schemas (Read,
+  subject map, file, dispute, blurbs, players, contributions), each flat,
+  closed, fully required, and with zero nullable branches — the measured
+  grammar ceiling, asserted in tests.
+  Also preserved into the repo: `artifacts/mockups/hawara-briefing-mockup.html`
+  and `hawara-sources.html`, the visual spec, which were living in a session
+  scratchpad.
 - [ ] D13 Coverage gate (code) — harvest inventory vs Briefing
 - [ ] D14 Generation passes per §J (see pass checklist below)
 - [ ] D15 Renderer (JSON→HTML) + Source Vault generator + lint additions

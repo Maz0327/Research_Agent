@@ -1,0 +1,638 @@
+<title>The Hawara Briefing</title>
+<style>
+  :root {
+    --ground: #EFEEE8;
+    --panel: #E7E5DC;
+    --ink: #20231F;
+    --ink-soft: #5A5E56;
+    --accent: #175E66;
+    --accent-soft: #175E661A;
+    --rule: #CFCDC2;
+    --solid: #2F6E45;
+    --solid-bg: #2F6E4518;
+    --contested: #9A6414;
+    --contested-bg: #9A641418;
+    --network: #9C3D22;
+    --network-bg: #9C3D2216;
+    --anno: #175E66;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #15181A;
+      --panel: #1D2124;
+      --ink: #E6E3D8;
+      --ink-soft: #9AA097;
+      --accent: #63B8BC;
+      --accent-soft: #63B8BC1C;
+      --rule: #33383B;
+      --solid: #6FBE8B;
+      --solid-bg: #6FBE8B1A;
+      --contested: #D9A84E;
+      --contested-bg: #D9A84E1A;
+      --network: #E07B5C;
+      --network-bg: #E07B5C18;
+      --anno: #63B8BC;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #15181A;
+    --panel: #1D2124;
+    --ink: #E6E3D8;
+    --ink-soft: #9AA097;
+    --accent: #63B8BC;
+    --accent-soft: #63B8BC1C;
+    --rule: #33383B;
+    --solid: #6FBE8B;
+    --solid-bg: #6FBE8B1A;
+    --contested: #D9A84E;
+    --contested-bg: #D9A84E1A;
+    --network: #E07B5C;
+    --network-bg: #E07B5C18;
+    --anno: #63B8BC;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 96px;
+  }
+  .page { max-width: 74ch; margin: 0 auto; }
+  .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* ---------- masthead ---------- */
+  .mockup-band {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--anno);
+    border: 1px dashed var(--anno);
+    border-radius: 3px;
+    padding: 8px 12px;
+    margin: 28px 0 40px;
+  }
+  header.mast { margin: 0 0 12px; }
+  .doc-kicker {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: 40px;
+    line-height: 1.12;
+    font-weight: 600;
+    margin: 0 0 18px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .meta-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    padding: 12px 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 8px;
+  }
+  .meta-strip b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- section scaffolding ---------- */
+  section { margin-top: 64px; }
+  .sec-head { border-top: 3px solid var(--ink); padding-top: 14px; }
+  .sec-num {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+  }
+  h2 {
+    font-size: 27px;
+    font-weight: 600;
+    margin: 4px 0 6px;
+    text-wrap: balance;
+  }
+  .anno {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--anno);
+    background: var(--accent-soft);
+    border-left: 3px solid var(--anno);
+    padding: 8px 12px;
+    margin: 12px 0 26px;
+  }
+  h3 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 34px 0 8px;
+  }
+  p { margin: 0 0 16px; }
+  p.tight { margin-bottom: 8px; }
+
+  /* ---------- chips ---------- */
+  .chip {
+    display: inline-block;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-radius: 3px;
+    padding: 2px 7px 1px;
+    vertical-align: 2px;
+    white-space: nowrap;
+  }
+  .chip.solid { color: var(--solid); background: var(--solid-bg); }
+  .chip.contested { color: var(--contested); background: var(--contested-bg); }
+  .chip.network { color: var(--network); background: var(--network-bg); }
+  .src {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- section 1 body ---------- */
+  .read p:first-of-type::first-line { letter-spacing: 0.01em; }
+  .read .lede { font-size: 18.5px; }
+
+  /* ---------- player cards ---------- */
+  .players { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+  @media (max-width: 620px) { .players { grid-template-columns: 1fr; } }
+  details.player {
+    background: var(--panel);
+    border-radius: 4px;
+    align-self: start;
+  }
+  details.player summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 14px 16px 12px;
+    position: relative;
+  }
+  details.player summary::-webkit-details-marker { display: none; }
+  details.player summary::after {
+    content: "+";
+    position: absolute;
+    top: 12px; right: 14px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 15px;
+    color: var(--accent);
+  }
+  details.player[open] summary::after { content: "\2212"; }
+  details.player summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .player .name { display: block; font-weight: 600; font-size: 16.5px; padding-right: 22px; }
+  .player .role {
+    display: block;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 1px;
+  }
+  details.player p { font-size: 14.5px; line-height: 1.55; margin: 0; padding: 0 16px 14px; }
+
+  /* ---------- timeline ---------- */
+  .timeline { list-style: none; margin: 20px 0 0; padding: 0; }
+  .timeline li {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .timeline .when {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    padding-top: 2px;
+  }
+  .timeline .what { font-size: 15.5px; line-height: 1.55; }
+
+  /* ---------- files ---------- */
+  .file { border: 1px solid var(--rule); border-radius: 4px; padding: 18px 20px 6px; margin-top: 22px; background: transparent; }
+  .file h3 { margin-top: 0; }
+  .file .filehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .file p { font-size: 15.5px; }
+  .file-note {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 26px 0 0;
+  }
+
+  /* ---------- dispute table ---------- */
+  .disputes { margin-top: 20px; border-top: 1px solid var(--rule); }
+  .dispute {
+    display: grid;
+    grid-template-columns: 1fr 128px;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  @media (max-width: 560px) { .dispute { grid-template-columns: 1fr; gap: 6px; } }
+  .dispute p { font-size: 15.5px; margin: 0 0 4px; }
+  .dispute .holders { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+  .dispute .verdict { text-align: right; }
+  @media (max-width: 560px) { .dispute .verdict { text-align: left; } }
+
+  /* ---------- dropdowns ---------- */
+  details.more {
+    margin-top: 8px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--panel);
+  }
+  details.more summary {
+    cursor: pointer;
+    padding: 7px 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    list-style-position: inside;
+  }
+  details.more summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  details.more .body { padding: 2px 16px 12px; font-size: 14.5px; line-height: 1.6; }
+  details.more .body p { margin: 0 0 10px; }
+  details.more .side {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: block;
+    margin: 10px 0 3px;
+  }
+  details.more .side.for { color: var(--solid); }
+  details.more .side.against { color: var(--network); }
+
+  /* ---------- anecdotes ---------- */
+  .anecdotes { list-style: none; margin: 20px 0 0; padding: 0; }
+  .anecdotes li {
+    padding: 10px 0 10px 18px;
+    border-left: 2px solid var(--rule);
+    margin-bottom: 10px;
+    font-size: 15.5px;
+    line-height: 1.55;
+  }
+
+  /* ---------- open questions ---------- */
+  .oq { counter-reset: oq; list-style: none; margin: 20px 0 0; padding: 0; }
+  .oq li { counter-increment: oq; margin-bottom: 20px; padding-left: 40px; position: relative; }
+  .oq li::before {
+    content: counter(oq, decimal-leading-zero);
+    position: absolute; left: 0; top: 3px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: var(--accent);
+  }
+  .oq .q { font-weight: 600; }
+  .oq .go {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    display: block;
+    margin-top: 3px;
+  }
+
+  /* ---------- source trail ---------- */
+  .trail { margin-top: 20px; border-top: 1px solid var(--rule); }
+  .trail-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 14.5px;
+    line-height: 1.5;
+  }
+  .trail-row .sid {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--accent);
+    padding-top: 2px;
+  }
+  .trail-row .what b { font-weight: 600; }
+  .trail-row .contrib { color: var(--ink-soft); font-size: 13.5px; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  footer {
+    margin-top: 72px;
+    padding-top: 16px;
+    border-top: 3px solid var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+
+  <div class="mockup-band">Format mockup — this is what every Briefing will look like. Teal boxes describe each section's job; everything else is real content from the labyrinth run (job c5d32615, 16 sources, 42,263 raw words).</div>
+
+  <header class="mast">
+    <p class="doc-kicker">Research Briefing · Lost With Maz</p>
+    <h1>The Lost Labyrinth of Hawara &amp; the Hall of Records</h1>
+    <div class="meta-strip">
+      <span><b>16</b> sources</span>
+      <span><b>42,263</b> raw words read</span>
+      <span>quotes verified <b>97%</b></span>
+      <span>confidence <b>MEDIUM</b></span>
+      <span>2026-08-17</span>
+    </div>
+  </header>
+
+  <!-- ================= SECTION 1 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 1</span>
+      <h2>The Read</h2>
+    </div>
+    <div class="anno">The argument, told once, in full — written from the raw source texts, not the extracted atoms. Linear; carries you. Judgment is allowed here: ranking the pile, pointing at the heat, staging the fights. This is the only section built to be read top to bottom. Everything below it is lossless reference: you consult it, you don't read through it.</div>
+
+    <div class="read">
+      <p class="lede">Read all sixteen. Here's what's actually in the pile, told straight.</p>
+      <p><strong>What you've got:</strong> five videos — a Joe Rogan clip with a guest laying out the whole scan saga, a Sphinx conspiracy video, a Why Files episode, and two videos from the same creator (Johanna), one of which is an interview with Trevor Grassi of the Archaeological Rescue Foundation — plus Grassi's own foundation mega-page, the believers' substack, two Wikipedia articles, Herodotus (fetch failed), a serious archaeology magazine feature, a mystery site, two Khafre-Project debunks, and coverage of the 2026 dig. On paper that's sixteen sources. It isn't. The entire affirmative case flows through one small crew — De Cordier, Grassi, Brown, Akers, Boulter — who fund each other's scans, publish on each other's platforms, and appear in each other's videos. Their own flagship document says it proudly: "at least one member of our current extended team was present at every one" of the four scanning missions. That's the most important thing in the pile — what looks like four independent confirmations is one network scanning the same spot four times.</p>
+      <p><strong>The story, assembled:</strong> the ancient part is real and unusually strong. Six classical authors describe a colossal building at Hawara; Herodotus and Strabo actually walked it, and Herodotus counted 3,000 chambers — half above ground, half below, the lower half off-limits. Even the most skeptical source in the pile treats the building as historical fact. In 1888 Flinders Petrie found a giant artificial stone bed there — a thousand feet long — and concluded he was standing on the <em>foundation</em> of a labyrinth quarried to nothing. That's been the textbook position ever since. The believers' whole case is one elegant inversion: what if Petrie found the roof? Three ancient authors do say the roof was stone slabs "like the walls." The 2008 Mataha expedition — De Cordier's money, Egypt's own NRIAG doing the geophysics, Ghent University attached — scanned below the slab and reported a grid of granite-like walls at 8–12 meters. Then the results went quiet: De Cordier says Hawass's council banned all communication citing national security, threatened the team, and blacklisted him when he self-published in 2010. After that the claims escalate with each retelling: Boulter's satellite work adds a flooded level and a dry one; Akers's 2015 Merlin Burrows scan adds four levels, a dome the size of Hagia Sophia, two intact wooden boats, and a 40-meter freestanding <em>metal</em> object at the dead center. Note the pattern: the two people who saw the wildest data, Akers and Boulter, are both dead, and Akers's scan sat under a ten-year NDA until 2025 — every extraordinary claim routes through witnesses who can no longer be questioned.</p>
+      <p><strong>Three real fights.</strong> <em>Still there vs. long gone:</em> the scan network vs. Petrie and the mainstream — and the telling detail is that the best scholarly piece in the pile never mentions the 2008 scans at all. It's busy with a more boring problem: the ancient accounts contradict each other, only two authors actually visited, and the Egyptologist Eric Uphill's reconstruction dissolves the "one giant building" into an ordinary pyramid complex that merely <em>felt</em> like a maze. One mid-tier source does bridge the lanes — dishonestly: it claims the 2008 radar found rooms "packed with magnificent hieroglyphs and murals." Radar cannot see murals. <em>Suppression vs. disclosure politics:</em> the cover-up story has a hole its own tellers keep stepping in — Egypt granted the permits, Egypt's own institute ran and published the scans, and in May 2026 Egypt launched an official dig at Hawara, the thing a real cover-up would never allow. The Rogan guest supplies the better theory himself: "I kind of don't really blame him… it was a political decision" — Egypt controls who announces. The fight isn't truth vs. lies; it's who owns the reveal. <em>The Khafre problem:</em> Snopes and Egyptian Streets dismantle the 2025 "city under Giza" claims — no peer review, radar physically can't reach those depths, the viral image AI-generated — and the Hawara crew welded themselves to that exact team: Biondi of the Khafre Project is announced as Hawara's next scanner. The debunkers never mention Hawara, but their ammunition transfers directly, and the believers loaded it for them.</p>
+      <p><strong>What's honestly missing:</strong> the actual scan data — the NRIAG papers and Mataha whitepaper are linked inside these sources but never quoted, so the entire pile is descriptions of evidence, not evidence; Hawass's side of the Mataha story in any form; a single independent expert speaking about Hawara's scans specifically; and anything on the 2026 dig from anyone outside the believer network.</p>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 2 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 2</span>
+      <h2>The Players</h2>
+    </div>
+    <div class="anno">Everyone who recurs, consolidated from all sixteen sources — so when a name reappears you look it up here instead of rereading. Rule: a name mentioned in more than one section gets a card here; a true one-off is introduced inline where it appears ("Eric Uphill, the Middle Kingdom specialist, argued…"). Roles are factual, with the network relationships made explicit.</div>
+
+    <div class="players">
+      <details class="player"><summary><span class="name">Louis De Cordier</span><span class="role">Mataha expedition lead · the origin of the suppression story</span></summary>
+        <p>Belgian artist who funded and drove the 2008 scans with NRIAG + Ghent. Says he was threatened with national-security sanctions; self-published June 2010; blacklisted from Egypt. Wrote the 2026 rescue master plan. Every suppression claim in the corpus traces to his account. <span class="src">SRC_1 · 3 · 4 · 10 · 16</span></p>
+      </details>
+      <details class="player"><summary><span class="name">Zahi Hawass</span><span class="role">SCA chief (then) · the story's antagonist</span></summary>
+        <p>Ran the Supreme Council of Antiquities in 2008. Accused of banning the Mataha release; separately on record ridiculing Sphinx-chamber and Göbekli Tepe claims. His documented pattern per SRC_1: dismiss a find, later announce it himself. His side of the Mataha story appears nowhere in the corpus. <span class="src">SRC_1 · 2 · 3 · 4 · 14</span></p>
+      </details>
+      <details class="player"><summary><span class="name">Flinders Petrie</span><span class="role">Excavated Hawara 1888–1911 · source of the orthodox verdict</span></summary>
+        <p>Mapped the pyramid's trap-door interior, found the mummy portraits and the "Hawara Homer," identified the 304×244 m stone bed as the labyrinth's foundation, and declared the building quarried away. The believers' case rests on flipping his one interpretive call. <span class="src">SRC_3 · 6 · 11 · 16</span></p>
+      </details>
+      <details class="player"><summary><span class="name">Trevor Grassi &amp; William Brown</span><span class="role">Archaeological Rescue Foundation · the amplifiers</span></summary>
+        <p>Brown ran the first GPR at the site (2007–9, Wroclaw/Cairo); Grassi runs the foundation page and press push. Both say they support De Cordier "from behind the scenes" because their Atlantis views "might antagonize the ministry." Johanna's interview (SRC_5) is with Grassi. <span class="src">SRC_5 · 16</span></p>
+      </details>
+      <details class="player"><summary><span class="name">Timothy Akers † · Carmen Boulter †</span><span class="role">The satellite scanners · both deceased</span></summary>
+        <p>Akers (Merlin Burrows, ex-RAF) claimed four levels, the dome, boats, and the 40 m metallic object — under NDA until 2025, released after his death via recorded footage. Boulter (GeoScan) produced the flooded/dry two-level model; died 2022 before publishing. <span class="src">SRC_1 · 3 · 16</span></p>
+      </details>
+      <details class="player"><summary><span class="name">The independent bench</span><span class="role">NRIAG / Dr. Abbas · Conyers · the debunkers</span></summary>
+        <p>Dr. Abbas Mohamed Abbas (NRIAG) led the actual 2008 geophysics and has real published papers — the corpus never quotes them. Lawrence Conyers (radar, U. Denver) and the fact-checkers demolish the Khafre/Giza claims but never address Hawara directly. <span class="src">SRC_13 · 14 · 16</span></p>
+      </details>
+      <details class="player"><summary><span class="name">Eric Uphill</span><span class="role">Egyptologist · the deflationary reconstruction</span></summary>
+        <p>Middle Kingdom architecture specialist (d. 2018). Rebuilt Hawara by comparison with the five other 12th-Dynasty pyramid complexes: not one giant building but a standard funerary sprawl — dock, valley temple, causeway flanked by queens' pyramids — that Greek visitors experienced as a maze. The strongest "nothing hidden" position in the corpus. <span class="src">SRC_11</span></p>
+      </details>
+      <details class="player"><summary><span class="name">The ancient witnesses</span><span class="role">Herodotus · Strabo · four hearsay authors</span></summary>
+        <p>Herodotus (c. 450 BC) and Strabo (c. 25 BC) actually walked the building; Manetho, Diodorus, Pliny, and Mela wrote from reports. Between them: the 3,000 chambers, the stone roof, the forbidden lower level — and enough contradictions (12 courts vs. ~30, tomb vs. temple) to fuel both camps for two centuries. <span class="src">SRC_8 · 11 · 16</span></p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 3 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 3</span>
+      <h2>The Record</h2>
+    </div>
+    <div class="anno">Chronology as navigation — every dated event in the corpus on one spine, so you can see what happened in what order without any source's framing. Each entry cites where it comes from.</div>
+
+    <ul class="timeline">
+      <li><span class="when">c. 450 BC</span><span class="what">Herodotus walks the upper labyrinth; priests refuse the lower chambers. Counts 3,000 rooms, 12 courts, stone roof. <span class="src">SRC_8 (via 11 · 16)</span>
+        <details class="more"><summary>More</summary><div class="body"><p>He's careful about what he saw versus what he was told: the upper 1,500 chambers he walked personally ("works of more than human greatness"); the lower 1,500 he reports as hearsay, because the priests said they held the tombs of the founding kings and the sacred crocodiles. He also places a pyramid at the labyrinth's corner with "a way made under ground" to it — the detail believers lean on for a pyramid–labyrinth connection.</p></div></details></span></li>
+      <li><span class="when">1st c. BC–43 AD</span><span class="what">Diodorus, Strabo, Pliny, Mela describe it; details conflict (courts, storeys, builder). Strabo visits; calls the roof single stones. <span class="src">SRC_11 · 16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>The conflicts matter later: Diodorus calls it the tomb of a king "Mendes" and says the Cretan labyrinth was a copy; Strabo counts courts by nomes ("fewer than 30") and insists the building is one storey; Pliny reports a "temple of the Sun" theory, doors that thunder when opened, and — crucially — that locals had been quarrying it "with extraordinary hatred" for centuries; Mela says 12 palaces and 1,000 houses. Same building, four different buildings' worth of description — the scholarly case against a reliable reconstruction starts here.</p></div></details></span></li>
+      <li><span class="when">1664–1740</span><span class="what">Lucas and Pococke still see surface ruins; an old guide claims to have entered subterranean passages "like little shops." <span class="src">SRC_4 · 16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>Paul Lucas (antiquary to Louis XIV) drew standing ruins and recorded an old local man claiming he'd once reached an underground chamber ringed with niches, with alleys branching off — passages already blocked by debris by Lucas's visit. Richard Pococke in 1740 saw "heaps of ruins covered with sand" locals called the Castle of Caroon. Point of the entry: three centuries ago something was still visible above ground that is entirely gone today.</p></div></details></span></li>
+      <li><span class="when">1843–1888</span><span class="what">Lepsius misreads Roman village ruins as the labyrinth; Petrie finds the great stone bed, calls it the foundation, verdict: destroyed. <span class="src">SRC_6 · 11 · 16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>Karl Lepsius (Prussian expedition, 1843) excavated brick chambers he took for the labyrinth; Petrie later showed they were a Roman-era village built on top of the ruins. Petrie's own find beneath them: a uniform plaster/beton bed roughly 304 × 244 m — big enough to hold Karnak and Luxor combined — under a six-foot layer of limestone chips. He read bed-plus-chips as floor-plus-demolition-debris, reconstructed the building on paper from the ancient texts, and closed the case: quarried away. That one interpretive call is what the entire modern fight is about.</p></div></details></span></li>
+      <li><span class="when">2007–09</span><span class="what">Brown (Wroclaw/Cairo) GPR: entrance shaft, pyramid corner deep underground. Mataha (De Cordier + NRIAG + Ghent): granite-like grid at 8–12 m under the slab. Cairo University conference; then the mission is suspended. <span class="src">SRC_10 · 16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>Two overlapping missions, both officially permitted. William Brown's Polish–Egyptian project drilled boreholes for groundwater and GPR-scanned around (and unknowingly into) the pyramid, finding its true stone corner far below the sand plus the shaft the network calls the labyrinth entrance. The Mataha expedition (Feb–Mar 2008) had Dr. Abbas of Egypt's NRIAG run GPR, VLF-EM, resistivity and seismic tomography over Petrie's bed — reported result: a huge high-resistivity grid at 8–12 m depth, on both sides of the canal. Results went into NRIAG's fall 2008 journal and an April 2009 Cairo University conference; the joint mission was suspended by the SCA right after.</p></div></details></span></li>
+      <li><span class="when">2010</span><span class="what">De Cordier self-publishes at labyrinthofegypt.com after two years of silence; says he was threatened. <span class="src">SRC_3 · 10</span>
+        <details class="more"><summary>More</summary><div class="body"><p>His account: the SCA's Secretary General stopped all communication of the findings citing Egyptian national security; he waited two years for an official release, concluded it would never come, and posted the scans, reports, and analysis himself in June 2010. He says he was then blacklisted from Egypt. The Why Files adds the exile image — from presenting at European universities to farming almonds in southern Spain. All of it originates from him; no second party in the corpus confirms the threats.</p></div></details></span></li>
+      <li><span class="when">2014–15</span><span class="what">Boulter/GeoScan satellite model (flooded level over dry level). Akers/Merlin Burrows scan — everyone signs a 10-year NDA. <span class="src">SRC_16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>Carmen Boulter (of the docu-series The Pyramid Code) organized satellite-based scans with GeoScan Systems and produced a crude two-level model — blue upper level flooded, red lower level dry. That flooded/dry split is why the rescue plan believes lower chambers are reachable. Timothy Akers's Merlin Burrows scan came right after; everyone present, De Cordier included, signed a ten-year NDA — attributed partly to Hawass-era intimidation, partly to "the extreme sensitivity of what was discovered." Boulter died in 2022 with her follow-up series unreleased.</p></div></details></span></li>
+      <li><span class="when">2023</span><span class="what">Carlotto publishes Sentinel-1 SAR paper on shallow rectangular features at Hawara. <span class="src">SRC_15 · 16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>Mark Carlotto's paper ("Space-Based Ground Penetrating Imaging of the Ancient Labyrinth at Hawara," on ResearchGate) reports shallow rectangular features south of the pyramid that line up with the earlier anomalies. The AncientHistoryX write-up calls this lane "careful, qualified science — sticking to what the tech could actually detect (shallow subsurface in dry desert soil)" — a notably more modest claim than the deep-levels-and-metal-object lane.</p></div></details></span></li>
+      <li><span class="when">Mar 2025</span><span class="what">Khafre Project "city under Giza" goes viral; Snopes and experts reject it (AI imagery, no peer review, radar depth). <span class="src">SRC_13 · 14</span>
+        <details class="more"><summary>More</summary><div class="body"><p>The viral version claimed five identical structures and eight wells descending 648 m under the Khafre pyramid. Snopes traced the amplification through the Reese Report / Infowars and found the most-shared cross-section image was 99.9% AI-generated. Named experts lined up against it: Conyers (radar can't penetrate remotely that deep), Hawass (unauthorized, no scientific basis), ex-minister al-Damaty ("utterly baseless"), Egyptologist Abdel-Basir (no peer review). This event matters to Hawara twice: it made satellite archaeology world-famous, and it pre-demolished the credibility of the exact team the Hawara network then partnered with.</p></div></details></span></li>
+      <li><span class="when">2025</span><span class="what">De Cordier releases the Merlin Burrows material (NDA expired; Akers deceased). Rescue master plan written. <span class="src">SRC_16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>With the NDA lapsed and public appetite primed by the Khafre wave, De Cordier published the scans in a two-part article series; Akers's claims (four levels, the dome, the boats, the 40 m metallic object) reached the public through recorded footage of him explaining the scans before his death. De Cordier spent 2025 assembling people and funding, and on December 30 the Archaeological Rescue Foundation posted his step-by-step rescue master plan — canal patch, drainage, excavation, full photogrammetric documentation.</p></div></details></span></li>
+      <li><span class="when">May 7 2026</span><span class="what">Egypt's Ministry confirms official excavation at Hawara — Ashraf Sobhi, Fayoum Antiquities, SCA team. Grassi's site posts megalithic-wall photos. <span class="src">SRC_15 · 16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>The Ministry of Tourism and Antiquities, through the Fayoum Antiquities Area, confirmed fieldwork to "locate and document any surviving remains of the Labyrinth" — Egyptian-led, framed around preservation, with water management (diversion canals, root-buffer planting) built in. The believer network celebrates it as vindication; it also quietly contradicts their suppression narrative. The only evidence of finds so far — photos of a megalithic wall — comes from Grassi's own site and tour footage, with no independent or official report in the corpus.</p></div></details></span></li>
+      <li><span class="when">2026–27</span><span class="what">Biondi (Khafre Project) slated to SAR-scan Hawara; De Cordier/Grassi site tour Feb 1–4, 2027. <span class="src">SRC_16</span>
+        <details class="more"><summary>More</summary><div class="body"><p>Per Grassi: Filippo Biondi agreed to make Hawara his next SAR target after Giza (estimated summer 2026), coordinated at a June 21 Bologna meeting alongside the Khafre Project's final Giza report. The Feb 2027 site tour is the network's public-facing next act — and a reminder that the same people supplying the evidence also sell the experience of it.</p></div></details></span></li>
+    </ul>
+  </section>
+
+  <!-- ================= SECTION 4 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 4</span>
+      <h2>The Files</h2>
+    </div>
+    <div class="anno">The lossless layer — every substantive fact from all sixteen sources, merged by subject instead of by source. Nothing gets dropped as "unimportant"; true duplicates merge; disagreements stay visible. Each file opens with its evidence status. (Mockup shows two files in full; the real document carries all six.)</div>
+
+    <div class="file">
+      <div class="filehead"><h3>File: The 2008 Scans</h3> <span class="chip solid">documented</span> <span class="chip network">single network on interpretation</span></div>
+      <p>Two overlapping missions, often conflated. Brown's Wroclaw/Cairo project (2007–9) drilled boreholes for groundwater, GPR-scanned the pyramid's flanks, found the structure's true corner deep under the sand, and located what the network calls the entrance shaft descending below the pyramid. De Cordier's Mataha expedition (Feb–Mar 2008) had Dr. Abbas of NRIAG run GPR, VLF-EM, resistivity and seismic tomography over Petrie's stone bed. Reported result: below the slab, at 8–12 m, a grid structure "of gigantic size" in very high-resistivity material "like granite," walls meters thick, on both sides of the canal, out of angle with the pyramid by 20–25° — which Johanna's video (SRC_4) takes as a hint the labyrinth predates the pyramid. Findings appeared in NRIAG's fall 2008 journal and a Ghent lecture. The corpus never reproduces a single scan image or data plot; the whitepaper and two Abbas papers exist as links only. Independent radar experts have not addressed these specific results anywhere in the pile.</p>
+    </div>
+
+    <div class="file">
+      <div class="filehead"><h3>File: The Water</h3> <span class="chip solid">established</span></div>
+      <p>The least contested fact and the engine of the 2026 story. A canal cut across the site around 1820 (Bahr Wahbi offshoot); the pyramid entrance now sits under ~6 m of water; Petrie's 19th-century access is impossible. Groundwater is saline and rising — a 2007 Geoarchaeology paper studied it formally, and Abbas published an updated water-level report in 2024. Scans are read as showing upper sub-levels flooded, deeper ones possibly dry. The rescue plan: patch the canal with cement and root-buffer planting short-term, reroute it entirely long-term, then drain, excavate, and photogrammetry-map everything before touching an artifact. Cost "well into the millions," years of work. Both believers and the official dig agree on the water; it's the one place the whole corpus points the same way.</p>
+    </div>
+
+    <p class="file-note">MOCKUP NOTE — two of six files shown, purely to keep this preview reviewable. The generated document always carries every file in full; the fidelity gate forbids dropping any. The other four here would be: The Ancient Accounts · The Suppression Story · The Escalating Scans (2014–2025) · Hall of Records Lore (Cayce → Giza → Hawara migration)</p>
+  </section>
+
+  <!-- ================= SECTION 5 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 5</span>
+      <h2>Disputed &amp; Uncertain</h2>
+    </div>
+    <div class="anno">Every genuine disagreement, staged with its holders — never flattened into consensus, never resolved unless the sources resolve it. The chip is the claim's actual status in the corpus, not a vibe. Each dispute opens into the full case for and against, with each side's actual evidence.</div>
+
+    <div class="disputes">
+      <div class="dispute">
+        <div>
+          <p>The labyrinth still exists intact under Petrie's stone bed (the "roof, not foundation" inversion).</p>
+          <p class="holders">For: De Cordier, the four scan missions, three ancient roof descriptions. Against: Petrie's verdict, quarry evidence, a century of orthodoxy.</p>
+          <details class="more"><summary>Full case, both sides</summary><div class="body">
+            <span class="side for">The case for</span>
+            <p>Three eyewitness-era authors independently describe a stone roof: Herodotus ("a roof made of stone like the walls"), Diodorus ("a roof made of a single stone"), Strabo (single-stone roofs, and a walkable "plain of masonry" on top — which is what a buried roof would look like from above). The Mataha scans report a granite-like grid at 8–12 m <em>below</em> Petrie's slab, on both sides of the canal; Brown's GPR found the entrance shaft and the pyramid's true corner deep underground. Johanna's video (SRC_4) adds that the grid sits 20–25° off the pyramid's orientation — read as a hint the structure predates the pyramid. <span class="src">SRC_1 · 4 · 10 · 16</span></p>
+            <span class="side against">The case against</span>
+            <p>Petrie found a six-foot stratum of limestone chips over the uniform beton bed — physical demolition debris — and Pliny records the site serving as the district's quarry for centuries, with stone still being carted off for a railway in the 19th century. A quarried-away building explains the chips; an intact roof doesn't. Eric Uphill's comparative reconstruction (laid out in the last dispute below) needs no hidden levels at all: a standard 12th-Dynasty mortuary complex whose sprawl merely felt maze-like to Greek visitors. And the scholarly source's bottom line: with conflicting texts and minimal remains, no reliable reconstruction is currently possible — which cuts against both camps' confidence. Nobody in the pile reconciles the chip stratum with the intact-roof theory. <span class="src">SRC_6 · 11 · 16</span></p>
+          </div></details>
+        </div>
+        <div class="verdict"><span class="chip contested">contested</span></div>
+      </div>
+      <div class="dispute">
+        <div>
+          <p>The Mataha findings were suppressed under national-security threats.</p>
+          <p class="holders">Sole origin: De Cordier's own account, repeated by every downstream source.</p>
+          <details class="more"><summary>Full case, both sides</summary><div class="body">
+            <span class="side for">The case for</span>
+            <p>De Cordier says the SCA's Secretary General halted all communication of the findings and threatened the team with national-security sanctions; he waited two years for an official release that never came, self-published in June 2010, and was blacklisted from Egypt. The believer timeline adds corroborating texture: the Cairo University–Wroclaw mission was suspended right after the April 2009 Labyrinth Conference, and the Merlin Burrows NDA is attributed "in part" to the same intimidation. The pile's pattern evidence: Gantenbrink banned after the 1993 shaft-door find, Collins's 2008 cave discovery denied then gated in 2010, ScanPyramids dismissed publicly then announced later by Hawass himself. <span class="src">SRC_1 · 2 · 3 · 4 · 10 · 16</span></p>
+            <span class="side against">The case against</span>
+            <p>Every step of Mataha ran through official channels: the SCA granted the permit, Egypt's own NRIAG performed the geophysics, and the results appeared in NRIAG's fall 2008 journal plus a public Ghent lecture — an odd shape for a cover-up. Egypt's standing rule is that the ministry controls announcements of finds, and the Rogan guest — a believer — offers that reading himself: "I kind of don't really blame him… this was a political decision." The strongest counter is current events: an Egyptian-led excavation opened at Hawara in May 2026, which the same sources now celebrate. And the threat claim itself has exactly one source: the man telling his own story. <span class="src">SRC_1 · 15 · 16</span></p>
+          </div></details>
+        </div>
+        <div class="verdict"><span class="chip network">single source</span></div>
+      </div>
+      <div class="dispute">
+        <div>
+          <p>A 40 m metallic object sits at the center of a four-level complex.</p>
+          <p class="holders">Sole origin: Akers's scan reading, NDA'd a decade, released after his death.</p>
+          <details class="more"><summary>Full case, both sides</summary><div class="body">
+            <span class="side for">The case for</span>
+            <p>Akers was a real expert — ex-RAF, career in satellite detection of submarines and underground bunkers — using SAR technology his company sells commercially to oil and mineral clients, claiming kilometers of proven depth. His reading: four levels at 40/60/80/100 m, a central gallery at least 40×100 m, and a freestanding ~40 m object whose return signature was metallic — "unlike any he had detected in his entire career." He drew no conclusion about what it is. Hours of him explaining the scans were recorded on video before his death. <span class="src">SRC_1 · 3 · 16</span></p>
+            <span class="side against">The case against</span>
+            <p>None of it is published, peer-reviewed, or independently examined — it sat under a ten-year NDA and surfaced posthumously through the believer network's own channels. The Why Files' own on-air debunk segment (SRC_3) concedes the metallic reading "could be a geological formation — iron deposits occur naturally" and that "critics say satellite radar can't penetrate that deep." That critique has a name in this corpus: Conyers, on the Khafre claims, said radar waves attenuate in the ground and called far shallower claims "a huge exaggeration" — and the Hawara crew has publicly tied its next scan to the same Khafre team the experts just dismantled. <span class="src">SRC_3 · 13 · 14 · 16</span></p>
+          </div></details>
+        </div>
+        <div class="verdict"><span class="chip network">unverifiable</span></div>
+      </div>
+      <div class="dispute">
+        <div>
+          <p>Herodotus was reliable about the labyrinth.</p>
+          <p class="holders">Long treated as his "rare instance of unreliability"; mid-tier sources now read 2008 as vindication.</p>
+          <details class="more"><summary>Full case, both sides</summary><div class="body">
+            <span class="side for">The case for</span>
+            <p>He claims eyewitness status plainly — "This I saw myself, and I found it greater than words can say" — and honestly separates what he saw (the upper chambers, walked room by room) from what he was told (the lower ones, which the priests refused). His geography checks out: Lake Moeris, the City of Crocodiles, the pyramid at the labyrinth's corner — all matching Hawara. The 2008 grid, if real, sits exactly where his account puts the underground half. <span class="src">SRC_8 · 11 · 12 · 16</span></p>
+            <span class="side against">The case against</span>
+            <p>The Egyptologist Alan Lloyd's analysis says only Herodotus and Strabo visited at all; the other four accounts are hearsay. The eyewitnesses disagree with each other — Herodotus's 12 courts vs. Strabo's courts-equal-nomes ("fewer than 30") vs. Pliny's 21 vs. Mela's 12 palaces and 1,000 houses — and Herodotus's key term (roughly "roofed courts") is a contradiction in Greek that scholars still argue over. He's also a historian "often accused" of over-schematising his numbers. Vindication claims overreach: one source asserts the radar found rooms "packed with magnificent hieroglyphs and murals," which radar cannot see. <span class="src">SRC_11 · 12</span></p>
+          </div></details>
+        </div>
+        <div class="verdict"><span class="chip contested">contested</span></div>
+      </div>
+      <div class="dispute">
+        <div>
+          <p>The Hall of Records is at Hawara rather than Giza.</p>
+          <p class="holders">An intra-believer migration: Cayce said Giza; a century of searches found nothing; two sources relocate it.</p>
+          <details class="more"><summary>Full case, both sides</summary><div class="body">
+            <span class="side for">The case for (as the believers argue it)</span>
+            <p>Every Giza search failed — SRI's 1978 drilling, the 1996 Schor survey, the 1999 water-shaft excavation — so maybe the site was wrong, not the archive. The labyrinth reads like a vault: Diodorus says it held "memorials of the homeland of each of the kings," the priests said the builders were older kings, and the Why Files makes the security argument outright — you don't hide your most precious secrets under the most famous landmark on Earth; you build a maze for them. <span class="src">SRC_2 · 3 · 4 · 7</span></p>
+            <span class="side against">The case against</span>
+            <p>The Hall of Records isn't ancient at all — the term starts with Edgar Cayce in the 1930s, drawing on Randall-Stevens and Spencer Lewis, who drew on Masonic and medieval legends. No classical author calls the labyrinth an archive of a lost civilization; Manetho flatly calls it a tomb. And the relocation itself is the tell: Wikipedia's history (via Colavito) documents exactly this pattern — when a predicted discovery fails to materialize, the belief migrates to fresher ground rather than dying. Hawara is the migration, arriving with zero new evidence. <span class="src">SRC_7 · 11</span></p>
+          </div></details>
+        </div>
+        <div class="verdict"><span class="chip network">belief migration</span></div>
+      </div>
+      <div class="dispute">
+        <div>
+          <p>One giant building vs. an ordinary pyramid complex that felt like a maze.</p>
+          <p class="holders">Petrie reconstructed one vast structure; the Egyptologist Eric Uphill dissolves it into standard 12th-Dynasty components.</p>
+          <details class="more"><summary>Full case, both sides</summary><div class="body">
+            <span class="side for">One giant building (Petrie)</span>
+            <p>The beton bed measures 304 × 244 m — Petrie noted all the temples of Karnak, Luxor, and part of western Thebes would fit inside it — and the chip stratum ends abruptly at the building's former limits, implying one continuous structure. The ancient awe reads the same way: a single marvel, not a neighborhood. <span class="src">SRC_11 · 16</span></p>
+            <span class="side against">A complex that felt like one (Uphill)</span>
+            <p>Eric Uphill was an Egyptologist who specialized in Middle Kingdom royal architecture; his study of Hawara compared it to the five other known 12th-Dynasty pyramid complexes. On that evidence he rebuilds the site not as one building but as the standard parts of a royal funerary complex: a boat dock and quay on the canal, a valley temple, a causeway lined with two facing rows of queens' pyramids (his candidate for Herodotus's "12 courts"), and a mortuary temple — with the 1,500 underground chambers explained as the shaft-tombs of the adjacent cemetery. On this reading the Greeks weren't lying, they were disoriented: unfamiliar architecture, over-schematised on the way home. It also quietly explains why the accounts conflict — they were describing different parts of a sprawl. <span class="src">SRC_11</span></p>
+          </div></details>
+        </div>
+        <div class="verdict"><span class="chip contested">contested</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SECTION 6 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 6</span>
+      <h2>Details &amp; Anecdotes</h2>
+    </div>
+    <div class="anno">The texture bin — specifics that don't fit the files but are exactly what makes a script feel researched. This section exists so "small" material can't silently vanish during synthesis. Each item opens into its full context.</div>
+
+    <ul class="anecdotes">
+      <li>Petrie got physically stuck in a collapsing sand tunnel inside the pyramid — candle out, pinned at the shoulders — and freed himself by the light of a match a worker tossed down. Then he went back in. <span class="src">SRC_3</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>1888: the pyramid is mud brick over a stone core, so Petrie's tunnels kept collapsing as he hunted for the entrance. After freeing himself he tunneled the south side, found the real door with steps down — and had to continue through chest-deep saline water, rats, and Amenemhat's trap system to reach the burial chamber. The chamber was an architectural masterpiece and completely empty — tomb robbers had cleaned it out thousands of years before he arrived. The Why Files stages this as an adventure scene; the underlying events are in Petrie's own journals.</p></div></details></li>
+      <li>The pyramid's defenses — three concealed 20-ton sliding trapdoors, dummy passages, blind shafts — were all found <em>disengaged</em>, doors open. Petrie couldn't explain it; Wikipedia still can't. <span class="src">SRC_6</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>The design was serious: each trapdoor opened onto a passage at a right angle, with mud-and-stone false blockings placed to waste robbers' time under threat of discovery. Wikipedia offers three explanations for why none of it was armed — burial-party negligence, an intention to return with more burials (the monolith held two sarcophagi with room for at least two more), or deliberate facilitation of robbery — and concludes "we cannot know." For a story about hidden chambers, the confirmed real mystery in the building is this one.</p></div></details></li>
+      <li>The burial chamber is a single 110-ton quartzite monolith. Inside: a lapis bead, burned bone, charcoal — robbers burned the pharaoh's mummy. <span class="src">SRC_6</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>The monolith was lowered into a limestone-lined chamber, roofed with three 45-ton quartzite slabs, two relieving chambers, 50-ton limestone slabs in a pointed roof, and a three-foot brick arch — engineering entirely real and entirely orthodox. The burn evidence means the robbery was ancient and thorough: the wooden coffins and the king's body itself were used as fuel, probably for light or to melt off gilding.</p></div></details></li>
+      <li>Petrie's Hawara digs also produced the Fayum mummy portraits and a papyrus of the Iliad ("the Hawara Homer") — the site is a legitimate archaeological treasure independent of any labyrinth claim. <span class="src">SRC_6</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>146 painted portraits from Roman-period coffins, among the only surviving panel paintings from classical antiquity; the Homer scroll (books 1–2 of the Iliad) now sits in the Bodleian. Useful framing: whatever is or isn't under the slab, Hawara already changed art history once — which is why "the site is worthless rubble" and "the site is priceless" are both wrong as framings.</p></div></details></li>
+      <li>Herodotus's underground informants weren't hiding technology, per the priests: the lower chambers held dead kings and sacred crocodiles. <span class="src">SRC_11 · 16</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>His exact report: the lower 1,500 chambers were off-limits because they held "the sepulchres of the kings who had first built this labyrinth and of the sacred crocodiles." The crocodile detail is well grounded — the Fayum was crocodile-cult country (Crocodilopolis next door; Sobekneferu, who also built at Hawara, is named for Sobek), and Petrie excavated crocodile tomb-chapels northeast of the pyramid. The believer reading leans on "kings who had <em>first</em> built" as implying older builders; the mundane reading is that the restricted area was a royal-and-sacred necropolis, exactly what priests would restrict.</p></div></details></li>
+      <li>The Rogan guest's scale line: finding the labyrinth would be "like finding another Giza plateau — underground." His sincerity line: "honestly, the biggest archaeological discovery of the millennium." <span class="src">SRC_1</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>Delivered while defending the scan technology as "established… out of the UK military," and — notably — while declining to fully blame Hawass, calling the shutdown political. The clip is useful for tone: this is the measured end of the believer spectrum, which makes the claims land harder than the breathless end. Rogan's reaction ("I literally stopped working out") is the audience-proof-of-grip moment.</p></div></details></li>
+      <li>Grassi wants to crowdsource a distributed-computing "digital dig" so Biondi's SAR processing stops taking two years per site on two home computers. <span class="src">SRC_5</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>Per Grassi, Biondi produced ~200 images of Giza in two years on two machines running around the clock; the "digital dig" would borrow idle processing power from volunteers, SETI@home style. Telling detail either way you read it: the technology at the center of the "vast underground city" claims is bottlenecked on hobbyist hardware — not what institutional-grade remote sensing looks like, but exactly what a passionate underfunded network looks like.</p></div></details></li>
+      <li>Akers's boats: two fully assembled wooden ships near the surface, Khufu-solar-boat style — sitting in the flood zone, which makes them the rescue plan's most urgent claimed artifact. <span class="src">SRC_16</span>
+        <details class="more"><summary>Context</summary><div class="body"><p>The comparison does real work: Khufu's solar boats are genuine, spectacular artifacts that survived 4,500 years because they were disassembled and sealed in dry pits. Akers's claimed boats are <em>assembled, in place</em>, on the complex's western end near the surface — inside the canal's flood zone. If true, they're both the most rescuable and the most perishable thing down there, which is why the rescue plan cites them for urgency. If false, they're a claim designed to create urgency. Both readings matter for the script.</p></div></details></li>
+    </ul>
+  </section>
+
+  <!-- ================= SECTION 7 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 7</span>
+      <h2>Info Gaps</h2>
+    </div>
+    <div class="anno">What the corpus does NOT contain — named as gaps so the section itself says "go do gap research here." Each one is phrased as a go-get-it instruction and doubles as the shopping list for the expand pass. Every gap is a hole a commenter could put a finger through.</div>
+
+    <ol class="oq">
+      <li><span class="q">Where is the actual scan data?</span> The whole pile describes evidence nobody shows. <span class="go">→ pull the Mataha whitepaper PDF + the two Abbas/NRIAG papers on ResearchGate (links live on the foundation's page, SRC_16)</span></li>
+      <li><span class="q">What's Hawass's side?</span> The story's antagonist never speaks about Mataha anywhere in the corpus. <span class="go">→ SCA statements / interviews 2008–2010 mentioning Hawara</span></li>
+      <li><span class="q">Any firsthand testimony from the threatened team?</span> The threats are only ever reported about them, never by them. <span class="go">→ Mataha team member names → interviews, posts after 2010</span></li>
+      <li><span class="q">What has the official dig actually found?</span> The megalithic wall exists only in Grassi's photos on Grassi's site. <span class="go">→ Ministry of Tourism &amp; Antiquities releases after May 2026; Egyptian press</span></li>
+      <li><span class="q">Which scan claimed what, exactly?</span> Four missions blur together in every retelling. <span class="go">→ per-mission table: team, tech, depth, published where</span></li>
+      <li><span class="q">Has any independent radar expert reviewed the Hawara data specifically?</span> Conyers only spoke about Giza. <span class="go">→ approach GPR literature on detection limits at 8–12 m in wet sediment</span></li>
+    </ol>
+  </section>
+
+  <!-- ================= SECTION 8 ================= -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">SECTION 8</span>
+      <h2>Source Trail</h2>
+    </div>
+    <div class="anno">Every source: what it is, and the one thing it uniquely contributes. IDs match the citations used through the whole document, so any claim traces back in one hop — and each ID links to the full raw transcript or article text in the companion vault: <a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479">The Hawara Sources</a>.</div>
+
+    <div class="trail">
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_1">SRC_1</a></span><span class="what"><b>Rogan clip — "Satellite Scans Show a Lost Labyrinth"</b> (video, 2025) <span class="contrib">— the full scan saga in one telling; the "I don't really blame him" political read of Hawass.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_2">SRC_2</a></span><span class="what"><b>"The Sphinx's Secret"</b> (video, 2023) <span class="contrib">— the Giza/Cayce/Hall-of-Records lore lane; Hawass's own 1996 tunnel footage.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_3">SRC_3</a></span><span class="what"><b>The Why Files — "Evidence of Atlantis in Egypt"</b> (video, 2025) <span class="contrib">— the maximal version of every claim, plus its own on-air debunk segment; best craft in the pile.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_4">SRC_4</a></span><span class="what"><b>Johanna — "The Findings"</b> (video, 2022) <span class="contrib">— the 20–25° misalignment detail; Lucas &amp; Pococke's 17th–18th c. surface ruins.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_5">SRC_5</a></span><span class="what"><b>Johanna × Trevor Grassi interview</b> (video, Feb 2026) <span class="contrib">— the rescue project announced from inside the network; "behind the scenes" admission.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_6">SRC_6</a></span><span class="what"><b>Wikipedia — Hawara</b> <span class="contrib">— the orthodox baseline: trapdoors, monolith, portraits, quarrying, canal flood depth.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_7">SRC_7</a></span><span class="what"><b>Wikipedia — Hall of Records</b> <span class="contrib">— the full genealogy of the myth, Cayce to Hancock, and every failed search.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_8">SRC_8</a></span><span class="what"><b>Herodotus, Histories 2.148</b> (Perseus) <span class="contrib">— primary text; fetch failed, page chrome only. Re-pull in expand pass.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_9">SRC_9</a></span><span class="what"><b>labyrinthofegypt.substack — "The Mataha Expedition"</b> <span class="contrib">— De Cordier's own framing; links the whitepaper PDF.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_10">SRC_10</a></span><span class="what"><b>Ancient Origins — Part 3</b> (2014) <span class="contrib">— cleanest account of the roof-not-foundation argument and the 2010 self-publication timeline.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_11">SRC_11</a></span><span class="what"><b>The Past — "The lost Egyptian labyrinth"</b> (Rigby) <span class="contrib">— the scholarly lane: conflicting ancient accounts, Lloyd, Uphill; never mentions the scans.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_12">SRC_12</a></span><span class="what"><b>Historic Mysteries — "Found at Last?"</b> (2022) <span class="contrib">— the vindication framing — and the "murals on radar" fabrication, caught.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_13">SRC_13</a></span><span class="what"><b>Snopes fact-check</b> (2025) <span class="contrib">— Khafre claims: AI imagery, Reese Report lineage, no peer review.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_14">SRC_14</a></span><span class="what"><b>Egyptian Streets debunk</b> (2025) <span class="contrib">— the expert bench by name: Conyers, Hawass, al-Damaty, Abdel-Basir.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_15">SRC_15</a></span><span class="what"><b>AncientHistoryX — "Excavations Underway"</b> (2026) <span class="contrib">— the May 2026 official dig, named officials, and the scan-history recap.</span></span></div>
+      <div class="trail-row"><span class="sid"><a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479#src_16">SRC_16</a></span><span class="what"><b>archaeologicalrescue.org — HAWARA PROJECT</b> (Grassi/De Cordier, living doc) <span class="contrib">— the believers' master document: all four scans, the plan, the costs, the full ancient quotes, and the network's own overlap admission.</span></span></div>
+    </div>
+  </section>
+
+  <footer>
+    Briefing generated from job c5d32615 · Research Agent · every claim above traces to raw source text via the IDs shown · Section 1 is written for reading; Sections 2–8 are the lossless reference layer (consult, don't read through) · full fidelity gate: no fact dropped as "unimportant" · raw texts of all 16 sources: <a href="https://claude.ai/code/artifact/f14c87ec-235b-444a-8266-4aa4a8e20479">The Hawara Sources (Doc 0 vault)</a>
+  </footer>
+
+</div>
