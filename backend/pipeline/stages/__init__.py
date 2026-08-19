@@ -14,6 +14,7 @@ from .initialization import stage_0_initialize, stage_10_completion
 from .source_identity import stage_source_identity
 from .duplicate_detection import stage_duplicate_detection
 from .semantic_extraction import stage_semantic_extraction
+from .harvest_stage import stage_harvest
 from .gap_analysis import stage_gap_analysis
 from .semantic_synthesis import stage_semantic_synthesis
 from .distillation_stage import stage_distillation
@@ -48,6 +49,7 @@ __all__ = [
     "stage_source_identity",
     "stage_duplicate_detection",
     "stage_semantic_extraction",
+    "stage_harvest",
     "stage_gap_analysis",
     "stage_semantic_synthesis",
     "stage_distillation",

@@ -178,6 +178,10 @@ class SourceEntry:
     # The entry stays in the ledger; it just stops counting as independent.
     duplicate_of: Optional[str] = None
 
+    # Dense fact statements harvested from this source. The Briefing's coverage
+    # gate checks the finished document against these, mechanically.
+    harvest_facts: list[str] = field(default_factory=list)
+
     # Transcript Provenance (video sources only)
     transcript_provenance: Optional[TranscriptProvenance] = None
 
@@ -204,6 +208,7 @@ class SourceEntry:
             "full_text": self.full_text,
             "full_text_unavailable_reason": self.full_text_unavailable_reason,
             "duplicate_of": self.duplicate_of,
+            "harvest_facts": self.harvest_facts,
             "transcript_provenance": (
                 self.transcript_provenance.to_dict()
                 if self.transcript_provenance else None

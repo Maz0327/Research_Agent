@@ -136,6 +136,21 @@ class Settings(BaseSettings):
         default="claude-opus-5", alias="MODEL_ESCALATION",
         description="Retry tier for schema-invalid distillation; never the default"
     )
+    model_harvest: str = Field(
+        default="claude-sonnet-5", alias="MODEL_HARVEST",
+        description="Per-source fact harvest; the measured configuration (85 -> 258 facts on the films corpus)"
+    )
+
+    # Fact harvest (work order B10). One structured call per source produces
+    # the dense fact inventory the Briefing's coverage gate checks against.
+    harvest_enabled: bool = Field(
+        default=True, alias="HARVEST_ENABLED",
+        description="Run the per-source fact harvest stage"
+    )
+    harvest_max_chars: int = Field(
+        default=24_000, alias="HARVEST_MAX_CHARS",
+        description="Characters of source text sent per harvest call (the proven setting)"
+    )
 
     # Kimi/Moonshot API (Visual analysis)
     kimi_api_key: Optional[str] = Field(

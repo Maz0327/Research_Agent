@@ -91,6 +91,8 @@ class PipelineContext:
     duplicate_sources: dict = field(default_factory=dict)  # duplicate source_id → canonical source_id
     duplicate_source_report: list = field(default_factory=list)  # detected syndication pairs + scores
     theme_merges: list = field(default_factory=list)  # themes merged as restatements of each other
+    harvest: dict = field(default_factory=dict)  # source_id → dense fact statements
+    harvest_inventory: list = field(default_factory=list)  # flat facts with IDs, the coverage-gate input
     source_contributions: dict = field(default_factory=dict)  # source_id → {key_points: n, themes: n, ...}
 
     # Phase 6: Evolving Jobs (Add Sources to Completed Jobs)

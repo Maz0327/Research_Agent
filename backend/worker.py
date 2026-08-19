@@ -187,6 +187,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
     )
     from backend.pipeline.stages.creator_brief_stage import run_creator_brief_stage
     from backend.pipeline.stages.duplicate_detection import stage_duplicate_detection
+    from backend.pipeline.stages.harvest_stage import stage_harvest
     from backend.pipeline.stages.source_identity import (
         build_source_identity_from_video,
         build_source_identity_from_article,
@@ -493,6 +494,11 @@ def _run_mixed_input_job(ctx, job) -> dict:
 
         update_job(job_id, stage="semantic_validation", progress_percent=35)
         run_stage_with_recovery(stage_semantic_validation, ctx, "semantic_validation")
+
+        # Dense per-source facts. Extraction abstracts; this keeps the concrete
+        # material, and its inventory is what the Briefing's coverage gate
+        # checks the finished document against.
+        run_stage_with_recovery(stage_harvest, ctx, "fact_harvest")
 
         update_job(job_id, stage="gap_analysis", progress_percent=50)
         run_stage_with_recovery(stage_gap_analysis, ctx, "gap_analysis")

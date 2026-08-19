@@ -1824,7 +1824,28 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   rest as a warning instead of acting on them. Flags for items the judge never
   reviewed are kept (no verdict contradicts them). Stats now carry
   `items_reviewed`, `hallucination_flags`, and `contradictory_flags`.
-- [ ] B10 Harvest as a real pipeline stage → coverage inventory for gate 13
+- [x] B10 Harvest is a real stage — live run reproduces the measured result
+  ```
+  $ python - <<'EOF'   # live, films fixture, real API calls
+  sources=8 raw_words=10,465 numbers_in_sources=85
+  harvested facts=256  with numbers=46  time=137s  cost=$0.27
+  SRC_1:39 SRC_2:36 SRC_3:26 SRC_4:19 SRC_5:26 SRC_6:34 SRC_7:36 SRC_8:40
+  sample: "SRC_1:F_3  Dean Cundey also shot The Thing, Halloween, Jurassic Park, and Apollo 13."
+  EOF
+  $ pytest -q
+  1 failed, 1395 passed, 2 skipped in 77.97s   # the one known pre-existing failure
+  ```
+  Matches the 08-16 scratch measurement (258 facts, $0.24) within noise, so the
+  stage is the proven pass and not a reimplementation of it. Runs after
+  validation, one isolated call per source, and stores `harvest` +
+  `harvest_inventory` (IDs `SRC_3:F_1`, `has_number` flag) on the context and
+  `harvest_facts` on each doc_0 source entry, which is the input gate 13 will
+  check the Briefing against. A source that fails to harvest is a warning, not
+  a failed job. Config: `HARVEST_ENABLED`, `HARVEST_MAX_CHARS`, `MODEL_HARVEST`
+  (default `claude-sonnet-5`, the configuration the numbers were measured on;
+  worth contesting in the §E model sweep, noted for Maz).
+  The proven prompt now also carries the constitution's guardrails (identity
+  lock, ceiling declaration, empty-output permission) per Rules 7-8.
 
 ### §C Distillation
 - [ ] C11 Reference normalizer — SRC→CLM repair in `thesis.based_on`
