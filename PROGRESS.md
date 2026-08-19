@@ -1750,7 +1750,28 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   2s apart) and an unreachable archive never fails a job.
 
 ### §B Extraction / validation (pure code)
-- [ ] B6 KP-ID namespacing `source_id:kp_id` + supported_by attribution fix
+- [x] B6 KP-ID namespacing + corroboration measured across sources
+  ```
+  $ python - <<'EOF'   # films fixture doc_2, as shipped vs rebuilt
+  BEFORE  entries=14/40 key points  multi-source=0  sources=5   # 26 key points lost to ID collisions
+  AFTER   entries=40/40 key points  multi-source=2  sources=8
+     SRC_7:kp2 / SRC_8:KP_2  "The film is credited with reviving public interest in palaeontology"
+  with SRC_8 folded into SRC_7 (syndication), multi-source = 0   # no inflated agreement
+  EOF
+  $ pytest -q
+  1 failed, 1362 passed, 2 skipped in 77.56s   # the one failure is the known pre-existing quote test
+  ```
+  `namespace_extraction_ids` qualifies every unit ID and internal reference as
+  `SRC_3:KP_1` at the single parse boundary, so every downstream consumer is
+  fixed without changing. `source_ids` is pinned to the owning source, since
+  isolated extraction cannot know about any other. Corroboration is now
+  measured by `build_source_coverage` matching statements across sources
+  (containment over content words, calibrated on 689 cross-source pairs:
+  median 0.045, threshold 0.60), with conflicting figures blocking a match and
+  syndicated copies folded into their canonical source first.
+  New shared module `text_similarity.py` (shingles, containment, grouping)
+  also serves B7 and B8.
+  Behaviour change recorded in 4 existing extraction tests (IDs now qualified).
 - [ ] B7 Syndication dup detector (8-word shingles)
 - [ ] B8 Theme dedup (shingle/string similarity)
 - [ ] B9 `llm_judge` counter fix (counts items, not flags)
@@ -1800,6 +1821,13 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 ### Gates
 - [ ] **[MAZ]** blind read: old-vs-new lineup Briefings (judge/model sweep ratification)
 - [ ] **[MAZ]** read of the first end-to-end D-025 Briefing (Hawara `c5d32615`)
+
+### Found defects, outside item scope (for Maz)
+- `backend/pipeline/stages/semantic_synthesis.py:381` references `style_violations`
+  before assignment. Any style-violation retry in the synthesis stage raises
+  `NameError` instead of retrying. Pre-existing (ruff F821 at HEAD too); left
+  alone because no P3 item touches that function yet.
+- `pre-commit run --all-files` rewrites ~300 files repo-wide (see the note below).
 
 ### Session log
 - 2026-08-19 session start: full test suite re-run (honesty note discharge):

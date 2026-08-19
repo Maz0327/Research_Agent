@@ -28,6 +28,7 @@ from backend.pipeline.prompts.semantic_synthesis_prompt import (
     SEMANTIC_SYNTHESIS_ROLE,
 )
 from backend.pipeline.style_enforcer import enforce_style
+from backend.pipeline.text_similarity import group_matching
 from backend.state import update_job
 
 
@@ -84,6 +85,53 @@ def aggregate_for_synthesis(ctx: PipelineContext) -> tuple[list[dict], list[dict
     return key_points, themes, tensions, gaps
 
 
+def build_source_coverage(
+    key_points: list[dict],
+    duplicate_of: dict[str, str] | None = None,
+) -> dict[str, list[str]]:
+    """Map each key point to every source that independently says it.
+
+    Extraction is source-isolated, so a key point's own `source_ids` always
+    names exactly one source. Corroboration therefore cannot be read off the
+    extraction: it has to be measured by matching what the sources say, which
+    is what this does. Before the fix, coverage was simply copied from
+    `source_ids` and every key point read as single-source.
+
+    Syndicated copies are folded into their canonical source first, so a wire
+    story republished four times counts once (the SRC_7/SRC_8 case).
+
+    Args:
+        key_points: Aggregated key-point dicts with `key_point_id`,
+            `statement`, and `source_ids`.
+        duplicate_of: Optional map of duplicate source ID to canonical source
+            ID, from the syndication detector.
+
+    Returns:
+        Dict mapping key_point_id to the sorted list of supporting source IDs.
+    """
+    duplicate_of = duplicate_of or {}
+
+    def canonical(source_id: str) -> str:
+        return duplicate_of.get(source_id, source_id)
+
+    groups = group_matching(
+        (kp["key_point_id"], kp.get("statement", "")) for kp in key_points
+    )
+
+    sources_by_group: dict[str, set[str]] = {}
+    for kp in key_points:
+        group_id = groups.get(kp["key_point_id"], kp["key_point_id"])
+        supporting = {canonical(s) for s in kp.get("source_ids", []) if s}
+        sources_by_group.setdefault(group_id, set()).update(supporting)
+
+    return {
+        kp["key_point_id"]: sorted(
+            sources_by_group.get(groups.get(kp["key_point_id"], kp["key_point_id"]), set())
+        )
+        for kp in key_points
+    }
+
+
 def aggregate_for_synthesis_with_attribution(
     ctx: PipelineContext
 ) -> tuple[list[dict], list[dict], list[dict], list[dict], dict, list]:
@@ -100,11 +148,10 @@ def aggregate_for_synthesis_with_attribution(
     key_points, themes, tensions, gaps = aggregate_for_synthesis(ctx)
 
     # Phase 5: Build source coverage map (key_point_id → [source_ids])
-    source_coverage = {}
-    for kp in key_points:
-        kp_id = kp["key_point_id"]
-        source_ids = kp.get("source_ids", [])
-        source_coverage[kp_id] = source_ids
+    source_coverage = build_source_coverage(
+        key_points,
+        duplicate_of=getattr(ctx, "duplicate_sources", None),
+    )
 
     # Phase 5: Detect potential cross-source conflicts
     # A conflict exists when key points from different sources make contradictory claims

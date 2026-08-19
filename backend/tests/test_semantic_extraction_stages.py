@@ -384,7 +384,7 @@ class TestParseExtractionResponse:
         )
 
         assert len(result.key_points) == 2
-        assert result.key_points[0].key_point_id == "KP_1"
+        assert result.key_points[0].key_point_id == "SRC_1:KP_1"  # B6: IDs are source-qualified
         assert result.key_points[0].confidence == ConfidenceLevel.HIGH
         assert result.key_points[1].confidence == ConfidenceLevel.MEDIUM
 
@@ -408,7 +408,7 @@ class TestParseExtractionResponse:
         )
 
         assert len(result.claims) == 1
-        assert result.claims[0].claim_id == "CLM_1"
+        assert result.claims[0].claim_id == "SRC_1:CLM_1"  # B6: IDs are source-qualified
         assert len(result.claims[0].supporting_quotes) == 2
         assert result.claims[0].timestamp_range == "1:30-2:00"
 
@@ -450,7 +450,7 @@ class TestParseExtractionResponse:
         )
 
         assert len(result.themes) == 1
-        assert result.themes[0].theme_id == "THEME_1"
+        assert result.themes[0].theme_id == "SRC_1:THEME_1"  # B6: IDs are source-qualified
         assert result.themes[0].label == "Financial Transparency"
 
     def test_parse_tensions(self):
@@ -471,7 +471,7 @@ class TestParseExtractionResponse:
         )
 
         assert len(result.tensions) == 1
-        assert result.tensions[0].tension_id == "TEN_1"
+        assert result.tensions[0].tension_id == "SRC_1:TEN_1"  # B6: IDs are source-qualified
 
     def test_parse_approximate_observations(self):
         """Approximate observations for video_only should be parsed."""

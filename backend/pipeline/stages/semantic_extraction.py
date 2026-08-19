@@ -36,6 +36,7 @@ from backend.models.semantic_units import (
 )
 from backend.models.semantic_extraction_schema import SemanticExtractionSchema
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.id_namespacing import namespace_extraction_ids
 from backend.pipeline.prompts.semantic_extraction_prompt import (
     build_semantic_extraction_prompt,
     get_retry_prompt,
@@ -214,7 +215,7 @@ def extract_video_observations(
         warnings.extend(visual_warnings)
         cost += visual_cost
 
-        return result, cost, warnings
+        return namespace_extraction_ids(result), cost, warnings
 
     except Exception as e:
         logger.error(f"[{source_id}] Video extraction failed: {e}")
@@ -335,7 +336,9 @@ def parse_extraction_response(
     result.transcript_source = response.get("transcript_source")
     result.parse_error = response.get("parse_error", False)
 
-    return result
+    # Every source numbers its units from 1, so IDs collide across sources
+    # once they are pooled. Qualify them here, at the single parse boundary.
+    return namespace_extraction_ids(result)
 
 
 def verify_quotes_in_extraction(
