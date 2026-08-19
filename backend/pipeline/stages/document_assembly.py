@@ -50,6 +50,59 @@ from backend.pipeline.context import PipelineContext
 from backend.state import update_job
 
 
+class RawTextContractError(Exception):
+    """Raised when Doc 0 would ship without a source's raw text.
+
+    Doc 0's `full_text` is the canonical raw layer: the Briefing's Section 1
+    is generated from it, the Source Vault is rendered from it, and the
+    grounding gate matches every hard atom against it. Losing it silently
+    turns a research document into an unverifiable one, so loss is a hard
+    failure, not a warning.
+    """
+
+
+def verify_raw_text_preserved(ledger: SourceLedger, sources: list[dict]) -> None:
+    """Check that every source's raw text survived into Doc 0 intact.
+
+    Two failure directions are checked. Loss: a source that arrived with
+    content whose ledger entry has no `full_text`, or a shorter one (silent
+    truncation). Silence: an entry with no text and no stated reason, which
+    reads as "this source had nothing to say" when the truth is unknown.
+
+    Args:
+        ledger: The assembled Source Ledger.
+        sources: The source dicts the ledger was built from.
+
+    Raises:
+        RawTextContractError: If any source's raw text was lost or truncated.
+    """
+    incoming = {s.get("source_id"): (s.get("content") or "") for s in sources}
+    losses: list[str] = []
+
+    for entry in ledger.sources:
+        original = incoming.get(entry.source_id, "")
+        preserved = entry.full_text or ""
+
+        if original and not preserved:
+            losses.append(f"{entry.source_id}: {len(original)} chars in, none in Doc 0")
+        elif original and len(preserved) < len(original):
+            losses.append(
+                f"{entry.source_id}: truncated {len(original)} -> {len(preserved)} chars"
+            )
+        elif not preserved and not entry.full_text_unavailable_reason:
+            # Not a loss, but an unexplained hole. Name it rather than let the
+            # document imply the source was empty.
+            entry.full_text_unavailable_reason = (
+                entry.failure_reason or "No text was captured for this source"
+            )
+
+    if losses:
+        raise RawTextContractError(
+            "Doc 0 lost raw source text (Briefing Section 1, the Source Vault, "
+            "and the grounding gate all read it): " + "; ".join(losses)
+        )
+
+
 def build_source_ledger(
     topic: str,
     sources: list[dict],
@@ -143,9 +196,14 @@ def build_source_ledger(
             claim_ids=claim_ids,
             entity_names=source_data.get("entities", []),
             theme_ids=theme_ids,
-            full_text=source_data.get("content"),
+            # Empty string would read as "this source said nothing"; an absent
+            # value plus a stated reason is the honest form.
+            full_text=source_data.get("content") or None,
             full_text_unavailable_reason=(
-                source_data.get("transcript_failure_reason")
+                (
+                    source_data.get("transcript_failure_reason")
+                    or source_data.get("failure_reason")
+                )
                 if not source_data.get("content") else None
             ),
             transcript_provenance=transcript_provenance,
@@ -154,7 +212,15 @@ def build_source_ledger(
 
         ledger.sources.append(entry)
 
-    logger.info(f"Source Ledger built: {ledger.ingested_count} ingested, {ledger.failed_count} failed")
+    verify_raw_text_preserved(ledger, sources)
+
+    with_text = sum(1 for e in ledger.sources if e.full_text)
+    raw_words = sum(len((e.full_text or "").split()) for e in ledger.sources)
+    logger.info(
+        f"Source Ledger built: {ledger.ingested_count} ingested, "
+        f"{ledger.failed_count} failed, {with_text}/{len(ledger.sources)} with raw "
+        f"text ({raw_words:,} words)"
+    )
     return ledger
 
 

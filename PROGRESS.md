@@ -1711,7 +1711,21 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   attribution fallback when nobody is credited.
   Side note for B7: SRC_8's captured author is "The Conversation" while its
   site is ScreenHub — the syndication pair the dup detector must catch.
-- [ ] A4 Raw-text preservation contract — doc_0 `full_text` never optional
+- [x] A4 Raw-text preservation contract — loss or truncation of doc_0 `full_text` is a hard failure
+  ```
+  $ python -c "rebuild the films fixture ledger from its own sources"
+  Source Ledger built: 8 ingested, 0 failed, 8/8 with raw text (10,465 words)
+  films fixture: 8 sources, 10,465 raw words in -> 10,465 out
+  $ pytest backend/tests/test_raw_text_contract.py backend/tests/test_document_outputs.py \
+      backend/tests/test_pipeline_stages.py backend/tests/test_semantic_pipeline_integration.py -q
+  100 passed in 1.50s (7 new)
+  ```
+  `verify_raw_text_preserved` runs inside `build_source_ledger` and raises
+  `RawTextContractError` when a source arrives with content and the ledger
+  entry has none or a shorter one. Sources that genuinely have no text now
+  always carry a stated reason (the old wiring read a
+  `transcript_failure_reason` key nothing ever set, so holes were silent).
+  Assembly logs the raw-word total, which is the Section-1 input size.
 - [ ] A5 Fetch fallbacks — archive.org/jina + navigation-chrome heuristic
 
 ### §B Extraction / validation (pure code)
