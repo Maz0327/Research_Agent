@@ -112,6 +112,52 @@ class WhisperTranscriptionClient:
             sanitized = sanitize_error_message(e, include_type=False)
             raise RuntimeError(f"Failed to download audio: {sanitized}")
 
+    @staticmethod
+    def _segment_field(segment, name: str, default):
+        """Read one field from a Whisper segment.
+
+        The OpenAI SDK returns `TranscriptionSegment` objects (attribute
+        access) for `verbose_json`, but cached/replayed payloads and tests
+        hand back plain dicts. Support both.
+
+        Args:
+            segment: A `TranscriptionSegment` object or a dict.
+            name: Field name to read.
+            default: Value to return when the field is missing or None.
+
+        Returns:
+            The field value, or `default` when absent.
+        """
+        value = (
+            segment.get(name, default)
+            if isinstance(segment, dict)
+            else getattr(segment, name, default)
+        )
+        return default if value is None else value
+
+    @classmethod
+    def _normalize_segments(cls, raw_segments) -> list:
+        """Normalize Whisper segments to plain start/end/text dicts.
+
+        Args:
+            raw_segments: Whatever the SDK put on `response.segments`: a list
+                of `TranscriptionSegment` objects, a list of dicts, or None.
+
+        Returns:
+            List of dicts with `start`, `end`, and `text` keys. Empty when the
+            response carried no segments.
+        """
+        if not raw_segments:
+            return []
+        return [
+            {
+                "start": cls._segment_field(seg, "start", 0),
+                "end": cls._segment_field(seg, "end", 0),
+                "text": cls._segment_field(seg, "text", ""),
+            }
+            for seg in raw_segments
+        ]
+
     @with_rate_limit("whisper")
     def transcribe(
         self,
@@ -143,14 +189,7 @@ class WhisperTranscriptionClient:
                 )
 
             # Extract segments with timestamps
-            segments = []
-            if hasattr(response, 'segments'):
-                for seg in response.segments:
-                    segments.append({
-                        "start": seg.get("start", 0),
-                        "end": seg.get("end", 0),
-                        "text": seg.get("text", ""),
-                    })
+            segments = self._normalize_segments(getattr(response, "segments", None))
 
             cost = duration_minutes * self.cost_per_minute
 
