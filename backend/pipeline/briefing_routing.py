@@ -42,6 +42,34 @@ _CENTURY = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)\s+c(?:entury)?\b", re.I)
 # A name mentioned in this many sections earns a card (D-025).
 PLAYER_SECTION_THRESHOLD = 2
 
+# A cast is a list of people you can hold in your head. The 2+-section rule
+# alone returned 61 names on the labyrinth corpus, most of them places and
+# aliases; after those are handled the rule stands, and this caps what is left.
+MAX_PLAYER_CARDS = 14
+
+# A player DOES something. Places, monuments, and eras recur constantly in a
+# research corpus and belong in the prose, not in the cast, so a candidate has
+# to be seen acting somewhere.
+_ACTS = (
+    "said|says|wrote|writes|found|founded|ran|runs|led|leads|funded|funds|"
+    "published|publishes|claimed|claims|argued|argues|dismissed|dismisses|"
+    "banned|bans|announced|announces|scanned|scans|excavated|excavates|"
+    "reported|reports|told|tells|added|adds|released|releases|confirmed|"
+    "confirms|refused|refuses|died|dies|organised|organized|produced|produces|"
+    "drilled|drills|surveyed|surveys|concluded|concludes|described|describes|"
+    "visited|visits|built|builds|granted|grants|threatened|threatens|"
+    "interviewed|interviews|presented|presents|denied|denies|discovered|"
+    "discovers|noted|notes|calls|called|believes|believed|suggests|suggested"
+)
+_ACTION_WINDOW = 30
+
+# Capitalized function words that start a sentence and get swept into the run
+# after them ("In the Joe Rogan Experience", "The Why Files")
+_LEADING_NOISE = re.compile(
+    r"^(?:In|On|At|By|From|To|For|With|After|Before|During|Since)\s+(?:the\s+|a\s+)?"
+    r"|^(?:The|A|An)\s+(?=[A-Z])"
+)
+
 # Below this, two facts are about different things.
 _SAME_SUBJECT = 0.55
 
@@ -224,6 +252,7 @@ def name_candidates(text: str) -> set[str]:
     found = set()
     for match in _NAME.finditer(text or ""):
         candidate = re.sub(r"[’'][a-z]{1,2}$", "", match.group(0).strip())
+        candidate = _LEADING_NOISE.sub("", candidate).strip()
         if " " in candidate and len(candidate) > 5:
             found.add(candidate)
     return found
@@ -245,23 +274,81 @@ def names_by_section(sections: dict[str, str]) -> dict[str, set[str]]:
     return appearances
 
 
-def qualifying_players(sections: dict[str, str]) -> list[str]:
-    """Names that earn a card, by the D-025 rule: mentioned in 2+ sections.
+def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, set[str]]:
+    """Fold shorter forms of a name into the fullest form of it.
+
+    "De Cordier" and "Louis De Cordier" are one person; "Ministry of Tourism"
+    and "Egypt's Ministry of Tourism" are one body. Matching on token
+    containment catches both without a name database.
+
+    Args:
+        appearances: Map of name to the sections it appears in.
+
+    Returns:
+        The same map with aliases merged into their fullest form.
+    """
+    names = sorted(appearances, key=lambda n: (-len(n.split()), n))
+    merged: dict[str, set[str]] = {}
+
+    for name in names:
+        tokens = {t.lower().strip(".,") for t in name.split()}
+        target = None
+        for canonical in merged:
+            canonical_tokens = {t.lower().strip(".,") for t in canonical.split()}
+            if tokens <= canonical_tokens or canonical_tokens <= tokens:
+                target = canonical
+                break
+        if target:
+            merged[target] |= appearances[name]
+        else:
+            merged[name] = set(appearances[name])
+
+    return merged
+
+
+def acts_somewhere(name: str, text: str) -> bool:
+    """Is this name shown doing something, or is it just a place that recurs?
+
+    Args:
+        name: Candidate name.
+        text: All the document's prose.
+
+    Returns:
+        True when the name is followed closely by an action verb.
+    """
+    pattern = re.compile(
+        rf"{re.escape(name)}[^.!?]{{0,{_ACTION_WINDOW}}}?\b(?:{_ACTS})\b", re.I
+    )
+    return bool(pattern.search(text))
+
+
+def qualifying_players(
+    sections: dict[str, str], maximum: int = MAX_PLAYER_CARDS
+) -> list[str]:
+    """Names that earn a card: in 2+ sections, an actor, and among the top ones.
+
+    The D-025 rule is the 2+-section threshold. Two things have to happen
+    around it for the result to be a cast rather than an index: aliases of one
+    name count once, and names that never act are not players. What survives is
+    capped, because a cast of sixty is not a cast.
 
     Args:
         sections: Map of section name to that section's full prose.
+        maximum: How many cards the section may carry.
 
     Returns:
         Qualifying names, most-mentioned first, then alphabetical.
     """
-    appearances = names_by_section(sections)
+    appearances = merge_aliases(names_by_section(sections))
+    everything = " ".join(sections.values())
+
     qualifying = [
         (len(where), name)
         for name, where in appearances.items()
-        if len(where) >= PLAYER_SECTION_THRESHOLD
+        if len(where) >= PLAYER_SECTION_THRESHOLD and acts_somewhere(name, everything)
     ]
     qualifying.sort(key=lambda row: (-row[0], row[1]))
-    return [name for _, name in qualifying]
+    return [name for _, name in qualifying[:maximum]]
 
 
 def evidence_chip(

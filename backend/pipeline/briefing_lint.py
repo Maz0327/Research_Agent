@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 
 from backend.pipeline.briefing_gates import briefing_prose
-from backend.pipeline.briefing_routing import PLAYER_SECTION_THRESHOLD, names_by_section
+from backend.pipeline.briefing_routing import qualifying_players
 
 _BARE_ID = re.compile(r"\b(?:CLM|SRC|KP|TEN|GAP|STG|HOLE|QT|OBS|THEME)_\d+\b")
 
@@ -79,13 +79,12 @@ def check_player_cards(briefing) -> list[str]:
         "anecdotes": " ".join(f"{a.text} {a.context or ''}" for a in briefing.anecdotes),
     }
     carded = {player.name.lower() for player in briefing.players}
-    appearances = names_by_section(sections)
-
+    # Same function the pass uses, so the lint enforces the rule as applied:
+    # 2+ sections, an actor rather than a place, aliases merged, capped.
     return [
-        f"{name} appears in {len(where)} sections ({', '.join(sorted(where))}) "
-        f"but has no card in The Players"
-        for name, where in sorted(appearances.items())
-        if len(where) >= PLAYER_SECTION_THRESHOLD and name.lower() not in carded
+        f"{name} recurs across sections but has no card in The Players"
+        for name in qualifying_players(sections)
+        if name.lower() not in carded
     ]
 
 

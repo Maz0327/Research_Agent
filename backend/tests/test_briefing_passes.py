@@ -320,13 +320,47 @@ class TestCodeHalves:
         """The D-025 rule, applied by counting rather than by asking."""
         names = qualifying_players(
             {
-                "read": "Flinders Petrie dug at Hawara. Eric Uphill wrote later.",
+                "read": "Flinders Petrie described Hawara. Eric Uphill wrote later.",
                 "files": "Flinders Petrie found the stone bed.",
             }
         )
 
         assert "Flinders Petrie" in names
         assert "Eric Uphill" not in names
+
+    def test_places_are_not_players(self):
+        """A cast is people and organizations; places recur without acting."""
+        names = qualifying_players(
+            {
+                "read": "Louis De Cordier funded the survey at the Giza Plateau.",
+                "files": "Louis De Cordier published the scans. The Giza Plateau is nearby.",
+            }
+        )
+
+        assert "Louis De Cordier" in names
+        assert "Giza Plateau" not in names
+
+    def test_aliases_of_one_name_count_once(self):
+        """"De Cordier" and "Louis De Cordier" are one person, not two."""
+        names = qualifying_players(
+            {
+                "read": "Louis De Cordier funded the survey.",
+                "files": "De Cordier published the scans himself.",
+                "disputes": "De Cordier said he was threatened.",
+            }
+        )
+
+        assert names.count("Louis De Cordier") <= 1
+        assert "De Cordier" not in names or names == ["De Cordier"]
+
+    def test_the_cast_is_capped(self):
+        """A cast of sixty is not a cast; the rule stands and the list is capped."""
+        sections = {
+            "read": " ".join(f"Person Number{i} said something." for i in range(40)),
+            "files": " ".join(f"Person Number{i} wrote something." for i in range(40)),
+        }
+
+        assert len(qualifying_players(sections)) <= 14
 
     def test_chips_are_provenance_arithmetic(self):
         """Syndication collapses before anything is counted."""

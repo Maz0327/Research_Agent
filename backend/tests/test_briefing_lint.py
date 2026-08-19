@@ -43,7 +43,7 @@ def _briefing(**overrides) -> Briefing:
         "meta": BriefingMeta(source_count=2, independent_source_count=2, raw_words=100),
         "read": Read(
             lede="Read both.",
-            paragraphs=[ReadParagraph(text="Flinders Petrie dug at Hawara in 1888.")],
+            paragraphs=[ReadParagraph(text="Flinders Petrie described the stone bed in 1888.")],
         ),
         "source_trail": [
             SourceTrailEntry(source_id="SRC_1", title="A source"),
@@ -63,7 +63,7 @@ class TestPlayerCards:
             files=[
                 File(
                     title="The excavation",
-                    body="Flinders Petrie read the chip stratum as debris.",
+                    body="Flinders Petrie concluded the chip stratum was demolition debris.",
                     source_ids=["SRC_1"],
                 )
             ]
@@ -79,7 +79,7 @@ class TestPlayerCards:
             files=[
                 File(
                     title="The excavation",
-                    body="Flinders Petrie read the chip stratum as debris.",
+                    body="Flinders Petrie concluded the chip stratum was demolition debris.",
                     source_ids=["SRC_1"],
                 )
             ],
