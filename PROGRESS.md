@@ -2051,6 +2051,16 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   `1 failed, 1268 passed, 2 skipped in 358.28s` — the single failure is the
   known pre-existing `test_verify_claim_supporting_quotes`, which also fails at
   the P0 commit. Baseline confirmed; nothing else is red.
+- 2026-08-19 session: §A, §B, §C complete and demonstrated; §D complete except
+  the live end-to-end Briefing (blocked on Anthropic credits); §H complete;
+  I27 complete. Suite: 1 failed, 1496 passed, 2 skipped — the one failure is the
+  known pre-existing `test_verify_claim_supporting_quotes`. 13 commits pushed.
+  ⛔ **Blocked and waiting on Maz:** the Anthropic account has no credits. The
+  first end-to-end Briefing on the Hawara fixture — your acceptance gate — needs
+  roughly \$1-2 to finish. Harvest (633 facts) and the Read (848 words) are
+  already generated and cached on disk, so the spend resumes mid-chain.
+  Remaining after that: §E17 judge contest (needs credits + the Moonshot key),
+  §E18 Exa (optional), and §I items 24/25/26/28/29/30.
 - ⚠️ `pre-commit run --all-files` is unusable in this repo as configured, three
   ways: `detect-secrets` aborts (`.secrets.baseline` does not exist); `mypy`
   reports 2227 pre-existing errors across 161 files; and `ruff --fix` +
