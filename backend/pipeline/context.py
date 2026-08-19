@@ -90,6 +90,7 @@ class PipelineContext:
     cross_source_conflicts: list = field(default_factory=list)  # Detected cross-source conflicts
     duplicate_sources: dict = field(default_factory=dict)  # duplicate source_id → canonical source_id
     duplicate_source_report: list = field(default_factory=list)  # detected syndication pairs + scores
+    theme_merges: list = field(default_factory=list)  # themes merged as restatements of each other
     source_contributions: dict = field(default_factory=dict)  # source_id → {key_points: n, themes: n, ...}
 
     # Phase 6: Evolving Jobs (Add Sources to Completed Jobs)

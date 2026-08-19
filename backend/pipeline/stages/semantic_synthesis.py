@@ -29,6 +29,7 @@ from backend.pipeline.prompts.semantic_synthesis_prompt import (
 )
 from backend.pipeline.style_enforcer import enforce_style
 from backend.pipeline.text_similarity import group_matching
+from backend.pipeline.theme_dedup import merge_similar_themes
 from backend.state import update_job
 
 
@@ -260,6 +261,7 @@ def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
         "semantic_core": "",
         "semantic_core_based_on": [],
         "themes": [],
+        "theme_merges": [],
         "speculative_observations": [],
         "confidence_level": ConfidenceLevel.MEDIUM,
         "confidence_reasoning": [],
@@ -282,6 +284,10 @@ def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
             related_key_points=theme_data.get("supporting_key_points", []),
         )
         result["themes"].append(theme)
+
+    # Restated themes make a document look like it found more than it did.
+    # The merge is code-decided and narrow; see theme_dedup for the measurement.
+    result["themes"], result["theme_merges"] = merge_similar_themes(result["themes"])
 
     # Parse speculative observations
     for obs_data in response_data.get("speculative_observations", []):
@@ -441,6 +447,12 @@ def stage_semantic_synthesis(ctx: PipelineContext) -> None:
         ctx.synthesized_themes = synthesis_result["themes"]
         ctx.speculative_observations = synthesis_result["speculative_observations"]
         ctx.confidence_reasoning = synthesis_result["confidence_reasoning"]
+        ctx.theme_merges = synthesis_result.get("theme_merges", [])
+        for merge in ctx.theme_merges:
+            ctx.add_warning(
+                f"Merged theme \"{merge['merged_label']}\" into "
+                f"\"{merge['kept_label']}\" (restatement)"
+            )
 
         # Store semantic_core_based_on for Doc 2
         if not hasattr(ctx, "semantic_core_based_on"):

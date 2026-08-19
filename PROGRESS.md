@@ -1790,7 +1790,25 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   Nothing is deleted: the duplicate keeps its ledger entry, now carrying
   `duplicate_of`, and stops counting as independent corroboration through
   `build_source_coverage`. The pair is named in the job's warnings.
-- [ ] B8 Theme dedup (shingle/string similarity)
+- [x] B8 Theme dedup — narrow, code-decided, with an honest measurement
+  ```
+  $ python - <<'EOF'   # both fixtures, real theme lists
+  hawara: 39 themes -> 38   'Suppression of Information' folded into
+                            'Control and Suppression of Archaeological Information'
+  films:  18 themes -> 18   (nothing to merge, no false merges)
+  EOF
+  $ pytest -q
+  1 failed, 1379 passed, 2 skipped in 79.04s   # the one known pre-existing failure
+  ```
+  `merge_similar_themes` merges when one label is wholly inside the other (2+
+  content words) or descriptions overlap at 0.60+. References are unioned, the
+  fullest description survives, and every merge is reported as a warning.
+  ⚠️ Measured finding for Maz: the labyrinth's other restatements
+  ("Discovery and Suppression" / "Conflict Over Scientific Disclosure" /
+  "Scientific Discovery vs. Institutional Obstruction") max out at 0.38
+  word-overlap across 741 pairs. String similarity cannot reach them; that is
+  semantic grouping, and §J pass 2 assigns it to an LLM for exactly this
+  reason. B8 catches the string-level cases only, by design.
 - [ ] B9 `llm_judge` counter fix (counts items, not flags)
 - [ ] B10 Harvest as a real pipeline stage → coverage inventory for gate 13
 
