@@ -197,6 +197,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
     from backend.integrations.web_capture import (
         _fetch_url_content,
         _extract_text_with_trafilatura,
+        extract_byline_from_html,
         extract_title_from_html,
     )
     from backend.integrations.gemini_client import GeminiClient
@@ -301,8 +302,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
                         logger.warning(f"[{job_id}] Jina fallback also failed: {jina_err}")
                     return orig_idx, None, f"Failed to fetch article {url}: {error_msg}"
 
-                # Extract title from HTML before trafilatura strips it
+                # Extract title and byline from HTML before trafilatura strips them
                 article_title = extract_title_from_html(html_content, url)
+                byline = extract_byline_from_html(html_content, url)
 
                 text_content = _extract_text_with_trafilatura(html_content, url)
 
@@ -339,6 +341,12 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 article_data: dict = {"url": url, "content": filtered}
                 if article_title:
                     article_data["title"] = article_title
+                if byline["creator"]:
+                    article_data["author"] = byline["creator"]
+                if byline["published"]:
+                    article_data["published"] = byline["published"]
+                if byline["sitename"]:
+                    article_data["sitename"] = byline["sitename"]
                 pkg = build_source_identity_from_article(article_data, source_index)
                 logger.info(f"[{job_id}] Article fetched: {len(filtered)} chars from {url[:50]}")
                 return orig_idx, pkg, None

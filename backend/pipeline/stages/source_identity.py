@@ -25,6 +25,7 @@ from backend.pipeline.transcript_acquisition import (
 )
 from backend.state import update_job
 from backend.integrations.supadata_client import fetch_video_metadata
+from backend.integrations.youtube import fetch_oembed_metadata
 
 
 @dataclass
@@ -174,6 +175,16 @@ def build_source_identity_from_video(
     published = video_data.get("published", video_data.get("upload_date"))
     duration_seconds = video_data.get("duration_seconds")
 
+    # Mixed-input jobs arrive as a bare URL, and Supadata metadata can be rate
+    # limited or out of credits. oEmbed needs no key and no quota, so fill the
+    # channel name from it rather than shipping an unattributable source.
+    if url and (not creator or title in ("Untitled Video", "", None)):
+        oembed = fetch_oembed_metadata(url)
+        if oembed:
+            creator = creator or oembed.get("creator")
+            if title in ("Untitled Video", "", None) and oembed.get("title"):
+                title = oembed["title"]
+
     logger.info(f"Building identity for {source_id}: {title[:50]}...")
 
     # Acquire transcript with spec-compliant fallback chain
@@ -264,6 +275,11 @@ def build_source_identity_from_article(
     creator = article_data.get("author", article_data.get("creator"))
     published = article_data.get("published", article_data.get("date"))
     content = article_data.get("content", article_data.get("text", ""))
+
+    # Fall back to the publication's own name when no person is credited, so
+    # the source can still be attributed in prose ("the Guardian piece says").
+    if not creator:
+        creator = article_data.get("sitename")
 
     # Articles use ARTICLE_FETCHED mode (we have the full text)
     analysis_mode = AnalysisMode.ARTICLE_FETCHED

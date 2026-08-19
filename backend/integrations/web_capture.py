@@ -185,6 +185,88 @@ def extract_title_from_html(html_content: str, url: str) -> Optional[str]:
     return None
 
 
+# Strings that show up in author metadata but name nobody
+_JUNK_BYLINE_MARKERS = (
+    "staff",
+    "admin",
+    "editor",
+    "newsroom",
+    "correspondent",
+    "contributor",
+    "guest",
+    "unknown",
+    "anonymous",
+)
+
+
+def _clean_byline(raw: Optional[str]) -> Optional[str]:
+    """Normalize an author string, or reject it as unusable.
+
+    Publishers put all sorts of things in author metadata: "By Jane Doe",
+    profile URLs, email addresses, "Staff Writer", the site's own name. A
+    wrong byline is worse than none, so anything that does not look like a
+    person or a named outlet is dropped.
+
+    Args:
+        raw: Author string from page metadata, possibly None.
+
+    Returns:
+        A cleaned byline, or None when nothing usable is left.
+    """
+    if not raw:
+        return None
+
+    byline = raw.strip()
+    if byline.lower().startswith("by "):
+        byline = byline[3:].strip()
+    byline = byline.strip(" -|,;")
+
+    if not byline or len(byline) > 120:
+        return None
+    if "@" in byline or "http://" in byline or "https://" in byline:
+        return None
+    if byline.lower() in _JUNK_BYLINE_MARKERS:
+        return None
+
+    return byline
+
+
+def extract_byline_from_html(html_content: str, url: str) -> dict:
+    """Extract author and publication date from a page, without an LLM.
+
+    trafilatura reads meta tags (`author`, `article:author`), schema.org
+    JSON-LD, and common byline markup, which covers the overwhelming majority
+    of publishers. Sources whose byline stays unknown are honest holes, not
+    guesses.
+
+    Args:
+        html_content: Raw HTML of the page.
+        url: Source URL (used as trafilatura's default URL for relative refs).
+
+    Returns:
+        Dict with `creator`, `published`, and `sitename` keys. Any value may be
+        None when the page does not carry it.
+    """
+    result: dict = {"creator": None, "published": None, "sitename": None}
+
+    try:
+        metadata = trafilatura.extract_metadata(html_content, default_url=url)
+    except Exception as e:
+        logger.debug(f"Byline extraction failed for {url}: {e}")
+        return result
+
+    if not metadata:
+        return result
+
+    result["creator"] = _clean_byline(getattr(metadata, "author", None))
+    published = getattr(metadata, "date", None)
+    result["published"] = published.strip() if isinstance(published, str) and published.strip() else None
+    sitename = getattr(metadata, "sitename", None)
+    result["sitename"] = sitename.strip() if isinstance(sitename, str) and sitename.strip() else None
+
+    return result
+
+
 def _fetch_url_content(url: str) -> tuple[Optional[str], Optional[int], Optional[str]]:
     """
     Fetch content from a URL using httpx.

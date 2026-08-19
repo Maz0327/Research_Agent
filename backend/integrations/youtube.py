@@ -17,6 +17,51 @@ class YouTubeVideo(BaseModel):
     published_at: Optional[str] = None
 
 
+OEMBED_ENDPOINT = "https://www.youtube.com/oembed"
+
+
+def fetch_oembed_metadata(video_url: str, timeout: float = 10.0) -> Optional[dict]:
+    """Fetch a YouTube video's title and channel via oEmbed.
+
+    oEmbed needs no API key and no quota, which makes it the right fallback
+    when Supadata metadata is unavailable (rate limited, or the key is out of
+    credits). Without it, source packages carry `creator=None` and documents
+    cannot attribute anything by name.
+
+    Args:
+        video_url: Full YouTube watch URL.
+        timeout: Request timeout in seconds.
+
+    Returns:
+        Dict with `title` and `creator`, or None when the lookup fails (private
+        or deleted videos included).
+    """
+    try:
+        response = httpx.get(
+            OEMBED_ENDPOINT,
+            params={"url": video_url, "format": "json"},
+            timeout=timeout,
+            follow_redirects=True,
+        )
+        if response.status_code != 200:
+            logger.debug(
+                f"oEmbed returned {response.status_code} for {video_url[:60]}"
+            )
+            return None
+
+        data = response.json()
+    except Exception as e:
+        logger.debug(f"oEmbed lookup failed for {video_url[:60]}: {e}")
+        return None
+
+    title = data.get("title")
+    creator = data.get("author_name")
+    if not title and not creator:
+        return None
+
+    return {"title": title, "creator": creator}
+
+
 def search_youtube_videos(query: str, max_results: int = 5) -> list[YouTubeVideo]:
     """
     Search for YouTube videos using the YouTube Data API v3.

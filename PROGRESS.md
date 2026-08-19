@@ -1691,7 +1691,26 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   Side effect: `conftest.py` now resets limiter state per test — cross-test
   failure accumulation was costing the suite ~5 minutes
   (`test_supadata_metadata.py` alone: 312s → 34s).
-- [ ] A3 Byline capture — meta/JSON-LD/oEmbed first, LLM fallback
+- [x] A3 Byline capture — page metadata for articles, oEmbed for videos, no LLM in the path
+  ```
+  $ python - <<'EOF'   # live run against the 8 films-fixture sources
+  SRC_1 oEmbed -> creator='Patrick Tomasso'   SRC_5 html -> creator='Stage ; LLC'      site='Stage 32'
+  SRC_2 oEmbed -> creator='tographer'         SRC_6 html -> creator='Tim Brayton'      site='thefilmexperience.net'
+  SRC_3 html -> creator='Tod Perry'           SRC_7 html -> creator='Travis Holland'   site='The Conversation'
+  SRC_4 html -> creator='Jason Hellerman'     SRC_8 html -> creator='The Conversation' site='ScreenHub Australia'
+  EOF
+  $ pytest backend/tests/test_byline_capture.py backend/tests/test_source_identity_stage.py \
+      backend/tests/test_supadata_metadata.py tests/test_web_capture.py backend/tests/test_document_outputs.py -q
+  101 passed in 45.45s (17 new)
+  ```
+  8/8 fixture sources attributed where the shipped doc_0 has `creator=None` for
+  all 8. `extract_byline_from_html` reads meta tags, JSON-LD, and byline markup
+  via trafilatura, rejects junk (emails, URLs, "Staff", over-long strings);
+  `fetch_oembed_metadata` needs no key or quota, so videos get a channel name
+  even when Supadata metadata is rate limited. Publication name is the
+  attribution fallback when nobody is credited.
+  Side note for B7: SRC_8's captured author is "The Conversation" while its
+  site is ScreenHub — the syndication pair the dup detector must catch.
 - [ ] A4 Raw-text preservation contract — doc_0 `full_text` never optional
 - [ ] A5 Fetch fallbacks — archive.org/jina + navigation-chrome heuristic
 
