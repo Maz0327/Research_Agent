@@ -1929,6 +1929,12 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   ran live and is cached on disk (harvest + the Read). The rest of the chain
   needs roughly $1-2 of credit to finish the first end-to-end Briefing, which
   is your acceptance gate. Nothing else in P3 is blocked by this.
+  Also added after seeing the first grouping: the Files section is capped at 8
+  subjects (§J's ceiling). Gemini's batched map produced 11, so `cap_subjects`
+  folds the smallest into their nearest neighbour by title, moving facts rather
+  than dropping them. `build_briefing` also accepts an already-decided Read and
+  subject map, which is what an iterate run wants and what let this run reuse
+  the cached Section 1 instead of paying for it twice.
   Two real defects the live run found and fixed: the Read had no length
   discipline and blew a 16k ceiling (now 700-1,100 words, stated in the prompt,
   and it came back at 848); the subject map has to name every fact ID it places,
