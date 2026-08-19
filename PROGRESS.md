@@ -1954,7 +1954,20 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   within 78 characters (footer wording), and already carries the I27 copyright
   posture: private by default, paywall markers detected, product mode renders
   excerpt-plus-link.
-- [ ] D16 Doc 3 retired behind config flag
+- [x] D16 Doc 3 retired behind a flag, remainder moved to code
+  ```
+  $ pytest backend/tests/test_doc3_retirement.py -q
+  7 passed
+  $ pytest -q
+  1 failed, 1477 passed, 2 skipped in 79.43s   # the one known pre-existing failure
+  ```
+  `CREATOR_BRIEF_ENABLED` defaults to false and the stage returns immediately
+  without cost or warnings; the flag switches the code back on for a product
+  experiment, and the code stays until P8. The remainder worth keeping, the
+  description source list, is now
+  `backend/pipeline/formatters/description_sources.py`: a transcription of
+  Doc 0, crediting only sources whose text actually arrived and marking
+  republications so the same article is not credited twice.
 
 ### §E Existing P3 scope
 - [ ] E17 Judge contest (Terra vs kimi-k2.6; κ / position-swap / test-retest) + env-driven model sweep

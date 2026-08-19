@@ -139,6 +139,15 @@ def run_creator_brief_stage(ctx: PipelineContext) -> PipelineContext:
     Returns:
         Updated PipelineContext with creator_brief in outputs.
     """
+    from backend.config import get_settings
+
+    if not get_settings().creator_brief_enabled:
+        # Retired from the default run (work order item 16). The document
+        # performs rather than informs; the description source list it used to
+        # carry is built by code now. Kept behind a flag until P8.
+        logger.info(f"[{ctx.job_id}] Creator Brief skipped: retired by config")
+        return ctx
+
     logger.info(f"[{ctx.job_id}] Creator Brief stage starting")
     update_job(ctx.job_id, stage="creator_brief_assembly", progress_percent=88)
 

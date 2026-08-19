@@ -141,6 +141,16 @@ class Settings(BaseSettings):
         description="Per-source fact harvest; the measured configuration (85 -> 258 facts on the films corpus)"
     )
 
+    # Doc 3, the Creator Brief, is retired from the default run (work order
+    # item 16): hooks, twist, and say-it-like violate "the brief informs, never
+    # performs". Its one useful remainder, the description source list, is now
+    # pure code in backend/pipeline/formatters/description_sources.py. The code
+    # stays until P8 so a product experiment can switch it back on.
+    creator_brief_enabled: bool = Field(
+        default=False, alias="CREATOR_BRIEF_ENABLED",
+        description="Generate the retired Creator Brief (Doc 3)"
+    )
+
     # Fact harvest (work order B10). One structured call per source produces
     # the dense fact inventory the Briefing's coverage gate checks against.
     harvest_enabled: bool = Field(
