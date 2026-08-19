@@ -11,6 +11,9 @@ from dataclasses import dataclass, field
 
 from loguru import logger
 
+from backend.pipeline.style_stats import StyleStats, measure_style, slop_score
+
+
 
 # Banned phrases — academic/robotic patterns that should never appear
 BANNED_PATTERNS: list[tuple[str, str]] = [
@@ -211,6 +214,81 @@ _RULE_OF_THREE_PATTERN = re.compile(
 )
 
 
+# Vocabulary the survey of slop detectors flagged, curated against OUR voice
+# laws (work order H21). These are advisories, not errors: each one is
+# sometimes the right words, and a hard error here would train everyone to
+# ignore the lint. Casual-register substitutions from that source were
+# rejected outright - they fight the spoken register these documents want.
+VOCABULARY_PATTERNS: list[tuple[str, str]] = [
+    # Copula avoidance: a longer way of writing "is"
+    (r"\b(serves as|functions as|acts as|stands as|operates as)\b", "copula avoidance"),
+    (r"\b(plays a (key|vital|crucial|significant) role in)\b", "copula avoidance"),
+    # Significance inflation: telling the reader something matters
+    (r"\b(pivotal|seminal|groundbreaking|landmark|watershed|game-chang\w+)\b",
+     "significance inflation"),
+    (r"\b(underscores|highlights|showcases|exemplifies) the (importance|significance)\b",
+     "significance inflation"),
+    (r"\bstands as a testament\b", "significance inflation"),
+    # False ranges: a span that means "everything", carrying no information
+    (r"\bfrom \w+ to \w+, (the|this|these|everything)\b", "false range"),
+    (r"\branging from .{1,40} to .{1,40}\b", "false range"),
+    # False hedging: hedges that hedge nothing
+    (r"\b(it is (worth noting|important to note)|one might argue|arguably)\b",
+     "false hedging"),
+    (r"\b(some (would say|argue)|many believe)\b(?! [A-Z])", "false hedging"),
+    # Elegant variation announced rather than done
+    (r"\b(the former|the latter)\b", "elegant variation"),
+]
+
+
+def check_vocabulary(text: str) -> list[str]:
+    """Advisory checks for the vocabulary that reads as machine-written.
+
+    Args:
+        text: Document prose.
+
+    Returns:
+        Advisory findings, one per matched pattern.
+    """
+    findings = []
+    for pattern, label in VOCABULARY_PATTERNS:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        if matches:
+            findings.append(f"{label}: {len(matches)} instance(s)")
+    return findings
+
+
+# Traces of the machinery that produced a document, which must never survive
+# into anything published (work order H23).
+_FINGERPRINTS: list[tuple[str, str]] = [
+    (r"\[(TODO|TBD|PLACEHOLDER|INSERT|XX+)\]", "unfilled placeholder"),
+    (r"\{\{[^}]+\}\}", "unrendered template token"),
+    (r"\[\^?\d+\](?!\()", "citation markup token"),
+    (r"[?&]utm_[a-z]+=", "tracking parameter in a link"),
+    (r"\bLorem ipsum\b", "placeholder text"),
+    (r"\bAs an AI\b", "assistant self-reference"),
+]
+
+
+def check_publish_fingerprints(text: str) -> list[str]:
+    """Pre-flight check for traces of the machinery in publishable text.
+
+    Args:
+        text: The text about to be published.
+
+    Returns:
+        Errors, one per fingerprint found. These are hard: a tracking
+        parameter or an unfilled placeholder in published text is a defect
+        with no defensible reading.
+    """
+    findings = []
+    for pattern, label in _FINGERPRINTS:
+        matches = re.findall(pattern, text)
+        if matches:
+            findings.append(f"{label}: {len(matches)} instance(s)")
+    return findings
+
+
 def check_internal_ids(text: str) -> list[str]:
     """Flag internal IDs leaking into rendered prose."""
     found = sorted({f"{prefix}_" for prefix in _INTERNAL_ID_PATTERN.findall(text)})
@@ -403,6 +481,9 @@ class LintResult:
 
     errors: list[str] = field(default_factory=list)
     advisories: list[str] = field(default_factory=list)
+    # Trend instruments, not gates (work order H19-H20)
+    stats: "StyleStats | None" = None
+    slop_score: int = 0
 
     @property
     def passes(self) -> bool:
@@ -426,13 +507,23 @@ def lint_rendered_document(text: str) -> LintResult:
     Returns:
         LintResult. ``passes`` is False only when there are hard errors.
     """
+    stats = measure_style(text)
     result = LintResult(
         errors=check_internal_ids(text)
         + check_tics(text)
         + check_research_register(text)
         + check_source_narration(text)
         + check_consensus_narration(text),
-        advisories=check_rule_of_three(text),
+        advisories=check_rule_of_three(text)
+        + check_vocabulary(text)
+        + stats.findings,
+    )
+    result.stats = stats
+    result.slop_score = slop_score(
+        text,
+        lint_errors=len(result.errors),
+        lint_advisories=len(result.advisories),
+        stats=stats,
     )
 
     if result.errors:

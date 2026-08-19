@@ -28,6 +28,7 @@ from backend.pipeline.briefing_gates import (
     fact_is_covered,
     grounding_gate,
 )
+from backend.pipeline.briefing_lint import lint_briefing
 from backend.pipeline.briefing_passes import (
     build_anecdotes,
     build_record_entries,
@@ -254,11 +255,16 @@ def build_briefing(
         source_trail=trail,
     )
 
+    lint = lint_briefing(briefing)
     coverage = coverage_gate(briefing, inventory)
     grounding = grounding_gate(
         briefing,
         list(raw_by_source.values()),
         [fact["text"] for fact in inventory],
+    )
+    logger.info(
+        f"[{ctx.job_id}] briefing lint: {len(lint.errors)} error(s), "
+        f"{len(lint.advisories)} advisory(ies)"
     )
     logger.info(f"[{ctx.job_id}] {coverage.summary()}")
     logger.info(f"[{ctx.job_id}] {grounding.summary()}")
@@ -266,6 +272,7 @@ def build_briefing(
     report = {
         "coverage": coverage.to_dict(),
         "grounding": grounding.to_dict(),
+        "lint": lint.to_dict(),
         "file_repairs": repairs,
     }
     return briefing, report

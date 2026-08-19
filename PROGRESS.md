@@ -1937,7 +1937,7 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   Record routing was also tightened after seeing real output: any sentence
   mentioning a year was becoming a chronology entry (152 of them), so an entry
   now needs a past-tense verb and a date that is not inside a citation (133).
-- [~] D15 Renderer + Source Vault — both built; the three lint additions still to come
+- [x] D15 Renderer + Source Vault + the three lint additions
   ```
   $ pytest backend/tests/test_briefing_renderer.py -q
   15 passed
@@ -1954,6 +1954,11 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   within 78 characters (footer wording), and already carries the I27 copyright
   posture: private by default, paywall markers detected, product mode renders
   excerpt-plus-link.
+  The three lint additions live in `backend/pipeline/briefing_lint.py`, which
+  checks what a passage-level linter cannot see: a name in 2+ sections without
+  a card (error), a bare source ID inside prose rather than in the citation tag
+  (error), and staging described without saying where the underlying fact lives
+  (advisory). Wired into the build's report.
 - [x] D16 Doc 3 retired behind a flag, remainder moved to code
   ```
   $ pytest backend/tests/test_doc3_retirement.py -q
@@ -1974,17 +1979,48 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 - [ ] E18 Exa into grounded search providers (optional, time permitting)
 
 ### §H Lint upgrades
-- [ ] H19 Statistical module in `style_enforcer.py` (advisory tier)
-- [ ] H20 Document slop score 0–100 (trend instrument, never a gate)
-- [ ] H21 Vocabulary expansion (copula avoidance, synonym cycling, inflation, false ranges/hedging)
-- [ ] H22 Post-repair invariant validator (quotes/numbers/dates/ids byte-identical)
-- [ ] H23 AI-fingerprint pre-flight (shared lint lib)
+- [x] H19 Statistical module — the tell that has no vocabulary
+  ```
+  $ pytest backend/tests/test_briefing_lint.py -q
+  19 passed
+  ```
+  `backend/pipeline/style_stats.py` measures sentence-length variance, lexical
+  diversity, passive rate, and transition density. Enumerate-and-march writing
+  is invisible to a phrase matcher and obvious to a variance measure: the
+  marching sample scores stdev 0.0 and is flagged, the owner-approved sample
+  scores 19.5 and is not.
+- [x] H20 Document slop score — a trend instrument, never a gate
+  Aggregates lint errors, advisories, and the statistical signals into 0-100.
+  Calibrated so the approved Section-1 sample scores 0 and marching text scores
+  35+; the number exists to compare a document with itself across repair rounds
+  and one writer model against another.
+- [x] H21 Vocabulary expansion — advisory tier, curated against our voice laws
+  Copula avoidance ("serves as"), significance inflation ("pivotal", "stands as
+  a testament"), false ranges, false hedging, and announced elegant variation.
+  Advisory rather than error: each is sometimes the right words, and a hard
+  error there teaches everyone to ignore the lint. The source's casual-register
+  substitutions were rejected outright — they fight the spoken register.
+  ⚠️ Not implemented: synonym cycling detection needs coreference resolution to
+  tell elegant variation from two genuinely different referents. Flagged rather
+  than faked.
+- [x] H22 Post-repair invariant validator — voice may change, facts may not
+  `backend/pipeline/repair_invariants.py` compares quotes, numbers, dates, and
+  citation IDs before and after a repair pass. Reordering a sentence holds;
+  3,000 becoming 300, a trimmed quotation, or a dropped SRC id all fail with
+  the specific value named. This is the failure that reads *better* and says
+  something else, which is why it needs a machine rather than a reviewer.
+- [x] H23 AI-fingerprint pre-flight — errors, not advisories
+  `check_publish_fingerprints` catches unfilled placeholders, unrendered
+  template tokens, citation markup, tracking parameters in links, and assistant
+  self-reference. In published text none of these has a defensible reading.
 
 ### §I Blind spots + update mechanism
 - [ ] I24 Corpus balance report (code + 1 small LLM call)
 - [ ] I25 Harvest recall audit (stratified sample re-extract, code fuzzy-match)
 - [ ] I26 Staleness/freshness pass → dated addendum
-- [ ] I27 Vault copyright flag (private default, paywall-marker detection)
+- [x] I27 Vault copyright flag — built with the vault (D15)
+  Private by default; `looks_paywalled` detects the markers; product mode
+  renders excerpt-plus-link instead of full text for flagged sources.
 - [ ] I28 Injection hardening (delimited source data + injection lint)
 - [ ] I29 Update mechanism — check_updates mode, addendum-first render, version diff
 - [ ] I30 Read regression test (cold-reader harness + trend tracking)
