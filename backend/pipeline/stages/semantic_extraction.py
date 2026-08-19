@@ -927,10 +927,14 @@ def _run_llm_judge(
             cost_key = f"{judge_result.provider.lower().replace(' ', '_')}_llm_judge"
             costs[cost_key] = judge_result.cost
 
+        contradictory = len(judge_result.contradictory_hallucination_flags)
         logger.info(
-            f"[{source_id}] LLM Judge: {judge_result.items_reviewed} items, "
-            f"{len(judge_result.hallucination_flags)} hallucinations flagged, "
-            f"quality={judge_result.overall_quality.value}"
+            f"[{source_id}] LLM Judge: {len(judge_result.items_reviewed)} items reviewed "
+            f"({judge_result.valid_count} valid, {judge_result.questionable_count} questionable, "
+            f"{judge_result.invalid_count} invalid), "
+            f"{len(judge_result.confirmed_hallucination_flags)} hallucinations flagged"
+            + (f" ({contradictory} flag(s) ignored as self-contradictory)" if contradictory else "")
+            + f", quality={judge_result.overall_quality.value}"
         )
     except Exception as e:
         logger.warning(f"[{source_id}] LLM Judge failed (non-fatal): {e}")

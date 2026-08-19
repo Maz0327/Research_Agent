@@ -131,6 +131,42 @@ class JudgeResult:
         return sum(1 for item in self.items_reviewed if item.verdict == JudgeVerdict.INVALID)
 
     @property
+    def verdict_by_item(self) -> dict:
+        """Map item ID to the verdict the judge gave it."""
+        return {item.item_id: item.verdict for item in self.items_reviewed}
+
+    @property
+    def confirmed_hallucination_flags(self) -> list[str]:
+        """Flags the judge's own verdicts support.
+
+        Judges have returned every reviewed item in `hallucination_flags` while
+        marking all of them VALID, which then downgraded a whole clean
+        extraction to LOW confidence. A per-item verdict is the more explicit
+        statement, so a flag that contradicts a VALID verdict is not acted on.
+        Flags for items the judge did not review are kept: there is no verdict
+        to contradict them.
+        """
+        verdicts = self.verdict_by_item
+        return [
+            flag_id
+            for flag_id in self.hallucination_flags
+            if verdicts.get(flag_id) is not JudgeVerdict.VALID
+        ]
+
+    @property
+    def contradictory_hallucination_flags(self) -> list[str]:
+        """Flags the judge marked VALID in the same response.
+
+        Reported rather than acted on, so the contradiction stays visible.
+        """
+        verdicts = self.verdict_by_item
+        return [
+            flag_id
+            for flag_id in self.hallucination_flags
+            if verdicts.get(flag_id) is JudgeVerdict.VALID
+        ]
+
+    @property
     def validation_rate(self) -> float:
         total = len(self.items_reviewed)
         if total == 0:
@@ -146,10 +182,13 @@ class JudgeResult:
             "confidence_overrides": [co.to_dict() for co in self.confidence_overrides],
             "summary": self.summary,
             "stats": {
+                "items_reviewed": len(self.items_reviewed),
                 "valid": self.valid_count,
                 "questionable": self.questionable_count,
                 "invalid": self.invalid_count,
                 "validation_rate": round(self.validation_rate, 3),
+                "hallucination_flags": len(self.confirmed_hallucination_flags),
+                "contradictory_flags": len(self.contradictory_hallucination_flags),
             },
             "cost": round(self.cost, 5),
             "error": self.error,
@@ -290,7 +329,8 @@ def _try_openai_judge(
         logger.info(
             f"[{source_id}] Judge result (GPT-4o): quality={result.overall_quality.value}, "
             f"valid={result.valid_count}, questionable={result.questionable_count}, "
-            f"invalid={result.invalid_count}, hallucination_flags={len(result.hallucination_flags)}, "
+            f"invalid={result.invalid_count}, "
+            f"hallucination_flags={len(result.confirmed_hallucination_flags)}, "
             f"cost=${result.cost:.4f}"
         )
         return result
@@ -461,7 +501,8 @@ def _try_kimi_judge(
         logger.info(
             f"[{source_id}] Judge result (Kimi K2.5): quality={result.overall_quality.value}, "
             f"valid={result.valid_count}, questionable={result.questionable_count}, "
-            f"invalid={result.invalid_count}, hallucination_flags={len(result.hallucination_flags)}, "
+            f"invalid={result.invalid_count}, "
+            f"hallucination_flags={len(result.confirmed_hallucination_flags)}, "
             f"cost=${result.cost:.4f}"
         )
         return result
@@ -592,8 +633,13 @@ def apply_judge_verdicts(
                     f"({override.reason})"
                 )
 
-        # Mark hallucination flags
-        for flag_id in judge_result.hallucination_flags:
+        # Mark hallucination flags the judge's own verdicts support
+        for flag_id in judge_result.contradictory_hallucination_flags:
+            warnings.append(
+                f"Judge flagged {flag_id} as fabricated but also marked it VALID; "
+                f"the verdict wins and the flag is not applied"
+            )
+        for flag_id in judge_result.confirmed_hallucination_flags:
             warnings.append(f"HALLUCINATION FLAG: {flag_id} - likely fabricated content")
             for kp in extraction_result.key_points:
                 if kp.key_point_id == flag_id:
@@ -641,8 +687,13 @@ def apply_judge_verdicts(
                     f"({override.reason})"
                 )
 
-        # Mark hallucination flags
-        for flag_id in judge_result.hallucination_flags:
+        # Mark hallucination flags the judge's own verdicts support
+        for flag_id in judge_result.contradictory_hallucination_flags:
+            warnings.append(
+                f"Judge flagged {flag_id} as fabricated but also marked it VALID; "
+                f"the verdict wins and the flag is not applied"
+            )
+        for flag_id in judge_result.confirmed_hallucination_flags:
             warnings.append(f"HALLUCINATION FLAG: {flag_id} - likely fabricated content")
             for kp in extraction_result.get("key_points", []):
                 if kp.get("key_point_id") == flag_id:

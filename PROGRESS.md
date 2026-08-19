@@ -1809,7 +1809,21 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   word-overlap across 741 pairs. String similarity cannot reach them; that is
   semantic grouping, and §J pass 2 assigns it to an LLM for exactly this
   reason. B8 catches the string-level cases only, by design.
-- [ ] B9 `llm_judge` counter fix (counts items, not flags)
+- [x] B9 Judge counter fix — real counts, and flags reconciled against verdicts
+  ```
+  $ pytest backend/tests/test_judge_counting.py backend/tests/test_hallucination_prevention.py -q
+  57 passed (6 new)
+  $ pytest -q
+  1 failed, 1385 passed, 2 skipped in 77.21s   # the one known pre-existing failure
+  ```
+  The stage logged the whole `items_reviewed` list where a count belonged, and
+  every id in `hallucination_flags` was applied even when the same response
+  marked those items VALID, which downgraded clean extractions to LOW
+  confidence wholesale. `confirmed_hallucination_flags` acts only on flags the
+  judge's own verdicts support; `contradictory_hallucination_flags` reports the
+  rest as a warning instead of acting on them. Flags for items the judge never
+  reviewed are kept (no verdict contradicts them). Stats now carry
+  `items_reviewed`, `hallucination_flags`, and `contradictory_flags`.
 - [ ] B10 Harvest as a real pipeline stage → coverage inventory for gate 13
 
 ### §C Distillation
