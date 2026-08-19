@@ -1726,7 +1726,28 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   always carry a stated reason (the old wiring read a
   `transcript_failure_reason` key nothing ever set, so holes were silent).
   Assembly logs the raw-word total, which is the Section-1 input size.
-- [ ] A5 Fetch fallbacks — archive.org/jina + navigation-chrome heuristic
+- [x] A5 Fetch fallbacks — chrome/thin detection, then Jina, then the Internet Archive
+  ```
+  $ python - <<'EOF'   # live, against the 6 non-video fixture URLs + a 403 page
+  upworthy      http=200 words=1051 fallback=False      nofilmschool  http=200 words= 549 fallback=False
+  stage32       http=200 words= 681 fallback=False      filmexperience http=200 words=2098 fallback=False
+  theconversation http=200 words=857 fallback=False     screenhub     http=200 words= 917 fallback=False
+  nytimes(403)  http=403 words=   0 fallback=True  'no text extracted'
+  perseus       http=200 words= 284 fallback=False      # short but real: not a false positive
+  archive route: example.com -> snapshot fetched, 17 words extracted
+  EOF
+  $ pytest backend/tests/test_fetch_fallbacks.py backend/tests/test_byline_capture.py \
+      tests/test_web_capture.py backend/tests/test_raw_text_contract.py backend/tests/test_rate_limiter.py -q
+  66 passed in 15.92s (19 new)
+  ```
+  `needs_fetch_fallback` names why an extraction is unusable: no text, page
+  navigation (prose density plus site-furniture markers, the Perseus 503 case),
+  or thin (word floor, the Substack shell case). The worker's article path is
+  now an explicit three-route chain (direct → Jina → Wayback) that logs which
+  route won, and fails with a stated reason rather than saving chrome as a
+  source. Wayback uses the CDX index, not `wayback/available`, which 429s on
+  the second lookup; the archive gets its own rate-limit bucket (1 at a time,
+  2s apart) and an unreachable archive never fails a job.
 
 ### §B Extraction / validation (pure code)
 - [ ] B6 KP-ID namespacing `source_id:kp_id` + supported_by attribution fix

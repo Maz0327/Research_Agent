@@ -199,6 +199,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
         _extract_text_with_trafilatura,
         extract_byline_from_html,
         extract_title_from_html,
+        fetch_via_wayback,
     )
     from backend.integrations.gemini_client import GeminiClient
     import base64
@@ -267,68 +268,83 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 logger.warning(f"[{job_id}] {warning}")
 
         # --- Process articles in parallel (HTTP fetch + extraction is the bottleneck) ---
+        def _extract_from_html(html: str, url: str) -> tuple[Optional[str], Optional[str], dict]:
+            """Pull text, title, and byline out of fetched HTML."""
+            return (
+                _extract_text_with_trafilatura(html, url),
+                extract_title_from_html(html, url),
+                extract_byline_from_html(html, url),
+            )
+
         def _fetch_article(args: tuple) -> tuple:
             """Returns (orig_idx, pkg_or_None, warning_or_None)."""
             orig_idx, url = args
             source_index = article_offset + orig_idx
             try:
-                from backend.utils.content_filter import filter_content_or_warn
+                from backend.utils.content_filter import (
+                    filter_content_or_warn,
+                    needs_fetch_fallback,
+                )
+
+                text_content: Optional[str] = None
+                article_title: Optional[str] = None
+                byline: dict = {"creator": None, "published": None, "sitename": None}
+                route = "direct"
+
+                # Route 1: direct HTTP fetch.
                 html_content, status_code, error_msg = _fetch_url_content(url)
+                if html_content:
+                    text_content, article_title, byline = _extract_from_html(html_content, url)
+
+                # A fetch can "succeed" and still return nothing usable: a
+                # navigation-only page (Perseus 503, 08-17) or a JS shell
+                # (Substack). Both look like content to everything downstream.
+                fallback_needed, reason = needs_fetch_fallback(text_content or "")
                 if html_content is None:
-                    # Direct fetch failed — try Jina Reader
+                    fallback_needed = True
+                    reason = f"HTTP {status_code or 'error'}: {error_msg}"
+
+                # Route 2: Jina Reader renders the page.
+                if fallback_needed:
+                    logger.info(f"[{job_id}] Falling back for {url[:50]} ({reason})")
                     try:
                         from backend.integrations.jina_reader_client import JinaReaderClient
-                        jina = JinaReaderClient()
-                        jina_result = jina.extract(url)
-                        jina_content = jina_result.get("content", "")
-                        if jina_content and len(jina_content) > 100:
-                            logger.info(
-                                f"[{job_id}] Jina recovered {len(jina_content)} chars "
-                                f"after HTTP {status_code or 'error'} for {url[:50]}"
-                            )
-                            # Extract title from first H1 in Jina markdown
-                            jina_title = None
+
+                        jina_content = JinaReaderClient().extract(url).get("content", "")
+                        if jina_content and not needs_fetch_fallback(jina_content)[0]:
+                            text_content = jina_content
+                            route = "jina"
+                            fallback_needed = False
                             for line in jina_content.splitlines():
                                 stripped = line.strip()
                                 if stripped.startswith("# "):
-                                    jina_title = stripped[2:].strip()
+                                    article_title = article_title or stripped[2:].strip()
                                     break
-                            article_data = {"url": url, "content": jina_content}
-                            if jina_title:
-                                article_data["title"] = jina_title
-                            pkg = build_source_identity_from_article(article_data, source_index)
-                            return orig_idx, pkg, None
-                    except Exception as jina_err:
-                        logger.warning(f"[{job_id}] Jina fallback also failed: {jina_err}")
-                    return orig_idx, None, f"Failed to fetch article {url}: {error_msg}"
-
-                # Extract title and byline from HTML before trafilatura strips them
-                article_title = extract_title_from_html(html_content, url)
-                byline = extract_byline_from_html(html_content, url)
-
-                text_content = _extract_text_with_trafilatura(html_content, url)
-
-                if not text_content:
-                    try:
-                        from backend.integrations.jina_reader_client import JinaReaderClient
-                        jina = JinaReaderClient()
-                        jina_result = jina.extract(url)
-                        jina_content = jina_result.get("content", "")
-                        if jina_content and len(jina_content) > 100:
-                            text_content = jina_content
-                            logger.info(f"[{job_id}] Jina fallback: {len(text_content)} chars from {url[:50]}")
-                            # If HTML title failed, try Jina H1
-                            if not article_title:
-                                for line in jina_content.splitlines():
-                                    stripped = line.strip()
-                                    if stripped.startswith("# "):
-                                        article_title = stripped[2:].strip()
-                                        break
+                            logger.info(
+                                f"[{job_id}] Jina recovered {len(jina_content)} chars for {url[:50]}"
+                            )
                     except Exception as jina_err:
                         logger.warning(f"[{job_id}] Jina fallback failed for {url[:50]}: {jina_err}")
 
-                if not text_content:
-                    return orig_idx, None, f"No text extracted from {url}"
+                # Route 3: the Internet Archive still has what the live page lost.
+                if fallback_needed:
+                    archived_html, snapshot_url = fetch_via_wayback(url)
+                    if archived_html:
+                        archived_text, archived_title, archived_byline = _extract_from_html(
+                            archived_html, url
+                        )
+                        if archived_text and not needs_fetch_fallback(archived_text)[0]:
+                            text_content = archived_text
+                            article_title = article_title or archived_title
+                            byline = {
+                                key: byline.get(key) or archived_byline.get(key)
+                                for key in ("creator", "published", "sitename")
+                            }
+                            route = f"wayback ({snapshot_url})"
+                            fallback_needed = False
+
+                if fallback_needed or not text_content:
+                    return orig_idx, None, f"No usable content for {url}: {reason}"
 
                 filtered = filter_content_or_warn(
                     text_content,
@@ -348,7 +364,9 @@ def _run_mixed_input_job(ctx, job) -> dict:
                 if byline["sitename"]:
                     article_data["sitename"] = byline["sitename"]
                 pkg = build_source_identity_from_article(article_data, source_index)
-                logger.info(f"[{job_id}] Article fetched: {len(filtered)} chars from {url[:50]}")
+                logger.info(
+                    f"[{job_id}] Article fetched via {route}: {len(filtered)} chars from {url[:50]}"
+                )
                 return orig_idx, pkg, None
             except Exception as e:
                 return orig_idx, None, f"Failed to process article {url}: {e}"

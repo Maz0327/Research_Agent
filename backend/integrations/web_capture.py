@@ -10,6 +10,7 @@ from loguru import logger
 import trafilatura
 
 from backend.models.source import SourceItem, SourceType
+from backend.utils.rate_limiter import sync_wait_for_rate_limit
 
 
 # Standard user agent string
@@ -319,6 +320,89 @@ def _fetch_url_content(url: str) -> tuple[Optional[str], Optional[int], Optional
     except Exception as e:
         logger.exception(f"Unexpected error fetching {url}: {e}")
         return None, None, f"Unexpected error: {str(e)}"
+
+
+WAYBACK_CDX_API = "http://web.archive.org/cdx/search/cdx"
+WAYBACK_SNAPSHOT_TEMPLATE = "https://web.archive.org/web/{timestamp}id_/{url}"
+
+
+def _latest_wayback_snapshot(url: str, timeout: float) -> Optional[str]:
+    """Find the most recent successful Internet Archive capture of a URL.
+
+    Uses the CDX index rather than the `wayback/available` endpoint, which
+    rate-limits aggressively (429 on the second lookup, measured 08-19). The
+    `id_` snapshot form returns the page as archived, without the archive's
+    own toolbar markup.
+
+    Args:
+        url: Original source URL.
+        timeout: Request timeout in seconds.
+
+    Returns:
+        Snapshot URL, or None when the archive has no successful capture.
+    """
+    sync_wait_for_rate_limit("archive_org")
+    response = httpx.get(
+        WAYBACK_CDX_API,
+        params={
+            "url": url,
+            "output": "json",
+            "limit": "-1",  # most recent match
+            "filter": "statuscode:200",
+            "fl": "timestamp,original",
+        },
+        timeout=timeout,
+        follow_redirects=True,
+    )
+    if response.status_code != 200:
+        logger.debug(f"Wayback index returned {response.status_code} for {url[:60]}")
+        return None
+
+    rows = response.json()
+    # Row 0 is the header when any match exists.
+    if not isinstance(rows, list) or len(rows) < 2:
+        return None
+
+    timestamp, original = rows[-1][0], rows[-1][1]
+    return WAYBACK_SNAPSHOT_TEMPLATE.format(timestamp=timestamp, url=original)
+
+
+def fetch_via_wayback(url: str, timeout: float = 30.0) -> tuple[Optional[str], Optional[str]]:
+    """Fetch a page's most recent Internet Archive snapshot.
+
+    Live fetches fail in ways the archive does not: a 503 (Perseus, 08-17), a
+    paywall added after publication, a page rewritten since it was cited. The
+    snapshot is the text a reader saw, so it keeps the source in the corpus
+    instead of dropping it.
+
+    Args:
+        url: Original source URL.
+        timeout: Per-request timeout in seconds.
+
+    Returns:
+        Tuple of (html, snapshot_url). Both None when no snapshot exists or the
+        archive cannot be reached: an unreachable archive never fails a job.
+    """
+    try:
+        snapshot_url = _latest_wayback_snapshot(url, timeout)
+        if not snapshot_url:
+            logger.debug(f"No Wayback snapshot for {url[:60]}")
+            return None, None
+
+        sync_wait_for_rate_limit("archive_org")
+        snapshot = httpx.get(snapshot_url, timeout=timeout, follow_redirects=True)
+        if snapshot.status_code != 200:
+            logger.debug(
+                f"Wayback snapshot returned {snapshot.status_code} for {url[:60]}"
+            )
+            return None, None
+
+        logger.info(f"Recovered {url[:60]} from the Internet Archive")
+        return snapshot.text, snapshot_url
+
+    except Exception as e:
+        logger.debug(f"Wayback fallback failed for {url[:60]}: {e}")
+        return None, None
 
 
 def capture_web_content(sources: list[SourceItem]) -> list[SourceItem]:

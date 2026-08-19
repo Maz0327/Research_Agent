@@ -90,6 +90,15 @@ DEFAULT_RATE_LIMITS: dict[str, RateLimitConfig] = {
     "gemini": RateLimitConfig(requests_per_minute=150, requests_per_hour=3000),
     # GDELT: Standard limits
     "gdelt": RateLimitConfig(requests_per_minute=30, requests_per_hour=300),
+    # Internet Archive: undocumented and strict; the availability API 429s on
+    # even a handful of quick lookups (measured 08-19). One at a time, 2s apart.
+    "archive_org": RateLimitConfig(
+        requests_per_minute=20,
+        requests_per_hour=300,
+        max_retries=1,
+        min_interval_seconds=2.0,
+        max_concurrent=1,
+    ),
     # Jina with API key: 500 RPM, 2M TPM. Using 200 RPM for safety.
     "jina": RateLimitConfig(requests_per_minute=200, requests_per_hour=5000),
     # Google Drive: Standard limits
