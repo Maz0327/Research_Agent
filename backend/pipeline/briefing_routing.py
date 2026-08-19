@@ -318,6 +318,7 @@ def select_disputes(
     claim_graph: Optional[Any] = None,
     tensions: Iterable[Any] = (),
     inventory: Iterable[dict] = (),
+    key_points: Optional[dict] = None,
     max_disputes: int = 8,
 ) -> list[dict]:
     """Choose the disputes, by code, from what the pipeline already found.
@@ -333,6 +334,11 @@ def select_disputes(
         claim_graph: A validated ClaimGraph, when distillation produced one.
         tensions: Tension objects from extraction.
         inventory: Harvest entries, used to attach concrete evidence.
+        key_points: Map of key-point ID to its dict, so a tension can be
+            stated as the concrete assertion its key points make rather than
+            as the analytic sentence a synthesis model wrote about it. IDs are
+            source-qualified since work order B6; a corpus extracted before
+            that fix has colliding IDs and falls back to the description.
         max_disputes: Ceiling on how many disputes the section carries.
 
     Returns:
@@ -359,18 +365,44 @@ def select_disputes(
             }
         )
 
+    lookup = key_points or {}
     for tension in tensions or []:
         description = getattr(tension, "description", "") or ""
         if not description.strip():
             continue
+
+        involved = [
+            lookup[kp_id]
+            for kp_id in (getattr(tension, "involved_key_points", []) or [])
+            if kp_id in lookup
+        ]
         sources = list(getattr(tension, "source_ids", []) or [])
+        for point in involved:
+            sources.extend(point.get("source_ids", []) or [])
+
+        # A dispute reads as the thing being disputed, not as a sentence about
+        # there being a disagreement. The key points carry the concrete
+        # assertion; the description is the fallback when they do not resolve.
+        if len(involved) >= 2:
+            claim = involved[0].get("statement", description)
+            statement_for = involved[0].get("statement", description)
+            statement_against = involved[1].get("statement", "")
+        elif involved:
+            claim = involved[0].get("statement", description)
+            statement_for = claim
+            statement_against = ""
+        else:
+            claim = description
+            statement_for = description
+            statement_against = ""
+
         candidates.append(
             {
-                "claim": description,
-                "holders": f"Held across: {', '.join(sources) or 'the corpus'}.",
-                "statement_for": description,
-                "statement_against": "",
-                "source_ids_for": sources,
+                "claim": claim,
+                "holders": f"Held across: {', '.join(sorted(set(sources))) or 'the corpus'}.",
+                "statement_for": statement_for,
+                "statement_against": statement_against,
+                "source_ids_for": sorted(set(sources)),
                 "source_ids_against": [],
                 "verifiable": True,
             }
@@ -382,13 +414,13 @@ def select_disputes(
         dispute["evidence_for"] = [
             fact["text"]
             for fact in facts
-            if statement_similarity(fact["text"], dispute["statement_for"]) >= 0.35
+            if statement_similarity(fact["text"], dispute["statement_for"]) >= 0.30
         ][:8]
         dispute["evidence_against"] = [
             fact["text"]
             for fact in facts
             if dispute["statement_against"]
-            and statement_similarity(fact["text"], dispute["statement_against"]) >= 0.35
+            and statement_similarity(fact["text"], dispute["statement_against"]) >= 0.30
         ][:8]
         dispute["source_ids_against"] = sorted(
             {

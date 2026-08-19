@@ -320,6 +320,14 @@ def stage_briefing(ctx: PipelineContext) -> None:
 
     # Disputes are chosen by code from what the pipeline already found, never
     # by asking a model what is contested.
+    key_points = {
+        point.key_point_id: {
+            "statement": point.statement,
+            "source_ids": list(point.source_ids or []),
+        }
+        for extraction in getattr(ctx, "semantic_extractions", [])
+        for point in getattr(extraction, "key_points", [])
+    }
     disputes = select_disputes(
         claim_graph=getattr(ctx, "claim_graph", None),
         tensions=[
@@ -328,6 +336,7 @@ def stage_briefing(ctx: PipelineContext) -> None:
             for tension in getattr(extraction, "tensions", [])
         ],
         inventory=getattr(ctx, "harvest_inventory", []) or [],
+        key_points=key_points,
     )
 
     try:

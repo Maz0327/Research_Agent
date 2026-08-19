@@ -372,6 +372,49 @@ class TestCodeHalves:
 
         assert len(disputes) == 2
 
+    def test_a_dispute_reads_as_the_claim_not_as_a_sentence_about_disagreeing(self):
+        """The section stages fights, so its title line is the thing at stake."""
+
+        class _Tension:
+            description = "There is a direct contradiction between the consensus and the scans"
+            involved_key_points = ["SRC_1:KP_2", "SRC_2:KP_3"]
+            source_ids = []
+
+        key_points = {
+            "SRC_1:KP_2": {
+                "statement": "The labyrinth was quarried away, leaving only its foundation",
+                "source_ids": ["SRC_1"],
+            },
+            "SRC_2:KP_3": {
+                "statement": "Scans report a grid of granite walls beneath the stone bed",
+                "source_ids": ["SRC_2"],
+            },
+        }
+        inventory = [
+            _fact("SRC_1:F_1", "SRC_1", "Petrie concluded the labyrinth was quarried away entirely"),
+            _fact("SRC_2:F_1", "SRC_2", "Scans report a grid of granite walls beneath the bed"),
+        ]
+
+        dispute = select_disputes(
+            tensions=[_Tension()], inventory=inventory, key_points=key_points
+        )[0]
+
+        assert dispute["claim"].startswith("The labyrinth was quarried away")
+        assert dispute["evidence_for"] and dispute["evidence_against"]
+        assert dispute["source_ids_for"] == ["SRC_1", "SRC_2"]
+
+    def test_unresolvable_key_points_fall_back_to_the_description(self):
+        """A corpus extracted before B6 has colliding IDs; it still produces a dispute."""
+
+        class _Tension:
+            description = "Sources disagree about whether the roof survives"
+            involved_key_points = ["KP_2", "KP_3"]
+            source_ids = ["SRC_1"]
+
+        dispute = select_disputes(tensions=[_Tension()], inventory=[], key_points={})[0]
+
+        assert dispute["claim"] == "Sources disagree about whether the roof survives"
+
     def test_date_reading_handles_how_sources_write_dates(self):
         """Years, months, ranges, centuries, and BC all sort correctly."""
         assert date_in("Petrie excavated in 1888")[0] == 1888
