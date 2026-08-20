@@ -24,11 +24,17 @@ from urllib.parse import urlparse, parse_qs
 
 from loguru import logger
 
+from backend.config import get_settings
 from backend.utils.error_handling import sanitize_error_message
 from backend.utils.rate_limiter import with_rate_limit
 from backend.utils.llm_temperature import get_temperature, TaskType, TEMP_FACTUAL
 # NOTE: verify_extraction_results is imported lazily at call site (line ~1846)
 # to break circular import: gemini_client → pipeline → stages → gap_analysis → gemini_client
+
+def _is_gemini_3(model: str) -> bool:
+    """Is this a Gemini 3.x model, whose config contract differs from 2.5's?"""
+    return (model or "").startswith("gemini-3")
+
 
 # =============================================================================
 # Constants (L-002, L-007: Extract magic numbers)
@@ -721,7 +727,7 @@ class GeminiClient:
         self,
         prompt: str,
         system_message: Optional[str] = None,
-        model: str = "gemini-2.5-pro",
+        model: Optional[str] = None,
         temperature: Optional[float] = None,
         response_schema: Optional[type] = None,
     ) -> dict[str, Any]:
@@ -732,8 +738,11 @@ class GeminiClient:
         Args:
             prompt: The extraction prompt
             system_message: Optional system instruction/role
-            model: Model to use (default: gemini-2.5-pro for thinking/quality)
-            temperature: Override temperature (defaults to TEMP_FACTUAL)
+            model: Model to use. Defaults to MODEL_EXTRACTION, so a lineup
+                change is a config change rather than a code edit, and so the
+                2.5 line's retirement on 2026-10-16 is a one-line move.
+            temperature: Override temperature. Ignored on Gemini 3.x, which
+                removed the parameter.
             response_schema: Optional Pydantic model for Gemini response_schema.
                              Must have NO default values (Gemini API requirement).
                              See: backend/models/semantic_extraction_schema.py
@@ -741,6 +750,7 @@ class GeminiClient:
         Returns:
             Dict with 'data' (parsed JSON), 'cost', and optional 'error'
         """
+        model = model or get_settings().model_extraction
         try:
             logger.info(f"Gemini JSON generation ({model}): {prompt[:80]}...")
 
@@ -752,14 +762,24 @@ class GeminiClient:
             # Pro thinking model uses separate thinking_budget for reasoning tokens
             max_tokens = 65536  # 64K tokens - Gemini 2.5 Flash/Pro max output
 
-            # Build config
-            config = types.GenerateContentConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-                system_instruction=system_message,
-                response_mime_type="application/json",  # Force JSON output
-                response_schema=response_schema,  # Enforce JSON structure if provided
-            )
+            # Build config. The 3.x line dropped temperature and replaced
+            # thinking_budget with a thinking_level enum; sending the old
+            # parameters is a 400, and thinking bills at output rates for no
+            # measured gain on extraction, so it is set to minimal there.
+            config_kwargs: dict[str, Any] = {
+                "max_output_tokens": max_tokens,
+                "system_instruction": system_message,
+                "response_mime_type": "application/json",
+                "response_schema": response_schema,
+            }
+            if _is_gemini_3(model):
+                config_kwargs["thinking_config"] = types.ThinkingConfig(
+                    thinking_level=get_settings().extraction_thinking_level
+                )
+            else:
+                config_kwargs["temperature"] = temperature
+
+            config = types.GenerateContentConfig(**config_kwargs)
 
             response = self._client.models.generate_content(
                 model=model,

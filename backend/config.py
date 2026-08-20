@@ -140,6 +140,26 @@ class Settings(BaseSettings):
         default="claude-sonnet-5", alias="MODEL_HARVEST",
         description="Per-source fact harvest; the measured configuration (85 -> 258 facts on the films corpus)"
     )
+    model_extraction: str = Field(
+        default="gemini-3.6-flash", alias="MODEL_EXTRACTION",
+        description="Per-source semantic extraction. 3.6 over 3.7: 3.7 removed thinking_level 'minimal' and regressed on hallucination"
+    )
+    model_reasoning: str = Field(
+        default="gemini-3.1-pro-preview", alias="MODEL_REASONING",
+        description="Gap analysis and cross-source reasoning; defensible only because quote verification wraps it"
+    )
+    model_judge: str = Field(
+        default="gpt-5.6-terra", alias="MODEL_JUDGE",
+        description="Independent audit. LAW: never a Claude model while Claude does synthesis, and never the same vendor as extraction"
+    )
+    model_vision: str = Field(
+        default="gemini-2.5-pro", alias="MODEL_VISION",
+        description="Frame and image analysis. WARNING: the 2.5 line retires 2026-10-16"
+    )
+    extraction_thinking_level: str = Field(
+        default="minimal", alias="EXTRACTION_THINKING_LEVEL",
+        description="Gemini 3.x thinking_level for extraction. 'minimal' measured 73.6% cheaper at identical extraction accuracy"
+    )
 
     # Doc 3, the Creator Brief, is retired from the default run (work order
     # item 16): hooks, twist, and say-it-like violate "the brief informs, never

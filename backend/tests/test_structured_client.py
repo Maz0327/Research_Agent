@@ -133,10 +133,14 @@ class TestOpenAICompatibleClient:
         assert usage["input_tokens"] == 10
 
     def test_unparseable_output_is_an_error(self):
-        """Bad JSON fails loudly instead of half-populating a document."""
+        """Bad JSON fails loudly instead of half-populating a document.
+
+        Both call shapes are tried first, so the error arrives only after the
+        fallback has also failed.
+        """
         client = self._client("not json at all")
 
-        with pytest.raises(StructuredCallError, match="not valid JSON"):
+        with pytest.raises(StructuredCallError, match="no usable structured output"):
             client.generate_structured(
                 prompt="write it", schema={"type": "object"}, system="you write"
             )
@@ -145,10 +149,53 @@ class TestOpenAICompatibleClient:
         """A refusal or an empty completion is never treated as content."""
         client = self._client("")
 
-        with pytest.raises(StructuredCallError, match="no content"):
+        with pytest.raises(StructuredCallError, match="no usable structured output"):
             client.generate_structured(
                 prompt="write it", schema={"type": "object"}, system="you write"
             )
+
+    def test_a_fenced_answer_still_parses(self):
+        """Some providers wrap JSON in a markdown fence; that is not a failure."""
+        client = self._client('```json\n{"lede": "A lede.", "paragraphs": []}\n```')
+
+        data, _ = client.generate_structured(
+            prompt="write it", schema={"type": "object"}, system="you write"
+        )
+
+        assert data["lede"] == "A lede."
+
+    def test_the_fallback_shape_runs_when_the_first_returns_nothing(self):
+        """Measured: kimi-k2.6 answers a strict json_schema with whitespace."""
+        client = OpenAIStructuredClient.__new__(OpenAIStructuredClient)
+        client.model = "kimi-k2.6"
+        empty = MagicMock()
+        empty.choices = [MagicMock(message=MagicMock(content="   \n  "))]
+        empty.usage = MagicMock(prompt_tokens=1, completion_tokens=0)
+        good = MagicMock()
+        good.choices = [MagicMock(message=MagicMock(content='{"verdict": "supported"}'))]
+        good.usage = MagicMock(prompt_tokens=10, completion_tokens=5)
+        client.client = MagicMock()
+        client.client.chat.completions.create.side_effect = [empty, good]
+
+        data, _ = client.generate_structured(
+            prompt="judge it", schema={"type": "object"}, system="you judge"
+        )
+
+        assert data["verdict"] == "supported"
+        assert client.client.chat.completions.create.call_count == 2
+
+    def test_newer_openai_models_get_the_parameter_they_accept(self):
+        """gpt-5.x rejects max_tokens outright; the adapter knows which to send."""
+        client = self._client('{"ok": true}')
+        client.model = "gpt-5.6-terra"
+
+        client.generate_structured(
+            prompt="judge it", schema={"type": "object"}, system="you judge", max_tokens=123
+        )
+
+        kwargs = client.client.chat.completions.create.call_args.kwargs
+        assert kwargs["max_completion_tokens"] == 123
+        assert "max_tokens" not in kwargs
 
     def test_moonshot_routes_through_the_compatible_endpoint(self, monkeypatch):
         """The repo Kimi key is dead; the Moonshot key and base URL are used."""

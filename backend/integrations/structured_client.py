@@ -16,6 +16,7 @@ as written. Those differences belong here rather than in the passes.
 """
 
 import json
+import re
 from typing import Any, Optional
 
 from loguru import logger
@@ -34,6 +35,23 @@ _PREFIXES = (
 )
 
 MOONSHOT_BASE_URL = "https://api.moonshot.ai/v1"
+
+# Model families that reject `max_tokens` in favour of `max_completion_tokens`
+_COMPLETION_TOKEN_PREFIXES = ("gpt-5", "o1", "o3", "o4")
+
+
+def _wants_completion_tokens(model_id: str) -> bool:
+    """Does this model reject the older `max_tokens` parameter?"""
+    return (model_id or "").lower().startswith(_COMPLETION_TOKEN_PREFIXES)
+
+
+def _strip_fences(text: str) -> str:
+    """Remove markdown code fences some providers wrap JSON in."""
+    text = (text or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    return text.strip()
 
 
 class StructuredCallError(Exception):
@@ -236,34 +254,68 @@ class OpenAIStructuredClient:
             StructuredCallError: On API failure or unparsable output.
         """
         model_id = model or self.model
-        try:
-            response = self.client.chat.completions.create(
-                model=model_id,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=max_tokens,
-                response_format={
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ]
+
+        # Two contract differences live here rather than in the callers.
+        # Newer OpenAI models reject `max_tokens` and require
+        # `max_completion_tokens`; Moonshot accepts `max_tokens` and does not
+        # take a strict json_schema, only json_object. Both were found by
+        # calling them, not by reading docs.
+        token_key = (
+            "max_completion_tokens" if _wants_completion_tokens(model_id) else "max_tokens"
+        )
+        attempts = [
+            {
+                token_key: max_tokens,
+                "response_format": {
                     "type": "json_schema",
-                    "json_schema": {
-                        "name": "response",
-                        "strict": True,
-                        "schema": schema,
-                    },
+                    "json_schema": {"name": "response", "strict": True, "schema": schema},
                 },
-            )
-        except Exception as e:
-            raise StructuredCallError(f"{model_id} call failed: {e}") from e
+            },
+            # Fallback: ask for JSON plainly and describe the shape in the turn.
+            {token_key: max_tokens, "response_format": {"type": "json_object"}},
+        ]
 
-        text = (response.choices[0].message.content or "").strip()
-        if not text:
-            raise StructuredCallError(f"{model_id} returned no content")
+        data, last_error = None, None
+        for index, kwargs in enumerate(attempts):
+            turn = list(messages)
+            if index == 1:
+                turn.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Answer as JSON matching this schema exactly, with no "
+                            f"other keys and no commentary:\n{json.dumps(schema)}"
+                        ),
+                    }
+                )
+            try:
+                response = self.client.chat.completions.create(
+                    model=model_id, messages=turn, **kwargs
+                )
+                text = _strip_fences(response.choices[0].message.content or "")
+                if not text:
+                    # Measured: kimi-k2.6 answers a strict json_schema request
+                    # with whitespace. An empty answer is a failed attempt, not
+                    # a failed call, so the next shape gets a turn.
+                    last_error = StructuredCallError(f"{model_id} returned no content")
+                    continue
+                data = json.loads(text)
+                break
+            except json.JSONDecodeError as e:
+                last_error = e
+            except Exception as e:
+                last_error = e
 
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as e:
-            raise StructuredCallError(f"{model_id} response was not valid JSON: {e}") from e
+        if data is None:
+            raise StructuredCallError(
+                f"{model_id} produced no usable structured output: {last_error}"
+            ) from last_error
+        if not isinstance(data, dict):
+            raise StructuredCallError(f"{model_id} returned {type(data).__name__}, not an object")
 
         usage = {
             "input_tokens": getattr(response.usage, "prompt_tokens", 0) or 0,

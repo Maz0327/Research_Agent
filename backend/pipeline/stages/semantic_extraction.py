@@ -446,6 +446,7 @@ def extract_semantic_structure(
     title: str = "Unknown",
     source_word_count: Optional[int] = None,
     source_duration_minutes: Optional[float] = None,
+    model: Optional[str] = None,
 ) -> tuple[SemanticExtractionResult, ValidationReport, float]:
     """
     Extract semantic structure from source content.
@@ -458,6 +459,8 @@ def extract_semantic_structure(
         title: Source title for lock block
         source_word_count: Word count (for validation)
         source_duration_minutes: Video duration (for validation)
+        model: Model override. Defaults to MODEL_EXTRACTION; the sweep passes
+            candidates through here so a contest needs no code edit.
 
     Returns:
         Tuple of (extraction_result, validation_report, cost)
@@ -483,6 +486,7 @@ def extract_semantic_structure(
                 prompt=prompt,
                 system_message=SEMANTIC_EXTRACTION_ROLE,
                 response_schema=SemanticExtractionSchema,
+                model=model,
             )
 
             if "error" in response:
