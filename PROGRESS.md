@@ -2450,4 +2450,29 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   indicative; the gemini-vs-gpt comparison is the clean one.
   **Fully reversible:** `MODEL_DISTILL=claude-sonnet-5` restores it, no code
   change. Suite: 1682 passed.
+- 2026-08-20 **D-035: Claude Code bridge built, measured, NOT enabled.**
+  `backend/integrations/claude_code_client.py` — `claude -p` as a provider, so
+  a slot reading `claude-code:sonnet` runs on the SUBSCRIPTION instead of the
+  API. Works end to end on the real 42k-word corpus.
+  ⚠️ **It also caught an error in D-034, which I had reported wrongly.** That
+  decision said the Read's grounding fell "from 0% to ~5%" off Anthropic. The
+  0% was the *cold reader's answers*; the ~5% was the substitutes' *own atoms*.
+  Two instruments, one column. Re-scored consistently:
+  ```
+  gemini-3.6-flash              coverage 0.785   4-6% ungrounded
+  gpt-5.4-mini                  coverage 0.785   4.9% ungrounded
+  claude-code:sonnet (fresh)    coverage 0.785   4.0% ungrounded
+  claude-sonnet-5 (published,   —                4.1% ungrounded
+    re-scored the same way)
+  ```
+  **There is no measurable Anthropic advantage on the Read.** Leaving Anthropic
+  costs nothing we can detect. D-034's quality caveat is withdrawn.
+  Bridge economics, for the record: 179s and $1.25 for one Read call against
+  14-20s and cents, plus a fixed ~45k-token session tax per invocation that
+  does NOT amortize (measured across three consecutive calls).
+  Two traps found: `ANTHROPIC_API_KEY` in the env kills the call (the CLI
+  prefers it over the subscription login — the subprocess env is now scrubbed),
+  and `--bare` cannot be used because it forces API-key auth.
+  `MODEL_READ` defaults empty; set it to `claude-code:sonnet` to switch that one
+  call on, with automatic fallback to `MODEL_DISTILL`.
 

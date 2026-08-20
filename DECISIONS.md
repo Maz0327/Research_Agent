@@ -1582,3 +1582,72 @@ vision       gemini-2.5-pro      google
 
 **Reversible by env var.** If credits return, `MODEL_DISTILL=claude-sonnet-5`
 restores the better Read with no code change. Suite: 1682 passed.
+
+---
+
+## Decision 035: the Claude Code bridge — built, measured, and NOT enabled (2026-08-20)
+
+**Status:** Accepted. The bridge ships as an available provider; it is off by
+default, because the measurement that justified it did not survive being redone.
+
+### The idea
+
+The Anthropic API has no credits; the Claude Code subscription does, and
+`claude -p` runs the same models headlessly. `ClaudeCodeClient` makes that a
+provider like any other, so a slot reading `claude-code:sonnet` routes through
+the local CLI and the pipeline neither knows nor cares.
+
+It works. Verified end to end on the real 42,000-word Hawara corpus.
+
+Two traps found building it, both worth keeping written down:
+
+- **`ANTHROPIC_API_KEY` in the environment kills the call.** The CLI prefers an
+  API key over the subscription login, and this pipeline loads that key from
+  `.env` for its own use. The subprocess env is now scrubbed of it — using the
+  API key is the exact thing the bridge exists to avoid. Same family as the
+  stale-`GOOGLE_API_KEY` trap from 08-17.
+- **`--bare` cannot be used.** It would cut the session tax, and it forces
+  API-key auth and never reads the subscription.
+
+### Why it is not enabled
+
+**A correction to D-034, which was wrong.** That decision reported the Read's
+grounding falling "from 0% to ~5%" when leaving Anthropic. The 0% was the COLD
+READER'S ANSWERS about the Sonnet Read; the ~5% was the substitutes' own atoms.
+Two different measurements, put in one column. Scored consistently — every Read
+by its own hard atoms against the corpus:
+
+| | coverage | ungrounded |
+|---|---|---|
+| gemini-3.6-flash | 0.785 | 5.8% |
+| gpt-5.4-mini | 0.785 | 4.9% |
+| claude-code:sonnet (fresh) | 0.785 | 4.0% |
+| claude-sonnet-5 (the published Read, re-scored) | — | **4.1%** |
+
+**There is no measurable Anthropic advantage on the Read.** Coverage is
+identical across all four. Grounding sits between 4% and 6% for everything,
+including Sonnet. D-034's central caveat — "the Read gets worse and that should
+not be dressed up" — was an artefact of comparing two different metrics, and
+the honest version is that the substitution costs nothing measurable.
+
+Against that, the bridge costs a great deal:
+
+| | wall clock | notional cost |
+|---|---|---|
+| gemini-3.6-flash / gpt-5.4-mini | 14-20s | cents |
+| claude-code:sonnet | **179s** | **$1.25** |
+
+Plus a fixed session tax that does not amortize — measured at ~45,000 tokens
+and ~$0.10 per invocation, on three consecutive trivial calls.
+
+**Adopted:** `MODEL_READ` defaults to empty, meaning the Read uses
+`MODEL_DISTILL` like every other pass. Setting `MODEL_READ=claude-code:sonnet`
+enables the bridge for that one call, and the stage falls back to
+`MODEL_DISTILL` if the CLI cannot be reached.
+
+**The lesson, which is the durable part.** A model swap was justified on a
+number that compared two different measurements. It survived being written into
+a decision record and would have justified 179-second calls indefinitely. When
+a comparison decides something, every column has to come from the same
+instrument — and the way that error surfaced was building the thing the number
+justified and watching it not reproduce.

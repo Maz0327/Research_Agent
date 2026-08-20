@@ -140,6 +140,10 @@ class Settings(BaseSettings):
         default="gpt-5.4-mini", alias="MODEL_HARVEST",
         description="Per-source fact harvest. D-034: the only model measured to honour the length-scaled quota — 31.3 facts/1k words on a long source against gemini-3.6-flash's 10.8, at a lower ungrounded rate"
     )
+    model_read: str = Field(
+        default="", alias="MODEL_READ",
+        description="Optional override for Section 1 only; empty means the Read uses MODEL_DISTILL like every other pass. D-035 measured no quality gain from routing it elsewhere, so this stays off by default"
+    )
     model_extraction: str = Field(
         default="gemini-3.6-flash", alias="MODEL_EXTRACTION",
         description="Per-source semantic extraction. 3.6 over 3.7: 3.7 removed thinking_level 'minimal' and regressed on hallucination"

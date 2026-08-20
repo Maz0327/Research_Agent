@@ -25,6 +25,8 @@ from backend.config import get_settings
 
 # Which provider owns which model-name prefix
 _PREFIXES = (
+    # Longest prefix first: "claude-code:" must not be read as "claude-".
+    ("claude-code:", "claude_code"),
     ("claude-", "anthropic"),
     ("gemini-", "gemini"),
     ("gpt-", "openai"),
@@ -358,6 +360,12 @@ def get_structured_client(model_id: str) -> Any:
         StructuredCallError: If the provider is unknown or unconfigured.
     """
     provider = provider_for(model_id)
+
+    if provider == "claude_code":
+        # The local CLI, on the subscription rather than the API (D-035).
+        from backend.integrations.claude_code_client import ClaudeCodeClient
+
+        return ClaudeCodeClient(model_id)
 
     if provider == "anthropic":
         from backend.integrations.anthropic_client import get_anthropic_client

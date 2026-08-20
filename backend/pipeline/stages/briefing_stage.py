@@ -68,6 +68,7 @@ def build_briefing(
     gaps: Optional[list[dict]] = None,
     read: Optional[Read] = None,
     subject_map: Optional[tuple[list[dict], list[str]]] = None,
+    read_client: Any = None,
 ) -> tuple[Briefing, dict]:
     """Run every pass and assemble the Briefing.
 
@@ -85,6 +86,10 @@ def build_briefing(
             material while the read the owner already accepted stands.
         subject_map: An already-decided (subjects, anecdote_ids) grouping.
             Supplying it skips pass 2 the same way.
+        read_client: Client for pass 1 only. Section 1 is the one place the
+            model choice was measured to matter (D-034: 0% ungrounded against a
+            substitute's ~5%), and the one place a model composes freely rather
+            than filling slots code already chose. Defaults to `client`.
 
     Returns:
         Tuple of (Briefing, report). The report carries both gates and the
@@ -104,7 +109,7 @@ def build_briefing(
     # --- Pass 1: the Read, from raw text only -------------------------------
     if read is None:
         logger.info(f"[{ctx.job_id}] Briefing pass 1: the Read")
-        read = run_read_pass(client, ctx.topic, sources)
+        read = run_read_pass(read_client or client, ctx.topic, sources)
     else:
         logger.info(f"[{ctx.job_id}] Briefing pass 1 skipped: Section 1 supplied")
 
@@ -386,12 +391,30 @@ def stage_briefing(ctx: PipelineContext) -> None:
         from backend.integrations.structured_client import get_structured_client
 
         client = get_structured_client(settings.model_distill)
+
+        # Section 1 gets its own client (D-035). It is the only pass where a
+        # model composes from raw text rather than filling slots code already
+        # chose, and the only one where the model choice moved the measured
+        # numbers. A failure to reach it degrades to the main client rather
+        # than losing a Briefing the research has already been paid for.
+        read_client = client
+        if settings.model_read and settings.model_read != settings.model_distill:
+            try:
+                read_client = get_structured_client(settings.model_read)
+                logger.info(f"[{ctx.job_id}] the Read routes to {settings.model_read}")
+            except Exception as e:
+                logger.warning(
+                    f"[{ctx.job_id}] the Read cannot reach {settings.model_read} "
+                    f"({e}); falling back to {settings.model_distill}"
+                )
+
         briefing, report = build_briefing(
             ctx,
             client,
             sources,
             disputes_input=disputes,
             gaps=[g.to_dict() if hasattr(g, "to_dict") else g for g in getattr(ctx, "identified_gaps", [])],
+            read_client=read_client,
         )
     except Exception as e:
         logger.error(f"[{ctx.job_id}] Briefing generation failed: {e}")
