@@ -14,6 +14,7 @@ from backend.models.semantic_units import AnalysisMode
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.stages.harvest_stage import (
     chunk_text,
+    harvest_quota,
     merge_facts,
     HARVEST_SYSTEM,
     build_inventory,
@@ -63,7 +64,10 @@ class TestHarvestSource:
         assert "source_id: SRC_3" in kwargs["prompt"]
         assert "CONFIDENCE CEILING: HIGH" in kwargs["prompt"]
         assert "EMPTY OUTPUT PERMISSION" in kwargs["system"]
-        assert kwargs["system"] == HARVEST_SYSTEM
+        # The quota is substituted per call, so the system prompt is the
+        # template with its placeholder filled — never the raw template.
+        assert kwargs["system"] == HARVEST_SYSTEM.replace("{quota}", harvest_quota())
+        assert "{quota}" not in kwargs["system"]
 
     def test_a_long_source_is_chunked_not_truncated(self):
         """D-032. The old behaviour cut the source at the budget and dropped the

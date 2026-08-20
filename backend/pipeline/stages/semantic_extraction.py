@@ -477,6 +477,7 @@ def extract_semantic_structure(
 
     total_cost = 0.0
     retry_count = 0
+    quota_scale = 1.0
     max_retries = 2  # Increased from 1 for better error recovery
 
     while retry_count <= max_retries:
@@ -490,24 +491,28 @@ def extract_semantic_structure(
             )
 
             if response.get("truncated") and retry_count < max_retries:
-                # The extraction quota asks for output in proportion to the
-                # source, so a long source can now overflow the model's output
-                # ceiling and return nothing at all - measured: two of six
-                # sources on gemini-2.5-flash. Halving the input halves the
-                # quota with it, which is a smaller loss than losing the whole
-                # extraction, and the remainder is covered by the next half.
-                halved = source_content[: max(2000, len(source_content) // 2)]
+                # A truncated response is an OUTPUT ceiling problem: the
+                # length-scaled quota asked for more items than the model could
+                # emit. The previous fix halved the SOURCE, which treated the
+                # wrong end — it replaced source_content and continued, so the
+                # back half of every truncating source was silently never
+                # extracted, while a comment claimed the remainder was covered.
+                #
+                # Retrying with a smaller ask keeps the whole source in view and
+                # loses density instead of text. Density is recoverable by the
+                # harvest; text that was never read is not.
+                quota_scale *= 0.5
                 logger.warning(
-                    f"[{source_id}] Extraction output truncated; retrying on "
-                    f"{len(halved):,} of {len(source_content):,} chars "
+                    f"[{source_id}] Extraction output truncated; retrying over the "
+                    f"full {len(source_content):,} chars at {quota_scale:.0%} quota "
                     f"(retry {retry_count + 1}/{max_retries})"
                 )
                 total_cost += response.get("cost", 0)
-                source_content = halved
                 prompt = build_semantic_extraction_prompt(
                     source_id=source_id,
                     source_content=source_content,
                     analysis_mode=analysis_mode.value,
+                    quota_scale=quota_scale,
                     title=title,
                 )
                 retry_count += 1

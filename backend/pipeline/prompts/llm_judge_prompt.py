@@ -131,6 +131,69 @@ Return JSON:
 BE THOROUGH. Check every item. Do not skip any."""
 
 
+def relevant_source(source_text: str, extraction_json: str, budget: int) -> str:
+    """Select the parts of a source the extraction is actually about.
+
+    Taking the FIRST `budget` characters is the wrong cut for this job. The
+    judge's verdict is "is this claim supported by the source", so a claim
+    whose evidence sits at character 30,000 of a 40,000-character transcript
+    was being marked unsupported on the strength of text the judge never saw —
+    a false negative manufactured by the prompt builder, in the one component
+    whose whole purpose is checking the others.
+
+    Instead the source is cut into windows and the windows that share content
+    words with the extraction are kept, best first, until the budget is spent.
+
+    Args:
+        source_text: The original source content.
+        extraction_json: The extraction being judged.
+        budget: Characters of source the prompt may carry.
+
+    Returns:
+        The selected source text, in document order, with elisions marked.
+    """
+    if len(source_text) <= budget:
+        return source_text
+
+    from backend.pipeline.text_similarity import content_tokens
+
+    wanted = content_tokens(extraction_json)
+    words = source_text.split()
+    # ~500-word windows: big enough to hold a claim and its context.
+    windows = [" ".join(words[i : i + 500]) for i in range(0, len(words), 500)]
+
+    scored = sorted(
+        (
+            (len(wanted & content_tokens(window)) / (len(content_tokens(window)) or 1), i)
+            for i, window in enumerate(windows)
+        ),
+        reverse=True,
+    )
+
+    kept: set[int] = set()
+    spent = 0
+    for _score, index in scored:
+        size = len(windows[index])
+        if spent + size > budget:
+            continue
+        kept.add(index)
+        spent += size
+
+    if not kept:
+        return source_text[:budget] + "\n\n[SOURCE TRUNCATED FOR LENGTH]"
+
+    out, gap = [], False
+    for index, window in enumerate(windows):
+        if index in kept:
+            if gap:
+                out.append("[... unrelated passage omitted ...]")
+            out.append(window)
+            gap = False
+        else:
+            gap = True
+    return "\n\n".join(out)
+
+
 def build_judge_prompt(
     source_text: str,
     extraction_json: str,
@@ -144,13 +207,9 @@ def build_judge_prompt(
         max_source_chars: Maximum characters to include from source (cost control)
 
     Returns:
-        Formatted prompt for GPT-4o judge
+        Formatted prompt for the judge
     """
-    # Truncate source if too long
-    if len(source_text) > max_source_chars:
-        source_text = source_text[:max_source_chars] + "\n\n[SOURCE TRUNCATED FOR LENGTH]"
-
     return LLM_JUDGE_PROMPT.format(
-        source_text=source_text,
+        source_text=relevant_source(source_text, extraction_json, max_source_chars),
         extraction_json=extraction_json,
     )

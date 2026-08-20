@@ -50,8 +50,13 @@ from backend.pipeline.prompts.briefing_prompts import (
 from backend.pipeline.text_similarity import statement_similarity
 
 # The Read is one call over all raw text (owner decision: 20-source cap keeps
-# it single-call). This is the character budget that keeps it inside context.
-READ_MAX_CHARS_PER_SOURCE = 40_000
+# it single-call). The budget is a TOTAL across the corpus, shared out evenly,
+# rather than a fixed cut per source: a flat 40,000-character cap silently took
+# 28% off the longest source in the Hawara corpus while the call as a whole sat
+# nowhere near its context limit. Nothing is trimmed unless the corpus actually
+# exceeds the total.
+READ_TOTAL_CHARS = 700_000
+READ_MIN_CHARS_PER_SOURCE = 20_000
 READ_MAX_TOKENS = 24_000
 
 SMALL_CALL_MAX_TOKENS = 4_000
@@ -72,6 +77,47 @@ BLURB_BATCH = 20
 # regions is not a map (work order Section J: 4-8 subjects). Batching pushes
 # the count up, so code caps it afterwards rather than asking harder.
 MAX_FILE_SUBJECTS = 8
+
+
+def read_budget(
+    texts: dict[str, str],
+    total: int = READ_TOTAL_CHARS,
+    floor: int = READ_MIN_CHARS_PER_SOURCE,
+) -> dict[str, int]:
+    """Share the Read's character budget across the corpus.
+
+    Under the total, every source is sent whole — which is the normal case and
+    was NOT what the old fixed per-source cap did. Over it, the long sources
+    give up characters first and every source keeps at least `floor`, so one
+    enormous source cannot starve fifteen short ones.
+
+    Args:
+        texts: Source ID to full text.
+        total: Characters the whole call may carry.
+        floor: Characters every source keeps regardless.
+
+    Returns:
+        Source ID to how many characters to send.
+    """
+    if not texts:
+        return {}
+
+    lengths = {sid: len(text) for sid, text in texts.items()}
+    if sum(lengths.values()) <= total:
+        return lengths
+
+    # Water-filling: raise a common ceiling until the budget is spent, so the
+    # cut lands on the longest sources and never on the ones already short.
+    allowed = dict.fromkeys(lengths, floor)
+    spare = total - floor * len(lengths)
+    for sid, length in sorted(lengths.items(), key=lambda kv: kv[1]):
+        if spare <= 0:
+            break
+        want = min(length, floor + spare) - allowed[sid]
+        if want > 0:
+            allowed[sid] += want
+            spare -= want
+    return {sid: min(lengths[sid], allowed[sid]) for sid in lengths}
 
 
 def _manifest_line(source: dict) -> str:
@@ -107,18 +153,27 @@ def run_read_pass(client: Any, topic: str, sources: list[dict]) -> Read:
         The Read section.
     """
     manifest = "\n".join(_manifest_line(s) for s in sources)
+    texts = {
+        s.get("source_id") or f"SRC_{i}": (s.get("full_text") or "").strip()
+        for i, s in enumerate(sources)
+    }
+    budget = read_budget({k: v for k, v in texts.items() if v})
+
     bodies = []
     for source in sources:
-        text = (source.get("full_text") or "").strip()
+        source_id = source.get("source_id") or "SOURCE"
+        text = texts.get(source_id, "")
         if not text:
             continue
-        bodies.append(
-            f"===== {source.get('source_id')} · {source.get('title') or 'Untitled'} =====\n"
-            + delimit(
-                text[:READ_MAX_CHARS_PER_SOURCE],
-                source.get("source_id") or "SOURCE",
-                notice=False,
+        allowance = budget.get(source_id, len(text))
+        if allowance < len(text):
+            logger.warning(
+                f"The Read: {source_id} trimmed to {allowance:,} of {len(text):,} "
+                f"chars — the corpus exceeds the total budget"
             )
+        bodies.append(
+            f"===== {source_id} · {source.get('title') or 'Untitled'} =====\n"
+            + delimit(text[:allowance], source_id, notice=False)
         )
 
     prompt = (

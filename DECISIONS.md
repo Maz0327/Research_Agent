@@ -1414,3 +1414,85 @@ stay flat. A truncating harvest scores 20, 10, 5, 2.5 on that test.
 does not buy more output from a model that returns a roughly fixed number of
 items whatever it is handed — the source would have been read and then
 summarized, which is the same loss wearing a better number.
+
+---
+
+## Decision 033: the pre-rerun sweep — nothing loses source text silently (2026-08-20)
+
+**Status:** Accepted — owner instruction, 2026-08-20: fix what has surfaced and
+confirm nothing else needs fixing *before* the next full run.
+
+D-032 fixed one instance of a family. The sweep found three more. All four are
+the same disease: **source text that never reaches a model, or an ask that does
+not scale with the input, in a way nothing reports.** Every one produced a
+plausible-looking number, which is why none had been caught by reading output.
+
+### 1. The harvest asked for a fixed count (fixed here)
+
+`HARVEST_SYSTEM` said "Extract 10 to 40 facts". Measured on the existing Hawara
+harvest, that produced:
+
+| | facts per 1,000 words |
+|---|---|
+| 5 shortest sources | **40.1** |
+| 5 longest sources | **12.0** |
+
+A 3.3x decline that is entirely an artefact of the instruction — the model
+returns 40-60 facts whatever it is handed. Chunking (D-032) only partly masks
+it, because a 24,000-character chunk still sits in the sparse regime.
+
+Fixed with the D-030 remedy: a length-scaled quota, `HARVEST_FACTS_PER_1000`
+(default 25-40), env-configurable. The empty-output law is restated inside the
+quota so a thin source still under-delivers honestly.
+
+### 2. The Read cut every source at 40,000 characters (fixed here)
+
+Section 1 — the only part built to be read top to bottom — silently dropped
+15,779 characters of SRC_16, 28% of it, while the call as a whole sat nowhere
+near its context limit. The cap was per-source; the real constraint is total.
+
+Replaced with `read_budget`: a total budget (700,000 chars) shared by
+water-filling, so nothing is trimmed unless the corpus genuinely overflows, the
+cut lands on the longest sources first, and every source keeps a 20,000-char
+floor. On the Hawara corpus **nothing is trimmed at all** and SRC_16 now goes
+to the Read whole.
+
+### 3. The extraction truncation-retry dropped the back half of the source (fixed here)
+
+On a truncated response the retry did `source_content = source_content[:half]`
+and continued — so the back half was never extracted. The comment beside it
+read "the remainder is covered by the next half". Nothing covered it.
+
+The diagnosis was wrong, not just the code: a truncated response is an OUTPUT
+ceiling problem, so cutting the INPUT treats the wrong end. The retry now keeps
+the whole source and halves the *quota* (`quota_scale`), losing density instead
+of text. Density is recoverable by the harvest; text that was never read is not.
+
+### 4. The production judge read the first 15,000 characters (fixed here)
+
+`build_judge_prompt` took `source_text[:15000]`. The judge's question is "is
+this claim supported by the source", so a claim whose evidence sat at character
+30,000 was being marked **unsupported on the strength of text the judge never
+saw** — a false negative manufactured by the prompt builder, in the one
+component whose whole purpose is checking the others. It is in the live path:
+`_run_llm_judge` modifies `extraction.claims`.
+
+Replaced with `relevant_source`: the source is cut into ~500-word windows,
+windows sharing content words with the extraction are kept best-first until the
+budget is spent, and elisions are marked so the judge never reads two distant
+passages as one continuous sentence. Verified on a source with the evidence at
+character 44,000 — it survives the cut; the old builder sent 15,000 characters
+of filler.
+
+`judge_contest.source_window` had had the correct approach since D-028. Only the
+contest harness used it.
+
+### What the sweep cleared
+
+Every other `[:N]` on text in the pipeline is a display truncation (log lines,
+social captions, excerpt fields). The only other fixed-count prompt instructions
+are in the Producer packet, which is optional and asks for genuinely bounded
+lists (2-4 angles), not extraction proportional to input.
+
+**Guard:** `backend/tests/test_no_silent_text_loss.py`, 18 tests, one per
+defect with the measured evidence in its docstring. Suite: 1682 passed.

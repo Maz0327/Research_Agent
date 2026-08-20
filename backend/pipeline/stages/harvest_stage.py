@@ -51,7 +51,7 @@ fully digital dinosaur shots" not "the article discusses the film's limited
 CGI use". If the text argues something, state the argument's content: "Deep
 focus matches human vision because both eyes keep the whole scene sharp."
 
-Extract 10 to 40 facts depending on how much the text actually contains.
+{quota}
 Opinions and arguments in the text ARE content: state them as what they claim.
 Skip filler, greetings, sponsor reads.
 
@@ -85,6 +85,35 @@ def _identity_block(source_id: str, title: str, mode: str, ceiling: str) -> str:
         f"CONFIDENCE CEILING: {ceiling}\n"
         "Facts may only be as certain as this source allows. State what the "
         "text states; do not upgrade a hedge into a certainty.\n"
+    )
+
+
+def harvest_quota(rate: Optional[str] = None) -> str:
+    """The length-scaled extraction instruction.
+
+    "Extract 10 to 40 facts" is a FIXED range, and a model handed a fixed range
+    returns a roughly fixed number whatever the input length — measured on the
+    Hawara harvest, short sources yielded 40 facts per 1,000 words and long
+    ones 12, a 3.3x decline that is entirely an artefact of the instruction.
+    D-030 fixed the same defect in extraction by scaling the ask to the input,
+    which took that pass from 39 quotes to 182 over the same six sources.
+
+    Args:
+        rate: Facts per 1,000 words as "low-high"; defaults to the configured
+            value.
+
+    Returns:
+        The quota block for the system prompt.
+    """
+    band = rate or get_settings().harvest_facts_per_1000
+    return (
+        f"Extract {band} facts for every 1,000 words of the text you are given. "
+        "Count the words and meet the rate — a long text carries proportionally "
+        "more facts, and returning the same number for 10,000 words as for 1,000 "
+        "means you summarized it instead of harvesting it.\n\n"
+        "This is a floor on EFFORT, not on output. If the text genuinely does not "
+        "carry that many facts, return fewer. Never repeat, pad, split one fact "
+        "into two, or invent content to reach the rate."
     )
 
 
@@ -186,6 +215,7 @@ def harvest_source(
         return [], 0.0
 
     identity = _identity_block(source_id, title, mode, ceiling)
+    system = HARVEST_SYSTEM.replace("{quota}", harvest_quota())
     per_chunk: list[list[str]] = []
     total_cost = 0.0
 
@@ -203,7 +233,7 @@ def harvest_source(
         data, usage = client.generate_structured(
             prompt=prompt,
             schema=HARVEST_SCHEMA,
-            system=HARVEST_SYSTEM,
+            system=system,
             max_tokens=8_000,
         )
         per_chunk.append(

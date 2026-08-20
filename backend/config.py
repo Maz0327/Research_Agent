@@ -197,6 +197,10 @@ class Settings(BaseSettings):
         default=24_000, alias="HARVEST_MAX_CHARS",
         description="Characters of source text per harvest CALL (the proven setting). A longer source is chunked at this size, never truncated"
     )
+    harvest_facts_per_1000: str = Field(
+        default="25-40", alias="HARVEST_FACTS_PER_1000",
+        description="Facts per 1,000 words the harvest asks for. A fixed range let long sources be summarized: 40 facts/1k words on short sources, 12 on long"
+    )
     harvest_chunk_overlap: int = Field(
         default=1_500, alias="HARVEST_CHUNK_OVERLAP",
         description="Characters each harvest chunk repeats from the previous one, so a fact straddling a boundary is not lost"

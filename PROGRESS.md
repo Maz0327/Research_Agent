@@ -2392,4 +2392,34 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 - E17 judge contest: **already complete** (D-028, gpt-5.6-terra at kappa 0.900),
   along with the env-driven model sweep (D-027/D-030/D-031). Section E's only
   open item is E18 Exa, which the work order marks optional.
+- 2026-08-20 **Pre-rerun sweep (D-033).** Owner instruction: fix what surfaced
+  AND confirm nothing else needs fixing before the next full run. D-032 turned
+  out to be one instance of a family; the sweep found three more, all the same
+  disease — source text that never reaches a model, or an ask that does not
+  scale with input, with nothing reporting it.
+  ```
+  1. Harvest asked a FIXED count      40.1 facts/1k words short vs 12.0 long
+     -> length-scaled quota (HARVEST_FACTS_PER_1000=25-40), the D-030 remedy
+  2. The Read cut at 40k/source       SRC_16 lost 15,779 chars (28%) from
+                                      Section 1 while the call sat far inside
+                                      its context limit
+     -> read_budget(): total budget, water-filled, 20k floor. Hawara now
+        trims NOTHING and SRC_16 goes to the Read whole
+  3. Extraction retry halved the      back half of every truncating source
+     SOURCE and continued             never extracted; the comment beside it
+                                      claimed the remainder was covered
+     -> retry halves the QUOTA instead; whole source stays in view
+  4. Production judge read the        a claim whose evidence sat at char
+     FIRST 15,000 chars               30,000 was marked unsupported on text
+                                      the judge never saw — in the component
+                                      that checks everything else
+     -> relevant_source(): windows scored against the extraction, elisions
+        marked. Verified with evidence at char 44,000: it survives
+  Suite: 1682 passed, 3 skipped
+  ```
+  Cleared: every other `[:N]` on text is display truncation; the only other
+  fixed-count prompts are the optional Producer packet's bounded lists.
+  Guard: `backend/tests/test_no_silent_text_loss.py`, 18 tests, each carrying
+  its measured evidence.
+  **The pipeline is now ready for the full re-run.**
 

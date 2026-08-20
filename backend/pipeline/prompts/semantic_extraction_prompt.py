@@ -693,11 +693,15 @@ genuinely does not contain this much, return what it does contain. Inventing
 material to hit a number is a worse failure than returning less."""
 
 
-def build_extraction_quota(source_content: str) -> str:
+def build_extraction_quota(source_content: str, scale: float = 1.0) -> str:
     """Build the length-scaled quota block for a source.
 
     Args:
         source_content: The source text the model will receive.
+        scale: Multiplier on the configured rates. Below 1.0 it asks for less
+            per 1,000 words, which is how a truncated response is retried:
+            output overflow is an OUTPUT problem, so the right lever is the
+            size of the ask, not the size of the source.
 
     Returns:
         The quota block, or an empty string for a source too short to scale.
@@ -709,7 +713,10 @@ def build_extraction_quota(source_content: str) -> str:
     rates = extraction_rates()
 
     def band(rate: tuple[int, int]) -> tuple[int, int]:
-        return max(1, int(words / 1000 * rate[0])), max(2, int(words / 1000 * rate[1]))
+        return (
+            max(1, int(words / 1000 * rate[0] * scale)),
+            max(2, int(words / 1000 * rate[1] * scale)),
+        )
 
     quotes_low, quotes_high = band(rates["quotes"])
     claims_low, claims_high = band(rates["claims"])
@@ -730,6 +737,7 @@ def build_semantic_extraction_prompt(
     title: str = "Unknown",
     confidence_ceiling: str | None = None,
     use_legacy_prompt: bool = False,
+    quota_scale: float = 1.0,
 ) -> str:
     """
     Build the complete semantic extraction prompt.
@@ -756,7 +764,7 @@ def build_semantic_extraction_prompt(
                 source_id=source_id,
                 source_content=source_content,
                 title=title,
-            ) + build_extraction_quota(source_content)
+            ) + build_extraction_quota(source_content, quota_scale)
         except (ImportError, ValueError):
             # Fall back to legacy prompt if mode dispatch fails
             pass
