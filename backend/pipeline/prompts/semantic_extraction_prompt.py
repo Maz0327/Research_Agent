@@ -630,9 +630,49 @@ def get_confidence_ceiling_for_mode(analysis_mode: str) -> str:
 # restructuring. Quotes and claims carry the evidence and are scaled hardest;
 # key points sit a level up and are scaled gently, because the claim graph
 # downstream expects a readable number of them.
+# Defaults; the live values come from config so a rate change is a config
+# change. The right rate depends on the corpus and the model, and finding it is
+# a measurement each time rather than a constant to enshrine.
 QUOTES_PER_1000_WORDS = (8, 12)
 CLAIMS_PER_1000_WORDS = (6, 10)
 KEY_POINTS_PER_1000_WORDS = (2, 4)
+
+
+def _parse_rate(value: str, fallback: tuple[int, int]) -> tuple[int, int]:
+    """Read a "low-high" rate from config, falling back on anything malformed.
+
+    Args:
+        value: The configured rate, e.g. "8-12".
+        fallback: The rate to use when the value cannot be read.
+
+    Returns:
+        Tuple of (low, high).
+    """
+    try:
+        low, high = (int(part.strip()) for part in str(value).split("-", 1))
+    except (ValueError, AttributeError):
+        return fallback
+    if low <= 0 or high < low:
+        return fallback
+    return low, high
+
+
+def extraction_rates() -> dict[str, tuple[int, int]]:
+    """The configured extraction rates per 1,000 source words.
+
+    Returns:
+        Map of unit type to (low, high).
+    """
+    from backend.config import get_settings
+
+    settings = get_settings()
+    return {
+        "quotes": _parse_rate(settings.extraction_quotes_per_1000, QUOTES_PER_1000_WORDS),
+        "claims": _parse_rate(settings.extraction_claims_per_1000, CLAIMS_PER_1000_WORDS),
+        "key_points": _parse_rate(
+            settings.extraction_key_points_per_1000, KEY_POINTS_PER_1000_WORDS
+        ),
+    }
 
 EXTRACTION_QUOTA_BLOCK = """
 
@@ -666,12 +706,14 @@ def build_extraction_quota(source_content: str) -> str:
     if words < 200:
         return ""
 
+    rates = extraction_rates()
+
     def band(rate: tuple[int, int]) -> tuple[int, int]:
         return max(1, int(words / 1000 * rate[0])), max(2, int(words / 1000 * rate[1]))
 
-    quotes_low, quotes_high = band(QUOTES_PER_1000_WORDS)
-    claims_low, claims_high = band(CLAIMS_PER_1000_WORDS)
-    points_low, points_high = band(KEY_POINTS_PER_1000_WORDS)
+    quotes_low, quotes_high = band(rates["quotes"])
+    claims_low, claims_high = band(rates["claims"])
+    points_low, points_high = band(rates["key_points"])
 
     return EXTRACTION_QUOTA_BLOCK.format(
         words=words,

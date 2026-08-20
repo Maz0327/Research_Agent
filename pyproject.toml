@@ -63,3 +63,9 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
 ]
+markers = [
+    # Tests that call a real provider. Skipped unless RUN_LIVE_API_TESTS=1, so
+    # the suite stays offline and deterministic, but the check is a test rather
+    # than a script somebody has to remember to run.
+    "live_api: makes real API calls; run with RUN_LIVE_API_TESTS=1",
+]

@@ -1251,3 +1251,62 @@ Cost figures for the harvest legs are absent because the Gemini adapter does
 not yet compute cost. Evidence:
 `plans/260814-claim-graph-briefing/artifacts/quota_countertest.json`,
 `threeway_quota.json`.
+
+## Decision 030: extraction is gemini-3.6-flash with a length-scaled quota (2026-08-20)
+
+**Status:** Accepted (project owner, in-session, 2026-08-20). This is the
+extraction decision; D-027 and D-029 are the evidence behind it.
+
+**`MODEL_EXTRACTION=gemini-3.6-flash`, with the quota prompt on.** The October
+16 retirement of the Gemini 2.5 line is a config swap, not a rebuild.
+
+Measured over six labyrinth sources, 21,251 words, identical prompts:
+
+| strategy | quotes | verified | key points | density | cost | time |
+|---|---|---|---|---|---|---|
+| **gemini-3.6-flash + quota** | **182** | 182 (100%) | 32 | **8.56/1,000w** | $0.054 | 141s |
+| gemini-2.5-flash + quota | 124 | 124 (100%) | 24 | 5.84/1,000w | $0.092 | 746s |
+| gemini-3.1-flash-lite + quota | 94 | 91 (97%) | 22 | 4.42/1,000w | $0.035 | 55s |
+| gemini-2.5-flash, no quota (old default) | 294 | 291 (99%) | 52 | 13.8/1,000w | $0.131 | 580s |
+| gemini-3.6-flash, no quota | 39 | 39 (100%) | 22 | 1.84/1,000w | $0.030 | 71s |
+
+The chosen configuration extracts 4.7x what the same model produced without
+the quota, beats the dying incumbent on equal terms, and costs 60% as much in
+a fifth of the wall clock. The incumbent's unquoted 294 is the one number it
+still leads on; it is also the number that cannot survive October, and its
+quota run truncated on two of six sources.
+
+**The quota is configuration, not a constant.** `EXTRACTION_QUOTES_PER_1000`,
+`EXTRACTION_CLAIMS_PER_1000`, and `EXTRACTION_KEY_POINTS_PER_1000` each take a
+`"low-high"` rate, defaulting to 8-12, 6-10 and 2-4. The right rate depends on
+the corpus and the model, so finding it is a measurement each time rather than
+a number enshrined in code. A malformed value falls back to the default rather
+than failing a job.
+
+**The empty-output law still wins, and it is tested.** A quota is a standing
+instruction to produce more, so the failure it could introduce is a model
+filling the number with invention. Measured live (2026-08-20, gemini-3.6-flash):
+a 2,015-word boilerplate page carrying two real facts, quota asking for 16 to
+24 quotes, returned **8 quotes, 2 key points, 4 claims, all 8 verbatim, zero
+flagged**. It under-delivered rather than filling. That check ships as a test
+(`TestThinSourceHonesty`), skipped unless `RUN_LIVE_API_TESTS=1`, alongside an
+offline test that the permission text is still in the prompt.
+
+### Addendum: gemini-3.1-pro ignores instructions, and it holds MODEL_REASONING
+
+Flagged here against the slot it affects. The same quota instruction that took
+gemini-3.6-flash from 6 quotes to 40 moved gemini-3.1-pro from 3 to 5 on one
+source and from 3 to **2** on another. It did not partially comply; it
+continued as though the instruction were absent.
+
+`MODEL_REASONING=gemini-3.1-pro-preview` **stays for now**, because gap
+analysis is wrapped by quote verification and the dossier's case for it
+(best-in-class abstention, best long-context reasoning) is about a different
+task than extraction. But a model that ignores an explicit, unambiguous
+instruction is a poor bet for a stage whose whole output is instruction-shaped,
+and this is on the record as a reason to scrutinise it rather than a settled
+verdict.
+
+**Scheduled:** at the judge-contest session, A/B the reasoning slot -
+`gemini-3.1-pro` against `gpt-5.4-mini` on the fixture's gap analysis, scored
+by the quote verifier. Swap only on numbers.

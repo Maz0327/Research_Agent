@@ -7,6 +7,8 @@ and 4 from 379 words (10.55 per thousand). The prompt now states the quota in
 proportion to the source, and the regression these tests protect is density
 staying flat as the input grows.
 """
+import os
+
 import pytest
 
 from backend.pipeline.prompts.semantic_extraction_prompt import (
@@ -127,3 +129,66 @@ class TestQuotaSafety:
 
             assert "EXTRACTION QUOTA" in prompt
             assert "SOURCE IDENTITY LOCK" in prompt or "source_id" in prompt
+
+
+class TestThinSourceHonesty:
+    """A quota must never become a reason to invent.
+
+    The empty-output law says a sparse source produces a sparse extraction. A
+    quota is a standing instruction to produce MORE, so this is the failure
+    mode the quota could introduce, and the one that would matter most: a
+    fabricated quote is the worst thing this pipeline can emit.
+
+    Measured live on 2026-08-20 with gemini-3.6-flash: a 2,015-word page of
+    boilerplate carrying two real facts, quota asking for 16 to 24 quotes.
+    The model returned 8 quotes, 2 key points and 4 claims, all 8 quotes
+    verbatim, zero flagged. It under-delivered against the quota instead of
+    filling it, which is the required behaviour.
+    """
+
+    THIN_SOURCE = (
+        "Welcome to the Hawara information page. This page is part of our site. "
+        "The site is maintained by volunteers who care about the region. "
+        "We hope you find the page useful. Thank you for visiting the page today. "
+        "Please check back later for updates about the region and the site. "
+    ) * 40 + "The pyramid at Hawara was built for Amenemhat III. A canal runs past the site."
+
+    def test_the_quota_still_permits_under_delivery(self):
+        """The instruction that keeps a thin source thin is stated, not implied."""
+        block = " ".join(build_extraction_quota(self.THIN_SOURCE).split())
+
+        assert "EMPTY OUTPUT PERMISSION" in block
+        assert "Inventing material to hit a number is a worse failure" in block
+
+    @pytest.mark.live_api
+    @pytest.mark.skipif(
+        os.environ.get("RUN_LIVE_API_TESTS") != "1",
+        reason="live provider call; set RUN_LIVE_API_TESTS=1 to run",
+    )
+    def test_a_thin_source_under_delivers_and_flags_nothing(self):
+        """The real check: quota on, sparse source, no fabrication."""
+        from backend.integrations.gemini_client import GeminiClient
+        from backend.models.semantic_units import AnalysisMode
+        from backend.pipeline.quote_verification import FLAGGED, verify_quote
+        from backend.pipeline.stages.semantic_extraction import extract_semantic_structure
+
+        words = len(self.THIN_SOURCE.split())
+        quota_low, _high = _numbers_after(
+            build_extraction_quota(self.THIN_SOURCE), "- quotes:"
+        )
+
+        result, _report, _cost = extract_semantic_structure(
+            gemini_client=GeminiClient(),
+            source_id="SRC_THIN",
+            source_content=self.THIN_SOURCE,
+            analysis_mode=AnalysisMode.ARTICLE_FETCHED,
+            title="Hawara information page",
+        )
+
+        verdicts = [verify_quote(q.text, self.THIN_SOURCE)["status"] for q in result.quotes]
+
+        assert verdicts.count(FLAGGED) == 0, "the quota produced unsupported quotes"
+        assert len(result.quotes) < quota_low, (
+            f"a {words}-word boilerplate page yielded {len(result.quotes)} quotes "
+            f"against a floor of {quota_low}: the model filled the quota"
+        )

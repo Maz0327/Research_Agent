@@ -161,6 +161,22 @@ class Settings(BaseSettings):
         description="Gemini 3.x thinking_level for extraction. 'minimal' measured 73.6% cheaper at identical extraction accuracy"
     )
 
+    # Extraction quota rates, as "low-high" per 1,000 words of source (D-029).
+    # Config rather than constants because the right rate depends on the corpus
+    # and on the model, and finding it is a measurement each time.
+    extraction_quotes_per_1000: str = Field(
+        default="8-12", alias="EXTRACTION_QUOTES_PER_1000",
+        description="Quotes to extract per 1,000 source words, as 'low-high'"
+    )
+    extraction_claims_per_1000: str = Field(
+        default="6-10", alias="EXTRACTION_CLAIMS_PER_1000",
+        description="Claims to extract per 1,000 source words, as 'low-high'"
+    )
+    extraction_key_points_per_1000: str = Field(
+        default="2-4", alias="EXTRACTION_KEY_POINTS_PER_1000",
+        description="Key points per 1,000 source words, as 'low-high'; gentler because the claim graph reads them"
+    )
+
     # Doc 3, the Creator Brief, is retired from the default run (work order
     # item 16): hooks, twist, and say-it-like violate "the brief informs, never
     # performs". Its one useful remainder, the description source list, is now

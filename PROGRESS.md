@@ -2114,6 +2114,25 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 - [ ] **[MAZ]** blind read: old-vs-new lineup Briefings (judge/model sweep ratification)
 - [ ] **[MAZ]** read of the first end-to-end D-025 Briefing (Hawara `c5d32615`)
 
+### Owner decisions taken in-session (2026-08-20)
+- **Extraction decided (D-030): `gemini-3.6-flash` + length-scaled quota.**
+  October is a config swap. 182 quotes at 100% verified over six sources
+  against the dying incumbent's 124, at 60% of the cost and a fifth of the
+  wall clock. Quota rates are config (`EXTRACTION_QUOTES_PER_1000` etc., as
+  "low-high"), not constants, because the right rate depends on corpus and
+  model. A malformed value falls back rather than failing a job.
+- **Thin-source honesty tested live and shipped as a test.** A 2,015-word
+  boilerplate page with a quota asking for 16-24 quotes returned 8 quotes, all
+  verbatim, zero flagged: honest under-delivery, no quota-filling. Ships as
+  `TestThinSourceHonesty`, skipped unless `RUN_LIVE_API_TESTS=1`, with an
+  offline companion asserting the empty-output permission is still in the
+  prompt. New `live_api` marker registered for this class of check.
+- **`gemini-3.1-pro` ignores instructions — flagged against MODEL_REASONING.**
+  The quota that took 3.6-flash from 6 quotes to 40 moved 3.1-pro from 3 to 2.
+  It stays for now (quote verification wraps gap analysis), and is scheduled
+  for an A/B against `gpt-5.4-mini` on the fixture's gap analysis, scored by
+  the quote verifier, at the judge-contest session. Swap only on numbers.
+
 ### Owner decisions taken in-session (2026-08-19)
 - **Quote verification rebuilt as a span check (Decision 026)**, ahead of the
   extraction three-way and the judge contest, since both are scored by it.
