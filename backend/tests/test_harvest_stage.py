@@ -13,6 +13,8 @@ import pytest
 from backend.models.semantic_units import AnalysisMode
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.stages.harvest_stage import (
+    chunk_text,
+    merge_facts,
     HARVEST_SYSTEM,
     build_inventory,
     fact_id,
@@ -63,15 +65,107 @@ class TestHarvestSource:
         assert "EMPTY OUTPUT PERMISSION" in kwargs["system"]
         assert kwargs["system"] == HARVEST_SYSTEM
 
-    def test_text_is_truncated_to_the_configured_limit(self):
-        """Long sources are cut at the proven character budget."""
+    def test_a_long_source_is_chunked_not_truncated(self):
+        """D-032. The old behaviour cut the source at the budget and dropped the
+        rest — 34.8% of the Hawara fixture's longest source was never sent to a
+        model at all, which the I.25 recall audit found as 0.0 back-of-source
+        recall."""
         client = _client(["A fact."])
 
-        harvest_source(client, "SRC_1", "T", "x" * 50_000, max_chars=100)
+        harvest_source(client, "SRC_1", "T", "x" * 5_000, max_chars=1_000, overlap=100)
 
-        prompt = client.generate_structured.call_args.kwargs["prompt"]
-        assert "x" * 100 in prompt
-        assert "x" * 101 not in prompt
+        assert client.generate_structured.call_count > 1
+        sent = "".join(
+            call.kwargs["prompt"] for call in client.generate_structured.call_args_list
+        )
+        # Every character of the source reached a model across the chunks.
+        assert sent.count("x") >= 5_000
+
+    def test_a_source_inside_the_budget_is_still_one_call(self):
+        """Chunking must not add cost to the sources that never needed it."""
+        client = _client(["A fact."])
+
+        harvest_source(client, "SRC_1", "T", "x" * 500, max_chars=1_000)
+
+        assert client.generate_structured.call_count == 1
+
+    def test_chunks_overlap_so_a_fact_on_a_boundary_survives(self):
+        """A statement split across a boundary would be harvested wrong from
+        both halves; the overlap gives each side the whole sentence."""
+        chunks = chunk_text("abcdefghij" * 100, max_chars=400, overlap=100)
+
+        assert len(chunks) > 1
+        # The tail of each chunk opens the next one.
+        assert chunks[1].startswith(chunks[0][-100:])
+
+    def test_every_chunk_carries_the_identity_lock_and_ceiling(self):
+        """A chunked source keeps exactly the provenance a single-call one has."""
+        client = _client(["A fact."])
+
+        harvest_source(
+            client, "SRC_1", "T", "x" * 3_000, ceiling="LOW", max_chars=1_000, overlap=0
+        )
+
+        for call in client.generate_structured.call_args_list:
+            prompt = call.kwargs["prompt"]
+            assert "source_id: SRC_1" in prompt
+            assert "LOW" in prompt
+
+    def test_the_overlap_duplicates_are_merged_away(self):
+        """Two chunks reading the same sentence must not double the inventory."""
+        fact = "Flinders Petrie excavated at Hawara in 1888 and found a structure."
+        assert merge_facts([[fact], [fact]]) == [fact]
+
+    def test_distinct_facts_survive_the_merge(self):
+        """Dedup deletes; being too eager here is a real loss, not a tidy-up."""
+        merged = merge_facts([
+            ["Flinders Petrie excavated at Hawara in 1888 and found a structure."],
+            ["Herodotus described three thousand chambers beside the pyramid there."],
+        ])
+        assert len(merged) == 2
+
+    def test_density_stays_flat_as_the_source_grows(self):
+        """The regression D-029 named from the other side: a model returns a
+        roughly FIXED number of facts whatever it is handed, so a single call
+        over a long source silently becomes a summary. With chunking, facts per
+        1,000 words must stay roughly constant as the input grows."""
+        # Each chunk covers different text, so it yields different facts — the
+        # mock has to model that or the merge correctly dedups them to nothing.
+        calls = {"n": 0}
+
+        def fixed_output(**_kwargs):
+            calls["n"] += 1
+            batch = calls["n"]
+            return (
+                {
+                    "facts": [
+                        f"In year {batch * 100 + i} the survey team recorded a "
+                        f"reading at chamber {batch}-{i} of the complex."
+                        for i in range(20)
+                    ]
+                },
+                {"cost": 0.01},
+            )
+
+        client = MagicMock()
+        client.generate_structured.side_effect = fixed_output
+        word = "labyrinth "
+        densities = []
+
+        for words in (1_000, 2_000, 4_000, 8_000):
+            calls["n"] = 0
+            facts, _cost = harvest_source(
+                client,
+                "SRC_1",
+                "T",
+                word * words,
+                max_chars=len(word) * 1_000,
+                overlap=0,
+            )
+            densities.append(len(facts) / (words / 1_000))
+
+        # A truncating harvest would show 20, 10, 5, 2.5 here.
+        assert max(densities) - min(densities) < 1.0, densities
 
     def test_source_text_is_fenced_as_data(self):
         """Source text can address a model; the prompt says it is data."""

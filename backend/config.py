@@ -195,7 +195,11 @@ class Settings(BaseSettings):
     )
     harvest_max_chars: int = Field(
         default=24_000, alias="HARVEST_MAX_CHARS",
-        description="Characters of source text sent per harvest call (the proven setting)"
+        description="Characters of source text per harvest CALL (the proven setting). A longer source is chunked at this size, never truncated"
+    )
+    harvest_chunk_overlap: int = Field(
+        default=1_500, alias="HARVEST_CHUNK_OVERLAP",
+        description="Characters each harvest chunk repeats from the previous one, so a fact straddling a boundary is not lost"
     )
 
     # Kimi/Moonshot API (Visual analysis)

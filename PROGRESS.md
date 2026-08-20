@@ -2317,4 +2317,26 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
      carry no date. The balance block now puts that on the page. It may be
      exactly the corpus you want for this topic — it is your call, not the
      pipeline's.
+- 2026-08-20 **D-032 harvest chunking** (owner decision: coverage gate
+  integrity outranks harvest cost). `harvest_source` chunks instead of
+  truncating; overlap 1,500 chars; merge dedups with the conservative matcher;
+  identity lock + ceiling rebuilt per chunk.
+  ```
+  fixture delta   calls 16 -> 19    input chars 214,879 -> 263,981  (+22.9%)
+  text recovered  44,602 chars that were never sent to a model
+                  SRC_16  55,779 chars, 57.0% previously unread
+                  SRC_3   36,823 chars, 34.8% previously unread
+  ```
+  SRC_16 is worse than the SRC_3 case the audit found — the I.25 run covered
+  only 8 sources and never reached it. The real damage was to coverage gate 13,
+  which was checking the Briefing against an inventory built from 43% of a
+  source and reporting full coverage of a corpus it had half-read.
+  Regression test `test_density_stays_flat_as_the_source_grows` runs four input
+  sizes against a fixed-20-facts client (D-029's behaviour, reproduced on
+  purpose); a truncating harvest scores 20/10/5/2.5 on it.
+  Suite: `1651 passed, 3 skipped`.
+- 2026-08-20 **Corpus skew: no action** (owner decision). The 9-believer /
+  2-skeptic split is a real property of this topic's source landscape, the I.24
+  header block is the designed behaviour, and skeptic-hunting belongs to the
+  expand pass. Recorded so nobody "fixes" it later.
 

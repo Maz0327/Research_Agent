@@ -1362,3 +1362,55 @@ model, but only 3.6-flash accepts it — 3.1-pro and 3.7-flash reject it. The
 client now falls back to `"low"` for those models instead of failing the call,
 pinned by a test. Worth noting how this presented: a model that looks like it
 "scores zero" may simply never have been called. Read the failure string.
+
+---
+
+## Decision 032: the harvest chunks, it does not truncate (2026-08-20)
+
+**Status:** Accepted — owner decision, 2026-08-20: "coverage gate integrity
+outranks harvest cost."
+
+The harvest sent `HARVEST_MAX_CHARS` of each source and dropped the rest. On
+the Hawara fixture that meant **44,602 characters of source text were never
+sent to a model at all**:
+
+| source | length | previously unread | share |
+|---|---|---|---|
+| SRC_16 | 55,779 chars | 31,779 | **57.0%** |
+| SRC_3 | 36,823 chars | 12,823 | 34.8% |
+
+This is worse than a quality problem, because of what it did to the coverage
+gate. Gate 13 checks the Briefing against the harvest inventory — so an
+inventory built from 43% of a source produced a gate that passed cleanly while
+more than half the source went unrepresented. The gate reported full coverage
+of a corpus it had only partly read. That is the specific failure the I.25
+recall audit was built to find, and it found it: SRC_3's back-of-source recall
+was 0.0, which is not a recall miss at all but text that never existed as far
+as any model was concerned.
+
+**Adopted:** `harvest_source` chunks any source longer than one call's budget
+into overlapping chunks and merges the facts.
+
+- `HARVEST_MAX_CHARS` (24,000) is now characters **per call**, not per source.
+- `HARVEST_CHUNK_OVERLAP` (1,500) is repeated between chunks so a fact that
+  straddles a boundary is not harvested wrong from both halves.
+- Merge dedups with `says_the_same_thing`, the conservative matcher. This is
+  the one place in the system where a false match DELETES a fact, so the cost
+  of over-eager matching is a real loss rather than a duplicate line.
+- The identity lock and confidence ceiling are rebuilt per chunk, so a chunked
+  source carries exactly the provenance a single-call source does
+  (Architecture Rule 1 is untouched: no chunk ever sees another source).
+
+**Cost delta, measured on the fixture** (16 sources, per the owner's request to
+log it): calls **16 to 19**, input characters **214,879 to 263,981, +22.9%**.
+Only two sources chunk at all; the other fourteen are one call as before.
+
+**Regression test:** `test_density_stays_flat_as_the_source_grows` runs the
+harvest at four input sizes against a client that returns a fixed 20 facts per
+call — the D-029 behaviour, reproduced deliberately. Facts per 1,000 words must
+stay flat. A truncating harvest scores 20, 10, 5, 2.5 on that test.
+
+**Not adopted:** raising the cap instead. D-029 measured that a bigger window
+does not buy more output from a model that returns a roughly fixed number of
+items whatever it is handed — the source would have been read and then
+summarized, which is the same loss wearing a better number.

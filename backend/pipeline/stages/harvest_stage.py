@@ -11,8 +11,11 @@ that pass part of the pipeline, and its output is the inventory the Briefing's
 coverage gate checks against: anything harvested that the Briefing never says
 is a loss the gate reports mechanically, never a model's judgment call.
 
-Source isolation holds (Architecture Rule 1): one call per source, no source
-ever sees another.
+Source isolation holds (Architecture Rule 1): a source is never mixed with
+another, and a source longer than one call's budget is chunked rather than
+truncated (D-032). The truncating version silently dropped 34.8% of the Hawara
+fixture's longest source, which the I.25 recall audit caught as a 0.0
+back-of-source recall — text that was never sent to a model at all.
 """
 
 import re
@@ -23,6 +26,7 @@ from loguru import logger
 from backend.config import get_settings
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.injection_guard import delimit
+from backend.pipeline.text_similarity import group_matching
 from backend.state import update_job
 
 HARVEST_SCHEMA = {
@@ -84,6 +88,65 @@ def _identity_block(source_id: str, title: str, mode: str, ceiling: str) -> str:
     )
 
 
+def chunk_text(text: str, max_chars: int, overlap: int) -> list[str]:
+    """Split a source into overlapping chunks, never losing the tail.
+
+    The overlap exists because a fact can straddle a boundary — a sentence
+    that names a figure in one chunk and what it measures in the next would be
+    harvested wrong from both halves. Each chunk repeats the previous chunk's
+    last `overlap` characters so both readings see the whole statement.
+
+    Args:
+        text: The source's raw text.
+        max_chars: Characters per chunk.
+        overlap: Characters each chunk repeats from the one before it.
+
+    Returns:
+        Chunks in document order; a single chunk when the text already fits.
+    """
+    if len(text) <= max_chars:
+        return [text] if text else []
+
+    # An overlap at or above the chunk size would never advance.
+    overlap = max(0, min(overlap, max_chars // 2))
+    step = max_chars - overlap
+
+    chunks = []
+    start = 0
+    while start < len(text):
+        chunks.append(text[start : start + max_chars])
+        start += step
+    return chunks
+
+
+def merge_facts(chunk_facts: list[list[str]]) -> list[str]:
+    """Merge per-chunk facts, dropping the duplicates the overlap creates.
+
+    Dedup uses the conservative `says_the_same_thing` matcher on purpose: this
+    is the one place where a false match DELETES a fact, so the cost of being
+    too eager is a real loss rather than a duplicate line.
+
+    Args:
+        chunk_facts: One list of facts per chunk, in document order.
+
+    Returns:
+        Facts in document order, one per distinct statement.
+    """
+    flat = [fact for facts in chunk_facts for fact in facts]
+    if len(flat) < 2:
+        return flat
+
+    groups = group_matching([(str(i), fact) for i, fact in enumerate(flat)])
+    kept: list[str] = []
+    seen_groups: set[str] = set()
+    for index, fact in enumerate(flat):
+        group = groups.get(str(index), str(index))
+        if group not in seen_groups:
+            seen_groups.add(group)
+            kept.append(fact)
+    return kept
+
+
 def harvest_source(
     client: Any,
     source_id: str,
@@ -92,8 +155,13 @@ def harvest_source(
     mode: str = "article_fetched",
     ceiling: str = "MEDIUM",
     max_chars: Optional[int] = None,
+    overlap: Optional[int] = None,
 ) -> tuple[list[str], float]:
-    """Harvest one source's facts in a single structured call.
+    """Harvest one source's facts, chunking it when it exceeds one call.
+
+    The confidence ceiling and the identity lock are rebuilt for every chunk,
+    so a chunked source carries exactly the same provenance guarantees as a
+    single-call one.
 
     Args:
         client: A client exposing `generate_structured(prompt, schema, system,
@@ -103,29 +171,54 @@ def harvest_source(
         text: The source's raw text.
         mode: Analysis mode value, for the identity lock.
         ceiling: Confidence ceiling for the source's mode.
-        max_chars: Characters of text to send; defaults to the configured value.
+        max_chars: Characters per call; defaults to the configured value.
+        overlap: Characters of chunk overlap; defaults to the configured value.
 
     Returns:
         Tuple of (facts, cost in dollars).
     """
     settings = get_settings()
     limit = max_chars or settings.harvest_max_chars
+    lap = settings.harvest_chunk_overlap if overlap is None else overlap
 
-    prompt = (
-        _identity_block(source_id, title, mode, ceiling)
-        + f"\nTEXT FROM: {title}\n\n"
-        + delimit(text[:limit], source_id)
-    )
+    chunks = chunk_text(text or "", limit, lap)
+    if not chunks:
+        return [], 0.0
 
-    data, usage = client.generate_structured(
-        prompt=prompt,
-        schema=HARVEST_SCHEMA,
-        system=HARVEST_SYSTEM,
-        max_tokens=8_000,
-    )
+    identity = _identity_block(source_id, title, mode, ceiling)
+    per_chunk: list[list[str]] = []
+    total_cost = 0.0
 
-    facts = [fact.strip() for fact in data.get("facts", []) if fact and fact.strip()]
-    return facts, float(usage.get("cost", 0.0) or 0.0)
+    for index, chunk in enumerate(chunks):
+        part = (
+            f"\n(Part {index + 1} of {len(chunks)} of this source.)"
+            if len(chunks) > 1
+            else ""
+        )
+        prompt = (
+            identity
+            + f"\nTEXT FROM: {title}{part}\n\n"
+            + delimit(chunk, source_id)
+        )
+        data, usage = client.generate_structured(
+            prompt=prompt,
+            schema=HARVEST_SCHEMA,
+            system=HARVEST_SYSTEM,
+            max_tokens=8_000,
+        )
+        per_chunk.append(
+            [fact.strip() for fact in data.get("facts", []) if fact and fact.strip()]
+        )
+        total_cost += float(usage.get("cost", 0.0) or 0.0)
+
+    merged = merge_facts(per_chunk)
+    if len(chunks) > 1:
+        raw = sum(len(f) for f in per_chunk)
+        logger.info(
+            f"{source_id}: {len(chunks)} chunks, {raw} facts -> {len(merged)} after "
+            f"overlap dedup"
+        )
+    return merged, total_cost
 
 
 def fact_id(source_id: str, index: int) -> str:
