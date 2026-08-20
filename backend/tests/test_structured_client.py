@@ -14,6 +14,7 @@ import pytest
 from backend.integrations.structured_client import (
     OpenAIStructuredClient,
     StructuredCallError,
+    _accepts_minimal_thinking,
     _strip_for_gemini,
     provider_for,
 )
@@ -106,6 +107,26 @@ class TestGeminiSchemaTranslation:
             cleaned = _strip_for_gemini(schema)
             assert set(cleaned["properties"]) == set(schema["properties"])
             assert cleaned["required"] == schema["required"]
+
+
+class TestThinkingLevelFloor:
+    """Not every Gemini 3.x model accepts every thinking level.
+
+    Measured 2026-08-20 during the D-031 reasoning A/B: 3.1-pro answered a
+    request carrying `thinking_level="minimal"` with HTTP 400, which read at
+    first like the model scoring zero rather than never being called at all.
+    """
+
+    def test_only_3_6_flash_takes_minimal(self):
+        """The cheap level is a 3.6-flash affordance, not a 3.x one."""
+        assert _accepts_minimal_thinking("gemini-3.6-flash") is True
+        assert _accepts_minimal_thinking("gemini-3.1-pro-preview") is False
+        assert _accepts_minimal_thinking("gemini-3.7-flash") is False
+
+    def test_non_gemini_names_are_unaffected(self):
+        """The floor never reaches a model it does not describe."""
+        assert _accepts_minimal_thinking("gpt-5.4-mini") is True
+        assert _accepts_minimal_thinking("") is True
 
 
 class TestOpenAICompatibleClient:

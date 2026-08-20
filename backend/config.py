@@ -145,8 +145,8 @@ class Settings(BaseSettings):
         description="Per-source semantic extraction. 3.6 over 3.7: 3.7 removed thinking_level 'minimal' and regressed on hallucination"
     )
     model_reasoning: str = Field(
-        default="gemini-3.1-pro-preview", alias="MODEL_REASONING",
-        description="Gap analysis and cross-source reasoning; defensible only because quote verification wraps it"
+        default="gpt-5.4-mini", alias="MODEL_REASONING",
+        description="Gap analysis and cross-source reasoning. Measured winner: 7 gaps at 0% ungrounded against gemini-3.1-pro's 3 gaps at 3-4%"
     )
     model_judge: str = Field(
         default="gpt-5.6-terra", alias="MODEL_JUDGE",

@@ -1310,3 +1310,55 @@ verdict.
 **Scheduled:** at the judge-contest session, A/B the reasoning slot -
 `gemini-3.1-pro` against `gpt-5.4-mini` on the fixture's gap analysis, scored
 by the quote verifier. Swap only on numbers.
+
+---
+
+## Decision 031: gpt-5.4-mini takes the reasoning slot (2026-08-20)
+
+**Status:** Accepted — decided by the A/B scheduled in D-030, per the owner's
+standing instruction to swap only on numbers.
+
+Three runs each of the Hawara fixture's gap analysis, scored by pulling every
+hard atom out of the returned gaps — figures, name tokens, quoted spans — and
+checking each one against the corpus with the D-026 span verifier.
+
+| | **gpt-5.4-mini** | gemini-3.1-pro | gemini-3.6-flash |
+|---|---|---|---|
+| gaps returned | **7, 7, 7** | 4, 3, 3 | 4, 3, 4 |
+| ungrounded atoms | **0%, 0%, 0%** | 4.3%, 3.6%, 3.0% | 11.4%, 13.3%, 13.7% |
+| unverified quotes | 0 | 0 | 0 |
+| words returned | 262 median | 97 median | 99 median |
+| wall clock | 8s | 15s | 5s |
+
+gpt-5.4-mini found more than twice as many gaps and never once put a fact in
+its output that the corpus does not contain. gemini-3.1-pro invented something
+in **every** run — small, one atom in roughly thirty, but never clean — and it
+was the slowest of the three. This is the same failure the D-030 quota work
+found from the other side: 3.1-pro under-produces and drifts from what it is
+told to do. Two independent tests, one verdict.
+
+3.6-flash was tested as a third leg specifically to see whether a Gemini model
+could hold the slot without breaking the vendor split below. It cannot: it
+matched 3.1-pro's thin output and tripled its ungrounded rate.
+
+**Adopted:** `MODEL_REASONING=gpt-5.4-mini`. gemini-3.1-pro is retired from
+the slot, and the D-030 flag against it is closed by this measurement.
+
+**The vendor collision, stated plainly.** D-028 records the pairing as
+extraction Gemini, synthesis Claude, judge OpenAI. Reasoning now sits on
+OpenAI too, alongside the judge — different models (`gpt-5.4-mini` vs
+`gpt-5.6-terra`) but one vendor. This does not breach the standing law, which
+binds the judge against the *synthesis* model, and the numbers above came from
+the code verifier rather than from any model's opinion, so the result itself is
+not vendor-graded. It is still a narrowing of independence and is recorded here
+so that a later judge-slot decision reckons with it rather than rediscovering
+it: if the judge ever needs to audit gap analysis specifically, that audit
+should not be an OpenAI model.
+
+**A defect this A/B exposed.** The first two attempts at the gemini leg failed
+outright with `400 INVALID_ARGUMENT: Thinking level MINIMAL is not supported`.
+`GeminiStructuredClient` sent `thinking_level="minimal"` to every `gemini-3*`
+model, but only 3.6-flash accepts it — 3.1-pro and 3.7-flash reject it. The
+client now falls back to `"low"` for those models instead of failing the call,
+pinned by a test. Worth noting how this presented: a model that looks like it
+"scores zero" may simply never have been called. Read the failure string.

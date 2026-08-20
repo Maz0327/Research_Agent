@@ -45,6 +45,16 @@ def _wants_completion_tokens(model_id: str) -> bool:
     return (model_id or "").lower().startswith(_COMPLETION_TOKEN_PREFIXES)
 
 
+# Measured 2026-08-20: gemini-3.1-pro and gemini-3.7-flash answer a request
+# carrying thinking_level "minimal" with HTTP 400; 3.6-flash accepts it.
+_NO_MINIMAL_THINKING = ("gemini-3.1-pro", "gemini-3.7")
+
+
+def _accepts_minimal_thinking(model_id: str) -> bool:
+    """Does this model accept thinking_level 'minimal'?"""
+    return not (model_id or "").lower().startswith(_NO_MINIMAL_THINKING)
+
+
 def _strip_fences(text: str) -> str:
     """Remove markdown code fences some providers wrap JSON in."""
     text = (text or "").strip()
@@ -173,7 +183,13 @@ class GeminiStructuredClient:
         # The 3.x line bills thinking at output rates and gains nothing on
         # extraction-shaped work (measured, MODEL-DOSSIER): keep it minimal.
         if model_id.startswith("gemini-3"):
-            config["thinking_config"] = types.ThinkingConfig(thinking_level="minimal")
+            # Not every 3.x model accepts every level: 3.1-pro and 3.7-flash
+            # reject "minimal" outright (measured 2026-08-20, HTTP 400), so
+            # fall back to the lowest level they do take rather than failing.
+            level = get_settings().extraction_thinking_level
+            if level == "minimal" and not _accepts_minimal_thinking(model_id):
+                level = "low"
+            config["thinking_config"] = types.ThinkingConfig(thinking_level=level)
 
         try:
             response = self.client.models.generate_content(
