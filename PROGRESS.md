@@ -2090,13 +2090,35 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   self-reference. In published text none of these has a defensible reading.
 
 ### §I Blind spots + update mechanism
-- [ ] I24 Corpus balance report (code + 1 small LLM call)
+- [x] I24 Corpus balance report (code + 1 small LLM call)
+  `backend/pipeline/corpus_balance.py`; wired into `build_briefing`, rendered by
+  the existing `_render_balance`. Live on the Hawara fixture (16 sources):
+  ```
+  domains:      youtube.com (5), en.wikipedia.org (2), perseus.tufts.edu (1),
+                labyrinthofegypt.substack.com (1), ancient-origins.net (1),
+                the-past.com (1), historicmysteries.com (1), snopes.com (1),
+                egyptianstreets.com (1), ancienthistoryx.com (1),
+                archaeologicalrescue.org (1)
+  date_range:   2022-2026, 11 undated
+  network_note: None (no host carries half; no repeated byline; no republication)
+  stances:      believer 9, skeptic 2, neutral 1, institutional 4
+  ```
+  Advisory by construction: a failed stance call empties the tally and leaves
+  the block standing (`test_a_failed_stance_call_leaves_the_block_standing`).
+  Bug the live run caught: `youtu.be` and `youtube.com` counted as two outlets,
+  which split five YouTube sources into three-and-two. Host aliasing added.
+  ⚠️ **For Maz:** the fixture corpus reads 9 believer to 2 skeptic, and 11 of
+  16 sources carry no date. Skew may be deliberate — that is the point of the
+  block — but it is now on the page rather than in the reader's blind spot.
 - [ ] I25 Harvest recall audit (stratified sample re-extract, code fuzzy-match)
 - [ ] I26 Staleness/freshness pass → dated addendum
 - [x] I27 Vault copyright flag — built with the vault (D15)
   Private by default; `looks_paywalled` detects the markers; product mode
   renders excerpt-plus-link instead of full text for flagged sources.
-- [ ] I28 Injection hardening (delimited source data + injection lint)
+- [x] I28 Injection hardening (delimited source data + injection lint)
+  `injection_guard.scan_for_injection` + `delimit` + `DATA_NOTICE`; the scan
+  runs inside `stage_duplicate_detection` and flags sources before extraction
+  reads them. `test_injection_guard.py` green.
 - [ ] I29 Update mechanism — check_updates mode, addendum-first render, version diff
 - [ ] I30 Read regression test (cold-reader harness + trend tracking)
 
@@ -2200,3 +2222,19 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   reverted). Working practice until Maz decides: `codespell` and `ruff check`
   on touched files only, new code kept ruff-clean, no reformatting of
   untouched files. Flagged for the first gate.
+- 2026-08-20: reasoning-slot A/B run and decided (D-031). Three runs each of the
+  Hawara gap analysis, hard atoms scored against the corpus by the D-026 span
+  verifier:
+  ```
+  gpt-5.4-mini             gaps= 7,7,7  ungrounded= 0.0%, 0.0%, 0.0%  ~262 words   8s
+  gemini-3.1-pro-preview   gaps= 4,3,3  ungrounded= 4.3%, 3.6%, 3.0%   ~97 words  15s
+  gemini-3.6-flash         gaps= 4,3,4  ungrounded=11.4%,13.3%,13.7%   ~99 words   5s
+  ```
+  `MODEL_REASONING=gpt-5.4-mini` adopted; 3.1-pro retired from the slot and its
+  D-030 flag closed. 3.6-flash was tested purely to see whether a Gemini model
+  could hold the slot without colliding with the OpenAI judge — it cannot. The
+  vendor narrowing is recorded in D-031 rather than hidden.
+  Defect fixed en route: `GeminiStructuredClient` sent `thinking_level=minimal`
+  to every `gemini-3*`, which only 3.6-flash accepts — the 3.1-pro leg was
+  400-ing, not scoring zero. Falls back to `low` now; pinned by
+  `TestThinkingLevelFloor`. Commit `b37cff4`.

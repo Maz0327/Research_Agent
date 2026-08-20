@@ -49,6 +49,7 @@ from backend.pipeline.briefing_routing import (
     select_disputes,
 )
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.corpus_balance import build_corpus_balance
 from backend.pipeline.formatters.briefing_renderer import (
     render_briefing_html,
     render_briefing_markdown,
@@ -244,6 +245,20 @@ def build_briefing(
         if source.get("source_id")
     ]
 
+    # --- Corpus balance: the advisory header block (work order I.24) --------
+    # Advisory only. A lopsided corpus may be deliberate; it may never be
+    # invisible. Never allowed to fail the build.
+    logger.info(f"[{ctx.job_id}] Briefing: corpus balance")
+    duplicate_groups: list[list[str]] = []
+    for copy_id, original_id in duplicate_of.items():
+        for group in duplicate_groups:
+            if original_id in group:
+                group.append(copy_id)
+                break
+        else:
+            duplicate_groups.append([original_id, copy_id])
+    balance = build_corpus_balance(sources, client, ctx.topic, duplicate_groups)
+
     # --- Pass 8: assemble, then check both directions -----------------------
     raw_words = sum(len(text.split()) for text in raw_by_source.values())
     briefing = Briefing(
@@ -266,6 +281,7 @@ def build_briefing(
         anecdotes=anecdotes,
         info_gaps=info_gaps,
         source_trail=trail,
+        corpus_balance=balance,
     )
 
     raw_texts = list(raw_by_source.values())
