@@ -2059,11 +2059,24 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 - [ ] **[MAZ]** blind read: old-vs-new lineup Briefings (judge/model sweep ratification)
 - [ ] **[MAZ]** read of the first end-to-end D-025 Briefing (Hawara `c5d32615`)
 
+### Owner decisions taken in-session (2026-08-19)
+- **Cast cap accepted as a D-025 addendum**, logged in `DECISIONS.md`. Selection
+  is deterministic: distinct-section count, tie-break on total mentions across
+  every alias, then the name itself; capped at 14. Names below the line follow
+  the one-off rule, introduced inline at each appearance, enforced by
+  `check_inline_introductions`. The 61-card evidence is in the addendum.
+- **Pipeline wiring confirmed in-scope under items 14-15** and now done: the
+  worker runs `stage_briefing` after document assembly, the doc_2 slot carries
+  the Briefing JSON plus its Markdown and HTML renders and the gate report, and
+  the Source Vault is stored as its own document. Six tests run the stage from a
+  context with a scripted client, including the degrade-not-die path.
+
 ### Found defects, outside item scope (for Maz)
-- `backend/pipeline/stages/semantic_synthesis.py:381` references `style_violations`
-  before assignment. Any style-violation retry in the synthesis stage raises
-  `NameError` instead of retrying. Pre-existing (ruff F821 at HEAD too); left
-  alone because no P3 item touches that function yet.
+- ~~`semantic_synthesis.py` raises `NameError` on a style retry~~ — **wrong on
+  my part.** Ruff's F821 there is a lexical false positive: `style_violations`
+  is bound at the end of attempt 0, before the retry branch reads it, so the
+  code works. Bound explicitly before the loop anyway, which states the intent
+  and clears the warning.
 - `pre-commit run --all-files` rewrites ~300 files repo-wide (see the note below).
 
 ### Session log

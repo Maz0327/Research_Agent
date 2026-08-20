@@ -20,9 +20,16 @@ import re
 from dataclasses import dataclass, field
 
 from backend.pipeline.briefing_gates import briefing_prose
-from backend.pipeline.briefing_routing import qualifying_players
+from backend.pipeline.briefing_routing import below_the_line, qualifying_players
 
 _BARE_ID = re.compile(r"\b(?:CLM|SRC|KP|TEN|GAP|STG|HOLE|QT|OBS|THEME)_\d+\b")
+
+# An inline introduction is an appositive around the name: "Eric Uphill, the
+# Middle Kingdom specialist, argued...", or "the Egyptologist Eric Uphill".
+_APPOSITIVE_AFTER = re.compile(r"^\s*,\s*(?:a|an|the|who|whose|then)\b", re.I)
+_APPOSITIVE_BEFORE = re.compile(
+    r"(?:^|[.;:]\s|,\s|\(|\s)(?:the|a|an)\s+[\w'-]+(?:\s+[\w'-]+){0,4}\s+$", re.I
+)
 
 # Words that mark a source performing a fact rather than reporting it
 _STAGING_WORDS = re.compile(
@@ -68,7 +75,20 @@ def check_player_cards(briefing) -> list[str]:
     Returns:
         One error per name that earned a card and did not get one.
     """
-    sections = {
+    sections = _sections_of(briefing)
+    carded = {player.name.lower() for player in briefing.players}
+    # Same function the pass uses, so the lint enforces the rule as applied:
+    # 2+ sections, an actor rather than a place, aliases merged, capped.
+    return [
+        f"{name} recurs across sections but has no card in The Players"
+        for name in qualifying_players(sections)
+        if name.lower() not in carded
+    ]
+
+
+def _sections_of(briefing) -> dict[str, str]:
+    """The prose of each section, as the player rules read it."""
+    return {
         "read": " ".join([briefing.read.lede] + [p.text for p in briefing.read.paragraphs]),
         "record": " ".join(f"{e.what} {e.context or ''}" for e in briefing.record),
         "files": " ".join(f.body for f in briefing.files),
@@ -78,14 +98,50 @@ def check_player_cards(briefing) -> list[str]:
         ),
         "anecdotes": " ".join(f"{a.text} {a.context or ''}" for a in briefing.anecdotes),
     }
-    carded = {player.name.lower() for player in briefing.players}
-    # Same function the pass uses, so the lint enforces the rule as applied:
-    # 2+ sections, an actor rather than a place, aliases merged, capped.
-    return [
-        f"{name} recurs across sections but has no card in The Players"
-        for name in qualifying_players(sections)
-        if name.lower() not in carded
-    ]
+
+
+def _is_introduced(text: str, position: int, name: str) -> bool:
+    """Is this appearance of a name introduced where it stands?
+
+    Args:
+        text: The passage.
+        position: Where the name starts.
+        name: The name itself.
+
+    Returns:
+        True when an appositive sits immediately before or after the name.
+    """
+    after = text[position + len(name): position + len(name) + 40]
+    before = text[max(0, position - 80): position]
+    return bool(_APPOSITIVE_AFTER.match(after) or _APPOSITIVE_BEFORE.search(before))
+
+
+def check_inline_introductions(briefing) -> list[str]:
+    """Names below the card cap must be introduced wherever they appear.
+
+    The owner amendment to D-025 (2026-08-19) capped the cast at 14 and put
+    everyone below the line on the one-off rule, so a reader never meets a name
+    cold. This is the enforcement half of that amendment.
+
+    Args:
+        briefing: The assembled Briefing.
+
+    Returns:
+        One error per appearance that arrives without an introduction.
+    """
+    sections = _sections_of(briefing)
+    findings = []
+
+    for name in below_the_line(sections):
+        for section, text in sections.items():
+            for match in re.finditer(re.escape(name), text or ""):
+                if not _is_introduced(text, match.start(), name):
+                    findings.append(
+                        f"{name} appears in {section} with no card and no inline "
+                        f"introduction; say who they are where the reader meets them"
+                    )
+                    break
+    return findings
 
 
 def check_named_citations(briefing) -> list[str]:
@@ -137,6 +193,8 @@ def lint_briefing(briefing) -> BriefingLintResult:
         BriefingLintResult. `passes` is False only when there are errors.
     """
     return BriefingLintResult(
-        errors=check_player_cards(briefing) + check_named_citations(briefing),
+        errors=check_player_cards(briefing)
+        + check_named_citations(briefing)
+        + check_inline_introductions(briefing),
         advisories=check_staging_disclosure(briefing),
     )

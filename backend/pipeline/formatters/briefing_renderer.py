@@ -678,3 +678,130 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
         f"<style>{BRIEFING_CSS}</style>\n"
         f'<div class="page">{body}{footer}</div>\n'
     )
+
+
+def _md_escape(text: Optional[str]) -> str:
+    """Keep markdown structural characters from reflowing source text."""
+    return (text or "").replace("\\", "\\\\").replace("*", "\\*").replace("_", "\\_")
+
+
+def render_briefing_markdown(briefing: Briefing) -> str:
+    """Render a Briefing as Markdown.
+
+    A lossy secondary export by design (D-025): the format's dropdowns, chips,
+    and anchors have no Markdown equivalent, so context notes and both sides of
+    a dispute are flattened inline. The JSON stays canonical and the HTML stays
+    primary; this exists for Drive and for anything that only reads Markdown.
+
+    Args:
+        briefing: The assembled Briefing.
+
+    Returns:
+        A Markdown document.
+    """
+    meta = briefing.meta
+    out: list[str] = [f"# {briefing.topic}", ""]
+
+    facts = [f"{meta.source_count} sources"]
+    if meta.independent_source_count != meta.source_count:
+        facts.append(f"{meta.independent_source_count} independent")
+    facts.append(f"{meta.raw_words:,} raw words read")
+    if meta.quote_verification_rate is not None:
+        facts.append(f"quotes verified {meta.quote_verification_rate:.0%}")
+    if meta.confidence:
+        facts.append(f"confidence {meta.confidence}")
+    if meta.generated_on:
+        facts.append(meta.generated_on)
+    out += [" · ".join(facts), ""]
+
+    out += ["## 1. The Read", "", _md_escape(briefing.read.lede), ""]
+    for paragraph in briefing.read.paragraphs:
+        lead = f"**{_md_escape(paragraph.label)}:** " if paragraph.label else ""
+        out += [f"{lead}{_md_escape(paragraph.text)}", ""]
+
+    if briefing.players:
+        out += ["## 2. The Players", ""]
+        for player in briefing.players:
+            cite = f" ({' · '.join(player.source_ids)})" if player.source_ids else ""
+            out += [
+                f"**{_md_escape(player.name)}** — {_md_escape(player.role)}",
+                "",
+                f"{_md_escape(player.body)}{cite}",
+                "",
+            ]
+
+    if briefing.record:
+        out += ["## 3. The Record", ""]
+        for entry in briefing.record:
+            cite = f" ({' · '.join(entry.source_ids)})" if entry.source_ids else ""
+            out.append(f"- **{_md_escape(entry.when)}** — {_md_escape(entry.what)}{cite}")
+            if entry.context:
+                out.append(f"  - {_md_escape(entry.context)}")
+        out.append("")
+
+    if briefing.files:
+        out += ["## 4. The Files", ""]
+        for file in briefing.files:
+            chips = " ".join(f"`{c.label}`" for c in file.chips)
+            cite = f" ({' · '.join(file.source_ids)})" if file.source_ids else ""
+            out += [f"### {_md_escape(file.title)} {chips}".strip(), ""]
+            for block in (file.body or "").split("\n\n"):
+                if block.strip():
+                    out += [_md_escape(block.strip()), ""]
+            if cite:
+                out += [cite.strip(), ""]
+
+    if briefing.disputes:
+        out += ["## 5. Disputed & Uncertain", ""]
+        for dispute in briefing.disputes:
+            out += [
+                f"### {_md_escape(dispute.claim)} `{dispute.chip.label}`",
+                "",
+                f"*{_md_escape(dispute.holders)}*",
+                "",
+                f"**{_md_escape(dispute.case_for.heading)}** — "
+                f"{_md_escape(dispute.case_for.text)}"
+                + (f" ({' · '.join(dispute.case_for.source_ids)})" if dispute.case_for.source_ids else ""),
+                "",
+                f"**{_md_escape(dispute.case_against.heading)}** — "
+                f"{_md_escape(dispute.case_against.text)}"
+                + (f" ({' · '.join(dispute.case_against.source_ids)})" if dispute.case_against.source_ids else ""),
+                "",
+            ]
+
+    if briefing.anecdotes:
+        out += ["## 6. Details & Anecdotes", ""]
+        for anecdote in briefing.anecdotes:
+            cite = f" ({' · '.join(anecdote.source_ids)})" if anecdote.source_ids else ""
+            out.append(f"- {_md_escape(anecdote.text)}{cite}")
+            if anecdote.context:
+                out.append(f"  - {_md_escape(anecdote.context)}")
+        out.append("")
+
+    if briefing.info_gaps:
+        out += ["## 7. Info Gaps", ""]
+        for gap in briefing.info_gaps:
+            out.append(
+                f"- **{_md_escape(gap.question)}** {_md_escape(gap.why)} "
+                f"→ {_md_escape(gap.go_get)}"
+            )
+        out.append("")
+
+    if briefing.source_trail:
+        out += ["## 8. Source Trail", ""]
+        for entry in briefing.source_trail:
+            descriptors = [d for d in (entry.kind, entry.year, entry.creator) if d]
+            descriptor = f" ({', '.join(str(d) for d in descriptors)})" if descriptors else ""
+            notes = []
+            if entry.duplicate_of:
+                notes.append(f"republication of {entry.duplicate_of}")
+            if entry.note:
+                notes.append(entry.note)
+            note = f" [{'; '.join(notes)}]" if notes else ""
+            contribution = f" — {_md_escape(entry.contribution)}" if entry.contribution else ""
+            out.append(
+                f"- **{entry.source_id}** {_md_escape(entry.title)}{descriptor}{note}{contribution}"
+            )
+        out.append("")
+
+    return "\n".join(out).rstrip() + "\n"

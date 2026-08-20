@@ -379,6 +379,9 @@ def stage_semantic_synthesis(ctx: PipelineContext) -> None:
         # Call Gemini for synthesis (with style enforcement retry)
         synthesis_result = None
         total_cost = 0.0
+        # Bound before the loop so the retry branch reads a defined value even
+        # if the first attempt ever stops short of the style check.
+        style_violations: list[str] = []
 
         for attempt in range(2):  # Max 2 attempts (original + 1 retry)
             current_prompt = prompt

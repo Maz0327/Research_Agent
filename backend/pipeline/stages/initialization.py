@@ -21,9 +21,13 @@ def _brief_document(ctx: PipelineContext) -> Optional[dict]:
     """
     briefing_md = ctx.outputs.get("briefing_md")
     if briefing_md and not get_settings().legacy_docs:
+        # The Briefing JSON is canonical (D-025); the HTML rides along because
+        # it is the primary render and rebuilding it needs the whole model.
         return {
-            "data": ctx.outputs.get("claim_graph"),
+            "data": ctx.outputs.get("briefing") or ctx.outputs.get("claim_graph"),
             "markdown": briefing_md,
+            "html": ctx.outputs.get("briefing_html"),
+            "gates": ctx.outputs.get("briefing_report"),
         }
 
     if ctx.outputs.get("semantic_brief"):
@@ -79,6 +83,12 @@ def _try_upload_documents_to_storage(ctx: PipelineContext) -> Optional[dict]:
         brief_doc = _brief_document(ctx)
         if brief_doc:
             paths["doc_2_path"] = storage_client.upload_document(ctx.job_id, "doc_2", brief_doc)
+
+        # The Source Vault: raw text of every source, the Briefing's companion
+        if ctx.outputs.get("source_vault_html"):
+            paths["vault_path"] = storage_client.upload_document(
+                ctx.job_id, "vault", {"html": ctx.outputs["source_vault_html"]}
+            )
 
         # Doc 3: Creator Brief (auto-generated core document)
         if ctx.outputs.get("creator_brief"):

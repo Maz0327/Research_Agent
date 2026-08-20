@@ -49,6 +49,11 @@ from backend.pipeline.briefing_routing import (
     select_disputes,
 )
 from backend.pipeline.context import PipelineContext
+from backend.pipeline.formatters.briefing_renderer import (
+    render_briefing_html,
+    render_briefing_markdown,
+)
+from backend.pipeline.formatters.source_vault import render_source_vault
 from backend.pipeline.text_similarity import content_tokens
 from backend.state import update_job
 
@@ -364,6 +369,21 @@ def stage_briefing(ctx: PipelineContext) -> None:
 
     ctx.briefing = briefing
     ctx.briefing_report = report
+
+    # The canonical artifact is the JSON; the HTML is the primary render and
+    # the Markdown a lossy secondary export (D-025). All three travel with the
+    # job so completion can store them without rebuilding anything.
+    vault_html = render_source_vault(
+        title=f"{ctx.topic[:60]} — sources",
+        sources=sources,
+        job_id=ctx.job_id,
+        generated_on=briefing.meta.generated_on or "",
+    )
+    ctx.outputs["briefing"] = briefing.model_dump(mode="json")
+    ctx.outputs["briefing_md"] = render_briefing_markdown(briefing)
+    ctx.outputs["briefing_html"] = render_briefing_html(briefing)
+    ctx.outputs["briefing_report"] = report
+    ctx.outputs["source_vault_html"] = vault_html
 
     for finding in report["grounding"]["findings"][:10]:
         ctx.add_warning(

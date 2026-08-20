@@ -188,6 +188,7 @@ def _run_mixed_input_job(ctx, job) -> dict:
     from backend.pipeline.stages.creator_brief_stage import run_creator_brief_stage
     from backend.pipeline.stages.duplicate_detection import stage_duplicate_detection
     from backend.pipeline.stages.harvest_stage import stage_harvest
+    from backend.pipeline.stages.briefing_stage import stage_briefing
     from backend.pipeline.stages.source_identity import (
         build_source_identity_from_video,
         build_source_identity_from_article,
@@ -516,6 +517,13 @@ def _run_mixed_input_job(ctx, job) -> dict:
 
         update_job(job_id, stage="document_assembly", progress_percent=80)
         run_stage_with_recovery(stage_document_assembly, ctx, "document_assembly")
+
+        # The Research Briefing (D-025) is the reading surface. Non-fatal while
+        # the legacy documents still ship: a failure here degrades to those
+        # plus a recorded warning rather than losing a job that already paid
+        # for its research.
+        update_job(job_id, stage="briefing", progress_percent=85)
+        run_stage_with_recovery(stage_briefing, ctx, "briefing")
 
         # Stage F: Creator Brief assembly (Doc 3) — non-fatal
         run_stage_with_recovery(run_creator_brief_stage, ctx, "creator_brief")

@@ -908,3 +908,38 @@ reading role (Doc 0 remains the canonical data). Doc 3 (Creator Brief) is
 NOT part of the Briefing and conflicts with "the brief informs, never
 performs" — its retirement or reshaping is a separate owner decision, not
 made here.
+
+### Addendum to D-025: the cast is capped at 14 (2026-08-19)
+
+**Status:** Accepted (project owner, in-session, 2026-08-19)
+
+D-025 says a name mentioned in 2+ sections gets a card in The Players. On the
+first end-to-end build (labyrinth job c5d32615, 16 sources, 34,501 words of
+generated prose) that rule returned **61 names**. Reading the list showed the
+rule was sound and the input was not: it contained places and monuments that
+recur without ever acting (Giza Plateau, Great Pyramid, Lake Moeris, Middle
+Kingdom, City of Crocodiles), and the same person arriving under several forms
+(De Cordier and Louis De Cordier; Ministry of Tourism and Egypt's Ministry of
+Tourism; William Brown and Bill Brown). A cast of 61 is an index, not a cast.
+
+**What changes:**
+
+1. **The threshold stands.** 2+ distinct sections still qualifies a name.
+2. **Aliases count once**, merged by token containment into the fullest form.
+3. **A player has to act.** A name never shown doing something is a place, and
+   places belong in the prose, not the cast.
+4. **The cast is capped at 14**, selected deterministically: rank by distinct
+   section count, tie-break by total mentions across every alias, then by the
+   name itself, so the result never depends on dict order or prose chunking.
+5. **Every name below the line follows the one-off rule** — introduced inline
+   wherever it appears ("Eric Uphill, the Middle Kingdom specialist, argued…")
+   so a reader never meets a name cold. This is lint-enforced, alongside the
+   existing rule that a name above the line without a card is an error.
+
+Same corpus after the amendment: 14 cards (Hawass, De Cordier, Akers, Boulter,
+Grassi, Cayce, Lloyd, Diodorus, Pomponius Mela, Merlin Burrows, Ghent
+University, and the three publications). Implementation:
+`backend/pipeline/briefing_routing.py` (`rank_players`, `qualifying_players`,
+`below_the_line`) and `backend/pipeline/briefing_lint.py`
+(`check_player_cards`, `check_inline_introductions`), both of which read the
+same ranking so the lint enforces the rule as applied.

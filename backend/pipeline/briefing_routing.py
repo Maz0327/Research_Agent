@@ -274,7 +274,7 @@ def names_by_section(sections: dict[str, str]) -> dict[str, set[str]]:
     return appearances
 
 
-def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, set[str]]:
+def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, dict]:
     """Fold shorter forms of a name into the fullest form of it.
 
     "De Cordier" and "Louis De Cordier" are one person; "Ministry of Tourism"
@@ -285,10 +285,11 @@ def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, set[str]]:
         appearances: Map of name to the sections it appears in.
 
     Returns:
-        The same map with aliases merged into their fullest form.
+        Map of canonical name to `{"sections": set, "aliases": set}`. Aliases
+        are kept because the ranking counts every form a name appears under.
     """
     names = sorted(appearances, key=lambda n: (-len(n.split()), n))
-    merged: dict[str, set[str]] = {}
+    merged: dict[str, dict] = {}
 
     for name in names:
         tokens = {t.lower().strip(".,") for t in name.split()}
@@ -299,11 +300,26 @@ def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, set[str]]:
                 target = canonical
                 break
         if target:
-            merged[target] |= appearances[name]
+            merged[target]["sections"] |= appearances[name]
+            merged[target]["aliases"].add(name)
         else:
-            merged[name] = set(appearances[name])
+            merged[name] = {"sections": set(appearances[name]), "aliases": {name}}
 
     return merged
+
+
+def mention_count(aliases: Iterable[str], text: str) -> int:
+    """How many times a name appears, counting every form of it.
+
+    Args:
+        aliases: All forms the name appears under.
+        text: All the document's prose.
+
+    Returns:
+        Total mentions.
+    """
+    lowered = (text or "").lower()
+    return sum(lowered.count(alias.lower()) for alias in aliases)
 
 
 def acts_somewhere(name: str, text: str) -> bool:
@@ -322,33 +338,72 @@ def acts_somewhere(name: str, text: str) -> bool:
     return bool(pattern.search(text))
 
 
+def rank_players(sections: dict[str, str]) -> list[dict]:
+    """Rank every name that meets the card threshold, deterministically.
+
+    The order is fixed by owner amendment to D-025 (2026-08-19): distinct
+    sections first, total mentions as the tie-break, then the name itself so
+    the result never depends on dict order or on how the prose was chunked.
+
+    Two things happen before the ranking, for the result to be a cast rather
+    than an index: aliases of one name count once, and a name that never acts
+    is a place, not a player.
+
+    Args:
+        sections: Map of section name to that section's full prose.
+
+    Returns:
+        List of `{"name", "sections", "mentions", "aliases"}`, best first.
+    """
+    merged = merge_aliases(names_by_section(sections))
+    everything = " ".join(sections.values())
+
+    ranked = [
+        {
+            "name": name,
+            "sections": len(entry["sections"]),
+            "mentions": mention_count(entry["aliases"], everything),
+            "aliases": sorted(entry["aliases"]),
+        }
+        for name, entry in merged.items()
+        if len(entry["sections"]) >= PLAYER_SECTION_THRESHOLD
+        and acts_somewhere(name, everything)
+    ]
+    ranked.sort(key=lambda row: (-row["sections"], -row["mentions"], row["name"]))
+    return ranked
+
+
 def qualifying_players(
     sections: dict[str, str], maximum: int = MAX_PLAYER_CARDS
 ) -> list[str]:
-    """Names that earn a card: in 2+ sections, an actor, and among the top ones.
-
-    The D-025 rule is the 2+-section threshold. Two things have to happen
-    around it for the result to be a cast rather than an index: aliases of one
-    name count once, and names that never act are not players. What survives is
-    capped, because a cast of sixty is not a cast.
+    """Names that earn a card: the top of the ranking, capped.
 
     Args:
         sections: Map of section name to that section's full prose.
         maximum: How many cards the section may carry.
 
     Returns:
-        Qualifying names, most-mentioned first, then alphabetical.
+        Qualifying names, best first.
     """
-    appearances = merge_aliases(names_by_section(sections))
-    everything = " ".join(sections.values())
+    return [row["name"] for row in rank_players(sections)[:maximum]]
 
-    qualifying = [
-        (len(where), name)
-        for name, where in appearances.items()
-        if len(where) >= PLAYER_SECTION_THRESHOLD and acts_somewhere(name, everything)
-    ]
-    qualifying.sort(key=lambda row: (-row[0], row[1]))
-    return [name for _, name in qualifying[:maximum]]
+
+def below_the_line(
+    sections: dict[str, str], maximum: int = MAX_PLAYER_CARDS
+) -> list[str]:
+    """Names that met the threshold but fell below the cap.
+
+    These follow the one-off rule instead: introduced inline wherever they
+    appear, so a reader never meets a name cold (owner amendment, 2026-08-19).
+
+    Args:
+        sections: Map of section name to that section's full prose.
+        maximum: How many cards the section may carry.
+
+    Returns:
+        The names below the line, in ranking order.
+    """
+    return [row["name"] for row in rank_players(sections)[maximum:]]
 
 
 def evidence_chip(

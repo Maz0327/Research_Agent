@@ -18,6 +18,7 @@ from backend.models.briefing import (
     SourceTrailEntry,
 )
 from backend.pipeline.briefing_lint import (
+    check_inline_introductions,
     check_named_citations,
     check_player_cards,
     check_staging_disclosure,
@@ -102,6 +103,63 @@ class TestPlayerCards:
         )
 
         assert check_player_cards(briefing) == []
+
+
+class TestInlineIntroductions:
+    """Everyone below the card cap is introduced where the reader meets them."""
+
+    NAMES = [
+        "Flinders Petrie", "Eric Uphill", "Alan Lloyd", "Karl Lepsius",
+        "Louis De Cordier", "Zahi Hawass", "Carmen Boulter", "Timothy Akers",
+        "Trevor Grassi", "William Brown", "Filippo Biondi", "Mark Carlotto",
+        "Edgar Cayce", "Graham Hancock", "Lawrence Conyers", "Abbas Mohamed",
+        "Johanna Mueller", "Robert Schoch", "John West", "Manly Hall",
+    ]
+
+    def _briefing_with_names(self, count, introduced):
+        """A Briefing whose sections mention `count` recurring names."""
+        def mention(name, section_word):
+            return (
+                f"{name}, the {section_word} specialist, {section_word} it."
+                if introduced
+                else f"Later {name} {section_word} it."
+            )
+
+        names = self.NAMES[:count]
+        return _briefing(
+            read=Read(
+                lede="Read them.",
+                paragraphs=[ReadParagraph(text=" ".join(mention(n, "described") for n in names))],
+            ),
+            files=[
+                File(
+                    title="A file",
+                    body=" ".join(mention(n, "confirmed") for n in names),
+                    source_ids=["SRC_1"],
+                )
+            ],
+        )
+
+    def test_uncarded_recurring_name_needs_an_introduction(self):
+        """Below the line, a bare mention is an error."""
+        briefing = self._briefing_with_names(20, introduced=False)
+
+        errors = check_inline_introductions(briefing)
+
+        assert errors
+        assert "no inline introduction" in errors[0]
+
+    def test_an_introduced_name_passes(self):
+        """An appositive where the reader meets the name satisfies the rule."""
+        briefing = self._briefing_with_names(20, introduced=True)
+
+        assert check_inline_introductions(briefing) == []
+
+    def test_names_above_the_line_are_not_checked_here(self):
+        """Those need cards instead, which is the other rule."""
+        briefing = self._briefing_with_names(3, introduced=False)
+
+        assert check_inline_introductions(briefing) == []
 
 
 class TestNamedCitations:
