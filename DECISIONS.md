@@ -1192,3 +1192,62 @@ the extraction stage and is not implemented here. Until it is, moving to any
 
 Evidence: `plans/260814-claim-graph-briefing/artifacts/extraction_pro.json`,
 `chunk_probe.json`.
+
+## Decision 029: the quota prompt, not a restructure (2026-08-20)
+
+**Status:** Accepted — the prompt fix is adopted; chunked extraction is NOT built
+
+D-027 found that every Gemini 3.x model returns a roughly fixed *number* of
+items whatever it is handed, so a long source is summarized harder. Before
+restructuring the extraction stage, the cheap counter-test: state the quota in
+the prompt, scaled to the source's length, and change nothing else.
+
+**Counter-test, whole source, no chunking:**
+
+| model | source | plain | with quota | change |
+|---|---|---|---|---|
+| gemini-3.6-flash | SRC_3 (6,392w) | 6 quotes | **40** | 0.94 → 6.26 per 1,000w |
+| gemini-3.6-flash | SRC_16 (6,750w) | 4 quotes | **53** | 0.59 → 7.85 per 1,000w |
+| gemini-3.1-pro-preview | SRC_3 | 3 quotes | 5 | 0.47 → 0.78 |
+| gemini-3.1-pro-preview | SRC_16 | 3 quotes | 2 | 0.44 → 0.30 |
+
+Chunked extraction reached 7.67 per 1,000 words on the same source. **The
+prompt reaches the same density with no restructuring**, so the quota is
+adopted and chunking is not built. The Pro tier ignores the instruction
+entirely, which finishes the case against it for extraction.
+
+**Three-way re-run on the winning strategy, plus a harvest-style leg** (six
+sources, 21,251 words):
+
+| strategy | quotes | verified | units | density | cost | time |
+|---|---|---|---|---|---|---|
+| **gemini-3.6-flash + quota** | **182** | 182 (100%) | 32 KPs | **8.56/1,000w** | $0.054 | 141s |
+| gemini-2.5-flash + quota | 124 | 124 (100%) | 24 KPs | 5.84/1,000w | $0.092 | 746s |
+| gemini-3.1-flash-lite + quota | 94 | 91 (97%) | 22 KPs | 4.42/1,000w | $0.035 | 55s |
+| harvest-style gemini-2.5-flash | — | — | 168 facts | 10.33/1,000w | — | 107s |
+| harvest-style gemini-3.6-flash | — | — | 156 facts | 9.59/1,000w | — | 34s |
+
+**gemini-3.6-flash with the quota beats the dying incumbent on equal terms**,
+at 60% of the cost and a fifth of the wall clock, with every quote verifying.
+The October migration is now a config change after all.
+
+**Two things this surfaced, both handled:**
+
+1. **The quota can overflow the output ceiling.** gemini-2.5-flash truncated on
+   two of six sources and returned *nothing* for them, which is why its quota
+   figure is below its unquoted 294. Extraction now retries a truncated call on
+   half the source rather than losing it. This is also why 2.5-flash's raw
+   density is not the target to chase: it was already verbose, and the quota
+   pushed it over.
+2. **The harvest-style call is denser than schema extraction, by a lot** — 156
+   to 168 dense facts against 32 key points over the same sources, with roughly
+   eight times as many carrying numbers, in a third of the time. That is the
+   same result the harvest stage measured on the films corpus, and it is why
+   the Briefing's coverage gate reads the harvest rather than the extraction.
+   Schema extraction remains what feeds claims, quotes, and the claim graph;
+   the two are complementary rather than competing.
+
+Cost figures for the harvest legs are absent because the Gemini adapter does
+not yet compute cost. Evidence:
+`plans/260814-claim-graph-briefing/artifacts/quota_countertest.json`,
+`threeway_quota.json`.

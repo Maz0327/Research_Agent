@@ -618,6 +618,69 @@ def get_confidence_ceiling_for_mode(analysis_mode: str) -> str:
     return get_confidence_ceiling_string(analysis_mode)
 
 
+# Extraction rates per 1,000 words of source. Measured, not chosen: every
+# Gemini 3.x model returns a roughly fixed NUMBER of items whatever it is
+# handed, so a 6,400-word source came back with 6 quotes (0.94 per 1,000 words)
+# while a 379-word excerpt came back with 4 (10.55 per 1,000). The model was
+# not failing to read the source, it was filling a quota, so the fix is to
+# state the quota in the units that matter.
+#
+# With this block, gemini-3.6-flash went from 6 quotes to 40 on one source and
+# 4 to 53 on another, matching what chunked extraction achieved without any
+# restructuring. Quotes and claims carry the evidence and are scaled hardest;
+# key points sit a level up and are scaled gently, because the claim graph
+# downstream expects a readable number of them.
+QUOTES_PER_1000_WORDS = (8, 12)
+CLAIMS_PER_1000_WORDS = (6, 10)
+KEY_POINTS_PER_1000_WORDS = (2, 4)
+
+EXTRACTION_QUOTA_BLOCK = """
+
+EXTRACTION QUOTA - THIS OVERRIDES ANY INSTINCT TO BE CONCISE
+This source is about {words:,} words. Extract in proportion to it:
+
+  - quotes:      {quotes_low} to {quotes_high}
+  - claims:      {claims_low} to {claims_high}
+  - key points:  {points_low} to {points_high}
+
+Do NOT summarize and do NOT return a representative sample. A short answer is a
+failed extraction: nothing downstream can recover what you leave out. Work
+through the source from beginning to end and keep going until you reach the end
+of it.
+
+This quota never overrides the EMPTY OUTPUT PERMISSION above. If the source
+genuinely does not contain this much, return what it does contain. Inventing
+material to hit a number is a worse failure than returning less."""
+
+
+def build_extraction_quota(source_content: str) -> str:
+    """Build the length-scaled quota block for a source.
+
+    Args:
+        source_content: The source text the model will receive.
+
+    Returns:
+        The quota block, or an empty string for a source too short to scale.
+    """
+    words = len((source_content or "").split())
+    if words < 200:
+        return ""
+
+    def band(rate: tuple[int, int]) -> tuple[int, int]:
+        return max(1, int(words / 1000 * rate[0])), max(2, int(words / 1000 * rate[1]))
+
+    quotes_low, quotes_high = band(QUOTES_PER_1000_WORDS)
+    claims_low, claims_high = band(CLAIMS_PER_1000_WORDS)
+    points_low, points_high = band(KEY_POINTS_PER_1000_WORDS)
+
+    return EXTRACTION_QUOTA_BLOCK.format(
+        words=words,
+        quotes_low=quotes_low, quotes_high=quotes_high,
+        claims_low=claims_low, claims_high=claims_high,
+        points_low=points_low, points_high=points_high,
+    )
+
+
 def build_semantic_extraction_prompt(
     source_id: str,
     source_content: str,
@@ -651,7 +714,7 @@ def build_semantic_extraction_prompt(
                 source_id=source_id,
                 source_content=source_content,
                 title=title,
-            )
+            ) + build_extraction_quota(source_content)
         except (ImportError, ValueError):
             # Fall back to legacy prompt if mode dispatch fails
             pass

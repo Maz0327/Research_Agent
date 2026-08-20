@@ -1,0 +1,82 @@
+{
+ "gemini-3.6-flash|SRC_3|plain": {
+  "words": 6392,
+  "quotes": 6,
+  "verified": 6,
+  "key_points": 3,
+  "claims": 5,
+  "per_1000": 0.94,
+  "cost": 0.00556972,
+  "seconds": 10
+ },
+ "gemini-3.6-flash|SRC_3|quota": {
+  "words": 6392,
+  "quotes": 40,
+  "verified": 34,
+  "key_points": 5,
+  "claims": 9,
+  "per_1000": 6.26,
+  "cost": 0.011417769999999999,
+  "seconds": 27
+ },
+ "gemini-3.6-flash|SRC_16|plain": {
+  "words": 6749,
+  "quotes": 4,
+  "verified": 4,
+  "key_points": 4,
+  "claims": 4,
+  "per_1000": 0.59,
+  "cost": 0.00559494,
+  "seconds": 10
+ },
+ "gemini-3.6-flash|SRC_16|quota": {
+  "words": 6749,
+  "quotes": 53,
+  "verified": 53,
+  "key_points": 5,
+  "claims": 13,
+  "per_1000": 7.85,
+  "cost": 0.012957489999999999,
+  "seconds": 30
+ },
+ "gemini-3.1-pro-preview|SRC_3|plain": {
+  "words": 6392,
+  "quotes": 3,
+  "verified": 3,
+  "key_points": 3,
+  "claims": 3,
+  "per_1000": 0.47,
+  "cost": 0.00520897,
+  "seconds": 27
+ },
+ "gemini-3.1-pro-preview|SRC_3|quota": {
+  "words": 6392,
+  "quotes": 5,
+  "verified": 5,
+  "key_points": 2,
+  "claims": 5,
+  "per_1000": 0.78,
+  "cost": 0.0039882699999999995,
+  "seconds": 31
+ },
+ "gemini-3.1-pro-preview|SRC_16|plain": {
+  "words": 6749,
+  "quotes": 3,
+  "verified": 3,
+  "key_points": 3,
+  "claims": 3,
+  "per_1000": 0.44,
+  "cost": 0.005032689999999999,
+  "seconds": 23
+ },
+ "gemini-3.1-pro-preview|SRC_16|quota": {
+  "words": 6749,
+  "quotes": 2,
+  "verified": 2,
+  "key_points": 2,
+  "claims": 2,
+  "per_1000": 0.3,
+  "cost": 0.0048649900000000005,
+  "seconds": 26
+ }
+}

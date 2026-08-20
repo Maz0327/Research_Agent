@@ -1,0 +1,302 @@
+{
+ "gemini-3.6-flash +quota": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "words": 3124,
+    "quotes": 30,
+    "verified": 30,
+    "key_points": 5,
+    "claims": 12,
+    "numbers": 3
+   },
+   {
+    "source_id": "SRC_3",
+    "words": 6392,
+    "quotes": 52,
+    "verified": 52,
+    "key_points": 5,
+    "claims": 10,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_6",
+    "words": 1594,
+    "quotes": 17,
+    "verified": 17,
+    "key_points": 5,
+    "claims": 11,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_11",
+    "words": 2320,
+    "quotes": 22,
+    "verified": 22,
+    "key_points": 5,
+    "claims": 13,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_13",
+    "words": 1072,
+    "quotes": 8,
+    "verified": 8,
+    "key_points": 2,
+    "claims": 6,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_16",
+    "words": 6749,
+    "quotes": 53,
+    "verified": 53,
+    "key_points": 10,
+    "claims": 26,
+    "numbers": 5
+   }
+  ],
+  "cost": 0.054353649999999996,
+  "seconds": 141.43972539901733
+ },
+ "gemini-3.1-flash-lite +quota": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "words": 3124,
+    "quotes": 12,
+    "verified": 11,
+    "key_points": 5,
+    "claims": 6,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "words": 6392,
+    "quotes": 34,
+    "verified": 32,
+    "key_points": 3,
+    "claims": 5,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "words": 1594,
+    "quotes": 12,
+    "verified": 12,
+    "key_points": 3,
+    "claims": 9,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_11",
+    "words": 2320,
+    "quotes": 18,
+    "verified": 18,
+    "key_points": 4,
+    "claims": 6,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "words": 1072,
+    "quotes": 8,
+    "verified": 8,
+    "key_points": 3,
+    "claims": 6,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_16",
+    "words": 6749,
+    "quotes": 10,
+    "verified": 10,
+    "key_points": 4,
+    "claims": 6,
+    "numbers": 1
+   }
+  ],
+  "cost": 0.03536715,
+  "seconds": 54.65318489074707
+ },
+ "gemini-2.5-flash +quota": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "words": 3124,
+    "quotes": 42,
+    "verified": 42,
+    "key_points": 6,
+    "claims": 32,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "words": 6392,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 0,
+    "claims": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "words": 1594,
+    "quotes": 43,
+    "verified": 43,
+    "key_points": 6,
+    "claims": 37,
+    "numbers": 3
+   },
+   {
+    "source_id": "SRC_11",
+    "words": 2320,
+    "quotes": 27,
+    "verified": 27,
+    "key_points": 8,
+    "claims": 23,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "words": 1072,
+    "quotes": 12,
+    "verified": 12,
+    "key_points": 4,
+    "claims": 7,
+    "numbers": 2
+   },
+   {
+    "source_id": "SRC_16",
+    "words": 6749,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 0,
+    "claims": 0,
+    "numbers": 0
+   }
+  ],
+  "cost": 0.0918879,
+  "seconds": 745.9996943473816
+ },
+ "harvest-style gemini-3.6-flash": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "words": 3124,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 29,
+    "claims": 29,
+    "numbers": 13
+   },
+   {
+    "source_id": "SRC_3",
+    "words": 4126,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 35,
+    "claims": 35,
+    "numbers": 25
+   },
+   {
+    "source_id": "SRC_6",
+    "words": 1594,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 15,
+    "claims": 15,
+    "numbers": 8
+   },
+   {
+    "source_id": "SRC_11",
+    "words": 2320,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 27,
+    "claims": 27,
+    "numbers": 10
+   },
+   {
+    "source_id": "SRC_13",
+    "words": 1072,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 10,
+    "claims": 10,
+    "numbers": 7
+   },
+   {
+    "source_id": "SRC_16",
+    "words": 4035,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 40,
+    "claims": 40,
+    "numbers": 26
+   }
+  ],
+  "cost": 0.0,
+  "seconds": 34.030839681625366
+ },
+ "harvest-style gemini-2.5-flash": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "words": 3124,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 36,
+    "claims": 36,
+    "numbers": 9
+   },
+   {
+    "source_id": "SRC_3",
+    "words": 4126,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 43,
+    "claims": 43,
+    "numbers": 26
+   },
+   {
+    "source_id": "SRC_6",
+    "words": 1594,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 18,
+    "claims": 18,
+    "numbers": 11
+   },
+   {
+    "source_id": "SRC_11",
+    "words": 2320,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 26,
+    "claims": 26,
+    "numbers": 12
+   },
+   {
+    "source_id": "SRC_13",
+    "words": 1072,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 11,
+    "claims": 11,
+    "numbers": 7
+   },
+   {
+    "source_id": "SRC_16",
+    "words": 4035,
+    "quotes": 0,
+    "verified": 0,
+    "key_points": 34,
+    "claims": 34,
+    "numbers": 20
+   }
+  ],
+  "cost": 0.0,
+  "seconds": 107.15973687171936
+ }
+}

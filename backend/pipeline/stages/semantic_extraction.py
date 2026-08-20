@@ -489,6 +489,30 @@ def extract_semantic_structure(
                 model=model,
             )
 
+            if response.get("truncated") and retry_count < max_retries:
+                # The extraction quota asks for output in proportion to the
+                # source, so a long source can now overflow the model's output
+                # ceiling and return nothing at all - measured: two of six
+                # sources on gemini-2.5-flash. Halving the input halves the
+                # quota with it, which is a smaller loss than losing the whole
+                # extraction, and the remainder is covered by the next half.
+                halved = source_content[: max(2000, len(source_content) // 2)]
+                logger.warning(
+                    f"[{source_id}] Extraction output truncated; retrying on "
+                    f"{len(halved):,} of {len(source_content):,} chars "
+                    f"(retry {retry_count + 1}/{max_retries})"
+                )
+                total_cost += response.get("cost", 0)
+                source_content = halved
+                prompt = build_semantic_extraction_prompt(
+                    source_id=source_id,
+                    source_content=source_content,
+                    analysis_mode=analysis_mode.value,
+                    title=title,
+                )
+                retry_count += 1
+                continue
+
             if "error" in response:
                 logger.error(f"Gemini error: {response['error']}")
                 return SemanticExtractionResult(

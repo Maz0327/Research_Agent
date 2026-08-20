@@ -2025,6 +2025,26 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   49 verified quotes against 10, for $0.026 and 70s serial. The Oct 16
   migration is survivable, but it needs chunked extraction, which is a real
   change to the stage and is not built.
+- [x] **Quota counter-test passed, so no restructure (D-029).** Stating the
+  quota in the prompt, scaled to source length, recovers the density chunking
+  would have bought: gemini-3.6-flash went 6 → 40 quotes on one source and
+  4 → 53 on another, hitting the same per-1,000-word density as the chunked
+  run. 3.1-pro ignores the instruction, which closes the case on the Pro tier.
+  Three-way re-run on the winning strategy, six sources, 21,251 words:
+  ```
+  gemini-3.6-flash + quota        182 quotes  100% verified  8.56/1000w  $0.054  141s
+  gemini-2.5-flash + quota        124 quotes  100% verified  5.84/1000w  $0.092  746s
+  gemini-3.1-flash-lite + quota    94 quotes   97% verified  4.42/1000w  $0.035   55s
+  harvest-style 2.5-flash         168 facts                 10.33/1000w          107s
+  harvest-style 3.6-flash         156 facts                  9.59/1000w           34s
+  ```
+  The successor now beats the dying incumbent on equal terms, at 60% of the
+  cost and a fifth of the wall clock, so October is a config change after all.
+  Two findings handled: the quota can overflow the output ceiling (2.5-flash
+  truncated on 2 of 6 sources and returned nothing, so extraction now retries a
+  truncated call on half the source), and the harvest-style call is ~5x denser
+  than schema extraction in units carrying numbers, which is why the Briefing's
+  coverage gate reads the harvest.
   Every model slot is now env-driven (`MODEL_EXTRACTION`, `MODEL_REASONING`,
   `MODEL_JUDGE`, `MODEL_VISION`, `EXTRACTION_THINKING_LEVEL`), documented in
   `.env.example`, and the Gemini 3.x contract differences (no temperature,
