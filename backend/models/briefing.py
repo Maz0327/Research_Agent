@@ -182,6 +182,21 @@ class CorpusBalance(_Base):
     stance_counts: dict[str, int] = Field(default_factory=dict)
 
 
+class Addendum(_Base):
+    """A dated update note (work order I.26/I.29b).
+
+    Renders ABOVE the document rather than being folded into it: the owner
+    reads the delta, not the whole Briefing again.
+    """
+
+    checked_on: str
+    covers_since: str
+    headline: str
+    has_updates: bool = False
+    new_items: list[dict] = Field(default_factory=list)
+    changed_sections: list[str] = Field(default_factory=list)
+
+
 class Briefing(_Base):
     """The whole document. Assembled by code from the generation passes."""
 
@@ -198,6 +213,7 @@ class Briefing(_Base):
     info_gaps: list[InfoGap] = Field(default_factory=list)
     source_trail: list[SourceTrailEntry] = Field(default_factory=list)
     corpus_balance: Optional[CorpusBalance] = None
+    addendum: Optional[Addendum] = None
 
     @model_validator(mode="after")
     def _read_is_present(self) -> "Briefing":

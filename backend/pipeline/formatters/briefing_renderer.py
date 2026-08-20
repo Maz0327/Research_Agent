@@ -159,6 +159,23 @@ BRIEFING_CSS = r"""  :root {
     padding: 8px 12px;
     margin: 12px 0 26px;
   }
+  /* Work order I.29b: the update note sits above the document, styled from the
+     locked palette so it reads as part of the Briefing rather than bolted on. */
+  .addendum {
+    border: 1px solid var(--anno);
+    border-left-width: 4px;
+    background: var(--accent-soft);
+    padding: 14px 18px 4px;
+    margin: 0 0 30px;
+  }
+  .addendum h2 {
+    font-size: 19px;
+    margin: 0 0 6px;
+  }
+  .addendum ul {
+    margin: 8px 0 12px 18px;
+    padding: 0;
+  }
   h3 {
     font-size: 19px;
     font-weight: 600;
@@ -636,6 +653,44 @@ def _render_balance(briefing: Briefing) -> str:
     return f'<div class="anno">Corpus balance &mdash; {" &middot; ".join(bits)}</div>' if bits else ""
 
 
+def _render_addendum(briefing: Briefing) -> str:
+    """Render the dated update note above everything else (work order I.29b).
+
+    Addendum-first is the whole point: new material arrives as a delta the
+    owner can read in a few seconds, and the sections it touched are named so
+    a re-read is targeted rather than total.
+    """
+    addendum = briefing.addendum
+    if not addendum:
+        return ""
+
+    items = "".join(
+        "<li>"
+        + (
+            f'<a href="{_esc(item.get("url", ""))}">{_esc(item.get("title") or item.get("url", ""))}</a>'
+            if item.get("url")
+            else _esc(item.get("title", ""))
+        )
+        + (f" <span class=\"anno\">{_esc(item['published'])}</span>" if item.get("published") else "")
+        + "</li>"
+        for item in addendum.new_items
+    )
+    touched = (
+        f'<p class="anno">Updated sections: {_esc(", ".join(addendum.changed_sections))} '
+        f"&mdash; the rest is unchanged since your last read.</p>"
+        if addendum.changed_sections
+        else ""
+    )
+    return (
+        '<section class="addendum">'
+        f"<h2>Update check &mdash; {_esc(addendum.checked_on)}</h2>"
+        f"<p><strong>{_esc(addendum.headline)}</strong></p>"
+        + (f"<ul>{items}</ul>" if items else "")
+        + touched
+        + "</section>"
+    )
+
+
 def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
     """Render a Briefing as a standalone HTML page.
 
@@ -650,6 +705,7 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
     body = "".join(
         [
             _render_masthead(briefing),
+            _render_addendum(briefing),
             _render_balance(briefing),
             _render_read(briefing),
             _render_players(briefing, vault_url),

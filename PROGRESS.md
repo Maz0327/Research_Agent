@@ -2138,7 +2138,13 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   following weakness as D-030). True recall is a few points above the number.
   A blanket self-reference filter was measured and rejected: the harvest keeps
   20 substantive "the speaker" facts that such a filter would delete.
-- [ ] I26 Staleness/freshness pass → dated addendum
+- [x] I26 Staleness/freshness pass -> dated addendum
+  `backend/pipeline/freshness.py`. The Briefing's own Info Gaps (`go_get`)
+  become the search guidance, so the pass looks for what the document admitted
+  it lacked rather than re-searching the topic. Results split three ways —
+  newer / older / **undated** — because most of the web publishes no
+  machine-readable date, and both dropping those and trusting them are wrong.
+  An undated result is surfaced for a human, never counted as new.
 - [x] I27 Vault copyright flag — built with the vault (D15)
   Private by default; `looks_paywalled` detects the markers; product mode
   renders excerpt-plus-link instead of full text for flagged sources.
@@ -2146,7 +2152,20 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   `injection_guard.scan_for_injection` + `delimit` + `DATA_NOTICE`; the scan
   runs inside `stage_duplicate_detection` and flags sources before extraction
   reads them. `test_injection_guard.py` green.
-- [ ] I29 Update mechanism — check_updates mode, addendum-first render, version diff
+- [x] I29 Update mechanism — check_updates mode, addendum-first render, version diff
+  (a) `check_updates` iterate mode registered in the dispatcher and dispatched
+  in `worker.run_iterate_task` (it needs the full artifacts dict, same as
+  `deep_dive`). (b) Addendum-first render: `Addendum` on the Briefing model,
+  `_render_addendum` above Section 1, styled from the locked palette —
+  confirmed on the real Hawara Briefing at char 11,282 with the Read at 11,725.
+  (c) `backend/pipeline/briefing_diff.py` answers the reader's question rather
+  than the machine's: which facts are new, which sections were touched, and
+  **which are safe to skip** — the last being the point, since a full re-version
+  should never cost a full re-read.
+  18 tests green. Bug found: `PipelineContext` takes `topic` positionally, and
+  the existing `deep_dive` worker branch omits it — it would raise on the same
+  call. Noted in a comment beside the new branch rather than fixed silently,
+  since deep_dive is outside this work order.
 - [ ] I30 Read regression test (cold-reader harness + trend tracking)
 
 ### §J generation passes (build exactly; approved 08-18)

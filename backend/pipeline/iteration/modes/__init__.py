@@ -9,6 +9,7 @@ Mode naming (canonical as of 2026-03-12):
   different_angle — same data, new perspective
   custom         — user-defined freeform
   deep_dive      — formerly Booster; handled via unified Iterate system in Phase 3
+  check_updates  — has anything been published since the run? (work order I.26)
 """
 
 from typing import Any
@@ -75,6 +76,15 @@ def run_iteration_mode(
         from .custom import run_custom
 
         return run_custom(ctx, baseline, user_prompt, metrics)
+
+    elif mode == "check_updates":
+        # Same shape as deep_dive: it reads the Briefing's own Info Gaps, so it
+        # needs the full artifacts dict rather than the baseline bundle.
+        raise ValueError(
+            "check_updates mode must be dispatched via run_iterate_task, not "
+            "run_iteration_mode directly. Use POST /jobs/{job_id}/iterate with "
+            "{'mode': 'check_updates'}."
+        )
 
     elif mode == "deep_dive":
         # deep_dive needs full artifacts_dict — handled at the Celery task level.

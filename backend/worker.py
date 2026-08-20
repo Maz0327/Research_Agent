@@ -1711,6 +1711,8 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
 
     Supported modes:
       deep_dive       — gap analysis + search directions; new Doc 1 version
+      check_updates   — search for material published since the run; dated
+                        addendum on the Briefing (work order I.26/I.29a)
       expand_sources  — add sources, re-run pipeline; new Doc 0/1/2/3 versions
       deeper          — re-extract with depth; new Doc 0/1/2/3 versions
       different_angle — new perspective; new Doc 2/3 versions
@@ -1775,6 +1777,40 @@ def run_iterate_task(self, job_id: str, iterate_id: str, user_id: str, params: d
             )
             versions_created.append(f"doc_1 v{version}")
             logger.info(f"[{job_id}] deep_dive complete: doc_1 v{version}")
+
+        # ── CHECK UPDATES ────────────────────────────────────────────────────
+        # Work order I.26/I.29a. Needs the full artifacts dict (the Briefing's
+        # own Info Gaps are the search guidance), so it dispatches here rather
+        # than through run_iteration_mode, the same as deep_dive.
+        elif mode == "check_updates":
+            from backend.pipeline.context import PipelineContext
+            from backend.pipeline.iteration.metrics_tracker import MetricsTracker
+            from backend.pipeline.iteration.modes.check_updates import run_check_updates
+
+            topic = artifacts_dict.get("doc_0", {}).get("data", {}).get("topic", "")
+            # NOTE: PipelineContext requires `topic` positionally. The deep_dive
+            # branch above omits it and would raise on the same call.
+            ctx = PipelineContext(job_id=job_id, topic=topic, job_config=None)
+            metrics = MetricsTracker()
+            result = run_check_updates(ctx, artifacts_dict, metrics)
+
+            briefing_doc = artifacts_dict.get("briefing")
+            if briefing_doc and isinstance(briefing_doc.get("data"), dict):
+                # Addendum-first: the delta rides above the document the owner
+                # already read, rather than being folded into its body.
+                briefing_doc["data"]["addendum"] = result["addendum"]
+                version, _url = store_document_version(
+                    job_id=job_id,
+                    doc_type="briefing",
+                    content=briefing_doc,
+                    trigger="check_updates",
+                    markdown=briefing_doc.get("markdown"),
+                )
+                versions_created.append(f"briefing v{version}")
+
+            logger.info(
+                f"[{job_id}] check_updates complete: {result['addendum']['headline']}"
+            )
 
         # ── INLINE EDIT ─────────────────────────────────────────────────────
         elif mode == "inline_edit":
