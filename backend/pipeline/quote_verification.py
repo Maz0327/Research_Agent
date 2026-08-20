@@ -1,16 +1,33 @@
-"""Quote verification via fuzzy matching against transcripts.
+"""Quote verification: does the source say these words, in this order?
 
-Hallucination Prevention Rules:
-- QV-001: Quote fuzzy match ≥0.7 → VERIFIED
-- QV-002: Quote match <0.5 → LIKELY_HALLUCINATED (remove)
+A quotation is not a similar string. It is the source's own words in
+sequence, which makes verification a span question rather than a similarity
+question. Fuzzy similarity was the original measure here and it answers the
+wrong one: measured on the labyrinth corpus (2026-08-19, 144 real quotes and
+144 fabrications recombined from each source's OWN vocabulary), fuzzy scoring
+stamped 18 of the 144 fabrications VERIFIED and left 39 more merely UNCERTAIN.
+Contiguous-span matching separated the same two sets completely: real quotes
+1.00, fabrications a maximum of 0.25.
+
+So the verdict is the span, and fuzzy survives only as the signal that tells a
+near-miss apart from an invention.
+
+Three verdicts (owner decision, 2026-08-19):
+- VERIFIED  - the source contains the quote's words as a run.
+- UNCERTAIN - no run, but high fuzzy similarity: a paraphrase, a transcription
+  drift, or a quote assembled from nearby text. Kept, marked, never presented
+  as verbatim.
+- FLAGGED   - neither. The source does not support these words.
+
+Nothing here reads meaning. A verbatim span quoted against its own sense ("I
+do not believe the labyrinth is intact" cited as "the labyrinth is intact") or
+attributed to the wrong speaker passes every check in this file, by
+construction. Those are semantic questions and belong to an advisory pass.
+
+Ellipsis policy: a quotation that elides material is several spans, and each
+fragment is verified on its own. The verdict is the weakest fragment's.
 
 Reference: plans/reports/researcher-260114-1657-gemini-hallucination-prevention.md
-
-This module verifies that extracted quotes actually exist in the source
-transcript, catching hallucinated quotes before they reach the output.
-
-Uses RapidFuzz for efficient fuzzy string matching when available,
-falls back to difflib.SequenceMatcher otherwise.
 """
 
 import re
@@ -27,17 +44,141 @@ except ImportError:
     from difflib import SequenceMatcher
 
 
-def normalize_text(text: str) -> str:
-    """Normalize text for fuzzy matching.
+# Quote marks a source or a model may use, folded before matching so a curly
+# apostrophe never turns a real quotation into a miss.
+_SMART_CHARS = {
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'",
+    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"',
+    "\u2013": "-", "\u2014": "-", "\u2212": "-",
+    "\u00a0": " ", "\u2026": "...",
+}
 
-    - Lowercase
-    - Remove punctuation
-    - Collapse whitespace
+# How a quotation marks omitted material
+_ELLIPSIS = re.compile(r"\s*(?:\.\s*\.\s*\.|\u2026|\[\s*\.\.\.\s*\])\s*")
+
+# A fragment shorter than this cannot carry a verdict: three words match
+# almost any long text by chance, so fragments this short are skipped and the
+# rest of the quotation decides.
+MIN_FRAGMENT_WORDS = 4
+
+# Share of a fragment's words that must appear as one contiguous run for the
+# fragment to count as verbatim. Set from measurement, not taste: on 208 real
+# extracted quotes from the labyrinth corpus the median span is 1.00 and only
+# 15 fall below 0.75, all of them long quotes the extractor joined across an
+# unmarked elision. On 156 fabrications built from each source's own words,
+# ZERO reach even 0.55. The separation is enormous, so the threshold sits low
+# enough to keep real quotes whole (96% verify at 0.60) while still passing
+# none of the fabrications.
+SPAN_THRESHOLD = 0.60
+
+# Fuzzy score above which a non-matching quote is a near-miss rather than an
+# invention. Only consulted when the span check fails.
+FUZZY_UNCERTAIN_THRESHOLD = 0.7
+
+VERIFIED = "VERIFIED"
+UNCERTAIN = "UNCERTAIN"
+FLAGGED = "FLAGGED"
+
+# The verdict FLAGGED replaced (2026-08-19). Kept so stored documents and any
+# caller still reading the old name keep working.
+LIKELY_HALLUCINATED = "LIKELY_HALLUCINATED"
+
+
+def normalize_text(text: str) -> str:
+    """Normalize text for matching.
+
+    Folds case, smart quotes and dashes, punctuation, and whitespace, so that
+    the comparison is about words rather than typography.
+
+    Args:
+        text: Any text.
+
+    Returns:
+        Lowercased text of words separated by single spaces.
     """
+    for smart, plain in _SMART_CHARS.items():
+        text = text.replace(smart, plain)
     text = text.lower()
     text = re.sub(r"[^\w\s]", "", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def split_on_ellipsis(quote_text: str) -> list[str]:
+    """Split a quotation into the fragments an ellipsis separates.
+
+    Args:
+        quote_text: The quotation as written.
+
+    Returns:
+        The fragments, in order. A quotation with no ellipsis is one fragment.
+    """
+    parts = [p.strip() for p in _ELLIPSIS.split(quote_text or "")]
+    return [p for p in parts if p]
+
+
+def longest_span_ratio(quote_text: str, source_text: str) -> float:
+    """Longest run of the quote's words that appears in the source, as a share.
+
+    1.0 means the source contains the whole quotation contiguously. Low values
+    mean the words are present but scattered, which is what a fabrication
+    assembled from the source's own vocabulary looks like.
+
+    Args:
+        quote_text: The quotation.
+        source_text: The text it claims to come from.
+
+    Returns:
+        0.0 to 1.0.
+    """
+    quote_words = normalize_text(quote_text).split()
+    if not quote_words:
+        return 0.0
+
+    haystack = f" {normalize_text(source_text)} "
+    longest = 0
+    for start in range(len(quote_words)):
+        if len(quote_words) - start <= longest:
+            break
+        for end in range(len(quote_words), start + longest, -1):
+            if f" {' '.join(quote_words[start:end])} " in haystack:
+                longest = end - start
+                break
+
+    return longest / len(quote_words)
+
+
+def verify_span(quote_text: str, source_text: str) -> dict:
+    """Verify a quotation as spans: every fragment, on its own.
+
+    Args:
+        quote_text: The quotation, ellipses and all.
+        source_text: The text it claims to come from.
+
+    Returns:
+        Dict with `ratio` (the weakest fragment's span ratio), `fragments`
+        (per-fragment ratios), and `verbatim` (True when every fragment that
+        carries a verdict is a run in the source).
+    """
+    fragments = split_on_ellipsis(quote_text)
+    scored = [
+        (fragment, longest_span_ratio(fragment, source_text))
+        for fragment in fragments
+        if len(normalize_text(fragment).split()) >= MIN_FRAGMENT_WORDS
+    ]
+
+    if not scored:
+        # Every fragment is too short to judge: fall back to the whole string.
+        ratio = longest_span_ratio(quote_text, source_text)
+        return {"ratio": ratio, "fragments": [ratio], "verbatim": ratio >= SPAN_THRESHOLD}
+
+    ratios = [ratio for _, ratio in scored]
+    weakest = min(ratios)
+    return {
+        "ratio": weakest,
+        "fragments": ratios,
+        "verbatim": weakest >= SPAN_THRESHOLD,
+    }
 
 
 def _fuzzy_ratio(s1: str, s2: str) -> float:
@@ -93,118 +234,116 @@ def _fuzzy_token_set_ratio(s1: str, s2: str) -> float:
 def verify_quote(
     quote_text: str,
     transcript: str,
-    threshold: float = 0.7,
+    threshold: float = FUZZY_UNCERTAIN_THRESHOLD,
     strict_threshold: float = 0.6,
 ) -> dict:
-    """Verify a quote against a transcript using fuzzy matching.
+    """Verify a quotation against the text it claims to come from.
+
+    The span decides the verdict; fuzzy similarity only separates a near-miss
+    from an invention once the span check has failed.
 
     Args:
-        quote_text: The extracted quote to verify
-        transcript: The full transcript to match against
-        threshold: Minimum score for VERIFIED status (default 0.7)
-        strict_threshold: Below this score = LIKELY_HALLUCINATED (default 0.6)
+        quote_text: The quotation, ellipses and all.
+        transcript: The source text.
+        threshold: Fuzzy score at or above which a non-verbatim quote is
+            UNCERTAIN rather than FLAGGED.
+        strict_threshold: Accepted for backward compatibility; unused, since
+            the verdict no longer comes from the fuzzy score.
 
     Returns:
-        dict with keys:
-            - verified: bool (score >= threshold)
-            - score: float (0.0 - 1.0)
-            - status: "VERIFIED" | "UNCERTAIN" | "LIKELY_HALLUCINATED"
-            - match_location: approximate character position if found
+        Dict with `status`, `verified`, `score` (the span ratio), `span`,
+        `fragments`, `fuzzy`, and `match_location`.
     """
     if not quote_text or not transcript:
         return {
             "verified": False,
             "score": 0.0,
-            "status": "LIKELY_HALLUCINATED",
+            "span": 0.0,
+            "fragments": [],
+            "fuzzy": 0.0,
+            "status": FLAGGED,
             "match_location": None,
         }
 
     quote_norm = normalize_text(quote_text)
     transcript_norm = normalize_text(transcript)
-
-    # Empty after normalization
     if not quote_norm:
         return {
             "verified": False,
             "score": 0.0,
-            "status": "LIKELY_HALLUCINATED",
+            "span": 0.0,
+            "fragments": [],
+            "fuzzy": 0.0,
+            "status": FLAGGED,
             "match_location": None,
         }
 
-    # Exact substring match (fastest check)
-    if quote_norm in transcript_norm:
-        match_pos = transcript_norm.find(quote_norm)
+    span = verify_span(quote_text, transcript)
+    location = transcript_norm.find(quote_norm)
+
+    if span["verbatim"]:
         return {
             "verified": True,
-            "score": 1.0,
-            "status": "VERIFIED",
-            "match_location": match_pos,
+            "score": span["ratio"],
+            "span": span["ratio"],
+            "fragments": span["fragments"],
+            "fuzzy": 1.0 if location >= 0 else _fuzzy_partial_ratio(quote_norm, transcript_norm),
+            "status": VERIFIED,
+            "match_location": location if location >= 0 else None,
         }
 
-    # Short quotes: use partial ratio
-    if len(quote_norm) < 30:
-        score = _fuzzy_partial_ratio(quote_norm, transcript_norm)
-        return {
-            "verified": score >= threshold,
-            "score": score,
-            "status": _get_status(score, threshold, strict_threshold),
-            "match_location": None,
-        }
-
-    # Long quotes: sliding window with token_set_ratio for word order flexibility
-    best_score = 0.0
-    best_position = None
-    window_size = min(len(quote_norm) * 2, len(transcript_norm))
-    step_size = max(10, len(quote_norm) // 4)
-
-    for i in range(0, max(1, len(transcript_norm) - len(quote_norm)), step_size):
-        window = transcript_norm[i : i + window_size]
-        score = _fuzzy_token_set_ratio(quote_norm, window)
-        if score > best_score:
-            best_score = score
-            best_position = i
-        # Early exit if we find a great match
-        if best_score >= 0.95:
-            break
-
+    # No run. Fuzzy now says whether this is a paraphrase of something real or
+    # words the source never put together. It has to be an ORDER-SENSITIVE
+    # measure to say anything useful: measured against a 260-word window,
+    # token-set ratio scores real quotes and word-salad fabrications both at
+    # 1.00, because it is a bag of words and the fabrication uses the window's
+    # own words. Partial ratio separates them (real min 0.77, fabrications max
+    # 0.71), so it is the signal at every length.
+    fuzzy = _fuzzy_partial_ratio(quote_norm, transcript_norm)
     return {
-        "verified": best_score >= threshold,
-        "score": best_score,
-        "status": _get_status(best_score, threshold, strict_threshold),
-        "match_location": best_position,
+        "verified": False,
+        "score": span["ratio"],
+        "span": span["ratio"],
+        "fragments": span["fragments"],
+        "fuzzy": fuzzy,
+        "status": UNCERTAIN if fuzzy >= threshold else FLAGGED,
+        "match_location": None,
     }
 
 
 def _get_status(score: float, threshold: float, strict_threshold: float) -> str:
-    """Determine verification status from score."""
+    """Map a bare score to a verdict, for callers that only have a number."""
     if score >= threshold:
-        return "VERIFIED"
+        return VERIFIED
     elif score >= strict_threshold:
-        return "UNCERTAIN"
+        return UNCERTAIN
     else:
-        return "LIKELY_HALLUCINATED"
+        return FLAGGED
 
 
 def verify_quotes_batch(
     quotes: list[dict],
     transcript: str,
-    threshold: float = 0.7,
+    threshold: float = FUZZY_UNCERTAIN_THRESHOLD,
     strict_threshold: float = 0.5,
-    remove_hallucinated: bool = True,
+    remove_hallucinated: bool = False,
 ) -> tuple[list[dict], list[str]]:
-    """Verify a batch of quotes against a transcript.
+    """Verify a batch of quotes, marking each rather than deleting any.
+
+    Owner decision (2026-08-19): an unverified quote is marked, not removed.
+    Deleting a real quote that a transcription mangled is its own kind of
+    damage, and what protects the reader is that nothing unconfirmed is ever
+    presented as verbatim - which the status field carries.
 
     Args:
-        quotes: List of quote dicts with "text" or "quote_text" field
-        transcript: Full transcript to match against
-        threshold: Minimum score for VERIFIED
-        strict_threshold: Below this = LIKELY_HALLUCINATED
-        remove_hallucinated: If True, remove quotes with status LIKELY_HALLUCINATED
+        quotes: Quote dicts with a "text" or "quote_text" field.
+        transcript: The source text.
+        threshold: Fuzzy score separating UNCERTAIN from FLAGGED.
+        strict_threshold: Accepted for backward compatibility; unused.
+        remove_hallucinated: Opt-in removal of FLAGGED quotes, off by default.
 
     Returns:
-        Tuple of:
-            - Updated quotes list with verification metadata added
-            - List of warning messages for unverified quotes
+        Tuple of (quotes with verification metadata, warnings).
     """
     warnings = []
     verified_quotes = []
@@ -221,20 +360,25 @@ def verify_quotes_batch(
         quote["match_score"] = result["score"]
         quote["verification_status"] = result["status"]
 
-        if result["status"] == "VERIFIED":
+        quote["span_ratio"] = result["span"]
+        quote["fuzzy_score"] = result["fuzzy"]
+
+        if result["status"] == VERIFIED:
             verified_quotes.append(quote)
-            logger.debug(f"Quote {quote_id}: VERIFIED (score={result['score']:.2f})")
-        elif result["status"] == "UNCERTAIN":
+            logger.debug(f"Quote {quote_id}: VERIFIED (span={result['span']:.2f})")
+        elif result["status"] == UNCERTAIN:
             verified_quotes.append(quote)
             warnings.append(
-                f"Quote {quote_id}: UNCERTAIN (score={result['score']:.2f}) - "
-                "may be paraphrased or partially accurate"
+                f"Quote {quote_id}: UNCERTAIN (span={result['span']:.2f}, "
+                f"fuzzy={result['fuzzy']:.2f}) - close to the source but not verbatim; "
+                "never present it as a quotation"
             )
             logger.warning(f"Quote {quote_id}: UNCERTAIN (score={result['score']:.2f})")
-        else:  # LIKELY_HALLUCINATED
+        else:  # FLAGGED
             warning_msg = (
-                f"Quote {quote_id}: LIKELY_HALLUCINATED (score={result['score']:.2f}) - "
-                f"text: '{quote_text[:50]}...'"
+                f"Quote {quote_id}: FLAGGED (span={result['span']:.2f}, "
+                f"fuzzy={result['fuzzy']:.2f}) - the source does not contain these "
+                f"words: '{quote_text[:50]}...'"
             )
             warnings.append(warning_msg)
             logger.warning(warning_msg)

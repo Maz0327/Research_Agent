@@ -2060,6 +2060,30 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 - [ ] **[MAZ]** read of the first end-to-end D-025 Briefing (Hawara `c5d32615`)
 
 ### Owner decisions taken in-session (2026-08-19)
+- **Quote verification rebuilt as a span check (Decision 026)**, ahead of the
+  extraction three-way and the judge contest, since both are scored by it.
+  ```
+  $ pytest -q
+  1546 passed, 2 skipped   # the long-standing failure is GONE, and it was real
+  ```
+  | population | before | after |
+  |---|---|---|
+  | 208 real extracted quotes | 208 VERIFIED (100%) | 201 VERIFIED (97%), 7 UNCERTAIN, 0 FLAGGED |
+  | 156 fabrications (source's own words) | **18 VERIFIED**, 39 UNCERTAIN, 87 flagged | 0 VERIFIED, 3 UNCERTAIN, 153 FLAGGED |
+
+  Span decides; fuzzy is the borderline signal only, and had to become
+  order-sensitive (token-set ratio scores real quotes and word salad *both* at
+  1.00 against a 260-word window). Threshold 0.60, set from the distribution:
+  real quotes median 1.00, fabrications max 0.25. Ellipsis policy = each elided
+  fragment verified on its own, weakest fragment decides. Nothing is deleted;
+  unverified quotes are marked and the claim's confidence carries it. Both
+  populations kept as regression suites.
+  ⚠️ **Found while measuring:** claim `supporting_quotes` held quote IDs, not
+  text, in 211 of 211 cases — so every claim-level verification was checking
+  "QT_1" against a transcript, failing, and (before this) deleting the quote.
+  That silently degraded every claim's confidence and corrupted the
+  verification rate the distillation prompt reports. IDs are now resolved first.
+
 - **Cast cap accepted as a D-025 addendum**, logged in `DECISIONS.md`. Selection
   is deterministic: distinct-section count, tie-break on total mentions across
   every alias, then the name itself; capped at 14. Names below the line follow

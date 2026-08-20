@@ -943,3 +943,75 @@ University, and the three publications). Implementation:
 `below_the_line`) and `backend/pipeline/briefing_lint.py`
 (`check_player_cards`, `check_inline_introductions`), both of which read the
 same ranking so the lint enforces the rule as applied.
+
+## Decision 026: Quote verification is a span question, not a similarity question (2026-08-19)
+
+**Status:** Accepted (project owner, in-session, 2026-08-19)
+
+A quotation is the source's own words in sequence. The verifier scored fuzzy
+string similarity instead, which answers a different question, and the gap
+between the two let fabrications through.
+
+**Evidence (labyrinth corpus, job c5d32615).** 144 real quotes taken as
+contiguous runs from 12 transcripts, and 144 fabrications built by recombining
+words from *each source's own vocabulary* — the hardest case, since the
+vocabulary matches perfectly:
+
+| | fuzzy verdict (before) | contiguous span |
+|---|---|---|
+| real quotes | 1.00, all VERIFIED | 1.00 |
+| fabrications | avg 0.60, min 0.49 | avg 0.14, **max 0.25** |
+
+The old implementation's verdicts on those 144 fabrications: 87 flagged,
+39 UNCERTAIN, and **18 stamped VERIFIED**. One in eight fabrications built from
+a source's own words passed as a confirmed quote.
+
+**What changes:**
+
+1. **The span is the verdict.** VERIFIED means the source contains the quote's
+   words as a contiguous run.
+2. **Fuzzy is the borderline signal only**, consulted after the span check
+   fails, to tell a near-miss from an invention. It must be order-sensitive:
+   measured against a 260-word window, token-set ratio scores real quotes and
+   word-salad fabrications *both* at 1.00, so partial ratio is used at every
+   length.
+3. **Three verdicts.** VERIFIED (span), UNCERTAIN (no span, high fuzzy),
+   FLAGGED (neither). `LIKELY_HALLUCINATED` is retained as an alias so stored
+   documents keep working.
+4. **Normalization before matching**: case, smart quotes and dashes,
+   punctuation, whitespace. Typography never decides a verdict.
+5. **Ellipsis policy**: a quotation that elides material is several spans, each
+   verified on its own, and the verdict is the weakest fragment's.
+6. **Nothing is deleted.** An unverified quote is marked, not removed, and the
+   claim's confidence carries the consequence. Deleting a real quote that a
+   transcript mangled is its own kind of damage.
+7. **Threshold set from measurement, not taste.** Span ≥ 0.60. On 208 real
+   extracted quotes the median span is 1.00 and only 7 fall below the line, all
+   long quotes joined across an unmarked elision; on 156 fabrications, none
+   reach even 0.55.
+
+**Acceptance (208 real extracted quotes, 156 fabrications):**
+
+| population | before | after |
+|---|---|---|
+| real extracted quotes | 208 VERIFIED (100%) | 201 VERIFIED (97%), 7 UNCERTAIN, 0 FLAGGED |
+| fabrications | 18 VERIFIED, 39 UNCERTAIN, 87 flagged | 0 VERIFIED, 3 UNCERTAIN, 153 FLAGGED |
+
+The 7 legitimate quotes that lost VERIFIED status are kept and marked, not
+dropped. Both populations are retained as regression suites
+(`backend/tests/test_quote_verification_regression.py`, fixture at
+`backend/tests/fixtures/quote_verification_cases.json`).
+
+**Found while measuring, fixed here:** claim `supporting_quotes` carried quote
+IDs rather than quote text in 211 of 211 cases, so every claim-level
+verification was checking the string "QT_1" against a transcript and failing.
+IDs are now resolved to their text before verification. This silently degraded
+every claim's confidence and corrupted the verification rate the distillation
+prompt reports.
+
+**Out of scope, deliberately.** Nothing here reads meaning. A verbatim span
+quoted against its own sense ("I do not believe the labyrinth is intact" cited
+as "the labyrinth is intact") or attributed to the wrong speaker passes every
+check in this module by construction. Those are semantic questions for an
+advisory pass, on the same footing as the grounding gate's optional verifier:
+code decides, a model advises, and a model never gates.

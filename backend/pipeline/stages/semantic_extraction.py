@@ -392,26 +392,42 @@ def verify_quotes_in_extraction(
 
     result.quotes = verified_quotes
 
-    # Verify supporting_quotes in claims
+    # Verify supporting_quotes in claims. Nothing is deleted (owner decision,
+    # 2026-08-19): an unverified quote is marked and the claim's confidence
+    # carries the consequence, because silently dropping a real quote that a
+    # transcript mangled is its own kind of damage.
+    # Extractors return supporting_quotes as quote IDs about as often as text
+    # (measured on the labyrinth corpus: 211 IDs, 0 texts). Verifying the
+    # string "QT_1" against a transcript is meaningless and used to delete
+    # every supporting quote a claim had, so resolve IDs first.
+    quote_text_by_id = {q.quote_id: q.text for q in result.quotes}
+
     for claim in result.claims:
-        verified_supporting = []
-        for quote_text in claim.supporting_quotes:
+        any_verified = False
+        for reference in claim.supporting_quotes:
+            quote_text = quote_text_by_id.get(reference, reference)
             verification = verify_quote(quote_text, transcript)
-            if verification["status"] != "LIKELY_HALLUCINATED":
-                verified_supporting.append(quote_text)
+            if verification["status"] == "VERIFIED":
+                any_verified = True
             else:
                 warnings.append(
-                    f"[{source_id}] Claim {claim.claim_id}: "
-                    f"supporting quote not found in transcript"
+                    f"[{source_id}] Claim {claim.claim_id}: supporting quote is "
+                    f"{verification['status']} (span={verification['span']:.2f}); "
+                    f"kept but not verbatim"
                 )
-        claim.supporting_quotes = verified_supporting
 
-        # Downgrade confidence if all supporting quotes removed
-        if not claim.supporting_quotes and claim.confidence != ConfidenceLevel.LOW:
+        # A claim whose quotes cannot be confirmed is a claim without evidence.
+        if claim.supporting_quotes and not any_verified and claim.confidence != ConfidenceLevel.LOW:
+            claim.confidence = ConfidenceLevel.LOW
+            warnings.append(
+                f"[{source_id}] Claim {claim.claim_id}: confidence downgraded to LOW, "
+                "no supporting quote verified against the source"
+            )
+        elif not claim.supporting_quotes and claim.confidence != ConfidenceLevel.LOW:
             claim.confidence = ConfidenceLevel.LOW
             warnings.append(
                 f"[{source_id}] Claim {claim.claim_id}: confidence downgraded to LOW "
-                "due to no verified supporting quotes"
+                "due to no supporting quotes"
             )
 
     if quotes_removed > 0:

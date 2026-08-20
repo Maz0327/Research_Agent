@@ -576,7 +576,13 @@ class TestVerifyQuotesInExtraction:
         assert updated.quotes[0].quote_id == "QT_1"
 
     def test_verify_claim_supporting_quotes(self):
-        """Supporting quotes in claims should be verified."""
+        """An unsupported supporting quote is marked, not deleted.
+
+        Owner decision (2026-08-19): deleting a real quote a transcript
+        mangled is its own kind of damage, so verification marks instead. What
+        protects the reader is that nothing unconfirmed is presented as
+        verbatim, and that the claim's confidence carries the consequence.
+        """
         claim = Claim(
             claim_id="CLM_1",
             statement="A claim",
@@ -597,9 +603,41 @@ class TestVerifyQuotesInExtraction:
             source_id="SRC_1",
         )
 
-        # Only verified quote should remain
-        assert len(updated.claims[0].supporting_quotes) == 1
-        assert "not found" in str(warnings)
+        assert len(updated.claims[0].supporting_quotes) == 2
+        assert "FLAGGED" in str(warnings)
+        # One quote did verify, so the claim keeps its confidence.
+        assert updated.claims[0].confidence == ConfidenceLevel.HIGH
+
+    def test_supporting_quote_ids_are_resolved_before_verifying(self):
+        """Extractors return IDs as often as text; verifying "QT_1" is nonsense.
+
+        Measured on the labyrinth corpus: 211 of 211 supporting_quotes entries
+        were bare quote IDs, so every claim-level verification was checking a
+        string that appears in no transcript.
+        """
+        result = SemanticExtractionResult(
+            source_id="SRC_1",
+            analysis_mode=AnalysisMode.TRANSCRIPT_GROUNDED,
+            quotes=[Quote(quote_id="QT_1", text="This exact quote exists", source_id="SRC_1")],
+            claims=[
+                Claim(
+                    claim_id="CLM_1",
+                    statement="A claim",
+                    source_id="SRC_1",
+                    confidence=ConfidenceLevel.HIGH,
+                    supporting_quotes=["QT_1"],
+                )
+            ],
+        )
+
+        updated, warnings = verify_quotes_in_extraction(
+            result=result,
+            transcript="Intro text. This exact quote exists in the transcript.",
+            source_id="SRC_1",
+        )
+
+        assert updated.claims[0].confidence == ConfidenceLevel.HIGH
+        assert not any("FLAGGED" in w for w in warnings)
 
     def test_verify_claim_confidence_downgrade(self):
         """Claim confidence should downgrade when all quotes removed."""
