@@ -2166,7 +2166,24 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   the existing `deep_dive` worker branch omits it — it would raise on the same
   call. Noted in a comment beside the new branch rather than fixed silently,
   since deep_dive is outside this work order.
-- [ ] I30 Read regression test (cold-reader harness + trend tracking)
+- [x] I30 Read regression test (cold-reader harness + trend tracking)
+  `backend/pipeline/read_regression.py`; 12 tests green. A blind reader gets
+  Section 1 and nothing else, answers five fixed questions, and code scores the
+  answers two ways — never an LLM grading comprehension, which produces a
+  number with nothing under it.
+  Live on the real Hawara Briefing (871-word Read, 42k-word corpus):
+  ```
+  coverage   0.893   (disputes 8/8 = 1.000 | players 11/14 = 0.786)
+  grounding  0 ungrounded atoms of 38 (0.0%)
+  missed     Merlin Burrows, Abbas Mohamed Abbas, Diodorus Siculus
+  ```
+  That is 8.9/10 against the 8/10 you scored by hand on 08-15 — the instrument
+  agrees with your read, which is the only calibration it could have had.
+  The two scores are kept separate on purpose: high coverage with low grounding
+  is a reader who came away confident and wrong, and one blended number hides
+  exactly that case. Trend history is appended per run with the delta against
+  the previous one, so a Read-model change shows up as a movement rather than
+  an opinion.
 
 ### §J generation passes (build exactly; approved 08-18)
 - [ ] J1 The Read (Sonnet 5, 1 call, raw doc_0 full_texts) + lint + one repair round
