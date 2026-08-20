@@ -2110,7 +2110,34 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   ⚠️ **For Maz:** the fixture corpus reads 9 believer to 2 skeptic, and 11 of
   16 sources carry no date. Skew may be deliberate — that is the point of the
   block — but it is now on the page rather than in the reader's blind spot.
-- [ ] I25 Harvest recall audit (stratified sample re-extract, code fuzzy-match)
+- [x] I25 Harvest recall audit (stratified sample re-extract, code fuzzy-match)
+  `backend/pipeline/harvest_audit.py`; 15 tests green. Live on the Hawara
+  fixture, 8 sources x 3 position-stratified blocks, 147 re-extracted facts:
+  ```
+  pooled recall   0.796      macro (one vote per source)  0.673
+  by position     front 0.673   middle 0.690   back 0.557   (macro)
+  truncated       SRC_3: 36,823 chars vs a 24,000 cap = 34.8% never harvested
+  weakest         SRC_4 0.273 | SRC_5 0.429 | SRC_1 0.500
+  ```
+  Three things the build surfaced, each fixed rather than noted:
+  1. **Transcripts do not split.** Supadata returns them with zero punctuation
+     and zero newlines — SRC_2 is 4,019 words with no full stop — so paragraph
+     AND sentence splitting both collapse to one block. A word-window fallback
+     was the only splitter left. Any future paragraph-based tooling has this
+     same trap waiting for it.
+  2. **Pooling hid the finding.** Weighted by fact count, back-of-source recall
+     read 0.822 — the *best* position. One vote per source puts it at 0.557,
+     the worst. Report now carries both, and `by_position_macro` is the one to
+     read.
+  3. **SRC_3's back-of-source recall is 0.0**, which is exactly its truncation.
+     The audit reports unread text as unread (`truncated_sources`) rather than
+     as a recall miss, because no prompt change fixes text never sent.
+  Honest limits: ~3 of 22 misses are podcast filler the harvest was correctly
+  told to skip, and adding that instruction to the audit prompt moved the rate
+  only 0.638 -> 0.656 (the extraction model ignores it — same instruction-
+  following weakness as D-030). True recall is a few points above the number.
+  A blanket self-reference filter was measured and rejected: the harvest keeps
+  20 substantive "the speaker" facts that such a filter would delete.
 - [ ] I26 Staleness/freshness pass → dated addendum
 - [x] I27 Vault copyright flag — built with the vault (D15)
   Private by default; `looks_paywalled` detects the markers; product mode
