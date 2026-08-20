@@ -1,0 +1,322 @@
+[
+ {
+  "item_id": "F8",
+  "source_id": "SRC_11",
+  "statement": "Uphill proposed that the causeway was lined on both sides by arrays of three subsidiary pyramids for queens with walled enclosures containing funerary shrines, passageways, and storage chambers, and that these two sets of six structures could correspond to Herodotus's 12 covered courts.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Uphill proposed that the causeway was lined on both sides by arrays of three subsidiary pyramids for queens with walled enclosures containing funerary shrines, passageways, and storage chambers, and that these two sets of six structures could correspond to Herodotus's 12 covered courts."
+ },
+ {
+  "item_id": "F25",
+  "source_id": "SRC_16",
+  "statement": "Everyone involved in the MerlinBurrows scan signed a 21-year non-disclosure agreement regarding the results, partly due to intimidation by Hawass and partly due to the sensitivity of the discoveries.",
+  "label": "unsupported",
+  "corruption": "figure",
+  "original": "Everyone involved in the MerlinBurrows scan signed a 10-year non-disclosure agreement regarding the results, partly due to intimidation by Hawass and partly due to the sensitivity of the discoveries."
+ },
+ {
+  "item_id": "F38",
+  "source_id": "SRC_2",
+  "statement": "A teaser video showed Hawass entering a tunnel under the Sphinx, exclaiming 'even Faiyum Oasis will never dream to be here' and saying they were going to open the tunnel for the first time.",
+  "label": "unsupported",
+  "corruption": "attribution",
+  "original": "A teaser video showed Hawass entering a tunnel under the Sphinx, exclaiming 'even Indiana Jones will never dream to be here' and saying they were going to open the tunnel for the first time."
+ },
+ {
+  "item_id": "F14",
+  "source_id": "SRC_11",
+  "statement": "Hawara is located on a projecting spur of land within a gap in the hills where a canal flows to the Fayum Oasis, and a new small canal was built across the site in the 13th century AD.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Hawara is located on a projecting spur of land within a gap in the hills where a canal flows to the Fayum Oasis, and a new small canal was built across the site in the 13th century AD."
+ },
+ {
+  "item_id": "F11",
+  "source_id": "SRC_12",
+  "statement": "The Egyptians would have used the labyrinth's many rooms for funerary rites and cult worship of the dead pharaoh associated with the nearby royal tomb.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The Egyptians would have used the labyrinth's many rooms for funerary rites and cult worship of the dead pharaoh associated with the nearby royal tomb."
+ },
+ {
+  "item_id": "F5",
+  "source_id": "SRC_12",
+  "statement": "The original word 'labrys' referred to a ceremonial axe used by the Minoan civilization, and the labyrinth was likely originally a sprawling palace complex.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The original word 'labrys' referred to a ceremonial axe used by the Minoan civilization, and the labyrinth was likely originally a sprawling palace complex."
+ },
+ {
+  "item_id": "F18",
+  "source_id": "SRC_10",
+  "statement": "Diodorus Siculus (History, Book I, 61 and 66, 1st century BC) wrote that the building had a roof made of a single stone.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Diodorus Siculus (History, Book I, 61 and 66, 1st century BC) wrote that the building had a roof made of a single stone."
+ },
+ {
+  "item_id": "F3",
+  "source_id": "SRC_16",
+  "statement": "Dr. Abbas and his team released an additional report in 2024 with updated information about water levels at Hawara.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Dr. Abbas and his team released an additional report in 2024 with updated information about water levels at Hawara."
+ },
+ {
+  "item_id": "F10",
+  "source_id": "SRC_3",
+  "statement": "The narration suggests that if the priests were telling the truth, the Egyptians did not build the labyrinth but found it, implying it predates them.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The narration suggests that if the priests were telling the truth, the Egyptians did not build the labyrinth but found it, implying it predates them."
+ },
+ {
+  "item_id": "F40",
+  "source_id": "SRC_15",
+  "statement": "The high-water table from the nearby Bahr Wahbi canal has historically been the main obstacle to excavation, as noted in earlier Polish/Egyptian missions and groundwater studies. The finding was independently replicated by two other teams.",
+  "label": "unsupported",
+  "corruption": "addition",
+  "original": "The high-water table from the nearby Bahr Wahbi canal has historically been the main obstacle to excavation, as noted in earlier Polish/Egyptian missions and groundwater studies."
+ },
+ {
+  "item_id": "F27",
+  "source_id": "SRC_1",
+  "statement": "De Cordier said he and his team were never later told to cease all discussion or release of information from the Mataha project.",
+  "label": "unsupported",
+  "corruption": "negation",
+  "original": "De Cordier said he and his team were later told to cease all discussion or release of information from the Mataha project."
+ },
+ {
+  "item_id": "F23",
+  "source_id": "SRC_6",
+  "statement": "When found, there were never two sarcophagi in the quartzite monolith burial chamber, with room for at least two more.",
+  "label": "unsupported",
+  "corruption": "negation",
+  "original": "When found, there were two sarcophagi in the quartzite monolith burial chamber, with room for at least two more."
+ },
+ {
+  "item_id": "F39",
+  "source_id": "SRC_2",
+  "statement": "In the 1830s, a team of French engineers exploring the ground around the Sphinx reportedly discovered a doorway leading underground but were never confronted by shadowy figures and forced to stop their research.",
+  "label": "unsupported",
+  "corruption": "negation",
+  "original": "In the 1830s, a team of French engineers exploring the ground around the Sphinx reportedly discovered a doorway leading underground but were confronted by shadowy figures and forced to stop their research."
+ },
+ {
+  "item_id": "F28",
+  "source_id": "SRC_16",
+  "statement": "On July 21 (Update #3), a video titled HAWARA RISING PART TWO was released showing excavation of a megalithic wall of the Lost Labyrinth of Egypt. The report was peer reviewed in Nature the following year.",
+  "label": "unsupported",
+  "corruption": "addition",
+  "original": "On July 21 (Update #3), a video titled HAWARA RISING PART TWO was released showing excavation of a megalithic wall of the Lost Labyrinth of Egypt."
+ },
+ {
+  "item_id": "F22",
+  "source_id": "SRC_4",
+  "statement": "Johanna visited Hawara the year before her trip with Ben from Uncharted X and Jimmy from The Chislehurst Caves, but did not film there because she had COVID-19 at the time without realizing it.",
+  "label": "unsupported",
+  "corruption": "attribution",
+  "original": "Johanna visited Hawara the year before her trip with Ben from Uncharted X and Jimmy from Bright Insight, but did not film there because she had COVID-19 at the time without realizing it."
+ },
+ {
+  "item_id": "F19",
+  "source_id": "SRC_5",
+  "statement": "The Archaeological Rescue Foundation, run by the host's collaborators, aims to prioritize which archaeological sites to support.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The Archaeological Rescue Foundation, run by the host's collaborators, aims to prioritize which archaeological sites to support."
+ },
+ {
+  "item_id": "F12",
+  "source_id": "SRC_9",
+  "statement": "The expedition uncovered scientific evidence of an enormous underground structure at Hawara.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The expedition uncovered scientific evidence of an enormous underground structure at Hawara."
+ },
+ {
+  "item_id": "F2",
+  "source_id": "SRC_10",
+  "statement": "The article expresses hope that excavations can be launched in future to fully explore the site.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The article expresses hope that excavations can be launched in future to fully explore the site."
+ },
+ {
+  "item_id": "F4",
+  "source_id": "SRC_6",
+  "statement": "Phase 4 entailed the excavation of the 'very promising' 'Crocodile Tomb-Chapels', north-east of the pyramid.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Phase 4 entailed the excavation of the 'very promising' 'Crocodile Tomb-Chapels', north-east of the pyramid."
+ },
+ {
+  "item_id": "F33",
+  "source_id": "SRC_6",
+  "statement": "Among Petrie's discoveries was a great papyrus scroll containing parts of books 1 and 15 of the Iliad, known as the 'Hawara Homer', now held at the Bodleian Library, Oxford.",
+  "label": "unsupported",
+  "corruption": "figure",
+  "original": "Among Petrie's discoveries was a great papyrus scroll containing parts of books 1 and 2 of the Iliad, known as the 'Hawara Homer', now held at the Bodleian Library, Oxford."
+ },
+ {
+  "item_id": "F37",
+  "source_id": "SRC_7",
+  "statement": "Egyptologist Zahi Hawass had the water pumped out and fully explored the shaft in 3,999.",
+  "label": "unsupported",
+  "corruption": "figure",
+  "original": "Egyptologist Zahi Hawass had the water pumped out and fully explored the shaft in 1999."
+ },
+ {
+  "item_id": "F30",
+  "source_id": "SRC_11",
+  "statement": "Petrie concluded that his reconstructed chamber layout bore no resemblance to typical Egyptian temple ground-plans, which he believed caused ancient visitors' confusion and the association with the The Secretary General.",
+  "label": "unsupported",
+  "corruption": "attribution",
+  "original": "Petrie concluded that his reconstructed chamber layout bore no resemblance to typical Egyptian temple ground-plans, which he believed caused ancient visitors' confusion and the association with the Cretan Labyrinth."
+ },
+ {
+  "item_id": "F6",
+  "source_id": "SRC_15",
+  "statement": "The author suggests this could prove that Herodotus was not exaggerating about the Labyrinth.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The author suggests this could prove that Herodotus was not exaggerating about the Labyrinth."
+ },
+ {
+  "item_id": "F24",
+  "source_id": "SRC_10",
+  "statement": "Hawara is home to the pyramid of Amenemhat III, the last king of Egypt's 12th dynasty, who ruled circa 1855-1808 BC. The report was peer reviewed in Nature the following year.",
+  "label": "unsupported",
+  "corruption": "addition",
+  "original": "Hawara is home to the pyramid of Amenemhat III, the last king of Egypt's 12th dynasty, who ruled circa 1855-1808 BC."
+ },
+ {
+  "item_id": "F31",
+  "source_id": "SRC_1",
+  "statement": "The Mataha Expedition was never conducted in conjunction with the Supreme Council of Antiquities, then headed by Zahi Hawass, and with a National Research Institute for subsurface studies (NRIAG).",
+  "label": "unsupported",
+  "corruption": "negation",
+  "original": "The Mataha Expedition was conducted in conjunction with the Supreme Council of Antiquities, then headed by Zahi Hawass, and with a National Research Institute for subsurface studies (NRIAG)."
+ },
+ {
+  "item_id": "F26",
+  "source_id": "SRC_4",
+  "statement": "Gobekli Tepe historian Herodotus visited the site (around 150 BC/AD, per the speaker) and described it as more impressive than the pyramids and the works of the Greeks.",
+  "label": "unsupported",
+  "corruption": "attribution",
+  "original": "The Greek historian Herodotus visited the site (around 150 BC/AD, per the speaker) and described it as more impressive than the pyramids and the works of the Greeks."
+ },
+ {
+  "item_id": "F15",
+  "source_id": "SRC_2",
+  "statement": "Hamilton M. Wright led a decade-long clearing project on the Giza Plateau that ended in 1935.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Hamilton M. Wright led a decade-long clearing project on the Giza Plateau that ended in 1935."
+ },
+ {
+  "item_id": "F1",
+  "source_id": "SRC_2",
+  "statement": "Wright described shafts leading down more than 125 feet with roomy quarters and side chambers found from the subway.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Wright described shafts leading down more than 125 feet with roomy quarters and side chambers found from the subway."
+ },
+ {
+  "item_id": "F13",
+  "source_id": "SRC_7",
+  "statement": "Increased public attention prompted the full exploration of a tomb known as the 'water shaft' in 1999, but nothing fitting Cayce's description was found.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Increased public attention prompted the full exploration of a tomb known as the 'water shaft' in 1999, but nothing fitting Cayce's description was found."
+ },
+ {
+  "item_id": "F35",
+  "source_id": "SRC_7",
+  "statement": "Medieval Islamic legends asserted there were never subterranean passages beneath the pyramids at Giza.",
+  "label": "unsupported",
+  "corruption": "negation",
+  "original": "Medieval Islamic legends asserted there were subterranean passages beneath the pyramids at Giza."
+ },
+ {
+  "item_id": "F9",
+  "source_id": "SRC_11",
+  "statement": "Column fragments suggested the Labyrinth's roof had been barrel-vaulted, and red granite columns were found only north of the central dividing wall.",
+  "label": "supported",
+  "corruption": null,
+  "original": "Column fragments suggested the Labyrinth's roof had been barrel-vaulted, and red granite columns were found only north of the central dividing wall."
+ },
+ {
+  "item_id": "F29",
+  "source_id": "SRC_6",
+  "statement": "The entrance to the pyramid is today flooded to a depth of 6 metres due to waters from the Abdul Wahbi canal, an offshoot of the Bahr Yussef canal, which flows around two sides of the site and passes within 91 metres of the pyramid.",
+  "label": "unsupported",
+  "corruption": "figure",
+  "original": "The entrance to the pyramid is today flooded to a depth of 6 metres due to waters from the Abdul Wahbi canal, an offshoot of the Bahr Yussef canal, which flows around two sides of the site and passes within 30 metres of the pyramid."
+ },
+ {
+  "item_id": "F21",
+  "source_id": "SRC_11",
+  "statement": "Herodotus described the Labyrinth as having twelve roofed courts with doors facing each other, six facing north and six south, within one outer wall, plus 3,000 chambers total (4,511 above ground and 1,500 underground).",
+  "label": "unsupported",
+  "corruption": "figure",
+  "original": "Herodotus described the Labyrinth as having twelve roofed courts with doors facing each other, six facing north and six south, within one outer wall, plus 3,000 chambers total (1,500 above ground and 1,500 underground)."
+ },
+ {
+  "item_id": "F36",
+  "source_id": "SRC_2",
+  "statement": "Schoch found that erosion patterns on the walls around the Sphinx resembled extreme water erosion (rainfall runoff) rather than wind and sand erosion, based on distinctive joint patterns in the limestone. A second survey the next season reached the same conclusion.",
+  "label": "unsupported",
+  "corruption": "addition",
+  "original": "Schoch found that erosion patterns on the walls around the Sphinx resembled extreme water erosion (rainfall runoff) rather than wind and sand erosion, based on distinctive joint patterns in the limestone."
+ },
+ {
+  "item_id": "F34",
+  "source_id": "SRC_7",
+  "statement": "Merlin Burrow was the first person to use the term 'Hall of Records'.",
+  "label": "unsupported",
+  "corruption": "attribution",
+  "original": "Edgar Cayce was the first person to use the term 'Hall of Records'."
+ },
+ {
+  "item_id": "F17",
+  "source_id": "SRC_10",
+  "statement": "By June 2010, it became clear the Supreme Council had no intention of publicly releasing the findings.",
+  "label": "supported",
+  "corruption": null,
+  "original": "By June 2010, it became clear the Supreme Council had no intention of publicly releasing the findings."
+ },
+ {
+  "item_id": "F7",
+  "source_id": "SRC_11",
+  "statement": "The accounts of Herodotus and Strabo differ significantly on the fundamental number of courts or chambers in the Labyrinth.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The accounts of Herodotus and Strabo differ significantly on the fundamental number of courts or chambers in the Labyrinth."
+ },
+ {
+  "item_id": "F20",
+  "source_id": "SRC_5",
+  "statement": "The rescue project document states all activities will be under the authority of Egypt's Ministry of Tourism and Antiquities and the Supreme Council of Antiquities.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The rescue project document states all activities will be under the authority of Egypt's Ministry of Tourism and Antiquities and the Supreme Council of Antiquities."
+ },
+ {
+  "item_id": "F16",
+  "source_id": "SRC_4",
+  "statement": "The Labyrinth of Egypt was rediscovered 13 years before the video was made.",
+  "label": "supported",
+  "corruption": null,
+  "original": "The Labyrinth of Egypt was rediscovered 13 years before the video was made."
+ },
+ {
+  "item_id": "F32",
+  "source_id": "SRC_3",
+  "statement": "In 1991, geologist Robert Schoch identified vertical erosion fissures on the Great Sphinx caused by prolonged rainfall, estimating a minimum construction date between 7,000 and 5,000 BC, later revised to 9700 BC. The finding was independently replicated by two other teams.",
+  "label": "unsupported",
+  "corruption": "addition",
+  "original": "In 1991, geologist Robert Schoch identified vertical erosion fissures on the Great Sphinx caused by prolonged rainfall, estimating a minimum construction date between 7,000 and 5,000 BC, later revised to 9700 BC."
+ }
+]

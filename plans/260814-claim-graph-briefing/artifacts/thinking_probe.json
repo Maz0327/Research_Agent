@@ -1,0 +1,26 @@
+{
+ "gemini-3.6-flash thinking=minimal": {
+  "quotes": 18,
+  "key_points": 9,
+  "claims": 9,
+  "verified": 18,
+  "cost": 0.01293916,
+  "seconds": 25.950783729553223
+ },
+ "gemini-3.6-flash thinking=high": {
+  "quotes": 13,
+  "key_points": 8,
+  "claims": 11,
+  "verified": 13,
+  "cost": 0.010313160000000002,
+  "seconds": 74.45575428009033
+ },
+ "gemini-3.7-flash thinking=minimal": {
+  "quotes": 0,
+  "key_points": 0,
+  "claims": 0,
+  "verified": 0,
+  "cost": 0.0,
+  "seconds": 0.4395740032196045
+ }
+}

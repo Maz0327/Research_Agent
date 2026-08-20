@@ -1057,3 +1057,87 @@ non-verbatim quote into UNCERTAIN rather than FLAGGED, which changes how the
 quote is labelled and never whether it counts as verified. A test asserts this
 directly: a quote with a perfect fuzzy score and no contiguous run cannot be
 VERIFIED at any threshold.
+
+## Decision 027: the extraction three-way, and what it says about the October migration (2026-08-20)
+
+**Status:** Measured; the lineup change it implies is NOT yet adopted (owner decision pending)
+
+Three extraction models over the same six labyrinth sources, identical
+prompts, identical schema, scored on the repaired quote verifier (D-026):
+
+| model | quotes | verified | rate | key points | with numbers | claims | cost | time |
+|---|---|---|---|---|---|---|---|---|
+| gemini-3.6-flash (lineup default) | 39 | 39 | 100% | 22 | 3 | 35 | $0.030 | 71s |
+| gemini-3.1-flash-lite (challenger) | 23 | 22 | 96% | 17 | 0 | 22 | $0.026 | 37s |
+| **gemini-2.5-flash (incumbent)** | **294** | **291** | 99% | **52** | **11** | **176** | $0.131 | 580s |
+
+**The incumbent extracts 7.5x more material than the model chosen to replace
+it**, at a comparable verified rate. Per verified quote it is also cheaper:
+$0.00045 against $0.00077. It is 8x slower, which is the one axis where the
+newer model wins.
+
+**This is not a thinking-level artifact.** Raising 3.6-flash from `minimal` to
+`high` on the two richest sources produced *fewer* quotes (18 to 13) and took
+3x as long, so the density gap is the model.
+
+**Confirmed while testing:** `gemini-3.7-flash` rejects `thinking_level:
+minimal` outright ("Thinking level MINIMAL is not supported for this model"),
+which is exactly what MODEL-DOSSIER predicted and the reason 3.6 was preferred
+over 3.7. The dossier's reasoning was sound; its conclusion rests on a cost
+axis that this measurement outweighs.
+
+**Why this matters more than a lineup preference.** The 2.5 line retires
+**2026-10-16**. The plan treats that as a migration; on this evidence it is a
+capability cliff, and moving to 3.6-flash today would cut extracted material by
+roughly 85% before the deadline even arrives. Whatever replaces 2.5-flash has
+to be chosen on measured extraction density, not on price per token.
+
+**Not adopted here.** The default stays `gemini-3.6-flash` until the owner
+decides, because the choice is a real trade (density against 8x latency, on a
+model with eight weeks to live) and because one corpus of six sources is thin
+evidence for a lineup change. What this decision fixes is that the question is
+now measurable at all: every model slot is env-driven, and the sweep is a
+config change.
+
+## Decision 028: gpt-5.6-terra takes the judge slot (2026-08-20)
+
+**Status:** Accepted — decided by local measurement, per EXECUTION-PLAN section 1
+
+`kimi-k2.5` sunsets 2026-08-31 and neither successor has published judge data,
+so the slot was decided by running both against constructed ground truth: 40
+items from the labyrinth corpus, 20 harvested facts (supported) and 20 of the
+same facts altered in one specific way each (unsupported) — a changed figure, a
+swapped name from the same corpus, a reversed meaning, or an added specific the
+source never gives. Word salad was excluded deliberately; it flatters everyone.
+
+| | **gpt-5.6-terra** | kimi-k2.6 |
+|---|---|---|
+| Cohen's kappa | **0.900** | 0.550 |
+| accuracy | 95% | 78% |
+| test-retest (3 runs) | **100%** | 80% |
+| position consistency (A/B + B/A) | **100%** (10 pairs) | **0 pairs completed** |
+| failed calls | **0 of 120** | 46 of 120 |
+| wall clock | 181s | 2,827s |
+
+Both judges caught every corruption type perfectly (figure, attribution,
+negation, addition all 1.0). The entire gap is on *supported* items, where
+Terra scored 0.90 and kimi-k2.6 scored 0.55.
+
+**An honest caveat on that gap.** A failed call is scored as "unsupported", so
+kimi-k2.6's low score on supported items is confounded with its 38% call
+failure rate and the two cannot be separated without a rerun that retries.
+It does not change the outcome: a judge that cannot return a verdict on
+two calls in five is unusable as the audit tier whatever its accuracy would
+have been, and it could not complete a single position-bias pair.
+
+**Adopted:** `MODEL_JUDGE=gpt-5.6-terra`. kimi-k2.6 is the documented fallback.
+The vendor-pairing rule holds — extraction is Gemini, synthesis is Claude, the
+judge is OpenAI — and so does the standing law that the judge is never a Claude
+model while Claude does synthesis.
+
+**Method note for anyone re-running this.** Score with kappa, never raw
+agreement: on a balanced set, always answering "supported" scores 50% accuracy
+and kappa 0.0, and only one of those two numbers says so. Reproducibility is
+reported beside kappa and never instead of it, because a judge can be reliably
+wrong. Harness: `backend/pipeline/judge_contest.py`, set builder:
+`backend/pipeline/faithfulness_set.py`, both covered by tests.

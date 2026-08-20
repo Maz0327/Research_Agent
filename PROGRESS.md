@@ -1995,7 +1995,32 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   republications so the same article is not credited twice.
 
 ### §E Existing P3 scope
-- [ ] E17 Judge contest (Terra vs kimi-k2.6; κ / position-swap / test-retest) + env-driven model sweep
+- [x] E17 Judge contest + env-driven model sweep — both decided by measurement
+  ```
+  $ python scratch/run_judge_contest.py          # 40 constructed items, 3 runs each
+  gpt-5.6-terra: kappa=0.900 acc=95% retest=100% position=100% (10 pairs) errors=0    181s
+  kimi-k2.6:     kappa=0.550 acc=78% retest=80%  position=0%  (0 pairs)  errors=46  2827s
+  both: figure 1.0, attribution 1.0, negation 1.0, addition 1.0 — the gap is all on supported items
+  $ python scratch/extraction_threeway.py        # 6 sources, identical prompts
+  gemini-3.6-flash        39 quotes  100% verified   22 KPs   $0.030    71s
+  gemini-3.1-flash-lite   23 quotes   96% verified   17 KPs   $0.026    37s
+  gemini-2.5-flash       294 quotes   99% verified   52 KPs   $0.131   580s
+  $ pytest -q
+  1567 passed, 2 skipped
+  ```
+  **Judge: `gpt-5.6-terra` (D-028).** kimi-k2.6 is the fallback; its 38% call
+  failure rate confounds its accuracy score and disqualifies it either way.
+  **Extraction: measured, not adopted (D-027).** The incumbent 2.5-flash mines
+  7.5x more material than the model chosen to replace it, at a better cost per
+  verified quote, and raising 3.6-flash's thinking level made it worse rather
+  than better — so the ⏰ Oct 16 retirement is a capability cliff, not a swap.
+  Left at `gemini-3.6-flash` pending Maz's call.
+  Every model slot is now env-driven (`MODEL_EXTRACTION`, `MODEL_REASONING`,
+  `MODEL_JUDGE`, `MODEL_VISION`, `EXTRACTION_THINKING_LEVEL`), documented in
+  `.env.example`, and the Gemini 3.x contract differences (no temperature,
+  thinking_level enum) are handled in one place.
+  Confirmed live: `gemini-3.7-flash` rejects `thinking_level: minimal` outright,
+  exactly as MODEL-DOSSIER predicted.
 - [ ] E18 Exa into grounded search providers (optional, time permitting)
 
 ### §H Lint upgrades

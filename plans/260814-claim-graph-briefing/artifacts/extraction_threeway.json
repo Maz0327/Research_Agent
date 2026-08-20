@@ -1,0 +1,200 @@
+{
+ "gemini-3.6-flash": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 4,
+    "key_points": 4,
+    "claims": 4,
+    "verified": 4,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 10,
+    "key_points": 4,
+    "claims": 6,
+    "verified": 10,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 6,
+    "key_points": 4,
+    "claims": 6,
+    "verified": 6,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 8,
+    "key_points": 3,
+    "claims": 8,
+    "verified": 8,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 5,
+    "key_points": 3,
+    "claims": 5,
+    "verified": 5,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 6,
+    "key_points": 4,
+    "claims": 6,
+    "verified": 6,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 1
+   }
+  ],
+  "cost": 0.02992496,
+  "seconds": 70.76938271522522
+ },
+ "gemini-3.1-flash-lite": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 3,
+    "uncertain": 1,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 5,
+    "key_points": 3,
+    "claims": 5,
+    "verified": 5,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 3,
+    "key_points": 3,
+    "claims": 3,
+    "verified": 3,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 3,
+    "key_points": 2,
+    "claims": 3,
+    "verified": 3,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 4,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 3,
+    "verified": 4,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   }
+  ],
+  "cost": 0.026387269999999997,
+  "seconds": 37.00172829627991
+ },
+ "gemini-2.5-flash": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 36,
+    "key_points": 7,
+    "claims": 20,
+    "verified": 35,
+    "uncertain": 1,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 92,
+    "key_points": 11,
+    "claims": 31,
+    "verified": 92,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 24,
+    "key_points": 6,
+    "claims": 19,
+    "verified": 24,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 16,
+    "key_points": 14,
+    "claims": 31,
+    "verified": 16,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 5
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 28,
+    "key_points": 8,
+    "claims": 20,
+    "verified": 28,
+    "uncertain": 0,
+    "flagged": 0,
+    "numbers": 3
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 98,
+    "key_points": 6,
+    "claims": 55,
+    "verified": 96,
+    "uncertain": 2,
+    "flagged": 0,
+    "numbers": 2
+   }
+  ],
+  "cost": 0.13070499000000002,
+  "seconds": 580.1150131225586
+ }
+}
