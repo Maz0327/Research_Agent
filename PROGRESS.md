@@ -2377,4 +2377,19 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   Also: the person filter now covers `check_player_cards` too, which had been
   demanding Players cards for "Historic Mysteries" and "Why Files" — a website
   and a section heading.
+- 2026-08-20 **Briefing republished for the [MAZ] read gate** — same URL,
+  https://claude.ai/code/artifact/29e925f6-6dc5-4599-9e8f-a7c33530ba7d
+  (Vault unchanged at .../43df2b24-66c8-4d33-900c-5f66bfc8d0a0).
+  0 lint errors, 18 inline introductions spliced, corpus balance header live:
+  `youtube.com (5) + 10 other domains | 2022-2026, 11 undated | believer 9,
+  skeptic 2, neutral 2, institutional 3`.
+  ⚠️ **What this artifact is:** the existing Briefing with today's repairs and
+  the balance header applied — NOT a fresh end-to-end run. The chunked harvest
+  (D-032) is coded and tested but has not regenerated this document, so the two
+  sources that were being truncated still contribute what the truncating
+  harvest gave them. A full re-run costs Anthropic credits and would change the
+  content you are about to read, so it waits on your word.
+- E17 judge contest: **already complete** (D-028, gpt-5.6-terra at kappa 0.900),
+  along with the env-driven model sweep (D-027/D-030/D-031). Section E's only
+  open item is E18 Exa, which the work order marks optional.
 
