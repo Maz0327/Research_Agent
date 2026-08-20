@@ -2301,3 +2301,20 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   to every `gemini-3*`, which only 3.6-flash accepts — the 3.1-pro leg was
   400-ing, not scoring zero. Falls back to `low` now; pinned by
   `TestThinkingLevelFloor`. Commit `b37cff4`.
+- 2026-08-20: **§I complete** (I24 corpus balance, I25 harvest recall audit,
+  I26 staleness pass, I27 vault flag, I28 injection hardening, I29 update
+  mechanism, I30 read regression). Full suite `1645 passed, 3 skipped in 80s`
+  — green with no known failures for the first time since the D-026 fix.
+  ⚠️ **Two things needing Maz, neither fixable without a decision:**
+  1. **SRC_3 is truncated in the harvest.** 36,823 chars against a 24,000-char
+     cap, so 35% of that source was never sent to a model. Its back-of-source
+     recall is 0.0, which is that truncation and nothing else. Raising the cap
+     alone risks D-029's fixed-output problem (more input, same fact count, so
+     worse density); the consistent fix is chunking the harvest the way the
+     extraction quota fixed extraction. Both change per-job harvest cost, which
+     is why this is flagged rather than done.
+  2. **The fixture corpus leans 9 believer to 2 skeptic**, and 11 of 16 sources
+     carry no date. The balance block now puts that on the page. It may be
+     exactly the corpus you want for this topic — it is your call, not the
+     pipeline's.
+
