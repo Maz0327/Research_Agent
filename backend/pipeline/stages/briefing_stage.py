@@ -55,6 +55,7 @@ from backend.pipeline.formatters.briefing_renderer import (
     render_briefing_markdown,
 )
 from backend.pipeline.formatters.source_vault import render_source_vault
+from backend.pipeline.intro_repair import repair_inline_introductions
 from backend.pipeline.text_similarity import content_tokens
 from backend.state import update_job
 
@@ -296,7 +297,18 @@ def build_briefing(
     if stripped:
         grounding = grounding_gate(briefing, raw_texts, harvest_texts)
 
-    lint = lint_briefing(briefing)
+    # ONE repair round of pairs (section J pass 8). The model writes a gloss per
+    # name and code splices it in — it never sees the document back, so a repair
+    # cannot quietly change a fact while fixing a name (D-024).
+    intro_repair = repair_inline_introductions(briefing, client, ctx.topic)
+    people = set(intro_repair.get("people") or []) if intro_repair.get("ran") else None
+    if intro_repair.get("applied"):
+        logger.info(
+            f"[{ctx.job_id}] intro repair: {len(intro_repair['applied'])} "
+            f"introduction(s) spliced, {len(intro_repair['unresolved'])} unresolved"
+        )
+
+    lint = lint_briefing(briefing, people=people)
     coverage = coverage_gate(briefing, inventory)
     logger.info(
         f"[{ctx.job_id}] briefing lint: {len(lint.errors)} error(s), "
@@ -310,6 +322,7 @@ def build_briefing(
         "grounding": grounding.to_dict(),
         "grounding_strips": stripped,
         "lint": lint.to_dict(),
+        "intro_repair": intro_repair,
         "file_repairs": repairs,
     }
     return briefing, report

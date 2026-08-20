@@ -37,7 +37,9 @@ _DATE_PATTERNS = [
 ]
 
 _BC = re.compile(r"\b(BC|BCE)\b", re.I)
-_CENTURY = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)\s+c(?:entury)?\b", re.I)
+_CENTURY = re.compile(
+    r"\b(\d{1,2})(?:st|nd|rd|th)\s+c(?:entury)?\b", re.I  # codespell:ignore
+)
 
 # A name mentioned in this many sections earns a card (D-025).
 PLAYER_SECTION_THRESHOLD = 2
@@ -64,10 +66,20 @@ _ACTS = (
 _ACTION_WINDOW = 30
 
 # Capitalized function words that start a sentence and get swept into the run
-# after them ("In the Joe Rogan Experience", "The Why Files")
+# after them ("In the Joe Rogan Experience", "The Why Files").
+#
+# The adverbs and common nouns matter as much as the prepositions: measured on
+# the Hawara Briefing, "Researchers Corrado Malanga" ranked as its own person
+# distinct from "Corrado Malanga", and "Then Robert Schoch" split a two-section
+# name into two one-section names so neither reached the card threshold. A name
+# that splits this way is invisible to every rule that counts sections.
 _LEADING_NOISE = re.compile(
     r"^(?:In|On|At|By|From|To|For|With|After|Before|During|Since)\s+(?:the\s+|a\s+)?"
     r"|^(?:The|A|An)\s+(?=[A-Z])"
+    r"|^(?:Then|Later|Meanwhile|However|Today|Yesterday|Instead|Meanwhile|"
+    r"Researcher|Researchers|Author|Authors|Egyptologist|Egyptologists|"
+    r"Archaeologist|Archaeologists|Geologist|Geologists|Professor|Journalist|"
+    r"Historian|Historians|Scientist|Scientists|Engineer|Engineers)\s+(?=[A-Z])"
 )
 
 # Below this, two facts are about different things.
@@ -389,21 +401,36 @@ def qualifying_players(
 
 
 def below_the_line(
-    sections: dict[str, str], maximum: int = MAX_PLAYER_CARDS
+    sections: dict[str, str],
+    maximum: int = MAX_PLAYER_CARDS,
+    people: Optional[set[str]] = None,
 ) -> list[str]:
     """Names that met the threshold but fell below the cap.
 
     These follow the one-off rule instead: introduced inline wherever they
     appear, so a reader never meets a name cold (owner amendment, 2026-08-19).
 
+    The `people` filter exists because the action-verb test cannot tell a
+    person from a thing that acts — radar detects, a kingdom builds, a lake is
+    described. On the Hawara fixture that put "Middle Kingdom", "Lake Moeris",
+    and "Synthetic Aperture Radar" on the one-off list, where the rule's own
+    error text ("say who they are") reads as nonsense. Whether a name is a
+    person is a reading judgement, so it is decided once at build time and
+    handed in here; this function stays arithmetic.
+
     Args:
         sections: Map of section name to that section's full prose.
         maximum: How many cards the section may carry.
+        people: Names confirmed to be people. None applies no filter, which is
+            the old behaviour and is right when no classification was run.
 
     Returns:
         The names below the line, in ranking order.
     """
-    return [row["name"] for row in rank_players(sections)[maximum:]]
+    ranked = [row["name"] for row in rank_players(sections)[maximum:]]
+    if people is None:
+        return ranked
+    return [name for name in ranked if name in people]
 
 
 def evidence_chip(

@@ -32,6 +32,8 @@ from backend.models.briefing import (
     Read,
     ReadParagraph,
     RecordEntry,
+    _array_of,
+    _object,
 )
 from backend.pipeline.briefing_routing import paragraphs_for_fact
 from backend.pipeline.injection_guard import DATA_NOTICE, delimit
@@ -597,3 +599,158 @@ def build_anecdotes(
         )
         for index, fact in enumerate(facts)
     ]
+
+
+# =============================================================================
+# Person classification + inline-introduction repair (§J pass 8's repair round)
+# =============================================================================
+
+# NOTE: `_array_of` already wraps its argument with `_object`. Passing an
+# already-built object here double-wraps it, and the model then echoes the
+# schema's own scaffolding back as data — which reads as "no names are people"
+# and silently suppressed 25 real lint findings before it was caught.
+PEOPLE_SCHEMA: dict = _object(
+    {
+        "people": _array_of(
+            {
+                "name": {"type": "string"},
+                "is_person": {"type": "boolean"},
+            }
+        )
+    }
+)
+
+PEOPLE_ROLE = """You are sorting names out of a research document into people and
+not-people.
+
+A PERSON is a human being — a researcher, an author, an official, a witness, an
+ancient writer. Anything else is not: places, lakes, regions, historical
+periods, institutions, technologies, instruments, companies, podcasts, books,
+papers, and video titles are all NOT people.
+
+Judge the name itself. If you genuinely cannot tell, answer false — the cost of
+a wrong "true" is a document that stops to explain who Synthetic Aperture Radar
+is, and the cost of a wrong "false" is only that a minor name goes unglossed.
+
+Return one entry for every name you are given, and no others."""
+
+INTRO_SCHEMA: dict = _object(
+    {
+        "introductions": _array_of(
+            {
+                "name": {"type": "string"},
+                "introduction": {"type": "string"},
+            }
+        )
+    }
+)
+
+INTRO_ROLE = """You write the four-or-five-word gloss that tells a reader who
+someone is, at the moment they first meet the name.
+
+Write ONLY the gloss, not the name and not a sentence. It will be inserted
+directly after the name, between commas:
+
+  name: Robert Schoch
+  introduction: the geologist who redated the Sphinx
+
+  name: Pomponius Mela
+  introduction: a Roman geographer writing in the first century
+
+Rules that matter:
+- Do NOT repeat what the sentence already says. If the passage reads "Graham
+  Hancock published Fingerprints of the Gods", the gloss "the author of
+  Fingerprints of the Gods" tells the reader nothing they are not about to
+  read. Say the thing the sentence leaves out — what they do, or who they are
+  to this story.
+- Ground it in the passage you are given. If the passage does not say who they
+  are, write what it does establish about them, and nothing more.
+- No adjectives of praise or dismissal. "the geologist who redated the Sphinx",
+  never "the controversial geologist".
+- Lower case at the start UNLESS the first word is a proper noun, and keep the
+  capitals on every name inside the gloss: "the scholar who read Herodotus and
+  Strabo", never "herodotus and strabo".
+- No full stop at the end.
+- Under eight words.
+
+If the passage gives you nothing at all to say about them, return an empty
+string for that name. An empty answer is better than an invented credential."""
+
+
+def classify_people(names: list[str], client: Any, topic: str = "") -> set[str]:
+    """Decide which of these names are people.
+
+    One call for the whole list: the judgement is comparative and the answers
+    are steadier when the model sees the field at once.
+
+    Args:
+        names: Candidate names from the ranking.
+        client: A structured client.
+        topic: The job topic, for context.
+
+    Returns:
+        The subset that are people. On failure, returns every name — the
+        one-off rule then over-fires as it did before, which is the safe
+        direction: a spurious lint error is noise, a missing one is a reader
+        meeting a name cold.
+    """
+    if not names:
+        return set()
+
+    try:
+        data, _usage = client.generate_structured(
+            prompt=(f"TOPIC: {topic}\n\n" if topic else "")
+            + "NAMES:\n"
+            + "\n".join(f"- {name}" for name in names),
+            schema=PEOPLE_SCHEMA,
+            system=PEOPLE_ROLE,
+            max_tokens=2_000,
+        )
+    except Exception as exc:
+        logger.warning(f"Person classification failed ({exc}); keeping every name")
+        return set(names)
+
+    known = set(names)
+    return {
+        entry["name"]
+        for entry in (data.get("people") or [])
+        if entry.get("is_person") and entry.get("name") in known
+    }
+
+
+def write_introductions(
+    needed: dict[str, str], client: Any, topic: str = ""
+) -> dict[str, str]:
+    """Write one inline gloss per name, from the passage it appears in.
+
+    Args:
+        needed: Name to the passage where the reader first meets them.
+        client: A structured client.
+        topic: The job topic, for context.
+
+    Returns:
+        Name to gloss. Names the model could say nothing about are omitted
+        rather than given an invented credential.
+    """
+    if not needed:
+        return {}
+
+    payload = "\n\n".join(
+        f"name: {name}\npassage: {passage[:600]}" for name, passage in needed.items()
+    )
+    try:
+        data, _usage = client.generate_structured(
+            prompt=(f"TOPIC: {topic}\n\n" if topic else "") + payload,
+            schema=INTRO_SCHEMA,
+            system=INTRO_ROLE,
+            max_tokens=2_000,
+        )
+    except Exception as exc:
+        logger.warning(f"Introduction pass failed ({exc}); no repairs written")
+        return {}
+
+    return {
+        entry["name"]: entry["introduction"].strip().rstrip(".")
+        for entry in (data.get("introductions") or [])
+        if entry.get("name") in needed and (entry.get("introduction") or "").strip()
+    }

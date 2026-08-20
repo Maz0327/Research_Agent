@@ -26,9 +26,20 @@ _BARE_ID = re.compile(r"\b(?:CLM|SRC|KP|TEN|GAP|STG|HOLE|QT|OBS|THEME)_\d+\b")
 
 # An inline introduction is an appositive around the name: "Eric Uphill, the
 # Middle Kingdom specialist, argued...", or "the Egyptologist Eric Uphill".
-_APPOSITIVE_AFTER = re.compile(r"^\s*,\s*(?:a|an|the|who|whose|then)\b", re.I)
+# An appositive after the name is a comma, a lower-case phrase that is not a
+# conjunction, and a closing comma. Matching the SHAPE rather than a list of
+# opening words is what lets "Timothy Akers, one of the Hawara researchers,"
+# count — a valid introduction the old word list rejected because it did not
+# begin with "a", "an", or "the".
+_APPOSITIVE_AFTER = re.compile(
+    r"^\s*,\s*(?!and\b|or\b|but\b|so\b)[a-z][\w'\u2019-]*(?:\s+[^,]{1,60})?,"
+)
+# A leading appositive: "the geologist who dated the Sphinx, Robert Schoch's".
+# The trailing comma is optional because both "the scholar X" and "the scholar
+# X," precede a name legitimately.
 _APPOSITIVE_BEFORE = re.compile(
-    r"(?:^|[.;:]\s|,\s|\(|\s)(?:the|a|an)\s+[\w'-]+(?:\s+[\w'-]+){0,4}\s+$", re.I
+    r"(?:^|[.;:]\s|,\s|\(|\s)(?:the|a|an)\s+[\w'-]+(?:\s+[\w'-]+){0,6}\s*,?\s*$",
+    re.I,
 )
 
 # Words that mark a source performing a fact rather than reporting it
@@ -66,11 +77,15 @@ class BriefingLintResult:
         }
 
 
-def check_player_cards(briefing) -> list[str]:
+def check_player_cards(briefing, people=None) -> list[str]:
     """Names that recur across sections must have a card.
 
     Args:
         briefing: The assembled Briefing.
+        people: Names confirmed to be people at build time. Without it the
+            rule demands a Players card for "Historic Mysteries" and "Why
+            Files" — a website and a section heading — because the action-verb
+            test cannot tell a person from a thing that acts.
 
     Returns:
         One error per name that earned a card and did not get one.
@@ -82,7 +97,7 @@ def check_player_cards(briefing) -> list[str]:
     return [
         f"{name} recurs across sections but has no card in The Players"
         for name in qualifying_players(sections)
-        if name.lower() not in carded
+        if name.lower() not in carded and (people is None or name in people)
     ]
 
 
@@ -116,7 +131,7 @@ def _is_introduced(text: str, position: int, name: str) -> bool:
     return bool(_APPOSITIVE_AFTER.match(after) or _APPOSITIVE_BEFORE.search(before))
 
 
-def check_inline_introductions(briefing) -> list[str]:
+def check_inline_introductions(briefing, people=None) -> list[str]:
     """Names below the card cap must be introduced wherever they appear.
 
     The owner amendment to D-025 (2026-08-19) capped the cast at 14 and put
@@ -125,6 +140,9 @@ def check_inline_introductions(briefing) -> list[str]:
 
     Args:
         briefing: The assembled Briefing.
+        people: Names confirmed to be people, from the build-time
+            classification. None checks every ranked name, which over-fires on
+            places and technologies — see `below_the_line`.
 
     Returns:
         One error per appearance that arrives without an introduction.
@@ -132,15 +150,19 @@ def check_inline_introductions(briefing) -> list[str]:
     sections = _sections_of(briefing)
     findings = []
 
-    for name in below_the_line(sections):
+    for name in below_the_line(sections, people=people):
         for section, text in sections.items():
-            for match in re.finditer(re.escape(name), text or ""):
-                if not _is_introduced(text, match.start(), name):
-                    findings.append(
-                        f"{name} appears in {section} with no card and no inline "
-                        f"introduction; say who they are where the reader meets them"
-                    )
-                    break
+            # The FIRST occurrence in a section is where the reader meets the
+            # name; once introduced there, later mentions in the same section
+            # are not cold. Checking every occurrence instead demanded the same
+            # gloss four times in one section, which reads worse than the
+            # problem it fixes.
+            match = re.search(re.escape(name), text or "")
+            if match and not _is_introduced(text, match.start(), name):
+                findings.append(
+                    f"{name} appears in {section} with no card and no inline "
+                    f"introduction; say who they are where the reader meets them"
+                )
     return findings
 
 
@@ -183,18 +205,20 @@ def check_staging_disclosure(briefing) -> list[str]:
     return findings
 
 
-def lint_briefing(briefing) -> BriefingLintResult:
+def lint_briefing(briefing, people=None) -> BriefingLintResult:
     """Run the document-level checks over an assembled Briefing.
 
     Args:
         briefing: The assembled Briefing.
+        people: Names confirmed to be people at build time. Passing them keeps
+            the one-off rule off places, eras, and technologies.
 
     Returns:
         BriefingLintResult. `passes` is False only when there are errors.
     """
     return BriefingLintResult(
-        errors=check_player_cards(briefing)
+        errors=check_player_cards(briefing, people=people)
         + check_named_citations(briefing)
-        + check_inline_introductions(briefing),
+        + check_inline_introductions(briefing, people=people),
         advisories=check_staging_disclosure(briefing),
     )

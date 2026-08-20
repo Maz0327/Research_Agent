@@ -2339,4 +2339,42 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   2-skeptic split is a real property of this topic's source landscape, the I.24
   header block is the designed behaviour, and skeptic-hunting belongs to the
   expand pass. Recorded so nobody "fixes" it later.
+- 2026-08-20 **Voice/intro repair wired** (section J pass 8's "ONE repair round
+  of pairs"). `backend/pipeline/intro_repair.py` + `classify_people` /
+  `write_introductions` in `briefing_passes.py`, wired into `build_briefing`
+  before the lint. Pairs applied by code (D-024): the model writes a four-word
+  gloss, code splices it in, the model never sees the document back.
+  ```
+  Hawara Briefing lint errors:  23-25  ->  0  (two of three runs; 2 on the third)
+  10 glosses written, 18 splices applied, 0 unresolved
+  Suite: 1664 passed, 3 skipped
+  ```
+  Five separate defects surfaced getting there, each of which would have
+  survived a code review:
+  1. **A double-wrapped schema.** `_array_of` already calls `_object`; passing
+     an already-built object made the model echo the schema's own scaffolding
+     back as data. That read as "no name is a person" and cleared 25 real lint
+     findings — a number that improved because a check had been switched off.
+  2. **The gloss writer was shown the wrong passage.** It got the section's
+     first 600 chars, so a name appearing 3,000 chars in produced a passage
+     that never mentioned them; the model correctly refused to invent a
+     credential and six of ten names came back empty. Now a window around the
+     name.
+  3. **The splice was ungrammatical.** `Timothy Akers the researcher,,` — no
+     opening comma, two closing ones — and `Alan Lloyd, the geologist,'s
+     argument` on possessives. Now "Name, gloss, rest", with the gloss placed
+     in FRONT when every appearance is possessive.
+  4. **The lint rejected its own valid output.** `_APPOSITIVE_AFTER` matched a
+     fixed word list, so "Timothy Akers, one of the Hawara researchers," did
+     not count. It now matches the shape (comma, lower-case non-conjunction
+     phrase, comma), and the leading form allows a trailing comma.
+  5. **⚠️ Names were splitting in two.** "Then Robert Schoch" ranked as a
+     different person from "Robert Schoch", and "Researchers Corrado Malanga"
+     from "Corrado Malanga" — so a name in two sections counted as two names in
+     one section each and fell below the card threshold **invisibly**. This one
+     was distorting the cast list, not just the lint. Leading adverbs and job
+     titles are now stripped alongside the prepositions.
+  Also: the person filter now covers `check_player_cards` too, which had been
+  demanding Players cards for "Historic Mysteries" and "Why Files" — a website
+  and a section heading.
 
