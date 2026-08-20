@@ -2015,6 +2015,16 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   verified quote, and raising 3.6-flash's thinking level made it worse rather
   than better — so the ⏰ Oct 16 retirement is a capability cliff, not a swap.
   Left at `gemini-3.6-flash` pending Maz's call.
+  **Pro tier tested on Maz's instruction, and it is worse:** 3.1-pro extracted
+  22 quotes to 2.5-flash's 294, so the gap is generational, not a tier you can
+  buy your way out of. Shrinking the input found the mechanism — every 3.x
+  model returns a roughly fixed *number* of items whatever it is handed
+  (1.56 quotes/1000w at 40k chars, 10.55 at 2k), so a long source just gets
+  summarized harder, which is also why more thinking made it worse.
+  **Chunking fixes it:** the same model over the same source in 5k chunks gave
+  49 verified quotes against 10, for $0.026 and 70s serial. The Oct 16
+  migration is survivable, but it needs chunked extraction, which is a real
+  change to the stage and is not built.
   Every model slot is now env-driven (`MODEL_EXTRACTION`, `MODEL_REASONING`,
   `MODEL_JUDGE`, `MODEL_VISION`, `EXTRACTION_THINKING_LEVEL`), documented in
   `.env.example`, and the Gemini 3.x contract differences (no temperature,

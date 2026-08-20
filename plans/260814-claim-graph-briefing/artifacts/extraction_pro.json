@@ -1,0 +1,242 @@
+{
+ "gemini-3.1-pro-preview (low)": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 4,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 5,
+    "key_points": 2,
+    "claims": 4,
+    "verified": 5,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 4,
+    "flagged": 0,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 4,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 3,
+    "key_points": 3,
+    "claims": 3,
+    "verified": 3,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 2,
+    "key_points": 2,
+    "claims": 2,
+    "verified": 2,
+    "flagged": 0,
+    "numbers": 0
+   }
+  ],
+  "cost": 0.022940710000000003,
+  "seconds": 136.6629478931427
+ },
+ "gemini-2.5-pro (n/a)": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 12,
+    "key_points": 6,
+    "claims": 8,
+    "verified": 12,
+    "flagged": 0,
+    "numbers": 2
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 24,
+    "key_points": 6,
+    "claims": 15,
+    "verified": 24,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 16,
+    "key_points": 6,
+    "claims": 15,
+    "verified": 16,
+    "flagged": 0,
+    "numbers": 4
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 16,
+    "key_points": 5,
+    "claims": 10,
+    "verified": 16,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 10,
+    "key_points": 5,
+    "claims": 8,
+    "verified": 10,
+    "flagged": 0,
+    "numbers": 2
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 16,
+    "key_points": 4,
+    "claims": 13,
+    "verified": 16,
+    "flagged": 0,
+    "numbers": 2
+   }
+  ],
+  "cost": 0.2105545,
+  "seconds": 321.5881977081299
+ },
+ "gemini-3.7-flash (low)": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 4,
+    "flagged": 0,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 6,
+    "key_points": 3,
+    "claims": 5,
+    "verified": 6,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 6,
+    "key_points": 3,
+    "claims": 6,
+    "verified": 6,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 6,
+    "key_points": 3,
+    "claims": 6,
+    "verified": 6,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 7,
+    "key_points": 3,
+    "claims": 5,
+    "verified": 7,
+    "flagged": 0,
+    "numbers": 2
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 4,
+    "key_points": 3,
+    "claims": 4,
+    "verified": 4,
+    "flagged": 0,
+    "numbers": 0
+   }
+  ],
+  "cost": 0.028400710000000003,
+  "seconds": 40.469974994659424
+ },
+ "gemini-3.6-flash (high)": {
+  "rows": [
+   {
+    "source_id": "SRC_1",
+    "quotes": 5,
+    "key_points": 3,
+    "claims": 5,
+    "verified": 5,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_3",
+    "quotes": 6,
+    "key_points": 4,
+    "claims": 6,
+    "verified": 6,
+    "flagged": 0,
+    "numbers": 1
+   },
+   {
+    "source_id": "SRC_6",
+    "quotes": 5,
+    "key_points": 5,
+    "claims": 5,
+    "verified": 5,
+    "flagged": 0,
+    "numbers": 2
+   },
+   {
+    "source_id": "SRC_11",
+    "quotes": 5,
+    "key_points": 3,
+    "claims": 5,
+    "verified": 5,
+    "flagged": 0,
+    "numbers": 0
+   },
+   {
+    "source_id": "SRC_13",
+    "quotes": 4,
+    "key_points": 4,
+    "claims": 4,
+    "verified": 4,
+    "flagged": 0,
+    "numbers": 2
+   },
+   {
+    "source_id": "SRC_16",
+    "quotes": 3,
+    "key_points": 3,
+    "claims": 3,
+    "verified": 3,
+    "flagged": 0,
+    "numbers": 1
+   }
+  ],
+  "cost": 0.02425046,
+  "seconds": 198.77502298355103
+ }
+}

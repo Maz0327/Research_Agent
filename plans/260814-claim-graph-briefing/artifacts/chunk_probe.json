@@ -1,0 +1,38 @@
+{
+ "40000": {
+  "words": 6392,
+  "quotes": 10,
+  "verified": 10,
+  "key_points": 4,
+  "per_1000": 1.56,
+  "cost": 0.0065837199999999995,
+  "seconds": 13
+ },
+ "20000": {
+  "words": 3495,
+  "quotes": 6,
+  "verified": 6,
+  "key_points": 3,
+  "per_1000": 1.72,
+  "cost": 0.00447239,
+  "seconds": 9
+ },
+ "10000": {
+  "words": 1790,
+  "quotes": 5,
+  "verified": 5,
+  "key_points": 3,
+  "per_1000": 2.79,
+  "cost": 0.0037294399999999997,
+  "seconds": 9
+ },
+ "5000": {
+  "words": 912,
+  "quotes": 6,
+  "verified": 6,
+  "key_points": 3,
+  "per_1000": 6.58,
+  "cost": 0.00334152,
+  "seconds": 8
+ }
+}

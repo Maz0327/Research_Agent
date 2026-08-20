@@ -1141,3 +1141,54 @@ and kappa 0.0, and only one of those two numbers says so. Reproducibility is
 reported beside kappa and never instead of it, because a judge can be reliably
 wrong. Harness: `backend/pipeline/judge_contest.py`, set builder:
 `backend/pipeline/faithfulness_set.py`, both covered by tests.
+
+### Addendum to D-027: the Pro tier does not fix it, and chunking does (2026-08-20)
+
+**Status:** Measured. The chunking fix is NOT yet implemented (owner decision pending)
+
+The first three-way only tested the Flash tier, which left the obvious question
+open: does paying for Pro restore the extraction density that the 3.x line
+lost? Same six sources, same prompts:
+
+| model (thinking) | quotes | verified | key points | with numbers | cost | time |
+|---|---|---|---|---|---|---|
+| gemini-2.5-flash | **294** | 291 | **52** | 11 | $0.131 | 580s |
+| gemini-2.5-pro | 94 | 94 | 32 | 10 | $0.211 | 322s |
+| gemini-3.6-flash (minimal) | 39 | 39 | 22 | 3 | $0.030 | 71s |
+| gemini-3.7-flash (low) | 33 | 33 | 18 | 3 | $0.028 | 40s |
+| gemini-3.6-flash (high) | 28 | 28 | 22 | 6 | $0.024 | 199s |
+| **gemini-3.1-pro-preview (low)** | **22** | 22 | 16 | 1 | $0.023 | 137s |
+
+**The Pro tier is the thinnest of all.** 3.1-pro extracted 22 quotes where
+2.5-flash extracted 294. Paying more makes it worse, not better, so this is a
+generation difference and not a tier one.
+
+**The mechanism, found by shrinking the input.** gemini-3.6-flash on one source
+at four input sizes:
+
+| input | words | quotes | quotes per 1,000 words |
+|---|---|---|---|
+| 40,000 chars | 6,392 | 10 | 1.56 |
+| 20,000 chars | 3,495 | 6 | 1.72 |
+| 10,000 chars | 1,790 | 5 | 2.79 |
+| 5,000 chars | 912 | 6 | 6.58 |
+| 2,000 chars | 379 | 4 | 10.55 |
+
+The model returns roughly the same *number* of items whatever it is given. It
+is not failing to read the source; it is filling a fixed output quota, and a
+longer source simply gets summarized harder. That is why more thinking made it
+worse: thinking compresses.
+
+**Which makes the cliff fixable.** Running the same model over the same source
+in 5,000-character chunks: **49 verified quotes and 23 key points, $0.026, 70s
+serial** (parallelizable), against 10 quotes for the whole-source call and 92
+for dying 2.5-flash. Smaller chunks push density higher still. Chunked
+extraction costs about the same per source as the incumbent and runs faster.
+
+**What this changes.** The 2026-10-16 retirement is survivable, but not by
+swapping a model string: it needs chunked extraction, which is a real change to
+the extraction stage and is not implemented here. Until it is, moving to any
+3.x model cuts extracted material by 80-90%.
+
+Evidence: `plans/260814-claim-graph-briefing/artifacts/extraction_pro.json`,
+`chunk_probe.json`.
