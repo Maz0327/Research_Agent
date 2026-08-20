@@ -1015,3 +1015,45 @@ as "the labyrinth is intact") or attributed to the wrong speaker passes every
 check in this module by construction. Those are semantic questions for an
 advisory pass, on the same footing as the grounding gate's optional verifier:
 code decides, a model advises, and a model never gates.
+
+### Addendum to D-026: expect fixture confidence to LIFT on re-distillation (2026-08-19)
+
+**Status:** Accepted (project owner, in-session, 2026-08-19)
+
+The films fixture distilled at `verification_rate=0` and therefore at
+confidence ceiling 4 rather than 5. That was recorded as a property of the
+corpus. It was the `QT_1` bug, and the chain is exact rather than probable:
+
+1. Extraction returns `supporting_quotes` as quote IDs, not text (211 of 211
+   on the labyrinth corpus).
+2. `verify_quotes_in_extraction` verified the literal string `"QT_1"` against
+   the transcript, found nothing, and deleted it.
+3. Every claim ended with `supporting_quotes == []`.
+4. `calculate_verification_rate` counts a claim as verified when
+   `claim.supporting_quotes` is non-empty, so the rate was 0.0 by construction.
+5. `confidence_ceiling_grade` drops the cap by one when
+   `verification_rate <= 0.0`, producing ceiling 4.
+
+Individual claims were also downgraded to LOW by the extraction stage for
+having "no verified supporting quotes", for the same reason.
+
+**Therefore: when the fixtures re-distill, confidence grades will rise and the
+ceiling will return to 5. That is the correction landing, not a regression.**
+Do not "fix" it back. The numbers recorded in the 08-16/17 handoffs
+(`verification_rate=0`, ceiling 4, claims at LOW) describe a pipeline bug, not
+the films corpus, and any comparison against those figures as a baseline is
+comparing against the defect.
+
+### Addendum to D-026: the fuzzy signal is advisory forever (2026-08-19)
+
+**Status:** Accepted (project owner, in-session, 2026-08-19)
+
+The partial-ratio separation measured here (real quotes min 0.77, fabrications
+max 0.71) is a 6-point margin, and margins that thin move with corpus, window
+size, and transcription quality. It may never become a gate.
+
+**VERIFIED comes from the span match alone.** Fuzzy exists only to sort a
+non-verbatim quote into UNCERTAIN rather than FLAGGED, which changes how the
+quote is labelled and never whether it counts as verified. A test asserts this
+directly: a quote with a perfect fuzzy score and no contiguous run cannot be
+VERIFIED at any threshold.

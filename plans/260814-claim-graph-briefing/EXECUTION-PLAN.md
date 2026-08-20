@@ -39,8 +39,14 @@ Documented behaviors of your model family plus failures proven in this project's
 9. **Ask-rate:** minor choices — pick one, note it, keep moving. When you ask, bring a concrete artifact.
 10. **Key facts (verified 2026-08-17):** `.env` ANTHROPIC/GEMINI/OPENAI keys LIVE. Repo KIMI key DEAD (401) — judge contest uses `~/.openclaw/service-env/kimi-coding.env` against `https://api.moonshot.ai/v1` (the `.cn` endpoint 401s it). Search keys (Exa/Serper/Supadata) present; Supadata proven live 08-17 (and rate-limits at 5 parallel pulls — work order item 2).
 11. **Checklist discipline (anti-forgetting).** First action of the session: copy the work-order items into `PROGRESS.md` as checkboxes. Check an item ONLY with the demonstrating command's output pasted beside it. Re-read the current work-order section before each work block — your family loses held details across long sessions; the file is the memory, not you.
-12. **Spelling and small mistakes are defects.** `codespell` runs in pre-commit — run `pre-commit run --all-files` before every commit and fix what it finds. User-facing strings, prompts, and docs get the same care as code; "minor typo" is not a category.
-13. **Re-open before editing.** Never edit a file from memory of its contents — read the region first, every time. Stale-memory edits are how content silently vanishes.
+12. **A permanently red test is a finding, not noise — root-cause it before
+    labeling it unrelated.** The suite carried one failure across this whole
+    build, described in three handoffs as "pre-existing, unrelated". It was
+    neither: it was a real defect that made every claim-level quote
+    verification meaningless (D-026). A test that has always failed is a
+    question nobody has answered yet.
+13. **Spelling and small mistakes are defects.** `codespell` runs in pre-commit — run `pre-commit run --all-files` before every commit and fix what it finds. User-facing strings, prompts, and docs get the same care as code; "minor typo" is not a category.
+14. **Re-open before editing.** Never edit a file from memory of its contents — read the region first, every time. Stale-memory edits are how content silently vanishes.
 
 ## 1. MODEL LINEUP (env-driven; no hardcoded model strings anywhere)
 

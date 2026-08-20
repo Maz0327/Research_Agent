@@ -115,6 +115,60 @@ class TestFabricationsNeverVerify:
         assert verdicts.count(FLAGGED) / len(verdicts) >= 0.5
 
 
+class TestTheVerdictComesFromTheSpanAlone:
+    """Owner requirement (2026-08-19): fuzzy is advisory forever.
+
+    The measured separation on partial ratio is 6 points (real quotes min 0.77,
+    fabrications max 0.71), and a margin that thin moves with corpus, window
+    size, and transcription quality. It may never decide whether something is
+    VERIFIED.
+    """
+
+    def test_a_high_fuzzy_score_cannot_verify_without_a_span(self, real_cases):
+        """Every word present, none of them in order: not a quotation.
+
+        Built from a real source window so the fuzzy score is high for the
+        same reason it is high in production: the words are all there.
+        """
+        window = real_cases[0]["window"]
+        scrambled = " ".join(reversed(normalize_text(window).split()[:14]))
+
+        result = verify_quote(scrambled, window)
+
+        assert result["fuzzy"] > result["span"]
+        assert result["span"] < SPAN_THRESHOLD
+        assert result["status"] != VERIFIED
+
+    def test_lowering_the_fuzzy_band_never_creates_a_verified(self, fabricated_cases):
+        """Sweeping the advisory threshold moves labels, never verdicts."""
+        for band in (0.0, 0.3, 0.5, 0.7, 0.9, 1.0):
+            verdicts = [
+                verify_quote(c["quote"], c["window"], threshold=band)["status"]
+                for c in fabricated_cases
+            ]
+            assert VERIFIED not in verdicts, f"fuzzy band {band} produced a VERIFIED"
+
+    def test_the_fuzzy_band_only_moves_the_uncertain_flagged_line(self):
+        """That is the whole job it is allowed to do."""
+        source = "The roof was stone. The priests refused him entry to the lower chambers."
+        scrambled = "entry stone priests the refused roof lower chambers the was"
+
+        lenient = verify_quote(scrambled, source, threshold=0.1)["status"]
+        strict = verify_quote(scrambled, source, threshold=0.99)["status"]
+
+        assert lenient == UNCERTAIN
+        assert strict == FLAGGED
+
+    def test_a_span_match_verifies_even_when_fuzzy_is_poor(self):
+        """A short exact quotation inside a long source is still verbatim."""
+        source = "x " * 4000 + "the priests refused him entry to the lower chambers " + "y " * 4000
+
+        result = verify_quote("the priests refused him entry to the lower chambers", source)
+
+        assert result["span"] == 1.0
+        assert result["status"] == VERIFIED
+
+
 class TestNormalizationAndEllipsis:
     """The two policies the verdict rests on."""
 
