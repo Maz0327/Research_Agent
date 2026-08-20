@@ -2422,4 +2422,32 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   Guard: `backend/tests/test_no_silent_text_loss.py`, 18 tests, each carrying
   its measured evidence.
   **The pipeline is now ready for the full re-run.**
+- 2026-08-20 **D-034: off Anthropic.** Owner constraint — no credits. Three
+  slots were Anthropic, and three call sites built an Anthropic client directly
+  instead of going through the router, so the lineup was not actually env-driven
+  where it mattered. Those now use `get_structured_client`.
+  ```
+  HARVEST  (measured on 3 sources spanning 284 -> 8,924 words)
+    gemini-3.6-flash   31.7 / 10.2 / 10.8  facts per 1k words   1.2% ungrounded
+    gpt-5.4-mini       45.8 / 11.2 / 31.3  facts per 1k words   0.6% ungrounded
+    -> gpt-5.4-mini. gemini does NOT honour the quota on a long source (holds
+       ~10/1k whatever it is handed) — the exact defect D-033 removes. On
+       SRC_16 that is 291 facts vs 111, and better grounded.
+  READ/PROSE  (3 runs each, cold-reader instrument + grounding gate)
+    gemini-3.6-flash   coverage 0.785   ungrounded 5.8%   481-875 words
+    gpt-5.4-mini       coverage 0.785   ungrounded 4.9%   1,063-1,227 words
+    claude-sonnet-5    coverage 0.893   ungrounded 0.0%   848 words  (incumbent)
+    -> gemini-3.6-flash, decided on VENDOR INDEPENDENCE, not quality: coverage
+       ties, and with harvest+reasoning+judge all on OpenAI, prose there too
+       would mean an OpenAI judge auditing OpenAI-written prose.
+  ```
+  ⚠️ **The Read gets worse and that should not be dressed up.** Grounding goes
+  from 0% to ~5% either way. The gate still strips ungrounded short fields and
+  the cold-reader instrument tracks it per run, so it is visible rather than
+  silent — but it is a real loss, and it is the price of leaving Anthropic.
+  Sonnet's 0.893 also has home-field advantage (scored against a player list
+  derived from a Briefing built on that same Read), so treat that column as
+  indicative; the gemini-vs-gpt comparison is the clean one.
+  **Fully reversible:** `MODEL_DISTILL=claude-sonnet-5` restores it, no code
+  change. Suite: 1682 passed.
 

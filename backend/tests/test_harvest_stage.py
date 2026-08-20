@@ -235,7 +235,7 @@ class TestStageHarvest:
         """Each source gets its own call, and the inventory pools them."""
         client = _client(["Fact one.", "Fact two with 3 numbers."])
         monkeypatch.setattr(
-            "backend.integrations.anthropic_client.get_anthropic_client",
+            "backend.integrations.structured_client.get_structured_client",
             lambda model=None: client,
         )
         ctx = self._ctx([_package("SRC_1", "body one"), _package("SRC_2", "body two")])
@@ -255,7 +255,7 @@ class TestStageHarvest:
             ({"facts": ["Fact two."]}, {"cost": 0.01}),
         ]
         monkeypatch.setattr(
-            "backend.integrations.anthropic_client.get_anthropic_client",
+            "backend.integrations.structured_client.get_structured_client",
             lambda model=None: client,
         )
         ctx = self._ctx([_package("SRC_1", "body one"), _package("SRC_2", "body two")])
@@ -269,7 +269,7 @@ class TestStageHarvest:
         """Nothing to harvest means no call and no cost."""
         client = _client(["Fact."])
         monkeypatch.setattr(
-            "backend.integrations.anthropic_client.get_anthropic_client",
+            "backend.integrations.structured_client.get_structured_client",
             lambda model=None: client,
         )
         ctx = self._ctx([_package("SRC_1", "")])
@@ -287,7 +287,7 @@ class TestStageHarvest:
         monkeypatch.setattr(settings, "harvest_enabled", False)
         client = _client(["Fact."])
         monkeypatch.setattr(
-            "backend.integrations.anthropic_client.get_anthropic_client",
+            "backend.integrations.structured_client.get_structured_client",
             lambda model=None: client,
         )
         ctx = self._ctx([_package("SRC_1", "body")])

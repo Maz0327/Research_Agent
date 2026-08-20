@@ -1496,3 +1496,89 @@ lists (2-4 angles), not extraction proportional to input.
 
 **Guard:** `backend/tests/test_no_silent_text_loss.py`, 18 tests, one per
 defect with the measured evidence in its docstring. Suite: 1682 passed.
+
+---
+
+## Decision 034: off Anthropic — the harvest and prose slots reassigned (2026-08-20)
+
+**Status:** Accepted — owner constraint, 2026-08-20: Anthropic credits are not
+available. Decided by measurement on the Hawara fixture, as D-031 was.
+
+Three slots ran on Anthropic: `MODEL_HARVEST` and `MODEL_DISTILL`
+(claude-sonnet-5) and `MODEL_ESCALATION` (claude-opus-5). Three call sites also
+built an Anthropic client directly rather than going through the provider
+router, so the lineup was not actually env-driven where it mattered. Those now
+call `get_structured_client`.
+
+### The harvest: a straight upgrade
+
+Same three sources, same chunked prompt, same length-scaled quota (D-033):
+
+| | SRC_8 (284w) | SRC_1 (3,124w) | SRC_16 (8,924w) |
+|---|---|---|---|
+| gemini-3.6-flash | 31.7 /1k | 10.2 /1k | **10.8 /1k** |
+| **gpt-5.4-mini** | 45.8 /1k | 11.2 /1k | **31.3 /1k** |
+
+gemini-3.6-flash does not honour the quota on a long source — it holds ~10
+facts per 1,000 words whatever it is handed, which is the exact defect D-033
+was written to remove. gpt-5.4-mini scales. On SRC_16 that is **291 facts
+against 111**, and the extra volume is not padding: hard-atom grounding against
+the raw source was **0.6% ungrounded for gpt-5.4-mini against 1.2% for
+gemini-3.6-flash** (both effectively clean — most flagged atoms are word-splits
+on "Synthetic Aperture Radar").
+
+Note this does NOT contradict D-030, where 3.6-flash responded well to a quota:
+that was the extraction prompt at extraction rates. Quota compliance is per
+prompt and per rate, not a property of the model.
+
+**Adopted:** `MODEL_HARVEST=gpt-5.4-mini`.
+
+### The prose: a real quality loss, and the vendor split decides it
+
+Three runs each of the full Read pass, scored by the I.30 cold-reader
+instrument and the grounding gate:
+
+| | coverage (median) | ungrounded (median) | words |
+|---|---|---|---|
+| gemini-3.6-flash | 0.785 | 5.8% | 481-875 |
+| gpt-5.4-mini | 0.785 | 4.9% | 1,063-1,227 |
+| *claude-sonnet-5 (incumbent)* | *0.893* | *0.0%* | *848* |
+
+**Coverage is a tie.** Neither substitute is chosen on quality, because on
+quality neither wins.
+
+**An honest caveat on the incumbent's number.** Sonnet's 0.893 is measured
+against a player list extracted from a Briefing built on that same Read, so it
+has home-field advantage and is not directly comparable. The gemini-vs-gpt
+comparison is clean; the Sonnet column is indicative only.
+
+**What is not a tie:** grounding drops from 0% to roughly 5% either way. That
+is the price of leaving Anthropic and it should not be presented as anything
+else. The grounding gate still strips ungrounded short fields and reports the
+rest, and the cold-reader instrument now tracks it per run, so the loss is
+visible rather than silent — but it is a loss.
+
+The slot is decided on **vendor independence**, not quality. With the harvest
+moving to OpenAI, `MODEL_REASONING` and `MODEL_JUDGE` already on OpenAI, putting
+prose there too would leave extraction as the only non-OpenAI stage and would
+have an OpenAI judge auditing OpenAI-written prose. That is the self-grading
+D-028's law exists to prevent. gpt-5.4-mini also overran the Read's stated
+700-1,100 word band on all three runs.
+
+**Adopted:** `MODEL_DISTILL=gemini-3.6-flash`, `MODEL_ESCALATION=gpt-5.4-mini`
+(escalation crosses vendors from distill on purpose).
+
+### Resulting lineup
+
+```
+harvest      gpt-5.4-mini        openai
+distill      gemini-3.6-flash    google
+escalation   gpt-5.4-mini        openai
+extraction   gemini-3.6-flash    google
+reasoning    gpt-5.4-mini        openai
+judge        gpt-5.6-terra       openai
+vision       gemini-2.5-pro      google
+```
+
+**Reversible by env var.** If credits return, `MODEL_DISTILL=claude-sonnet-5`
+restores the better Read with no code change. Suite: 1682 passed.

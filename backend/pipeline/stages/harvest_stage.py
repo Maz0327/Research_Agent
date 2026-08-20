@@ -310,9 +310,10 @@ def stage_harvest(ctx: PipelineContext) -> None:
 
     update_job(ctx.job_id, stage="fact_harvest")
 
-    from backend.integrations.anthropic_client import get_anthropic_client
+    from backend.integrations.structured_client import get_structured_client
 
-    client = get_anthropic_client(model=settings.model_harvest)
+    # Provider-agnostic (D-034): the harvest slot is env-driven like the rest.
+    client = get_structured_client(settings.model_harvest)
     harvest: dict[str, list[str]] = {}
     total_cost = 0.0
 

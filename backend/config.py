@@ -129,16 +129,16 @@ class Settings(BaseSettings):
     # Model IDs are env-driven so a lineup change never needs a code edit.
     # IDs verified callable 2026-08-15. P3 moves the remaining stages here.
     model_distill: str = Field(
-        default="claude-sonnet-5", alias="MODEL_DISTILL",
+        default="gemini-3.6-flash", alias="MODEL_DISTILL",
         description="Claim-graph distillation and Briefing prose"
     )
     model_escalation: str = Field(
-        default="claude-opus-5", alias="MODEL_ESCALATION",
+        default="gpt-5.4-mini", alias="MODEL_ESCALATION",
         description="Retry tier for schema-invalid distillation; never the default"
     )
     model_harvest: str = Field(
-        default="claude-sonnet-5", alias="MODEL_HARVEST",
-        description="Per-source fact harvest; the measured configuration (85 -> 258 facts on the films corpus)"
+        default="gpt-5.4-mini", alias="MODEL_HARVEST",
+        description="Per-source fact harvest. D-034: the only model measured to honour the length-scaled quota — 31.3 facts/1k words on a long source against gemini-3.6-flash's 10.8, at a lower ungrounded rate"
     )
     model_extraction: str = Field(
         default="gemini-3.6-flash", alias="MODEL_EXTRACTION",

@@ -359,8 +359,6 @@ def stage_briefing(ctx: PipelineContext) -> None:
         for pkg in packages
     ]
 
-    from backend.integrations.anthropic_client import get_anthropic_client
-
     # Disputes are chosen by code from what the pipeline already found, never
     # by asking a model what is contested.
     key_points = {
@@ -383,7 +381,11 @@ def stage_briefing(ctx: PipelineContext) -> None:
     )
 
     try:
-        client = get_anthropic_client(model=settings.model_distill)
+        # Provider-agnostic (D-034): the Briefing prose slot is env-driven like
+        # every other slot, so it can move off a vendor without a code change.
+        from backend.integrations.structured_client import get_structured_client
+
+        client = get_structured_client(settings.model_distill)
         briefing, report = build_briefing(
             ctx,
             client,

@@ -115,7 +115,7 @@ class TestStageBriefing:
 
     def _run(self, ctx, client=None):
         with patch(
-            "backend.integrations.anthropic_client.get_anthropic_client",
+            "backend.integrations.structured_client.get_structured_client",
             return_value=client or _scripted_client(),
         ), patch("backend.pipeline.stages.briefing_stage.update_job"):
             stage_briefing(ctx)
