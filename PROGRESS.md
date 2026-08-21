@@ -2500,3 +2500,23 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   because the judge (Terra, kappa 0.900) already does exactly this task on
   extraction claims and today's `relevant_source` already does the retrieval.
 
+---
+
+## ⭐⭐ RESUME POINT — 2026-08-20 session close
+
+**Read `plans/260814-claim-graph-briefing/SESSION-HANDOFF-2026-08-20.md` first.**
+It carries the full session: every test, every number, every decision including
+the ones taken NOT to act, the two errors I made and corrected, and the exact
+open queue.
+
+Second file, for the one unsolved problem:
+`plans/260814-claim-graph-briefing/SEMANTIC-CHECK-PROBLEM.md`.
+
+State at close: branch `feature/product-viability-overhaul`, all pushed,
+**1692 passed / 3 skipped**. D-031 through D-036 added. §I complete. §J pass 8
+repair round wired. Judge unchanged (Terra). Claude Code bridge built but OFF.
+
+Open, in order: [MAZ] read the Briefing → decide the writer seat (gemini vs
+luna, and Luna needs re-testing now the grounding repair exists) → design and
+build the semantic check → the full re-run.
+
