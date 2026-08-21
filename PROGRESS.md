@@ -2519,4 +2519,33 @@ repair round wired. Judge unchanged (Terra). Claude Code bridge built but OFF.
 Open, in order: [MAZ] read the Briefing → decide the writer seat (gemini vs
 luna, and Luna needs re-testing now the grounding repair exists) → design and
 build the semantic check → the full re-run.
+- 2026-08-21 **Semantic check: designed, part-measured, NOT built.** Full record
+  in `SESSION-HANDOFF-2026-08-20.md` §10b. Headlines:
+  ```
+  lexical collision detection   DEAD — a genuine twin scores 0.19 Jaccard;
+                                best match across 23 real sentences = 0.22
+  embedding retrieval           WORKS — same twin ranks #1 at 0.867;
+                                2.3 candidates/sentence at cosine 0.70
+  corruption vs retrieval       R@1 = 1.00 on all five error types (n=70)
+                                ⚠️ but the gold set is EASIER than real prose
+                                (0.95+ vs 0.685 median) — proves corruption
+                                doesn't break retrieval, NOT real-world recall
+  ```
+  Architecture settled: embedding retrieval (original + masked, union) → top-K
+  + floor → raw-source window → referee → **advisory only**. Similarity finds
+  suspects, never convicts. UNVERIFIED ≠ FALSE and stays internal at first.
+  Deliberately NOT doing: changing the Read schema, building actor/polarity
+  structure for all 630 facts, or adopting NLI.
+  ⚠️ **Live defect found:** `paragraphs_for_fact()` returns whole transcripts
+  (no blank lines in Supadata output) — `run_file_pass` and the dispute pass
+  are affected in every run today. Promoted to flag #0.
+  ⚠️ **New category discovered:** the Read contains the writer's own analysis
+  resting on no source ("Seven sources telling one story once each is not seven
+  confirmations"). Flagging those would bury the owner in warnings about the
+  best writing in the document.
+  ⏳ **Waiting on Maz:** 15-sentence labelling task at
+  https://claude.ai/code/artifact/8890311d-c1fc-429f-aa0e-ff270e668ebd
+  — one question only (is this repeating a source, or the writer's own point?),
+  because he has not read the 42k words of sources and cannot answer anything
+  that requires it. Two earlier drafts asked exactly that impossible question.
 

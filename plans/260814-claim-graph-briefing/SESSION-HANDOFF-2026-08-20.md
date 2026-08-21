@@ -536,11 +536,240 @@ but on 8 items, which is not decision-grade.
 
 ---
 
+## 10b. The semantic check — designed and part-tested (2026-08-21)
+
+Section 8 records the three failed attempts. What follows is the design work
+that came after them, done with the owner and a second assistant ("Sol"). **The
+architecture is now settled and partly measured. It is not built.**
+
+### The diagnosis that changed everything
+
+The earlier attempts were misdiagnosed as a retrieval problem. They are an
+**information-destruction** problem. `Read` and `ReadParagraph` carry only
+`lede`, `label` and `text` — **no `source_ids`** — while every other Briefing
+section carries `source_ids` and often `fact_ids`. The writer had the provenance
+in hand and the pipeline discarded it, after which a model was paid to
+re-derive it badly from 42,000 words.
+
+Verified in code alongside it:
+- Harvest facts are `fact_id`, `source_id`, `text`, `has_number` and nothing
+  more — **no actor/action/polarity/certainty/time fields.** Any "code-only
+  semantic diff over the 630 facts" is therefore impossible as things stand.
+- `Claim` carries `source_id`, `confidence` and `supporting_quotes` (quote
+  *texts* since the D-026 fix), so extraction is the better *precision* evidence
+  layer while the harvest is the better *recall* layer. Use both, not one.
+- **Source hedging/certainty is recorded nowhere.** The harvest prompt says
+  "do not upgrade a hedge into a certainty" but no field stores whether the
+  source hedged. A certainty check has no stored evidence to check against.
+- The grounding gate already documents the exact gap, in its own words: *"two
+  real names combined into a false relationship pass, because every token
+  exists. That is a claim error, not an atom error."*
+
+### Measured: lexical matching is dead for this job
+
+Pure code, no model calls. 23 factual Read sentences against all 633 facts.
+Pre-registered before running: >20 candidates/sentence = dead, <5 = promising.
+
+A first run was **invalid** and was thrown away — containment divided by the
+shorter side, so any fact reducing to two or three content words scored 1.00
+inside a long sentence. Re-run with Jaccard and a 5-content-token floor:
+
+```
+best lexical match per Read sentence:  median 0.12,  max 0.22
+sentences with any match >= 0.30:      0 of 23
+```
+
+And the decisive example — a **genuine** twin scoring 0.19:
+
+```
+READ: In 1888 Petrie found a giant stone platform and concluded he was standing on...
+FACT: Petrie found a massive stone slab of beton/plaster roughly a thousand feet long...
+```
+
+The Read paraphrases; that is its job. Word overlap measures the one thing
+guaranteed to be absent. **Do not attempt lexical collision detection.**
+
+Note the pre-registration was itself badly framed — it measured candidate
+*volume* when the thing that kills the design is candidate *quality*.
+
+### Measured: embeddings rescue it
+
+Same test, `qwen3.7-text-embedding` (DashScope, already wired). The twin that
+scored 0.19 lexically:
+
+```
+#1  [0.867]  In the 1800s, Petrie found a huge stone slab he believed was the foundation...
+#2  [0.855]  Petrie found a massive stone slab of beton/plaster roughly a thousand feet...
+```
+
+Candidate volume on real Read sentences: **6.3 at cosine >= 0.65, 2.3 at 0.70,
+0.8 at 0.75.**
+
+### Measured: corruption does not break retrieval
+
+A 70-sentence gold set was built by **inverting the construction** — start from
+a known harvest fact, have a model write a true Read-style sentence from it,
+then corrupt that sentence one way. The gold link is therefore free, which is
+what makes Recall@K measurable without hand-labelling 630 facts per sentence.
+The generator was never told how detection works.
+
+14 seeds x 5 kinds (clean / actor / polarity / certainty / temporal), retrieval
+by union of original-embedding and actor-masked-embedding, full 633-fact index:
+
+```
+error type   R@1   R@3   true-fact score   candidates@0.70
+clean       1.00  1.00        0.969              6
+actor       1.00  1.00        0.945              8
+polarity    1.00  1.00        0.945              4
+certainty   1.00  1.00        0.973              6
+temporal    1.00  1.00        0.978              6
+```
+
+⚠️ **Read this result correctly. It is too good, and the reason matters.** The
+gold sentences were written *from* the fact by a model that could see it, so
+they inherit its specifics and score 0.945-0.978. Real Read sentences score a
+median of **0.685**. So this proves corruption does not break retrieval — which
+was the real question — and does **not** prove Recall@K on genuine synthesis.
+
+It also shows a fixed threshold will not transfer: the same 0.70 floor yields
+6 candidates on gold sentences and 2.3 on real ones. Use **top-K plus a
+minimum floor**, not a fixed cutoff.
+
+### The settled architecture
+
+```
+Read sentence
+  -> embedding retrieval, union of (original, masked) queries
+  -> top few candidate facts (top-K + floor, NOT a fixed threshold)
+  -> recover a small raw-source window for each candidate
+  -> referee: same event/claim, or merely similar topic?
+  -> if same: compare actor / polarity / temporal / certainty / attribution
+  -> ADVISORY conflict only — never an edit, never a deletion
+```
+
+Principles agreed and worth keeping:
+- **Similarity finds suspects; it never convicts them.** Raw evidence decides
+  whether two similar statements are about the same event. Same lesson D-036
+  learned when a text matcher confidently deleted "Tutankhamun".
+- Embeddings' usual weakness is an asset here: "found evidence" and "found no
+  evidence" embed close together. For search that is a bug; for a contradiction
+  detector it is the required behaviour. **But it also means the similarity
+  score carries zero information about polarity** — the referee alone bears
+  that, and the score must never be used as a polarity confidence signal.
+- One referee call per sentence carrying its 2-3 candidates, not one per
+  candidate. A 23-sentence Read is ~23 calls.
+- Writer-reported provenance is a **routing hint, not truth** — and its
+  unreliability is exploitable: writer cites SRC_3, nothing in SRC_3 matches,
+  a near-identical proposition sits in SRC_8 with a different actor = an
+  exceptionally strong flag.
+- **UNVERIFIED is not FALSE.** Absence of retrieved evidence is not proof of
+  fabrication. Keep UNVERIFIED as an internal measurement at first; surfacing
+  ten of them per document would create warning fatigue and discredit true
+  information by association.
+
+### Deliberately NOT doing (and why)
+
+- **Do not change the `Read` schema yet.** Provenance capture was demoted from
+  foundation to optional extra signal. Find out first whether existing
+  artefacts already suffice. If it is ever tested, test three arms: no
+  provenance at all, a separate trace pass, inline metadata with the Read —
+  and prefer the first, because the Read is the one call where a model composes
+  freely and it already has documented length-discipline problems.
+- **Do not build actor/action/object/polarity/time structure for all 630
+  facts** as step one. Expensive, needs another extraction model, another
+  silent-error surface.
+- **Do not adopt NLI** (see section 8) — misattribution is not a logical
+  contradiction, so it addresses half the target at best.
+
+### A LIVE DEFECT found during this work — fix regardless
+
+`paragraphs_for_fact()` splits only on blank lines. Supadata transcripts have
+**none** (SRC_2 is 4,019 words with zero newlines), so it returns the entire
+transcript as one "paragraph".
+
+It is called via `_fact_context()` by **`run_file_pass`** and the **dispute
+pass** — both run in every Briefing. So on the five YouTube sources, those
+passes already receive whole transcripts where they should receive two
+paragraphs. **The narrowing half of the grounding guarantee is not holding for
+a third of the corpus today.** This is not a dependency of the semantic check;
+it is a bug in shipped code that this work happened to uncover.
+
+The fix already exists elsewhere: `harvest_audit.blocks_of()` has the proven
+fallback chain (paragraphs -> sentence groups -> 80-word windows). Extract it as
+one shared source-window function and use it everywhere a fact needs its raw
+evidence, rather than patching a fourth component later.
+
+### The agreed sequence from here
+
+1. **Gold truth first** — nothing downstream is measurable without it.
+2. **Adversarial benchmark**, not just mechanical corruptions.
+3. **Full-inventory embedding retrieval test on REAL Read sentences.**
+4. **Evidence-window repair** (the shared splitter above).
+5. **Semantic referee.**
+6. **Atomic evidence tracing** only if still needed.
+
+Headline metric is **false flags per 100 genuinely correct sentences**, not
+recall — the cost of error is asymmetric.
+
+### Where it stopped: waiting on the owner
+
+⚠️ **A category nobody had accounted for surfaced while building the labelling
+task: the Read contains sentences that are the writer's own analysis and rest
+on no source at all.** Example, sentence 3 of the fixture Read: *"Seven sources
+telling one story once each is not seven confirmations."* Nothing in the corpus
+says that. It is the narrator's judgement and it is exactly the kind of line the
+Briefing exists to produce. **A checker that flags these as unsupported claims
+would bury the owner in warnings about the best writing in the document.**
+
+A labelling task is open with the owner, published at
+https://claude.ai/code/artifact/8890311d-c1fc-429f-aa0e-ff270e668ebd
+
+It went through three drafts, and the failures are instructive:
+- v1 asked which of three retrieved facts a sentence came from. **The owner
+  cannot answer that — he has not read the 42,000 words of sources.** Asking a
+  human to verify something they have no access to is a broken task design.
+- v2 was rewritten in plainer language but asked the same impossible question.
+- v3 asks the one thing only he can answer: **is this sentence repeating a
+  source, or is it the writer's own point?** No source reading required. If he
+  answers "repeating a source", the card then reveals the actual raw source
+  passage so he can check whether the sentence matches it.
+
+Fact-linking ground truth will come instead from a strong model reading the raw
+sources — a different method with different inputs from the thing being tested,
+so it is a legitimate reference standard, but it is a **proxy for truth and
+must be labelled as one**.
+
+Sample size: 15 is sufficient. It establishes the analysis-vs-claim split,
+which is what is actually needed; going to 30 would tighten a number without
+changing any decision. Mismatched sentences are rare enough (~1 in 20) that
+this sample cannot measure their rate, only collect examples.
+
+### Artefacts on disk (scratchpad)
+
+`gold_set.json` (70 labelled sentences) · `fact_embeddings.json` (633 cached
+embeddings, reusable) · `recall_test.json` · `labeling_v2.json` (15 sentences +
+candidates + raw source passages) · scripts `collision_baserate.py`,
+`build_gold_set.py`, `recall_test.py`.
+
+⚠️ The embedding endpoint dropped a response mid-download once; the scripts now
+retry with backoff and cache the fact embeddings. Re-embedding 633 facts is the
+slow step — reuse the cache.
+
+---
+
 ## 11. Open flags for the next session
 
 All of these are **secondary** — none blocks the queue in §10. The owner asked
 that they be carried forward rather than lost. Roughly in order of how much
 damage they could do if ignored.
+
+0. ⚠️ **LIVE DEFECT — `paragraphs_for_fact()` returns whole transcripts.** It
+   splits only on blank lines and Supadata transcripts have none, so
+   `run_file_pass` and the dispute pass are today receiving entire 4,000-word
+   transcripts where they should receive two paragraphs, on five of sixteen
+   sources. The narrowing half of the grounding guarantee is not holding.
+   Fix by extracting `harvest_audit.blocks_of()`'s fallback chain as a shared
+   source-window function. Full detail in §10b.
 
 1. ⚠️ **The judge that actually runs is Kimi, not Terra — D-028 was never
    wired.** `LLM_JUDGE_PRIMARY` defaults to `"kimi"` and `llm_judge.py` tries
