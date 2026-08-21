@@ -8,6 +8,15 @@ Branch: `feature/product-viability-overhaul`, all work pushed.
 Suite at close: **1692 passed, 3 skipped**.
 Decisions added this session: **D-031 through D-036**.
 
+**Audience:** this document and the memory notes are written to be picked up by
+*any* model or person, not one assistant. No tool-specific knowledge is assumed.
+
+⚠️ **This repository is shared.** ChatGPT and Codex also write into it. Files
+such as `.agents/` and `.codex/` come from those tools — they are not artefacts
+of this work, and should be left alone rather than cleaned up or committed
+without asking. If an unexplained file appears, assume another agent put it
+there before assuming it is stray.
+
 ---
 
 ## 1. Where the build stands
@@ -86,7 +95,7 @@ the fastest, and it was originally chosen for vendor independence from the judge
 
 ---
 
-## 3. Two errors I made and corrected — read these, they change conclusions
+## 3. Two errors made and corrected mid-session — read these, they change conclusions
 
 ### 3.1 The false "Anthropic is better" claim (corrected in D-035)
 
@@ -527,7 +536,68 @@ but on 8 items, which is not decision-grade.
 
 ---
 
-## 11. Operating notes learned this session
+## 11. Open flags for the next session
+
+All of these are **secondary** — none blocks the queue in §10. The owner asked
+that they be carried forward rather than lost. Roughly in order of how much
+damage they could do if ignored.
+
+1. ⚠️ **The judge that actually runs is Kimi, not Terra — D-028 was never
+   wired.** `LLM_JUDGE_PRIMARY` defaults to `"kimi"` and `llm_judge.py` tries
+   Kimi first, with OpenAI (carrying `MODEL_JUDGE`) only as fallback. It works
+   today **by accident**: the Kimi key is absent, so every call fails over to
+   Terra. Two consequences — every source pays a failed Kimi attempt first, and
+   **adding a Kimi key would silently switch the pipeline to the judge that
+   scored kappa 0.550 and failed 38% of its calls.** Set
+   `LLM_JUDGE_PRIMARY=gpt-4o` (the non-kimi branch) or rework the selection to
+   read `MODEL_JUDGE` directly.
+
+2. **Qwen was never tested as the harvest model.** It was identified as the
+   highest-value remaining test after the judge, because harvest quality drives
+   coverage gate 13 and quota compliance is unpredictable per model (D-034).
+
+3. **Qwen's empty Read is undiagnosed.** One of three runs returned no lede and
+   no paragraphs. The endpoint's context limit was never checked. If it is a
+   context ceiling, Qwen is ruled out of every long-input role permanently —
+   worth knowing before using it anywhere.
+
+4. **The films fixture has never been re-distilled.** D-026's addendum predicted
+   its confidence grades would lift once the `QT_1` bug was fixed, and said to
+   treat that as correction rather than regression. Unverified.
+
+5. **The folder-trigger idea is unresolved.** The owner asked about a launchd
+   `WatchPaths` agent firing a headless session when a document lands in a
+   folder, chaining to the next step. Assessment given: the right shape for
+   *document-driven work outside the pipeline*, but not for the pipeline itself,
+   which already has a model router and would gain nothing but loop risk. Never
+   accepted or rejected.
+
+6. **Local models for judging were discussed and never tested.** The judge is
+   the best candidate stage for one — tiny output, objective ground truth, and
+   free inference would allow multi-vote panels. Ollama is installed; its models
+   were never enumerated, and no hardware assessment was done.
+
+7. **Should the Read's word ceiling be enforced by code?** Measured: gpt-5.4-mini
+   writes ~1,270 words and delivers 64 facts where gemini delivers 58 in 788 —
+   its extra length is padding, not content. No decision was taken on hard-
+   capping it.
+
+8. **Unconfirmed: the extraction three-way's "harvest-style leg."** An earlier
+   instruction asked for a per-source-call leg to be added to that contest. The
+   records do not show whether it was run.
+
+9. **`pre-commit` remains unusable and undecided.** `detect-secrets` has no
+   baseline, `mypy` reports 2,227 pre-existing errors across 161 files, and
+   `ruff-format` plus the whitespace hooks rewrite ~300 files including the
+   law-barred `Archive Docs/` and `docs/_archive_do_not_read/`. Working practice
+   meanwhile: `codespell` and `ruff check` on touched files only. Flagged for a
+   gate and never resolved.
+
+10. **Two published-artifact watches dropped** (connection lost). The Briefing
+    and Vault artifacts still exist and open normally; the session simply will
+    not be notified if they are republished elsewhere.
+
+## 12. Operating notes learned this session
 
 - **Do not block the user watching a background job.** Launch it, leave it,
   report when it lands. Sitting in a foreground `sleep` loop is what a
