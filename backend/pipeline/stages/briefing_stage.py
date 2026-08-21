@@ -55,6 +55,7 @@ from backend.pipeline.formatters.briefing_renderer import (
     render_briefing_markdown,
 )
 from backend.pipeline.formatters.source_vault import render_source_vault
+from backend.pipeline.grounding_repair import repair_grounding
 from backend.pipeline.intro_repair import repair_inline_introductions
 from backend.pipeline.text_similarity import content_tokens
 from backend.state import update_job
@@ -302,6 +303,14 @@ def build_briefing(
     if stripped:
         grounding = grounding_gate(briefing, raw_texts, harvest_texts)
 
+    # D-036: the long prose used to stop at "reported". One repair round asks
+    # the model about each invented atom in isolation and code splices the
+    # answer in, so an invented figure is corrected or its clause cut rather
+    # than reaching the reader with a flag on it.
+    grounding_repairs = repair_grounding(briefing, grounding, raw_texts, client)
+    if grounding_repairs.get("applied"):
+        grounding = grounding_gate(briefing, raw_texts, harvest_texts)
+
     # ONE repair round of pairs (section J pass 8). The model writes a gloss per
     # name and code splices it in — it never sees the document back, so a repair
     # cannot quietly change a fact while fixing a name (D-024).
@@ -326,6 +335,7 @@ def build_briefing(
         "coverage": coverage.to_dict(),
         "grounding": grounding.to_dict(),
         "grounding_strips": stripped,
+        "grounding_repairs": grounding_repairs,
         "lint": lint.to_dict(),
         "intro_repair": intro_repair,
         "file_repairs": repairs,

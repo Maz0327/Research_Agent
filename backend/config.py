@@ -210,6 +210,18 @@ class Settings(BaseSettings):
         description="Characters each harvest chunk repeats from the previous one, so a fact straddling a boundary is not lost"
     )
 
+    # DashScope (Alibaba, international). One OpenAI-compatible endpoint that
+    # serves Qwen, DeepSeek and GLM, so a single key covers three vendors.
+    dashscope_api_key: Optional[str] = Field(
+        default=None, alias="QWEN_API_KEY",
+        description="DashScope key. Serves qwen-*, deepseek-* and glm-* on one OpenAI-compatible endpoint"
+    )
+    dashscope_base_url: str = Field(
+        default="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        alias="QWEN_BASE_URL",
+        description="DashScope OpenAI-compatible base URL"
+    )
+
     # Kimi/Moonshot API (Visual analysis)
     kimi_api_key: Optional[str] = Field(
         default=None, alias="KIMI_API_KEY",

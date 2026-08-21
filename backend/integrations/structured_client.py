@@ -34,6 +34,11 @@ _PREFIXES = (
     ("o3", "openai"),
     ("kimi-", "moonshot"),
     ("moonshot", "moonshot"),
+    # DashScope serves all three of these on one OpenAI-compatible endpoint.
+    ("qwen", "dashscope"),
+    ("deepseek", "dashscope"),
+    ("glm", "dashscope"),
+    ("zhipu/", "dashscope"),
 )
 
 MOONSHOT_BASE_URL = "https://api.moonshot.ai/v1"
@@ -55,6 +60,16 @@ _NO_MINIMAL_THINKING = ("gemini-3.1-pro", "gemini-3.7")
 def _accepts_minimal_thinking(model_id: str) -> bool:
     """Does this model accept thinking_level 'minimal'?"""
     return not (model_id or "").lower().startswith(_NO_MINIMAL_THINKING)
+
+
+# Model families served by DashScope that emit reasoning tokens unless told not
+# to. Names are matched as prefixes against the configured model id.
+_THINKS_BY_DEFAULT = ("deepseek", "qwen", "glm", "zhipu/")
+
+
+def _thinks_by_default(model_id: str) -> bool:
+    """Does this model need thinking switched off for structured output?"""
+    return (model_id or "").lower().startswith(_THINKS_BY_DEFAULT)
 
 
 def _strip_fences(text: str) -> str:
@@ -285,6 +300,20 @@ class OpenAIStructuredClient:
         token_key = (
             "max_completion_tokens" if _wants_completion_tokens(model_id) else "max_tokens"
         )
+        # DashScope models think by default, and the reasoning tokens eat the
+        # output budget: measured 2026-08-20, deepseek-v4-pro returned empty or
+        # truncated JSON on 25 consecutive judge calls with thinking on, and
+        # answered cleanly in 3.2s with it off. Qwen took 59s thinking against
+        # a few seconds without. Structured output wants the answer, not the
+        # deliberation, so this pass turns it off.
+        # Passed via extra_body: the OpenAI SDK rejects unknown top-level kwargs,
+        # and this is a DashScope extension rather than a standard field.
+        extra = (
+            {"extra_body": {"enable_thinking": False}}
+            if _thinks_by_default(model_id)
+            else {}
+        )
+
         attempts = [
             {
                 token_key: max_tokens,
@@ -292,9 +321,10 @@ class OpenAIStructuredClient:
                     "type": "json_schema",
                     "json_schema": {"name": "response", "strict": True, "schema": schema},
                 },
+                **extra,
             },
             # Fallback: ask for JSON plainly and describe the shape in the turn.
-            {token_key: max_tokens, "response_format": {"type": "json_object"}},
+            {token_key: max_tokens, "response_format": {"type": "json_object"}, **extra},
         ]
 
         data, last_error = None, None
@@ -366,6 +396,18 @@ def get_structured_client(model_id: str) -> Any:
         from backend.integrations.claude_code_client import ClaudeCodeClient
 
         return ClaudeCodeClient(model_id)
+
+    if provider == "dashscope":
+        settings = get_settings()
+        if not settings.dashscope_api_key:
+            raise StructuredCallError(
+                "QWEN_API_KEY is not set; DashScope models are unreachable"
+            )
+        return OpenAIStructuredClient(
+            model_id,
+            api_key=settings.dashscope_api_key,
+            base_url=settings.dashscope_base_url,
+        )
 
     if provider == "anthropic":
         from backend.integrations.anthropic_client import get_anthropic_client

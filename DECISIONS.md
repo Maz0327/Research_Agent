@@ -1651,3 +1651,62 @@ a decision record and would have justified 179-second calls indefinitely. When
 a comparison decides something, every column has to come from the same
 instrument — and the way that error surfaced was building the thing the number
 justified and watching it not reproduce.
+
+---
+
+## Decision 036: the grounding gate repairs, it does not only report (2026-08-20)
+
+**Status:** Accepted — owner instruction, 2026-08-20: "it solves a problem for
+us now."
+
+The grounding gate finds every hard atom the Briefing asserts and the corpus
+does not contain. In short fields it deleted the offending sentence; in long
+prose it stopped at reporting, because cutting a sentence out of an argument
+does its own damage. So an invented figure in the Read reached the reader with a
+flag on it rather than being fixed.
+
+Measured across the writer bake-off, a Read carries roughly 3 to 8 invented
+atoms depending on the model — 3 for gemini-3.6-flash, 7 for gpt-5.6-luna.
+
+`repair_grounding` closes it with the same shape as the D-025 introduction
+repair: one narrow question per atom, the answer spliced in by code, the model
+never handed the document back (D-024).
+
+### The defect that nearly shipped
+
+The first working version **deleted true statements**, and the run that proved
+the pass worked was the run that exposed it:
+
+| atom | what happened |
+|---|---|
+| `Tutankhamun` | corpus says "the Tomb of the Pharaoh **King Tut**" — same fact, different name. The gate flagged it; the repair cut it. |
+| `Rosae` | corpus spells it `Rosæ`. A character difference read as an invented fact. |
+
+The gate matches text, so it raises false alarms on name variants and spelling.
+A repair pass that trusts those findings blindly is strictly worse than
+reporting them, because it converts a false alarm into lost content.
+
+**The fix:** a third action. The model is handed the source window and may
+answer `keep` — the checker was wrong, the fact is genuinely there. Re-run on
+the same Briefing: `Tutankhamun` kept twice, `Commentator` kept, `Rosae`
+corrected to `Rosæ`, nothing true deleted.
+
+The prompt is explicit that `keep` is the safe answer under uncertainty, for
+the same reason the empty-output law exists: a wrongly deleted true fact costs
+more than a flagged one.
+
+**A `keep` does not clear the gate.** The finding still appears in the report,
+now annotated as model-judged false alarm. D-026's rule holds unchanged: code
+decides, a model advises, and a model never gates.
+
+**One round.** An atom the round cannot resolve stays flagged. A failed call
+leaves the document untouched.
+
+**Out of scope, and stated so nobody mistakes the coverage.** This repairs facts
+the corpus does not contain. A fact the corpus DOES contain, attached to the
+wrong person or with its meaning reversed, passes untouched — "Petrie described
+the labyrinth" where the source says Herodotus did. That is a reading problem,
+and it belongs to the semantic check, which D-026 deferred and which has never
+been given a work-order item. Filing it is owed.
+
+Guard: `backend/tests/test_grounding_repair.py`, 10 tests. Suite: 1692 passed.

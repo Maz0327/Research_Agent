@@ -2475,4 +2475,28 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
   and `--bare` cannot be used because it forces API-key auth.
   `MODEL_READ` defaults empty; set it to `claude-code:sonnet` to switch that one
   call on, with automatic fallback to `MODEL_DISTILL`.
+- 2026-08-20 **D-036: grounding repair pass built** (owner: "solves a problem
+  for us now"). `backend/pipeline/grounding_repair.py`, wired into
+  `build_briefing` after the strip, 10 tests, suite 1692 passed.
+  Invented facts in long prose are now corrected or cut instead of merely
+  flagged — one narrow question per atom, answer spliced by code, model never
+  handed the document back (D-024).
+  ⚠️ **The first version deleted TRUE statements.** The gate matches text, so
+  it false-alarms on name variants and spelling: the corpus says "King Tut"
+  where the Read says "Tutankhamun", and spells "Rosæ" where the Read says
+  "Rosae". The repair obediently cut both. Fixed by giving the model the source
+  and a third action, `keep` — it may overrule the checker, and the prompt says
+  `keep` is the safe answer under uncertainty.
+  ```
+  same Briefing, after the fix:
+    Tutankhamun  -> kept (false alarm)   Commentator -> kept (false alarm)
+    Rosae        -> corrected to Rosæ    nothing true deleted
+  ```
+  A `keep` does NOT clear the gate — the finding stands, annotated. D-026 holds:
+  code decides, a model advises, a model never gates.
+  ⏭️ **Owed:** the semantic check (reversed meaning, wrong attribution) has
+  never had a work-order item — it exists only as prose in D-026. Owner wants
+  to discuss before building. Note: it is more tractable than first assessed,
+  because the judge (Terra, kappa 0.900) already does exactly this task on
+  extraction claims and today's `relevant_source` already does the retrieval.
 
