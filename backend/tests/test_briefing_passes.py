@@ -69,7 +69,7 @@ class TestReadPass:
 
         read = run_read_pass(client, "the labyrinth", sources)
 
-        prompt = client.generate_structured.call_args.kwargs["prompt"]
+        prompt = client.generate_structured.call_args_list[0].kwargs["prompt"]
         assert "SRC_1 · A video" in prompt
         assert "The scans found a grid at eight metres." in prompt
         assert "EXAMPLE ONE" in prompt and "EXAMPLE TWO" in prompt
@@ -86,7 +86,7 @@ class TestReadPass:
             [{"source_id": "SRC_8", "title": "Herodotus", "full_text": ""}],
         )
 
-        prompt = client.generate_structured.call_args.kwargs["prompt"]
+        prompt = client.generate_structured.call_args_list[0].kwargs["prompt"]
         assert "[no text captured]" in prompt
 
 

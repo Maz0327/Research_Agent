@@ -144,6 +144,10 @@ class Settings(BaseSettings):
         default="", alias="MODEL_READ",
         description="Optional override for Section 1 only; empty means the Read uses MODEL_DISTILL like every other pass. D-035 measured no quality gain from routing it elsewhere, so this stays off by default"
     )
+    read_densify: bool = Field(
+        default=True, alias="READ_DENSIFY",
+        description="Run one Chain-of-Density pass over Section 1. D-037: +37% distinct facts, source-talk 51%->31%, and a lower invented-fact rate than the draft"
+    )
     model_extraction: str = Field(
         default="gemini-3.6-flash", alias="MODEL_EXTRACTION",
         description="Per-source semantic extraction. 3.6 over 3.7: 3.7 removed thinking_level 'minimal' and regressed on hallucination"

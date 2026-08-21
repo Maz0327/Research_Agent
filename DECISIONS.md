@@ -1710,3 +1710,97 @@ and it belongs to the semantic check, which D-026 deferred and which has never
 been given a work-order item. Filing it is owed.
 
 Guard: `backend/tests/test_grounding_repair.py`, 10 tests. Suite: 1692 passed.
+
+---
+
+## Decision 037: the Read gets one density pass (2026-08-21)
+
+**Status:** Accepted — the owner read the output and called it "miles better"
+than the version it replaces. That is the only judgement here that is not a
+proxy.
+
+### How this came up
+
+The owner read the published Read's first paragraph and objected that it taught
+him nothing: it inventoried the source pile, then closed on *"seven sources
+telling one story once each is not seven confirmations"* — a fact about
+counting, not a finding about this corpus.
+
+That was measurable. A model asked to sort every sentence into "tells you about
+the subject" or "tells you information exists somewhere" found **29% of the
+Read's words were about the documents rather than the topic**, with a further
+31% mixed. (An earlier regex attempt at the same measure said 66% and was
+wrong; it counted long mixed sentences wholly as meta.)
+
+The cause was in the prompt. `READ_ROLE`'s first bullet asked the pass to say
+"how many sources are really independent" — the pile's plumbing — and never
+asked it to say *what claim* the overlapping sources all inherit. The approved
+worked example demonstrated the same move, so the model was copying a pattern
+it had been shown.
+
+### What was measured
+
+Three arms, same model (`gpt-5.6-luna`), same sixteen sources:
+
+| | words | facts/100w | source-talk | ungrounded |
+|---|---|---|---|---|
+| current prompt | 1,307 | 7.3 | 52% | 2.1% |
+| same, length cap removed | 1,270 | 6.5 | 50% | 3.7% |
+| stripped prompt, no examples | 1,558 | 5.9 | **34%** | **5.4%** |
+
+**The length cap was not doing anything** — removing it changed the output by 37
+words, because the model was already ignoring the 700-1,100 band. **Stripping
+the prompt cut source-talk by a third and more than doubled the invented-fact
+rate.** The guardrails are load-bearing; the problem is how many demands are
+made at once. This matches the published "curse of instructions" finding, that
+the odds of satisfying *every* instruction decay roughly exponentially with
+their number. `READ_ROLE` carries about eleven.
+
+Lost-in-the-middle was tested and **ruled out**: coverage by source position ran
+front 18.2%, middle 26.2%, back 21.9% — no middle dip. What the data suggested
+instead was length dilution, long sources getting proportionally less through,
+though the metric flatters short sources and cannot settle it.
+
+### Adopted
+
+**Two prompt amendments.** `READ_ROLE`'s first bullet now requires naming the
+claim that overlapping sources inherit, not merely the fact of the overlap. A
+new block requires every sentence to teach something about the subject, with a
+worked contrast and a ceiling of one sentence in six about the pile's shape.
+The Hawara worked example was rewritten to demonstrate the move rather than the
+inventory. **Amending an approved example is a change to a locked artefact and
+is called out here deliberately** — it was necessary because examples outrank
+instructions.
+
+**One Chain-of-Density pass**, `READ_DENSIFY` (default on). The draft and the
+sources go back to the model with one instruction: find 4-6 specifics present in
+the sources and missing from the draft, and rewrite at the same length, making
+room by cutting throat-clearing and meta-commentary.
+
+Measured across three trials:
+
+```
+facts before:  88, 87, 80
+facts after:  121, 108, 113
+gain:        +38%, +24%, +41%    positive in every trial
+```
+
+The invented-fact rate goes *down*, not up — the densified draft is better
+grounded than the draft it improves.
+
+**Two honest limits.** The density pass reliably adds facts; it does **not**
+reliably cut source-talk (one trial went 55% to 57%). The source-talk gain
+belongs to the prompt amendments, not to density, and the first run's 51%-to-31%
+was partly luck. And a **second** density round keeps adding facts but drifts
+longer and lets source-talk creep back, so one round is the setting.
+
+**Rejected: feeding the Read the harvest inventory as a checklist.** Measured:
+no gain in facts (96 vs 97) and the invented-fact rate rose six-fold, 1.0% to
+6.1%. Handing the pass pre-extracted facts appears to license it to stop
+checking the source. This was the more obvious idea and it failed.
+
+**A measurement caution for anyone extending this.** The sentence auditor's
+instructions were shortened between runs, so source-talk percentages from
+different experiments in this session are not comparable to each other. Same
+document, different rulers. This is the third instance in one session of a
+number moving because the instrument changed rather than the thing measured.

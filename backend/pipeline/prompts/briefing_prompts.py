@@ -19,7 +19,12 @@ One linear telling that carries the reader.
 
 What this section does, in order:
 - Says what the pile actually is, including how many sources are really
-  independent (syndicated copies, one network behind several of them).
+  independent (syndicated copies, one network behind several of them). When
+  several sources trace back to one origin, NAME THE CLAIM THEY ALL INHERIT,
+  not just the fact that they overlap. "Seven of the sixteen are re-reporting
+  one 2008 survey's numbers" is worth writing; "seven sources telling one story
+  is not seven confirmations" is a fact about counting and tells the reader
+  nothing they did not already know.
 - Assembles the story across sources, in the order that makes it land, leading
   with the most interesting move rather than the most agreed-on claim.
 - Treats sources as a cast with roles ("the best craft analysis in the pile",
@@ -31,6 +36,26 @@ What this section does, in order:
 Judgment is allowed and wanted: rank the pile, point at the heat, say what is
 weak. What is never allowed is deciding what the video should be about, or
 adding anything the sources do not contain.
+
+WRITE ABOUT THE SUBJECT, NOT ABOUT THE DOCUMENTS
+Every sentence should teach the reader something about the topic itself. A
+sentence that only reports that information exists somewhere - listing what
+kinds of documents are in the pile, or noting that several sources cover a
+thing - spends the reader's attention without paying them anything. They can
+get the file list from the ledger.
+
+  Earns its place: "In 1888 Petrie found a stone platform 304 by 244 metres and
+      concluded the labyrinth above it had been demolished."
+  Does not:        "A Wikipedia entry, an archaeology magazine feature and two
+      videos all discuss what Petrie found."
+
+Naming a source is right when the source IS the story - who ran the scan, who
+funded it, who refuses to release it, who contradicts whom. Naming a source is
+wrong when it is a substitute for saying what the source found.
+
+At most one sentence in six may be about the shape of the pile rather than the
+subject. Signposts are cheap and allowed ("Three genuine disagreements."); an
+inventory paragraph is not.
 
 LENGTH
 Four to six paragraphs, 700 to 1,100 words in total, however many sources
@@ -128,7 +153,7 @@ artist or colorist directly."""
 # The Hawara read from the locked-format mockup (D-025), verbatim.
 READ_EXAMPLE_HAWARA = """Read all sixteen. Here's what's actually in the pile, told straight.
 
-**What you've got:** five videos — a Joe Rogan clip with a guest laying out the whole scan saga, a Sphinx conspiracy video, a Why Files episode, and two videos from the same creator (Johanna), one of which is an interview with Trevor Grassi of the Archaeological Rescue Foundation — plus Grassi's own foundation mega-page, the believers' substack, two Wikipedia articles, Herodotus (fetch failed), a serious archaeology magazine feature, a mystery site, two Khafre-Project debunks, and coverage of the 2026 dig. On paper that's sixteen sources. It isn't. The entire affirmative case flows through one small crew — De Cordier, Grassi, Brown, Akers, Boulter — who fund each other's scans, publish on each other's platforms, and appear in each other's videos. Their own flagship document says it proudly: "at least one member of our current extended team was present at every one" of the four scanning missions. That's the most important thing in the pile — what looks like four independent confirmations is one network scanning the same spot four times.
+**What you've got:** sixteen sources, but the affirmative case rests on one number. In 2008 Louis De Cordier's Mataha survey reported a granite grid 8 to 12 metres beneath Petrie's stone plateau, ten football fields across — and nine of the sixteen are re-reporting that single result, sometimes at third hand. De Cordier, Grassi, Brown, Akers and Boulter fund each other's scans, publish on each other's platforms and appear in each other's videos; their own flagship document says it proudly, that "at least one member of our current extended team was present at every one" of the four scanning missions. So four independent confirmations is one network scanning the same spot four times, and the thing being confirmed each time is De Cordier's original reading.
 
 **The story, assembled:** the ancient part is real and unusually strong. Six classical authors describe a colossal building at Hawara; Herodotus and Strabo actually walked it, and Herodotus counted 3,000 chambers — half above ground, half below, the lower half off-limits. Even the most skeptical source in the pile treats the building as historical fact. In 1888 Flinders Petrie found a giant artificial stone bed there — a thousand feet long — and concluded he was standing on the *foundation* of a labyrinth quarried to nothing. That's been the textbook position ever since. The believers' whole case is one elegant inversion: what if Petrie found the roof? Three ancient authors do say the roof was stone slabs "like the walls." The 2008 Mataha expedition — De Cordier's money, Egypt's own NRIAG doing the geophysics, Ghent University attached — scanned below the slab and reported a grid of granite-like walls at 8–12 meters. Then the results went quiet: De Cordier says Hawass's council banned all communication citing national security, threatened the team, and blacklisted him when he self-published in 2010. After that the claims escalate with each retelling: Boulter's satellite work adds a flooded level and a dry one; Akers's 2015 Merlin Burrows scan adds four levels, a dome the size of Hagia Sophia, two intact wooden boats, and a 40-meter freestanding *metal* object at the dead center. Note the pattern: the two people who saw the wildest data, Akers and Boulter, are both dead, and Akers's scan sat under a ten-year NDA until 2025 — every extraordinary claim routes through witnesses who can no longer be questioned.
 
@@ -145,6 +170,21 @@ READ_EXAMPLES = (
     + "\n\nEXAMPLE TWO (sixteen sources on a lost Egyptian labyrinth):\n\n"
     + READ_EXAMPLE_HAWARA
 )
+
+
+DENSIFY_ROLE = """You are making a briefing section denser WITHOUT making it longer.
+
+You are given the current draft and the full sources. Find 4 to 6 specific
+things present in the sources and MISSING from the draft - a figure, a name, a
+date, a mechanism, a consequence. Rewrite the draft to include them.
+
+Rules:
+- The rewrite must be the SAME LENGTH as the draft, give or take a little.
+- Make room by cutting words that carry nothing: throat-clearing, restating
+  what a source is, phrases like "it is worth noting", meta-commentary about
+  the pile.
+- Lose no fact that is already there.
+- Never add anything the sources do not contain."""
 
 
 SUBJECT_MAP_ROLE = """You group research facts by subject.
