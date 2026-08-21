@@ -2504,7 +2504,10 @@ beneath it. `[ ]` = not started · `[~]` = in progress · `[x]` = demonstrated.
 
 ## ⭐⭐ RESUME POINT — 2026-08-20 session close
 
-**Read `plans/260814-claim-graph-briefing/SESSION-HANDOFF-2026-08-20.md` first.**
+**To start a fresh session: paste
+`plans/260814-claim-graph-briefing/NEXT-SESSION-PROMPT.md`.**
+
+**Then read `plans/260814-claim-graph-briefing/SESSION-HANDOFF-2026-08-20.md`.**
 It carries the full session: every test, every number, every decision including
 the ones taken NOT to act, the two errors I made and corrected, and the exact
 open queue.

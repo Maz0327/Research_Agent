@@ -4,7 +4,12 @@
 measured, not estimated. Where a number is uncertain or a claim is unverified,
 it says so.
 
-Branch: `feature/product-viability-overhaul`, all work pushed.
+**To start a session from this, paste
+`plans/260814-claim-graph-briefing/NEXT-SESSION-PROMPT.md`** — it carries the
+queue, the traps and the owner's working preferences in one block.
+
+Branch: `feature/product-viability-overhaul`, all work pushed. **`main` was
+fast-forwarded to the same tip** (clean ff, 46 commits, nothing rewritten).
 Suite at close: **1692 passed, 3 skipped**.
 Decisions added this session: **D-031 through D-036**.
 
@@ -770,6 +775,16 @@ damage they could do if ignored.
    sources. The narrowing half of the grounding guarantee is not holding.
    Fix by extracting `harvest_audit.blocks_of()`'s fallback chain as a shared
    source-window function. Full detail in §10b.
+
+0b. ⚠️ **Railway auto-deploys `main`, and `main` was pushed this session.**
+   `railway.toml` is in the repo. **Environment variables set in Railway
+   override the new code defaults** — so if production still carries
+   `MODEL_DISTILL=claude-sonnet-5` or `MODEL_HARVEST=claude-sonnet-5` from
+   before, that deploy is calling an Anthropic account with no credits and
+   those stages fail. New variables this session that production has never
+   seen: `HARVEST_FACTS_PER_1000`, `HARVEST_CHUNK_OVERLAP`, `MODEL_READ`
+   (must stay empty), `QWEN_API_KEY`, `QWEN_BASE_URL`. Check the Railway
+   variables before trusting any production run.
 
 1. ⚠️ **The judge that actually runs is Kimi, not Terra — D-028 was never
    wired.** `LLM_JUDGE_PRIMARY` defaults to `"kimi"` and `llm_judge.py` tries
