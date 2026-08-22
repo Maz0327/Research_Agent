@@ -230,7 +230,16 @@ def paragraphs_for_fact(fact_text: str, raw_text: str, window: int = 2) -> list[
     if not fact_text.strip() or not raw_text.strip():
         return []
 
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n|\r\n\r\n", raw_text) if p.strip()]
+    # Supadata transcripts carry no blank lines at all - SRC_2 of the Hawara
+    # fixture is 4,019 words with zero newlines - so splitting on paragraph
+    # breaks returned the WHOLE source as one "paragraph". The File pass and
+    # the dispute pass both read through here, so the narrowing half of the
+    # grounding guarantee was not holding for a third of that corpus.
+    # `blocks_of` is the proven fallback chain: paragraphs, then sentence
+    # groups, then fixed word windows.
+    from backend.pipeline.harvest_audit import blocks_of
+
+    paragraphs = blocks_of(raw_text)
     if not paragraphs:
         return []
 

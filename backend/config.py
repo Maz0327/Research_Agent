@@ -260,9 +260,9 @@ class Settings(BaseSettings):
         description="Only run LLM Judge when confidence < HIGH or warnings > threshold"
     )
     llm_judge_primary: str = Field(
-        default="kimi",
+        default="openai",
         alias="LLM_JUDGE_PRIMARY",
-        description="Primary LLM judge provider: 'kimi' or 'gpt-4o'"
+        description="Primary judge provider. D-028 chose gpt-5.6-terra on measurement (kappa 0.900 vs kimi's 0.550) but this setting still said 'kimi' - Terra only ran because the Kimi key was absent and the call fell through"
     )
     llm_judge_warning_threshold: int = Field(
         default=2, alias="LLM_JUDGE_WARNING_THRESHOLD",
