@@ -762,6 +762,89 @@ slow step — reuse the cache.
 
 ---
 
+## 10c. The Read pipeline, rebuilt (2026-08-22) — D-037, D-038
+
+The owner read Section 1, objected that its opening paragraph taught him
+nothing, and that unpicked a chain of problems. **He read and judged every
+intermediate version; the metrics chose wrong twice.**
+
+### The shape now
+
+`run_read_pass` = **write → restructure (PER PARAGRAPH) → densify**.
+Writer is `gpt-5.6-luna` (set in `.env`). `READ_DENSIFY` defaults on.
+
+```
+1,816 words | 154 facts | 20.9-word sentences | 9 paragraphs, longest 242
+whole document: 3 ungrounded of 3,020 checked | 1,253 facts, none uncovered
+                22 of 22 names introduced | lint 49 -> 10
+```
+
+### Each part was learned by getting it wrong. Do not simplify any of them.
+
+- **Restructure runs PER PARAGRAPH.** Four whole-section attempts each fixed
+  one thing and broke another. Flattening the section first lost the paragraphs
+  entirely — 1,762 words came back as ONE — because a pass cannot preserve
+  structure it cannot see. Adding "return the same 11 paragraphs" then crowded
+  out the rules that do the work.
+- **Densify runs LAST.** With restructure last it dropped 54 facts despite being
+  told to cut nothing. Putting the pass that ADDS detail at the end recovered
+  them (141 → 159) and fixed the paragraph count as a side effect.
+- **The restructure prompt DESCRIBES the target; it does not enumerate
+  mistakes.** It was growing a rule every time the owner found a bad sentence,
+  which is unbounded and crowds out what is already there. It is now one
+  positive spec plus a single before/after example — tested against four
+  sentence shapes it had never seen, it fixed the two bad ones and left the two
+  good ones alone.
+- **The generalising rule, from the owner's two catches:** an abstraction cannot
+  perform a person's verb. "The pile does not provide raw imagery" and "the
+  mud-brick mass understates the stonework" are both grammatical and both
+  wrong. Things may report, show, describe and contain; the rest needs a person.
+- **The hard 700-1,100 word band is gone.** Removing it changed output by 37
+  words because the writer ignored it every run. The reason to remove it is not
+  length: **an instruction the model cannot follow degrades compliance with the
+  ones it can** (the "curse of instructions", confirmed three times this
+  session).
+
+### Three ceilings were sized for half the facts
+
+D-032/D-033 took the fixture from 633 harvested facts to **1,253**. Each of
+these then broke, and each had passed its own tests in isolation:
+
+| what broke | why | fix |
+|---|---|---|
+| file sections | ~157 facts per subject against a 4,000-token ceiling; truncated JSON | `FILE_MAX_TOKENS = 12_000` |
+| **the whole Briefing** | one failed section raised and the entire document was lost | the loop skips it, records it, coverage gate reports the unplaced facts |
+| name introductions | 26 names in one call returned NOTHING (ceiling set when there were ten) | `INTRO_BATCH = 8` |
+
+⚠️ **A pipeline of individually-verified stages is not a verified pipeline.**
+All three broke only in combination, only at real scale, and only because the
+whole thing was run end to end.
+
+### Two defects fixed before the re-run
+
+- `paragraphs_for_fact()` now uses `harvest_audit.blocks_of()`, so a transcript
+  with no blank lines yields a real window (SRC_2: 4,019 words → 160) instead of
+  the whole source. The File and dispute passes both read through it.
+- `LLM_JUDGE_PRIMARY` now defaults to `openai`, wiring D-028's measured choice.
+  Terra had only been running because the Kimi key was absent.
+
+### ⚠️ The metrics chose wrong twice
+
+They scored the paragraph the owner called worthless as perfectly fine, and
+rated a version with better sentence statistics that had collapsed into a single
+1,762-word block. Sentence length, passive rate and abstract-opening counts all
+said the prose was fine while he was reading it and finding it unreadable.
+**Nothing in this repo can measure whether writing is good** — only whether it
+is dense, grounded and covered. Read the output.
+
+### Still true of the rebuild harness
+
+`scratchpad/full_rerun.py` skips extraction, synthesis and gap analysis, so
+**disputes and info_gaps come out empty**. That is the harness, not the
+pipeline. A true end-to-end run through `run_research_job()` has not been done.
+The record section also now carries 203 entries and anecdotes 16-48 — sections
+sized for 633 facts receiving 1,253, not yet resized.
+
 ## 11. Open flags for the next session
 
 All of these are **secondary** — none blocks the queue in §10. The owner asked
