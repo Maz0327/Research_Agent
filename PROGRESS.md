@@ -2551,4 +2551,35 @@ build the semantic check → the full re-run.
   — one question only (is this repeating a source, or the writer's own point?),
   because he has not read the 42k words of sources and cannot answer anything
   that requires it. Two earlier drafts asked exactly that impossible question.
+- 2026-08-22 **D-038: the Read is three passes; three ceilings were sized for
+  half the facts.** Owner read the output and called it "much better."
+  ```
+  run_read_pass = write -> restructure (PER PARAGRAPH) -> densify
+  1,816 words | 154 facts | 20.9-word sentences | 9 paragraphs
+  whole document: 3 ungrounded of 3,020 | 1,253 facts, none uncovered
+                  22 of 22 names introduced | lint 49 -> 10
+  ```
+  Order and shape were each learned by getting them wrong first:
+  * restructure PER PARAGRAPH — four whole-section attempts each fixed one
+    thing and broke another; flattening lost the paragraphs (1,762 words came
+    back as ONE), and telling it to preserve them crowded out the rules.
+  * densify LAST — with restructure last it dropped 54 facts despite being told
+    to cut nothing. Putting the adding pass at the end recovered them.
+  * the prompt DESCRIBES the target rather than listing mistakes — it was
+    growing a rule every time Maz found a bad sentence, which is unbounded.
+  Rule that generalises his two catches: **an abstraction cannot perform a
+  person's verb.** Piles do not provide; masses do not understate.
+  Hard 700-1,100 word band removed — the writer ignored it every run, and an
+  instruction the model cannot follow degrades compliance with the ones it can.
+  ⚠️ **Three ceilings broke, all sized before the harvest doubled** (633 ->
+  1,253 facts): file sections (4k tokens, truncated JSON), the whole Briefing
+  (one failed section lost the document), and name introductions (26 in one
+  call returned nothing). Each was correct in isolation and passed its own
+  tests. **A pipeline of individually-verified stages is not a verified
+  pipeline** — they only broke together, at real scale.
+  ⚠️ **The metrics chose wrong twice.** They scored the paragraph Maz called
+  worthless as fine, and rated a version that had collapsed into one 1,762-word
+  block. No instrument here can tell whether writing is good; they measure
+  dense, grounded and covered. Read the output.
+  Nine rebuilds. Suite 1692 passed.
 

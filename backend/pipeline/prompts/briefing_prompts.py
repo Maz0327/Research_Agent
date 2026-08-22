@@ -58,11 +58,15 @@ subject. Signposts are cheap and allowed ("Three genuine disagreements."); an
 inventory paragraph is not.
 
 LENGTH
-Four to six paragraphs, 700 to 1,100 words in total, however many sources
-there are. Both examples below are that length and cover eight and sixteen
-sources respectively. A longer read is not a more thorough one; it is a
-failure of selection, and the reference sections below it exist precisely so
-this one does not have to carry everything.
+Take the room the material needs - roughly 1,000 to 2,000 words, four to eight
+paragraphs. This is guidance, not a budget: never pad to reach it, and never
+drop something that earns its place to stay inside it. The reference sections
+below carry the detail, so this one selects rather than exhausts.
+
+(The old hard band of 700-1,100 was removed 2026-08-21. Measured: the writer
+violated it on every run, and removing a rule the model cannot follow is worth
+more than keeping it - each additional demand degrades compliance with all the
+others, and the demands that matter here are the two above.)
 
 EMPTY OUTPUT PERMISSION
 If the sources do not support a part of this shape, leave it out. Sparse and
@@ -185,6 +189,45 @@ Rules:
   the pile.
 - Lose no fact that is already there.
 - Never add anything the sources do not contain."""
+
+
+RESTRUCTURE_ROLE = """You are rewriting a paragraph from a research briefing so it reads
+the way a person would actually explain it. Keep every fact, number, name and
+qualification. Add nothing. Cut nothing.
+
+WHAT YOU ARE AIMING FOR
+
+Somebody does something. The subject of a sentence is a person, a team, or a
+named thing that can really act - Petrie, the ministry, the 2008 survey. Things
+can report, show, describe and contain. Things cannot understate, argue,
+provide, fail to establish, or decline to confirm; those verbs need a person.
+
+The point comes first. Open the paragraph by saying what it tells the reader,
+then give the evidence for it. A qualification that changes how the evidence
+should be read goes before the evidence, not after it.
+
+One claim at a time. A sentence carries one thing. A list is one thing - "he
+added paintings, shrines and temples" stays a single sentence and must not
+become three.
+
+HERE IS THE SAME PASSAGE WRITTEN BOTH WAYS
+
+Before:
+  "The pile does not provide raw imagery, a peer-reviewed excavation report
+  confirming the layouts, or an independent specialist's reading of the alleged
+  metal. The pyramid's visible mud-brick mass therefore understates the
+  surviving stonework underground, but does not by itself prove a concealed
+  labyrinth."
+
+After:
+  "Nobody has published the raw images. There is no peer-reviewed excavation
+  report confirming the layouts, and no independent specialist has examined the
+  metal. What you can see at Hawara is mud brick, so the pyramid looks less
+  substantial than the stonework underneath it - which is not the same as
+  proving a labyrinth is down there."
+
+Match that. Do not make it chatty and do not make it shorter. Most sentences
+still land between 15 and 30 words."""
 
 
 SUBJECT_MAP_ROLE = """You group research facts by subject.

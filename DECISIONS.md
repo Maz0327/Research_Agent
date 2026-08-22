@@ -1804,3 +1804,105 @@ instructions were shortened between runs, so source-talk percentages from
 different experiments in this session are not comparable to each other. Same
 document, different rulers. This is the third instance in one session of a
 number moving because the instrument changed rather than the thing measured.
+
+---
+
+## Decision 038: the Read is three passes, and the ceilings were all set for half the facts (2026-08-22)
+
+**Status:** Accepted — the owner read the output and called it "much better."
+Every intermediate version in this decision was also read by him; the numbers
+alone chose wrong twice.
+
+### The shape
+
+`run_read_pass` is now **write → restructure → densify**.
+
+- **write** — one call over the raw sources, as before.
+- **restructure** — one call PER PARAGRAPH, against a description of what good
+  writing looks like.
+- **densify** — one call over the whole draft, adding 4-6 specifics it finds in
+  the sources and missing from the draft (D-037).
+
+Three things about that order and shape were each learned by getting them wrong
+first, and each is worth more than the decision itself.
+
+**Restructuring runs per paragraph, not per section.** Four whole-section
+attempts each fixed one thing and broke another. Flattening the section first
+lost the paragraphs entirely — 1,762 words came back as ONE paragraph, because
+the pass cannot preserve structure it cannot see. Adding "return the same 11
+paragraphs with their labels" then crowded out the three rules that do the
+actual work, and the prose regressed. One paragraph per call needs no
+structural instruction at all, which is the condition the rules were validated
+under.
+
+**Densify runs LAST.** With restructure last, it quietly dropped 54 facts
+despite being told to cut nothing. Putting the pass that ADDS detail at the end
+means anything the restructure drops gets picked back up, and density gets
+clean prose to work with. Facts went 141 → 159 on that change alone, and the
+paragraph count recovered from 6 to 12 as a side effect.
+
+**The restructure prompt describes the target, it does not enumerate mistakes.**
+It began as three rules and grew a fourth every time the owner found a bad
+sentence — which is unbounded, and each addition crowds out the others. It is
+now one positive specification ("somebody does something; the point comes first;
+one claim at a time") plus a single before/after example. Tested against four
+sentence shapes, it fixed the two the owner had flagged and left the two
+already-good ones alone, having been shown none of them.
+
+The specific fault the owner identified, twice, and the rule that generalises
+it: **an abstraction cannot perform a person's verb.** "The pile does not
+provide raw imagery" and "the pyramid's mud-brick mass understates the surviving
+stonework" are both grammatical and both wrong — piles do not provide and masses
+do not understate. Things may report, show, describe and contain; the rest needs
+a person.
+
+### The hard word limit is gone
+
+`READ_ROLE` carried "700 to 1,100 words". Measured: removing it changed the
+output by 37 words, because the writer had been ignoring it on every run. It is
+replaced with guidance ("roughly 1,000 to 2,000"). The reason to remove it is
+not length — it is that **an instruction the model cannot follow is worse than
+no instruction**, because every demand degrades compliance with the others.
+
+### Three ceilings were set for a Briefing half this size
+
+The D-032/D-033 harvest fixes took the fixture from 633 facts to **1,253**. Each
+of these broke only when the whole pipeline ran end to end, and each had passed
+its own tests in isolation:
+
+| what broke | why | fix |
+|---|---|---|
+| **file sections** | ~157 facts per subject, ~1,250 words of body, against a 4,000-token ceiling. Truncated JSON mid-string. | `FILE_MAX_TOKENS = 12_000` |
+| **the whole Briefing** | one failed section raised, and the entire document was lost | the loop skips a failed section, records it, and lets the coverage gate report the unplaced facts |
+| **name introductions** | 26 names in one call returned NOTHING; the ceiling was set when a Briefing produced ten | `INTRO_BATCH = 8` |
+
+**This is the lesson worth keeping.** Every one of those fixes was correct in
+isolation and correct under test. They broke each other only when combined, and
+only at real scale. A pipeline of individually-verified stages is not a verified
+pipeline.
+
+### Where it landed
+
+```
+                        words  facts  mean sentence  paragraphs  ungrounded
+published (sonnet)        859     95      27.6            4         4.1%
+densify only            2,015    151      23.1           11         2.0%
+restructure last        1,782    141      20.0            6         2.8%
+ACCEPTED                1,816    154      20.9            9         2.6%
+```
+
+Across the whole document: **3 ungrounded atoms of 3,020 checked**, 1,253 facts
+covered with none missing, 22 of 22 names introduced, lint down from 49 to 10.
+
+### An honest note on how this was decided
+
+Nine rebuilds. The metrics chose wrong twice — they scored the first paragraph
+the owner called worthless as perfectly fine, and they rated a version with
+better sentence statistics that had collapsed into a single 1,762-word block.
+Sentence length, passive-voice rate and abstract-opening counts all said the
+prose was fine while the owner was reading it and finding it unreadable.
+
+**No instrument in this repo can tell whether writing is good.** They measure
+whether it is dense, grounded and covered. Those are necessary and they are not
+sufficient, and any future session tempted to tune this pass on numbers alone
+should read the output instead.

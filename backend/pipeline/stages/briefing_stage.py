@@ -130,6 +130,8 @@ def build_briefing(
         logger.info(f"[{ctx.job_id}] Briefing pass 2 skipped: grouping supplied")
     by_id = {f["fact_id"]: f for f in inventory}
 
+    skipped_files: list[dict] = []
+
     # --- Pass 3: files, with a per-file coverage check ----------------------
     files = []
     repairs: list[dict] = []
@@ -138,7 +140,20 @@ def build_briefing(
         if not facts:
             continue
         logger.info(f"[{ctx.job_id}] Briefing pass 3: file '{subject['title']}'")
-        file = run_file_pass(client, subject["title"], facts, raw_by_source)
+        # One failed section must not lose a Briefing the research already paid
+        # for. Skip it, record it, carry on — the coverage gate then reports
+        # the facts that went unplaced, so the loss is visible rather than
+        # silent.
+        try:
+            file = run_file_pass(client, subject["title"], facts, raw_by_source)
+        except Exception as exc:
+            logger.warning(
+                f"[{ctx.job_id}] file section {subject['title']!r} failed ({exc}); "
+                f"skipping it, {len(facts)} facts left for the coverage gate to report"
+            )
+            skipped_files.append({"title": subject["title"], "facts": len(facts),
+                                  "error": str(exc)[:200]})
+            continue
 
         missing = [f for f in facts if not fact_is_covered(f["text"], [file.body])]
         if missing:
@@ -336,6 +351,7 @@ def build_briefing(
         "grounding": grounding.to_dict(),
         "grounding_strips": stripped,
         "grounding_repairs": grounding_repairs,
+        "skipped_files": skipped_files,
         "lint": lint.to_dict(),
         "intro_repair": intro_repair,
         "file_repairs": repairs,

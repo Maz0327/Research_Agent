@@ -47,6 +47,7 @@ from backend.pipeline.prompts.briefing_prompts import (
     PLAYERS_ROLE,
     READ_EXAMPLES,
     READ_ROLE,
+    RESTRUCTURE_ROLE,
     SUBJECT_MAP_ROLE,
 )
 from backend.pipeline.text_similarity import statement_similarity
@@ -63,6 +64,14 @@ READ_MAX_TOKENS = 24_000
 
 SMALL_CALL_MAX_TOKENS = 4_000
 
+# A file section carries every fact routed to its subject, and the harvest got
+# roughly twice as dense once chunking and the length quota landed (D-032,
+# D-033): 633 facts became 1,258, which is ~157 per file and ~1,250 words of
+# body. 4,000 tokens truncated the JSON mid-string, and because nothing caught
+# it, one failed section took the whole Briefing down. Each fix was right
+# alone; together they overflowed a ceiling set before either existed.
+FILE_MAX_TOKENS = 12_000
+
 # The subject map has to name every fact ID it places, so its output scales
 # with the corpus: 480 facts overflowed a 4k ceiling on the labyrinth run.
 SUBJECT_MAP_MAX_TOKENS = 16_000
@@ -74,6 +83,9 @@ SUBJECT_MAP_BATCH = 150
 # Entries per blurb call. Context notes are a few sentences each, so a long
 # chronology needs several calls rather than one that truncates.
 BLURB_BATCH = 20
+
+# Names per introduction call. Twenty-six in one call returned nothing at all.
+INTRO_BATCH = 8
 
 # The Files section is a reader's map of the corpus, and a map with twenty
 # regions is not a map (work order Section J: 4-8 subjects). Batching pushes
@@ -197,29 +209,56 @@ def run_read_pass(client: Any, topic: str, sources: list[dict]) -> Read:
 
     read = _read_from(data)
 
-    # One density pass (D-037). Measured on the Hawara fixture: +37% distinct
-    # facts, source-talk down from 51% to 31% of the words, and a LOWER
-    # invented-fact rate than the draft it improves. A second round adds facts
-    # but drifts longer and lets source-talk creep back, so one is the setting.
     if not settings.read_densify:
         return read
 
+    # Order matters (D-038). Restructure runs BEFORE densify so the LAST pass to
+    # touch the text is the one that ADDS facts. With densify first, the
+    # restructure pass had the final word and quietly dropped 54 of them
+    # despite being told to cut nothing.
+    #
+    # Restructure runs per paragraph: four whole-section attempts each fixed one
+    # thing and broke another, because a call told to preserve the section's
+    # shape spends its attention on that instead of on the prose. One paragraph
+    # per call needs no structural instruction at all.
+    tidied = []
+    for index, paragraph in enumerate(read.paragraphs):
+        try:
+            out, _ = client.generate_structured(
+                prompt=f"PARAGRAPH:\n{paragraph.text}",
+                schema=_object({"paragraph": {"type": "string"}}),
+                system=RESTRUCTURE_ROLE,
+                max_tokens=SMALL_CALL_MAX_TOKENS,
+            )
+            text = (out.get("paragraph") or "").strip()
+        except Exception as exc:
+            logger.warning(f"The Read: restructure failed on paragraph {index + 1} ({exc})")
+            tidied.append(paragraph)
+            continue
+        # Reordering must not become rewriting.
+        if not text or len(text.split()) < len(paragraph.text.split()) * 0.85:
+            tidied.append(paragraph)
+            continue
+        tidied.append(ReadParagraph(label=paragraph.label, text=text))
+
+    tidy_read = Read(lede=read.lede, paragraphs=tidied)
+
     try:
         dense, _ = client.generate_structured(
-            prompt=f"CURRENT DRAFT:\n{_flatten(read)}\n\n{DATA_NOTICE}\n\nSOURCES:\n"
+            prompt=f"CURRENT DRAFT:\n{_flatten(tidy_read)}\n\n{DATA_NOTICE}\n\nSOURCES:\n"
             + "\n\n".join(bodies),
             schema=READ_SCHEMA,
             system=DENSIFY_ROLE,
             max_tokens=READ_MAX_TOKENS,
         )
     except Exception as exc:
-        logger.warning(f"The Read: density pass failed ({exc}); keeping the draft")
-        return read
+        logger.warning(f"The Read: density pass failed ({exc}); keeping the restructured draft")
+        return tidy_read
 
     densified = _read_from(dense)
     if not densified.lede.strip() or not densified.paragraphs:
-        logger.warning("The Read: density pass returned nothing; keeping the draft")
-        return read
+        logger.warning("The Read: density pass returned nothing; keeping the restructured draft")
+        return tidy_read
     return densified
 
 
@@ -400,7 +439,7 @@ def run_file_pass(
         prompt=prompt,
         schema=FILE_SCHEMA,
         system=FILE_ROLE,
-        max_tokens=SMALL_CALL_MAX_TOKENS,
+        max_tokens=FILE_MAX_TOKENS,
     )
 
     source_ids: list[str] = []
@@ -828,22 +867,34 @@ def write_introductions(
     if not needed:
         return {}
 
-    payload = "\n\n".join(
-        f"name: {name}\npassage: {passage[:600]}" for name, passage in needed.items()
-    )
-    try:
-        data, _usage = client.generate_structured(
-            prompt=(f"TOPIC: {topic}\n\n" if topic else "") + payload,
-            schema=INTRO_SCHEMA,
-            system=INTRO_ROLE,
-            max_tokens=2_000,
+    # Batched: the denser harvest surfaces far more minor names, and 26 of them
+    # in one call returned NOTHING - the output ceiling was set when a Briefing
+    # produced ten. Same failure as the file sections, one pass over.
+    written: dict[str, str] = {}
+    items = list(needed.items())
+    for start in range(0, len(items), INTRO_BATCH):
+        batch = dict(items[start : start + INTRO_BATCH])
+        payload = "\n\n".join(
+            f"name: {name}\npassage: {passage[:600]}" for name, passage in batch.items()
         )
-    except Exception as exc:
-        logger.warning(f"Introduction pass failed ({exc}); no repairs written")
-        return {}
+        try:
+            data, _usage = client.generate_structured(
+                prompt=(f"TOPIC: {topic}\n\n" if topic else "") + payload,
+                schema=INTRO_SCHEMA,
+                system=INTRO_ROLE,
+                max_tokens=SMALL_CALL_MAX_TOKENS,
+            )
+        except Exception as exc:
+            logger.warning(f"Introduction pass failed on a batch ({exc}); skipping it")
+            continue
+        for entry in data.get("introductions") or []:
+            name = entry.get("name")
+            text = (entry.get("introduction") or "").strip().rstrip(".")
+            if name in batch and text:
+                written[name] = text
 
-    return {
-        entry["name"]: entry["introduction"].strip().rstrip(".")
-        for entry in (data.get("introductions") or [])
-        if entry.get("name") in needed and (entry.get("introduction") or "").strip()
-    }
+    if needed and not written:
+        logger.warning(
+            f"Introduction pass wrote nothing for {len(needed)} names; they stay flagged"
+        )
+    return written
