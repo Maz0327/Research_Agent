@@ -1,7 +1,14 @@
 # Problem brief: the semantic check
 
 Paste this to open a session on the one unsolved verification problem in the
-Research Agent. Everything below was measured on 2026-08-20, not estimated.
+Research Agent. Everything here was measured, not estimated.
+
+⚠️ **This document has two halves.** The first records three failed attempts
+(2026-08-20). The second, headed **"WHAT CHANGED AFTER THIS BRIEF WAS WRITTEN"**,
+carries the work that followed (2026-08-21/22) and answers several questions the
+first half leaves open — including that embedding retrieval was measured working.
+**Read both before acting.** The problem is not solved, but it is further along
+than the first half suggests: retrieval works, the referee is not built.
 
 ---
 
