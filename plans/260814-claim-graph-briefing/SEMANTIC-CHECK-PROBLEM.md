@@ -147,7 +147,104 @@ Known objections, from the same literature and from reasoning about this corpus:
   gives 60% on another. Calibration on this corpus would be required.
 - Adds a PyTorch dependency to a pipeline that is currently pure API calls.
 
-## The open questions
+## WHAT CHANGED AFTER THIS BRIEF WAS WRITTEN (2026-08-21/22)
+
+Everything above stands as the record of three failed attempts. What follows
+answers several of the questions it ends with. **Read this section before acting
+on the one below it.**
+
+### The diagnosis was wrong, and the better one is architectural
+
+Attempt 1 was not merely a retrieval failure. `Read` and `ReadParagraph` carry
+**no `source_ids`**, while every other Briefing section carries them. The writer
+held the provenance and the pipeline discarded it, after which a model was paid
+to re-derive it from 42,000 words. Fixing the information loss beats
+compensating for it.
+
+### Lexical matching is dead for this. Embeddings work.
+
+Pure code, 23 real Read sentences against all 633 harvested facts. A **genuine**
+semantic twin — "giant stone platform" against "massive stone slab of beton" —
+scores **0.19** by word overlap. The best match across all 23 sentences is 0.22;
+none reach 0.30. The Read paraphrases, which is its job, so word overlap
+measures the one thing guaranteed to be absent.
+
+The same pair with `qwen3.7-text-embedding` (DashScope, already wired): **rank
+#1 at 0.867**. Candidates per real sentence: 6.3 at cosine 0.65, **2.3 at 0.70**,
+0.8 at 0.75.
+
+### Corruption does not break retrieval
+
+A 70-sentence gold set was built by **inverting the construction** — start from a
+known harvested fact, have a model write a true Read-style sentence from it, then
+corrupt that sentence one way. The gold link is therefore free, which is what
+makes Recall@K measurable without hand-labelling 630 facts per sentence. The
+generator was never told how detection works.
+
+| error type | R@1 | R@3 | true-fact score |
+|---|---|---|---|
+| clean | 1.00 | 1.00 | 0.969 |
+| actor swap | 1.00 | 1.00 | 0.945 |
+| polarity reversal | 1.00 | 1.00 | 0.945 |
+| certainty shift | 1.00 | 1.00 | 0.973 |
+| temporal shift | 1.00 | 1.00 | 0.978 |
+
+⚠️ **Read that result correctly. It is too good.** The gold sentences were
+written *from* the fact by a model that could see it, so they inherit its
+specifics and score 0.945-0.978. Real Read sentences score a median of **0.685**.
+It proves corruption does not break retrieval — the actual question — and does
+**not** prove real-world recall. It also shows a fixed threshold will not
+transfer: the same 0.70 floor yields 6 candidates on gold sentences and 2.3 on
+real ones. Use **top-K plus a floor**, never a fixed cutoff.
+
+### Same-vendor blindness was tested and is not visible
+
+Terra caught **8/8** errors planted in Luna's own prose, against independent
+Qwen's 7/8. Terra can check OpenAI-written prose.
+
+### The settled architecture
+
+```
+Read sentence
+  -> embedding retrieval, union of (original, actor-masked) queries
+  -> top-K + floor  (NOT a fixed threshold)
+  -> recover a small raw-source window per candidate
+  -> referee: same event, or merely similar topic?
+  -> if same: compare actor / polarity / temporal / certainty / attribution
+  -> ADVISORY conflict only, never an edit or a deletion
+```
+
+Principles worth keeping: **similarity finds suspects, it never convicts them.**
+Embeddings' usual weakness is an asset here — "found evidence" and "found no
+evidence" embed close together, which is what brings contradictions together —
+**but that means the similarity score carries zero information about polarity**,
+and the referee alone bears it. **UNVERIFIED is not FALSE**; keep it internal at
+first, because ten of them per document is warning fatigue.
+
+### A category nobody had accounted for
+
+The Read contains sentences that are the **writer's own analysis**, resting on no
+source at all — "Seven sources telling one story once each is not seven
+confirmations." A checker that flags those as unsupported would bury the owner in
+warnings about the best writing in the document. It also contains sentences
+**about the corpus itself** ("five videos, two Wikipedia articles") which code can
+verify directly against the ledger — no model needed. Three categories, not two.
+
+### What is NOT built
+
+The referee. Everything above is retrieval and measurement.
+
+### Cached on disk (scratchpad)
+
+`gold_set.json` (70 labelled sentences) · `fact_embeddings.json` (633
+embeddings — reuse it, embedding is the slow step) · `recall_test.json` ·
+`labeling_v2.json`.
+
+⚠️ The paused 15-sentence labelling task was built from a Read that has since
+been replaced (D-038). Regenerate the sheet from the CURRENT Read before asking
+the owner for labels.
+
+## The open questions (as first written — several are answered above)
 
 1. Is a hybrid right — NLI for reversal, a generative judge for misattribution —
    or is the added machinery worse than one imperfect advisory pass?
