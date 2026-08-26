@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "schema_version": 1,
-    "task": "owner_source_vs_analysis_labeling",
+    "schema_version": 2,
+    "task": "owner_sentence_type_and_support_labeling",
     "current_read_identifier": "D-038 accepted Hawara Read · hawara-rerun · Briefing v1 · 2026-08-22",
     "decision": "D-038",
     "job_id": "hawara-rerun",
@@ -39,7 +39,7 @@
       ],
       "top_k": 3,
       "minimum_score_floor": 0.55,
-      "no_candidate_behavior": "show no passage and let the owner record the unclear judgment when no candidate meets the floor",
+      "no_candidate_behavior": "show no passage; the sentence-type label completes the card because there are no retrieved candidates to judge",
       "similarity_is_correctness_verdict": false
     },
     "evidence_window_function": "backend.pipeline.briefing_routing.paragraphs_for_fact(window=2), using backend.pipeline.harvest_audit.blocks_of fallback; selected blocks over 180 words are bounded to a relevant contiguous excerpt",
@@ -110,8 +110,8 @@
         ]
       ]
     },
-    "built_at": "2026-08-24T02:38:08.956559+00:00",
-    "labeling_artifact_sha256": "dced145bdd8461abdf1629bf4a87469d72c8a9ed99ba7ef50d16628798d029e8"
+    "built_at": "2026-08-26T16:29:30.915679+00:00",
+    "labeling_artifact_sha256": "5488e5d40f673de93abcf3c27f2f07477cd58be89fead6d196c594360d87e61d"
   },
   "items": [
     {
@@ -151,7 +151,9 @@
               "selected_block_word_count": 67,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -178,7 +180,9 @@
               "selected_block_word_count": 25,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -205,11 +209,12 @@
               "selected_block_word_count": 47,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S02",
@@ -248,7 +253,9 @@
               "selected_block_word_count": 67,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -277,7 +284,9 @@
               "words_omitted_before": 133,
               "words_omitted_after": 0
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -304,11 +313,12 @@
               "selected_block_word_count": 78,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S03",
@@ -349,7 +359,9 @@
               "selected_block_word_count": 95,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -376,7 +388,9 @@
               "selected_block_word_count": 107,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -403,11 +417,12 @@
               "selected_block_word_count": 107,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S04",
@@ -448,7 +463,9 @@
               "words_omitted_before": 0,
               "words_omitted_after": 44
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -475,7 +492,9 @@
               "selected_block_word_count": 121,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -502,11 +521,12 @@
               "selected_block_word_count": 47,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S05",
@@ -545,7 +565,9 @@
               "selected_block_word_count": 131,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -572,7 +594,9 @@
               "selected_block_word_count": 119,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -599,11 +623,12 @@
               "selected_block_word_count": 64,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S06",
@@ -642,7 +667,9 @@
               "selected_block_word_count": 78,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -671,7 +698,9 @@
               "selected_block_word_count": 135,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -698,11 +727,12 @@
               "selected_block_word_count": 70,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S07",
@@ -716,8 +746,7 @@
       "mask_applied": true,
       "retrieval_no_candidate_above_floor": true,
       "retrieved_candidates": [],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S08",
@@ -756,7 +785,9 @@
               "selected_block_word_count": 106,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -783,7 +814,9 @@
               "selected_block_word_count": 128,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -812,11 +845,12 @@
               "selected_block_word_count": 135,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S09",
@@ -855,7 +889,9 @@
               "selected_block_word_count": 80,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -882,7 +918,9 @@
               "selected_block_word_count": 60,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -909,11 +947,12 @@
               "selected_block_word_count": 80,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S10",
@@ -954,7 +993,9 @@
               "selected_block_word_count": 160,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -981,7 +1022,9 @@
               "selected_block_word_count": 46,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -1012,11 +1055,12 @@
               "words_omitted_before": 140,
               "words_omitted_after": 310
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S11",
@@ -1055,7 +1099,9 @@
               "selected_block_word_count": 41,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -1082,7 +1128,9 @@
               "selected_block_word_count": 38,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -1111,11 +1159,12 @@
               "selected_block_word_count": 147,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S12",
@@ -1154,7 +1203,9 @@
               "selected_block_word_count": 84,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -1181,7 +1232,9 @@
               "selected_block_word_count": 55,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -1208,11 +1261,12 @@
               "selected_block_word_count": 41,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S13",
@@ -1251,7 +1305,9 @@
               "selected_block_word_count": 73,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -1278,7 +1334,9 @@
               "selected_block_word_count": 41,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -1305,11 +1363,12 @@
               "selected_block_word_count": 121,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S14",
@@ -1348,7 +1407,9 @@
               "selected_block_word_count": 107,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -1375,7 +1436,9 @@
               "selected_block_word_count": 104,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -1402,11 +1465,12 @@
               "selected_block_word_count": 93,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     },
     {
       "sentence_id": "D038-S15",
@@ -1447,7 +1511,9 @@
               "words_omitted_before": 20,
               "words_omitted_after": 132
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 2,
@@ -1476,7 +1542,9 @@
               "words_omitted_before": 0,
               "words_omitted_after": 21
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         },
         {
           "rank": 3,
@@ -1503,11 +1571,12 @@
               "selected_block_word_count": 67,
               "excerpted_for_display": false
             }
-          ]
+          ],
+          "owner_passage_support": null,
+          "owner_read_support": null
         }
       ],
-      "owner_category": null,
-      "owner_match_judgment": null
+      "owner_sentence_type": null
     }
   ]
 }

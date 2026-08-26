@@ -26,10 +26,11 @@ from scratchpad.build_semantic_labeling_current_read import (  # noqa: E402
     stable_hash,
 )
 
-QUESTION = (
-    "Is this sentence repeating information from a source, or is it the writer "
-    "making its own point?"
+SENTENCE_TYPE_QUESTION = "What kind of sentence is this?"
+PASSAGE_SUPPORT_QUESTION = (
+    "Does the displayed source passage support the retrieved fact above?"
 )
+READ_SUPPORT_QUESTION = "How much does this retrieved fact support the Read sentence?"
 
 
 def normalized(text: str) -> str:
@@ -51,6 +52,8 @@ def main() -> None:
     metadata = dataset["metadata"]
 
     assert len(items) == 15
+    assert metadata["schema_version"] == 2
+    assert metadata["task"] == "owner_sentence_type_and_support_labeling"
     assert [item["sentence"] for item in items] == [
         item["sentence"] for item in expected
     ]
@@ -101,8 +104,9 @@ def main() -> None:
     }
     shown_windows = 0
     for item in items:
-        assert item["owner_category"] is None
-        assert item["owner_match_judgment"] is None
+        assert item["owner_sentence_type"] is None
+        assert "owner_category" not in item
+        assert "owner_match_judgment" not in item
         assert len(item["retrieved_candidates"]) <= 3
         assert item["retrieval_no_candidate_above_floor"] is (
             not item["retrieved_candidates"]
@@ -116,6 +120,8 @@ def main() -> None:
             assert isinstance(candidate["masked_query_score"], float)
             assert candidate["embedding_score"] >= 0.55
             assert candidate["winning_query"] in {"original", "masked"}
+            assert candidate["owner_passage_support"] is None
+            assert candidate["owner_read_support"] is None
             assert candidate["raw_evidence_windows"]
             for window in candidate["raw_evidence_windows"]:
                 shown_windows += 1
@@ -130,9 +136,23 @@ def main() -> None:
     )
     assert embedded_match is not None
     assert json.loads(embedded_match.group(1)) == dataset
-    assert html.count(QUESTION) == 1
-    assert ">SOURCE</button>" in html
-    assert ">WRITER’S OWN POINT</button>" in html
+    assert html.count(SENTENCE_TYPE_QUESTION) == 2
+    assert html.count(PASSAGE_SUPPORT_QUESTION) == 1
+    assert html.count(READ_SUPPORT_QUESTION) == 1
+    assert ">SOURCE FACT</button>" in html
+    assert ">WRITER’S ANALYSIS</button>" in html
+    assert ">MIXED — SOURCE + ANALYSIS</button>" in html
+    assert ">SUPPORTED</button>" not in html
+    assert '"supported","SUPPORTED"' in html
+    assert '"not_supported","NOT SUPPORTED"' in html
+    assert '"unclear","UNCLEAR"' in html
+    assert '"partially_supports","PARTIALLY SUPPORTS"' in html
+    assert '"does_not_support","DOES NOT SUPPORT"' in html
+    assert "Judge only the passage shown here." in html
+    assert 'answer.owner_sentence_type==="analysis"' in html
+    assert 'const checksEvidence=["source_fact","mixed"]' in html
+    assert 'button.dataset.passageSupport==="not_supported"' in html
+    assert "candidate_judgments" in html
     assert "source evidence stays hidden" not in html.lower()
     assert "https://" not in re.sub(r"const DATA=.*?;\nconst STORAGE_KEY=", "", html, flags=re.DOTALL)
 

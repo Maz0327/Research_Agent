@@ -476,6 +476,8 @@ def build_cards(
                         compact_evidence_window(window, fact["text"])
                         for window in windows
                     ],
+                    "owner_passage_support": None,
+                    "owner_read_support": None,
                 }
             )
 
@@ -487,8 +489,7 @@ def build_cards(
                 != sample["sentence"],
                 "retrieval_no_candidate_above_floor": not selected,
                 "retrieved_candidates": candidates,
-                "owner_category": None,
-                "owner_match_judgment": None,
+                "owner_sentence_type": None,
             }
         )
         cards.append(card)
@@ -509,7 +510,7 @@ def html_document(dataset: dict[str, Any]) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Source or writer's own point?</title>
+<title>Sentence type and source support</title>
 <style>
 :root{{--paper:#eef1f3;--card:#fff;--ink:#131a20;--muted:#5d6b76;--rule:#d6dee3;
   --accent:#9a5b00;--accent-soft:#fdf1de;--pick:#2f4f5e;--pick-soft:#e4eef2;--src:#f6f8f9}}
@@ -536,7 +537,9 @@ h1{{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font-weight:
 .sentence{{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font-size:22px;
   line-height:1.55;margin:0 0 24px}}
 .question{{font-size:16px;font-weight:600;margin:0 0 13px}}
-.choices{{display:grid;grid-template-columns:1fr 1fr;gap:10px}}
+.choices{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}}
+.choice-help{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}}
+.choice-help p{{color:var(--muted);font-size:12px;line-height:1.45;margin:0;padding:0 4px}}
 button{{font-family:inherit;font-size:14px;font-weight:600;border:1px solid var(--rule);border-radius:8px;padding:12px 15px;
   cursor:pointer;background:transparent;color:var(--ink)}}
 button:hover:not(:disabled){{border-color:var(--accent);background:var(--accent-soft)}}
@@ -548,11 +551,14 @@ button:disabled{{opacity:.45;cursor:not-allowed}}
 .evidence-intro{{color:var(--muted);font-size:14px;margin:0 0 16px}}
 .candidate{{background:var(--src);border:1px solid var(--rule);border-radius:9px;padding:16px;margin:0 0 13px}}
 .candidate-head{{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);margin-bottom:8px}}
-.fact{{font-size:14px;margin:0 0 13px}}
+.fact{{font-size:15px;margin:0 0 13px}}
 .window{{border-left:3px solid var(--rule);padding-left:12px;color:var(--muted);font-size:14px;
   line-height:1.62;margin:10px 0 0;white-space:pre-wrap}}
 .window-meta{{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);margin-top:10px}}
-.second{{font-weight:600;margin:20px 0 12px}}
+.relationship{{margin-top:20px;padding-top:17px;border-top:1px solid var(--rule)}}
+.relationship-label{{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent);margin:0 0 5px}}
+.second{{font-weight:600;margin:0 0 7px}}
+.relationship-help{{color:var(--muted);font-size:12px;line-height:1.45;margin:0 0 11px}}
 .judgments{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}}
 .nav{{display:flex;gap:10px;justify-content:space-between;margin-top:18px}}
 .nav-group{{display:flex;gap:10px}}
@@ -561,7 +567,7 @@ button:disabled{{opacity:.45;cursor:not-allowed}}
 .complete{{margin-top:18px;padding:15px;border:1px solid var(--pick);background:var(--pick-soft);
   border-radius:9px}}
 [hidden]{{display:none!important}}
-@media(max-width:620px){{.choices,.judgments{{grid-template-columns:1fr}}.summary{{text-align:left;flex-basis:100%}}
+@media(max-width:620px){{.choices,.choice-help,.judgments{{grid-template-columns:1fr}}.choice-help{{display:none}}.summary{{text-align:left;flex-basis:100%}}
   .nav{{align-items:stretch}}.nav-group{{flex:1}}.nav-group button{{flex:1}}}}
 @media(prefers-reduced-motion:reduce){{*{{scroll-behavior:auto!important;transition:none!important}}}}
 </style>
@@ -569,8 +575,8 @@ button:disabled{{opacity:.45;cursor:not-allowed}}
 <body>
 <main class="wrap">
 <header>
-  <h1>Source, or the writer’s own point?</h1>
-  <p class="lede">You’ll see 15 sentences from the current Read. First decide what kind of sentence it is. If you choose SOURCE, the best retrieved passages will appear so you can check whether the sentence matches them. You never need to identify provenance or judge the retrieval.</p>
+  <h1>What kind of sentence is this?</h1>
+  <p class="lede">Classify each Read sentence first. For SOURCE FACT or MIXED, check two separate relationships for every retrieved candidate: whether the displayed passage supports the retrieved fact, then whether that fact supports the Read sentence. Retrieval similarity only finds candidates; it is not a correctness verdict.</p>
   <div class="version">{title}</div>
 </header>
 <div class="bar">
@@ -581,20 +587,20 @@ button:disabled{{opacity:.45;cursor:not-allowed}}
 <article class="card" id="card" tabindex="-1" aria-live="polite">
   <div class="position" id="position"></div>
   <p class="sentence" id="sentence"></p>
-  <p class="question">Is this sentence repeating information from a source, or is it the writer making its own point?</p>
+  <p class="question">What kind of sentence is this?</p>
   <div class="choices">
-    <button id="source" type="button" data-category="source">SOURCE</button>
-    <button id="analysis" class="analysis" type="button" data-category="analysis">WRITER’S OWN POINT</button>
+    <button id="sourceFact" type="button" data-sentence-type="source_fact">SOURCE FACT</button>
+    <button id="analysis" class="analysis" type="button" data-sentence-type="analysis">WRITER’S ANALYSIS</button>
+    <button id="mixed" type="button" data-sentence-type="mixed">MIXED — SOURCE + ANALYSIS</button>
+  </div>
+  <div class="choice-help" aria-hidden="true">
+    <p>Essentially reports information derived from source material.</p>
+    <p>The writer’s interpretation, synthesis, judgment, or analytical point.</p>
+    <p>Contains both source-derived factual material and the writer’s inference or judgment.</p>
   </div>
   <section class="evidence" id="evidence" hidden>
-    <p class="evidence-intro">These passages are the closest retrieved context, not ground truth. Read them only to decide whether the sentence matches what the source says.</p>
+    <p class="evidence-intro">These are the closest retrieved candidates, not ground truth. Judge every candidate independently. First check the retrieved fact against only the passage shown. Then, where applicable, check that fact against the full Read sentence.</p>
     <div id="candidates"></div>
-    <p class="second">Does the sentence match what the source evidence says?</p>
-    <div class="judgments" id="judgments">
-      <button type="button" data-judgment="match">MATCHES SOURCE</button>
-      <button type="button" data-judgment="mismatch">DOES NOT MATCH</button>
-      <button type="button" data-judgment="unclear">NOT ENOUGH TO TELL</button>
-    </div>
   </section>
   <div class="complete" id="complete" hidden>All 15 are answered. Export the JSON for the semantic-check benchmark.</div>
   <nav class="nav" aria-label="Sentence navigation">
@@ -605,16 +611,38 @@ button:disabled{{opacity:.45;cursor:not-allowed}}
 </main>
 <script>
 const DATA={embedded};
-const STORAGE_KEY="semantic-labeling:"+DATA.metadata.labeling_artifact_sha256;
+const STORAGE_KEY="semantic-labeling:v"+DATA.metadata.schema_version+":"+DATA.metadata.labeling_artifact_sha256;
 let current=0;
 let answers={{}};
 try{{answers=JSON.parse(sessionStorage.getItem(STORAGE_KEY)||"{{}}")||{{}};}}catch(_error){{answers={{}};}}
 const byId=id=>document.getElementById(id);
-function answerFor(item){{return answers[item.sentence_id]||{{owner_category:null,owner_match_judgment:null}};}}
-function completeAnswer(answer){{return answer.owner_category==="analysis"||(answer.owner_category==="source"&&!!answer.owner_match_judgment);}}
+function blankAnswer(){{return {{owner_sentence_type:null,candidate_judgments:{{}}}};}}
+function answerFor(item){{return answers[item.sentence_id]||blankAnswer();}}
+function judgmentFor(answer,candidate){{return answer.candidate_judgments?.[candidate.fact_id]||{{owner_passage_support:null,owner_read_support:null}};}}
+function candidateComplete(judgment){{return !!judgment.owner_passage_support&&(judgment.owner_passage_support==="not_supported"||!!judgment.owner_read_support);}}
+function completeAnswer(item,answer){{
+  if(answer.owner_sentence_type==="analysis") return true;
+  if(!["source_fact","mixed"].includes(answer.owner_sentence_type)) return false;
+  return item.retrieved_candidates.every(candidate=>candidateComplete(judgmentFor(answer,candidate)));
+}}
 function save(){{try{{sessionStorage.setItem(STORAGE_KEY,JSON.stringify(answers));}}catch(_error){{/* State still lives in memory when storage is unavailable. */}}}}
-function setPressed(container,attribute,value){{container.querySelectorAll("button[data-"+attribute+"]").forEach(button=>button.setAttribute("aria-pressed",String(button.dataset[attribute]===value)));}}
-function evidenceCard(candidate){{
+function setPressed(container,attribute,value){{container.querySelectorAll("button[data-"+attribute+"]").forEach(button=>button.setAttribute("aria-pressed",String(button.getAttribute("data-"+attribute)===value)));}}
+function judgmentButtons(attribute,values,selected,factId){{
+  const group=document.createElement("div"); group.className="judgments";
+  values.forEach(([value,label])=>{{
+    const button=document.createElement("button"); button.type="button"; button.setAttribute("data-"+attribute,value); button.dataset.factId=factId;
+    button.textContent=label; button.setAttribute("aria-pressed",String(selected===value)); group.append(button);
+  }});
+  return group;
+}}
+function relationship(label,question,help,buttons){{
+  const section=document.createElement("section"); section.className="relationship";
+  const marker=document.createElement("p"); marker.className="relationship-label"; marker.textContent=label;
+  const heading=document.createElement("p"); heading.className="second"; heading.textContent=question;
+  const note=document.createElement("p"); note.className="relationship-help"; note.textContent=help;
+  section.append(marker,heading,note,buttons); return section;
+}}
+function evidenceCard(candidate,answer){{
   const article=document.createElement("article"); article.className="candidate";
   const head=document.createElement("div"); head.className="candidate-head";
   head.textContent="#"+candidate.rank+" · "+candidate.fact_id+" · "+candidate.source_id+" · score "+candidate.embedding_score.toFixed(3)+" · "+candidate.source_title;
@@ -626,45 +654,75 @@ function evidenceCard(candidate){{
     meta.textContent="Raw evidence window "+(index+1)+" · "+window.word_count+" words"+(window.excerpted_for_display?" · bounded excerpt from a "+window.selected_block_word_count+"-word selected block":"");
     article.append(passage,meta);
   }});
+  const judgment=judgmentFor(answer,candidate);
+  article.append(relationship(
+    "A · PASSAGE → RETRIEVED FACT",
+    "Does the displayed source passage support the retrieved fact above?",
+    "Judge only the passage shown here. ‘Not supported’ means this displayed passage does not establish the retrieved fact; the fact may still appear elsewhere in the full source.",
+    judgmentButtons("passage-support",[["supported","SUPPORTED"],["not_supported","NOT SUPPORTED"],["unclear","UNCLEAR"]],judgment.owner_passage_support,candidate.fact_id)
+  ));
+  if(["supported","unclear"].includes(judgment.owner_passage_support)){{
+    article.append(relationship(
+      "B · RETRIEVED FACT → READ SENTENCE",
+      "How much does this retrieved fact support the Read sentence?",
+      "This is separate from whether the displayed passage supports the retrieved fact. A supported fact may support only part of this Read sentence.",
+      judgmentButtons("read-support",[["supports","SUPPORTS"],["partially_supports","PARTIALLY SUPPORTS"],["does_not_support","DOES NOT SUPPORT"]],judgment.owner_read_support,candidate.fact_id)
+    ));
+  }}
   return article;
 }}
 function render(focus=false){{
   const item=DATA.items[current],answer=answerFor(item);
   byId("step").textContent=(current+1)+" / "+DATA.items.length;
-  const done=DATA.items.filter(row=>completeAnswer(answerFor(row))).length;
+  const done=DATA.items.filter(row=>completeAnswer(row,answerFor(row))).length;
   byId("answered").textContent=done+" answered";
   byId("position").textContent=item.sentence_id+" · "+item.paragraph_label+" · paragraph "+item.paragraph_index+", sentence "+item.sentence_index_in_paragraph;
   byId("sentence").textContent=item.sentence;
-  setPressed(document.querySelector(".choices"),"category",answer.owner_category);
-  byId("evidence").hidden=answer.owner_category!=="source";
+  setPressed(document.querySelector(".choices"),"sentence-type",answer.owner_sentence_type);
+  const checksEvidence=["source_fact","mixed"].includes(answer.owner_sentence_type);
+  byId("evidence").hidden=!checksEvidence;
   const candidates=byId("candidates"); candidates.replaceChildren();
-  if(answer.owner_category==="source"){{
-    if(item.retrieved_candidates.length) item.retrieved_candidates.forEach(candidate=>candidates.append(evidenceCard(candidate)));
-    else{{const empty=document.createElement("p");empty.className="candidate";empty.textContent="No retrieved fact met the 0.55 minimum score. Choose NOT ENOUGH TO TELL if the available evidence cannot support a match judgment.";candidates.append(empty);}}
+  if(checksEvidence){{
+    if(item.retrieved_candidates.length) item.retrieved_candidates.forEach(candidate=>candidates.append(evidenceCard(candidate,answer)));
+    else{{const empty=document.createElement("p");empty.className="candidate";empty.textContent="No retrieved fact met the 0.55 minimum score, so there is no candidate evidence to judge on this card.";candidates.append(empty);}}
   }}
-  setPressed(byId("judgments"),"judgment",answer.owner_match_judgment);
-  byId("summary").textContent=answer.owner_category==="analysis"?"WRITER’S OWN POINT selected":answer.owner_category==="source"?(answer.owner_match_judgment?"SOURCE · "+answer.owner_match_judgment.toUpperCase():"SOURCE selected · match judgment needed"):"No answer selected";
+  const completedCandidates=item.retrieved_candidates.filter(candidate=>candidateComplete(judgmentFor(answer,candidate))).length;
+  byId("summary").textContent=answer.owner_sentence_type==="analysis"?"WRITER’S ANALYSIS selected":checksEvidence?(item.retrieved_candidates.length?answer.owner_sentence_type.replace("_"," ").toUpperCase()+" · "+completedCandidates+" / "+item.retrieved_candidates.length+" candidates complete":answer.owner_sentence_type.replace("_"," ").toUpperCase()+" · no candidates above floor"):"No answer selected";
   byId("previous").disabled=current===0;
-  byId("next").disabled=!completeAnswer(answer)||current===DATA.items.length-1;
+  byId("next").disabled=!completeAnswer(item,answer)||current===DATA.items.length-1;
   byId("complete").hidden=done!==DATA.items.length;
   if(focus){{byId("card").focus();window.scrollTo({{top:0,behavior:"smooth"}});}}
 }}
-document.querySelectorAll("[data-category]").forEach(button=>button.addEventListener("click",()=>{{
-  const item=DATA.items[current],category=button.dataset.category;
-  answers[item.sentence_id]={{owner_category:category,owner_match_judgment:null}};
+document.querySelectorAll("[data-sentence-type]").forEach(button=>button.addEventListener("click",()=>{{
+  const item=DATA.items[current],sentenceType=button.dataset.sentenceType;
+  const existing=answerFor(item);
+  answers[item.sentence_id]={{owner_sentence_type:sentenceType,candidate_judgments:sentenceType==="analysis"?{{}}:existing.candidate_judgments}};
   save();render();
 }}));
-document.querySelectorAll("[data-judgment]").forEach(button=>button.addEventListener("click",()=>{{
-  const item=DATA.items[current],answer=answerFor(item);
-  if(answer.owner_category!=="source") return;
-  answers[item.sentence_id]={{owner_category:"source",owner_match_judgment:button.dataset.judgment}};
+byId("candidates").addEventListener("click",event=>{{
+  const button=event.target.closest("button"); if(!button) return;
+  const item=DATA.items[current],answer=answerFor(item),factId=button.dataset.factId;
+  if(!factId||!["source_fact","mixed"].includes(answer.owner_sentence_type)) return;
+  const currentJudgment=judgmentFor(answer,{{fact_id:factId}});
+  const nextJudgment={{...currentJudgment}};
+  if(button.dataset.passageSupport){{
+    nextJudgment.owner_passage_support=button.dataset.passageSupport;
+    if(button.dataset.passageSupport==="not_supported") nextJudgment.owner_read_support=null;
+  }} else if(button.dataset.readSupport&&["supported","unclear"].includes(nextJudgment.owner_passage_support)){{
+    nextJudgment.owner_read_support=button.dataset.readSupport;
+  }} else return;
+  answers[item.sentence_id]={{owner_sentence_type:answer.owner_sentence_type,candidate_judgments:{{...answer.candidate_judgments,[factId]:nextJudgment}}}};
   save();render();
-}}));
+}});
 byId("previous").addEventListener("click",()=>{{if(current>0){{current--;render(true);}}}});
-byId("next").addEventListener("click",()=>{{if(current<DATA.items.length-1&&completeAnswer(answerFor(DATA.items[current]))){{current++;render(true);}}}});
+byId("next").addEventListener("click",()=>{{const item=DATA.items[current];if(current<DATA.items.length-1&&completeAnswer(item,answerFor(item))){{current++;render(true);}}}});
 function exportJson(){{
   const payload=JSON.parse(JSON.stringify(DATA)); payload.exported_at=new Date().toISOString();
-  payload.items=payload.items.map(item=>Object.assign(item,answerFor(item)));
+  payload.items=payload.items.map(item=>{{
+    const answer=answerFor(item); item.owner_sentence_type=answer.owner_sentence_type;
+    item.retrieved_candidates=item.retrieved_candidates.map(candidate=>Object.assign(candidate,judgmentFor(answer,candidate)));
+    return item;
+  }});
   const blob=new Blob([JSON.stringify(payload,null,2)],{{type:"application/json"}});
   const link=document.createElement("a"),url=URL.createObjectURL(blob); link.href=url;
   link.download="semantic_labeling_current_read.json"; document.body.append(link); link.click(); link.remove();
@@ -751,8 +809,8 @@ def main() -> None:
     read_snapshot = read_data["read"]
     read_sha = stable_hash(read_snapshot)
     metadata = {
-        "schema_version": 1,
-        "task": "owner_source_vs_analysis_labeling",
+        "schema_version": 2,
+        "task": "owner_sentence_type_and_support_labeling",
         "current_read_identifier": (
             "D-038 accepted Hawara Read · hawara-rerun · Briefing v1 · 2026-08-22"
         ),
@@ -802,8 +860,8 @@ def main() -> None:
             "top_k": TOP_K,
             "minimum_score_floor": MIN_SCORE,
             "no_candidate_behavior": (
-                "show no passage and let the owner record the unclear judgment "
-                "when no candidate meets the floor"
+                "show no passage; the sentence-type label completes the card "
+                "because there are no retrieved candidates to judge"
             ),
             "similarity_is_correctness_verdict": False,
         },
