@@ -55,6 +55,11 @@ DEFAULT_HTML = ROOT / "scratchpad/semantic_labeling_v3.html"
 
 EMBEDDING_MODEL = "qwen3.7-text-embedding"
 TOP_PER_ROUTE = 10
+LOCALIZATION_SEMANTIC_TOP = 10
+LOCALIZATION_LEXICAL_TOP = 5
+LOCALIZATION_REGION_RADIUS = 2
+CORPUS_SEMANTIC_TOP = 20
+CORPUS_LEXICAL_TOP = 10
 CURRENT_READ_IDENTIFIER = (
     "D-038 accepted Hawara Read · hawara-rerun · Briefing v1 · 2026-08-22"
 )
@@ -199,6 +204,22 @@ INFERENCE_REFEREE_SCHEMA = schema_object(
     }
 )
 
+CORPUS_COUNTEREXAMPLE_SCHEMA = schema_object(
+    {
+        "candidate_assessments": {
+            "type": "array",
+            "items": schema_object(
+                {
+                    "candidate_id": {"type": "string"},
+                    "bears_on_claim": {"type": "boolean"},
+                    "reason": {"type": "string"},
+                }
+            ),
+        },
+        "reason": {"type": "string"},
+    }
+)
+
 
 def normalized(text: str) -> str:
     return " ".join(text.split())
@@ -243,7 +264,9 @@ class V3Cache:
                 "query_embeddings": {},
                 "model_calls": {},
             }
+        self.payload.setdefault("source_unit_embeddings", {})
         self.used_query_keys: set[str] = set()
+        self.used_source_unit_keys: set[str] = set()
         self.used_model_keys: set[str] = set()
 
     @property
@@ -253,6 +276,10 @@ class V3Cache:
     @property
     def model_calls(self) -> dict[str, Any]:
         return self.payload["model_calls"]
+
+    @property
+    def source_unit_embeddings(self) -> dict[str, Any]:
+        return self.payload["source_unit_embeddings"]
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -267,6 +294,11 @@ class V3Cache:
             key: value
             for key, value in self.query_embeddings.items()
             if key in self.used_query_keys
+        }
+        self.payload["source_unit_embeddings"] = {
+            key: value
+            for key, value in self.source_unit_embeddings.items()
+            if key in self.used_source_unit_keys
         }
         self.payload["model_calls"] = {
             key: value
@@ -383,6 +415,42 @@ def ensure_query_embeddings(
             }
             resolved[key] = vector
         cache.save()
+    return resolved, len(missing)
+
+
+def ensure_source_unit_embeddings(
+    cache: V3Cache,
+    source_units: dict[str, list[dict[str, Any]]],
+) -> tuple[dict[str, list[list[float]]], int]:
+    """Resolve one Qwen vector for every deterministic unit in every source."""
+    resolved: dict[str, list[list[float]]] = {}
+    missing: list[tuple[str, str, str, int]] = []
+    for source_id, units in source_units.items():
+        resolved[source_id] = [[] for _ in units]
+        for unit in units:
+            sentence_index = unit["sentence_index"]
+            key = f"{source_id}:{sentence_index}"
+            text = unit["text"]
+            text_sha = hashlib.sha256(text.encode()).hexdigest()
+            cache.used_source_unit_keys.add(key)
+            cached = cache.source_unit_embeddings.get(key)
+            if cached and cached.get("text_sha256") == text_sha:
+                resolved[source_id][sentence_index] = cached["embedding"]
+            else:
+                missing.append((key, text, source_id, sentence_index))
+    if missing:
+        vectors = embed_texts([text for _, text, _, _ in missing])
+        for (key, text, source_id, sentence_index), vector in zip(
+            missing, vectors, strict=True
+        ):
+            cache.source_unit_embeddings[key] = {
+                "text_sha256": hashlib.sha256(text.encode()).hexdigest(),
+                "embedding": vector,
+            }
+            resolved[source_id][sentence_index] = vector
+        cache.save()
+    if any(not vector for vectors in resolved.values() for vector in vectors):
+        raise RuntimeError("Full-source embedding cache left an unresolved source unit")
     return resolved, len(missing)
 
 
@@ -665,12 +733,12 @@ def source_sentence_units(text: str) -> list[dict[str, Any]]:
     return units
 
 
-def candidate_region(
+def legacy_candidate_region_indices(
     fact_text: str,
     source_text: str,
     units: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], str]:
-    """Route a fact to a bounded raw-source region without choosing evidence."""
+) -> set[int]:
+    """Reproduce the old route only to measure whether it would miss evidence."""
     windows = paragraphs_for_fact(fact_text, source_text, window=2)
     offsets: list[tuple[int, int]] = []
     cursor = 0
@@ -689,7 +757,6 @@ def candidate_region(
             for unit in units
             if unit["end_char"] > region_start and unit["start_char"] < region_end
         ]
-        route = "paragraphs_for_fact"
     else:
         fact_tokens = content_tokens(fact_text)
         best = max(
@@ -697,7 +764,6 @@ def candidate_region(
             key=lambda index: len(fact_tokens & content_tokens(units[index]["text"])),
         )
         matched = units[max(0, best - 2) : best + 3]
-        route = "deterministic_sentence_overlap_fallback"
     if not matched:
         raise RuntimeError("Source routing produced no mappable sentence units")
     first = matched[0]["sentence_index"]
@@ -712,7 +778,124 @@ def candidate_region(
             ),
         )
         expanded = expanded[max(0, best_local - 8) : best_local + 10]
-    return expanded, route
+    return {unit["sentence_index"] for unit in expanded}
+
+
+def full_source_candidate_regions(
+    fact_text: str,
+    fact_vector: list[float],
+    units: list[dict[str, Any]],
+    unit_vectors: list[list[float]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[int, int], set[int], set[int]]:
+    """Search every source unit, then form compact regions for Terra review."""
+    if len(units) != len(unit_vectors) or not units:
+        raise RuntimeError("Full-source search received mismatched source units/vectors")
+    semantic_scores = [cosine(fact_vector, vector) for vector in unit_vectors]
+    semantic_order = sorted(
+        range(len(units)), key=lambda index: (-semantic_scores[index], index)
+    )
+    semantic_rank = {
+        index: rank for rank, index in enumerate(semantic_order, start=1)
+    }
+    fact_tokens = content_tokens(fact_text)
+    lexical_scores = [
+        len(fact_tokens & content_tokens(unit["text"])) / max(1, len(fact_tokens))
+        for unit in units
+    ]
+    lexical_order = sorted(
+        (index for index, score in enumerate(lexical_scores) if score > 0),
+        key=lambda index: (-lexical_scores[index], index),
+    )
+    semantic_anchors = semantic_order[:LOCALIZATION_SEMANTIC_TOP]
+    lexical_anchors = lexical_order[:LOCALIZATION_LEXICAL_TOP]
+    lexical_rank = {
+        index: rank for rank, index in enumerate(lexical_order, start=1)
+    }
+
+    regions: dict[tuple[int, int], dict[str, Any]] = {}
+    for route, anchors in (
+        ("semantic", semantic_anchors),
+        ("lexical", lexical_anchors),
+    ):
+        for anchor in anchors:
+            start = max(0, anchor - LOCALIZATION_REGION_RADIUS)
+            end = min(len(units) - 1, anchor + LOCALIZATION_REGION_RADIUS)
+            key = (start, end)
+            region = regions.setdefault(
+                key,
+                {
+                    "start_sentence_index": start,
+                    "end_sentence_index": end,
+                    "semantic_anchor_ranks": [],
+                    "lexical_anchor_ranks": [],
+                    "best_embedding_score": None,
+                    "retrieved_by": [],
+                },
+            )
+            if route not in region["retrieved_by"]:
+                region["retrieved_by"].append(route)
+            if route == "semantic":
+                region["semantic_anchor_ranks"].append(semantic_rank[anchor])
+            else:
+                region["lexical_anchor_ranks"].append(lexical_rank[anchor])
+            score = semantic_scores[anchor]
+            current = region["best_embedding_score"]
+            if current is None or score > current:
+                region["best_embedding_score"] = score
+
+    ordered_regions = sorted(
+        regions.values(),
+        key=lambda region: (
+            min(region["semantic_anchor_ranks"], default=10**9),
+            min(region["lexical_anchor_ranks"], default=10**9),
+            region["start_sentence_index"],
+        ),
+    )
+    for number, region in enumerate(ordered_regions, start=1):
+        region["region_id"] = f"R{number:02d}"
+        region["semantic_anchor_ranks"].sort()
+        region["lexical_anchor_ranks"].sort()
+        region["retrieved_by"] = (
+            "both" if len(region["retrieved_by"]) == 2 else region["retrieved_by"][0]
+        )
+        region["best_embedding_score"] = round(
+            float(region["best_embedding_score"]), 6
+        )
+
+    presented_indices = sorted(
+        {
+            index
+            for region in ordered_regions
+            for index in range(
+                region["start_sentence_index"],
+                region["end_sentence_index"] + 1,
+            )
+        }
+    )
+    presented_units = [units[index] for index in presented_indices]
+    semantic_presented = {
+        index
+        for anchor in semantic_anchors
+        for index in range(
+            max(0, anchor - LOCALIZATION_REGION_RADIUS),
+            min(len(units), anchor + LOCALIZATION_REGION_RADIUS + 1),
+        )
+    }
+    lexical_presented = {
+        index
+        for anchor in lexical_anchors
+        for index in range(
+            max(0, anchor - LOCALIZATION_REGION_RADIUS),
+            min(len(units), anchor + LOCALIZATION_REGION_RADIUS + 1),
+        )
+    }
+    return (
+        presented_units,
+        ordered_regions,
+        semantic_rank,
+        semantic_presented,
+        lexical_presented,
+    )
 
 
 def propose_localization(
@@ -721,25 +904,53 @@ def propose_localization(
     candidate: dict[str, Any],
     source_text: str,
     units: list[dict[str, Any]],
+    fact_vector: list[float],
+    unit_vectors: list[list[float]],
 ) -> None:
-    region, route = candidate_region(candidate["fact_text"], source_text, units)
-    numbered = "\n".join(
-        f"[{unit['sentence_index']}] {unit['text']}" for unit in region
+    (
+        region,
+        candidate_regions,
+        semantic_rank,
+        semantic_presented,
+        lexical_presented,
+    ) = full_source_candidate_regions(
+        candidate["fact_text"], fact_vector, units, unit_vectors
     )
+    legacy_indices = legacy_candidate_region_indices(
+        candidate["fact_text"], source_text, units
+    )
+    by_all_index = {unit["sentence_index"]: unit for unit in units}
+    rendered_regions: list[str] = []
+    for candidate_region in candidate_regions:
+        start = candidate_region["start_sentence_index"]
+        end = candidate_region["end_sentence_index"]
+        numbered = "\n".join(
+            f"[{index}] {by_all_index[index]['text']}"
+            for index in range(start, end + 1)
+        )
+        rendered_regions.append(
+            f"{candidate_region['region_id']} "
+            f"(retrieved by {candidate_region['retrieved_by']}; similarity rank is "
+            "routing metadata only):\n"
+            f"{numbered}"
+        )
     prompt = f"""Find the smallest contiguous 1-3 sentence raw-source span that
 is sufficient to establish the harvested fact. The harvested fact is only a
-routing aid. Select exact sentence indices from the supplied region. Expand
+routing aid. Code semantically searched every deterministic sentence unit in
+the known source and also unioned lexical candidates for recall. Similarity and
+lexical overlap are not correctness judgments. Select exact sentence indices
+from one supplied candidate region. Expand
 only for coreference, negation, attribution, certainty, time/status, or meaning
-that depends on an adjacent sentence. If the region does not establish the
+that depends on an adjacent sentence. If none of the regions establishes the
 fact, return NO_SUPPORTING_SPAN_FOUND with null indices. Do not fabricate.
 
 Read claim (context only): {claim['text']}
 Harvested fact: {candidate['fact_text']}
 Source ID: {candidate['source_id']}
 
-Raw source sentence units:
-{numbered}"""
-    result = advisor.call("stage_4_localization", prompt, LOCALIZATION_SCHEMA)
+Full-source candidate regions ({len(units)} source units searched):
+{chr(10).join(rendered_regions)}"""
+    result = advisor.call("stage_4_full_source_localization", prompt, LOCALIZATION_SCHEMA)
     region_indices = {unit["sentence_index"] for unit in region}
 
     def boundaries_are_invalid(proposal: dict[str, Any]) -> bool:
@@ -774,11 +985,23 @@ only when end_sentence_index - start_sentence_index is 0, 1, or 2. Otherwise,
 return NO_SUPPORTING_SPAN_FOUND with null indices. Do not ask code to truncate
 or invent a span."""
         result = advisor.call(
-            f"stage_4_localization_boundary_retry_{retry_number}",
+            f"stage_4_full_source_localization_boundary_retry_{retry_number}",
             retry_prompt,
             LOCALIZATION_SCHEMA,
         )
     status = result.get("status")
+    search_metadata: dict[str, Any] = {
+        "search_scope": "entire_known_source",
+        "full_source_units_searched": len(units),
+        "full_source_candidate_windows_searched": len(units),
+        "semantic_top_requested": LOCALIZATION_SEMANTIC_TOP,
+        "lexical_top_requested": LOCALIZATION_LEXICAL_TOP,
+        "similarity_threshold": None,
+        "candidate_regions_considered": candidate_regions,
+        "winning_semantic_rank": None,
+        "lexical_search_helped": False,
+        "old_routing_location_would_have_missed_final_evidence": None,
+    }
     if status == "NO_SUPPORTING_SPAN_FOUND":
         if result.get("start_sentence_index") is not None or result.get(
             "end_sentence_index"
@@ -788,7 +1011,8 @@ or invent a span."""
             )
         candidate["evidence_proposal"] = {
             "status": "NO_SUPPORTING_SPAN_FOUND",
-            "routing_method": route,
+            "routing_method": "full_source_semantic_search_with_lexical_union",
+            "search_metadata": search_metadata,
             "candidate_region_sentences": region,
             "system_reason": result.get("reason") or "",
             "model": advisor.model,
@@ -820,9 +1044,21 @@ or invent a span."""
     context_after = (
         units[end_index + 1]["text"] if end_index + 1 < len(units) else None
     )
+    selected_indices = set(range(start_index, end_index + 1))
+    search_metadata["winning_semantic_rank"] = min(
+        semantic_rank[index] for index in selected_indices
+    )
+    search_metadata["lexical_search_helped"] = bool(
+        selected_indices & lexical_presented
+        and not selected_indices & semantic_presented
+    )
+    search_metadata["old_routing_location_would_have_missed_final_evidence"] = (
+        not selected_indices <= legacy_indices
+    )
     candidate["evidence_proposal"] = {
         "status": "SPAN_FOUND",
-        "routing_method": route,
+        "routing_method": "full_source_semantic_search_with_lexical_union",
+        "search_metadata": search_metadata,
         "source_id": candidate["source_id"],
         "exact_raw_text": exact_text,
         "start_char": start_char,
@@ -1154,67 +1390,228 @@ Conclusion: {inference['text']}
     }
 
 
+def positive_counterexample_proposition(claim_text: str) -> str:
+    """Construct the positive proposition that a negative corpus claim denies."""
+    if claim_text == "The pile contains no response from Hawass to the Mataha allegations.":
+        return "Hawass responded to the Mataha allegations in the supplied research."
+    if claim_text == "The official reports are linked rather than substantively reproduced.":
+        return "The supplied research substantively reproduces the official reports."
+    match = re.fullmatch(r"No supplied source identifies (.+)\.", claim_text)
+    if match:
+        return f"A supplied source identifies {match.group(1)}."
+    raise RuntimeError(f"No safe positive-proposition rule for corpus claim: {claim_text}")
+
+
 def check_corpus_claim(
     claim: dict[str, Any],
     sources: list[dict[str, Any]],
     source_units: dict[str, list[dict[str, Any]]],
+    source_unit_vectors: dict[str, list[list[float]]],
+    cache: V3Cache,
+    advisor: TerraAdvisor,
 ) -> None:
-    lower = claim["text"].lower()
-    capitalized = [
-        token
-        for token in re.findall(r"\b[A-Z][A-Za-z]+\b", claim["text"])
-        if token.lower() not in {"no", "none", "only"}
-    ]
-    object_terms = sorted(
-        content_tokens(claim["text"])
-        & {
-            "artifact",
-            "artifacts",
-            "inscription",
-            "inscriptions",
-            "chamber",
-            "chambers",
-            "excavated",
-            "scan",
-            "scans",
-            "survey",
-            "surveys",
-        }
+    proposition = positive_counterexample_proposition(claim["text"])
+    query_key = f"{claim['claim_id']}:corpus_positive_proposition"
+    query_vectors, _ = ensure_query_embeddings(cache, {query_key: proposition})
+    query_vector = query_vectors[query_key]
+    flattened: list[dict[str, Any]] = []
+    for source in sources:
+        source_id = source["source_id"]
+        units = source_units[source_id]
+        vectors = source_unit_vectors[source_id]
+        for unit, vector in zip(units, vectors, strict=True):
+            flattened.append(
+                {
+                    "source_id": source_id,
+                    "unit": unit,
+                    "vector": vector,
+                }
+            )
+    semantic_scores = [cosine(query_vector, item["vector"]) for item in flattened]
+    semantic_order = sorted(
+        range(len(flattened)), key=lambda index: (-semantic_scores[index], index)
     )
-    negative = lower.startswith("no ") or lower.startswith("none ")
-    if negative and len(capitalized) >= 2 and object_terms:
-        entity_terms = [token.lower() for token in capitalized[-2:]]
-        counterexamples: list[dict[str, Any]] = []
-        for source in sources:
-            for unit in source_units[source["source_id"]]:
-                text = unit["text"].lower()
-                if all(term in text for term in entity_terms) and any(
-                    term in text for term in object_terms
-                ):
-                    counterexamples.append(
-                        {
-                            "source_id": source["source_id"],
-                            "sentence_index": unit["sentence_index"],
-                            "exact_raw_text": unit["text"],
-                            "start_char": unit["start_char"],
-                            "end_char": unit["end_char"],
-                        }
-                    )
-        status = (
-            "COUNTEREXAMPLE_FOUND"
-            if counterexamples
-            else "CORPUS_CLAIM_VERIFIED"
+    semantic_rank = {
+        index: rank for rank, index in enumerate(semantic_order, start=1)
+    }
+    query_tokens = content_tokens(proposition)
+    lexical_scores = [
+        len(query_tokens & content_tokens(item["unit"]["text"]))
+        / max(1, len(query_tokens))
+        for item in flattened
+    ]
+    lexical_order = sorted(
+        (index for index, score in enumerate(lexical_scores) if score > 0),
+        key=lambda index: (-lexical_scores[index], index),
+    )
+    lexical_rank = {
+        index: rank for rank, index in enumerate(lexical_order, start=1)
+    }
+    anchors: list[tuple[str, int]] = [
+        ("semantic", index) for index in semantic_order[:CORPUS_SEMANTIC_TOP]
+    ] + [("lexical", index) for index in lexical_order[:CORPUS_LEXICAL_TOP]]
+    source_by_id = {source["source_id"]: source for source in sources}
+    regions: dict[tuple[str, int, int], dict[str, Any]] = {}
+    for route, flat_index in anchors:
+        item = flattened[flat_index]
+        source_id = item["source_id"]
+        unit_index = item["unit"]["sentence_index"]
+        units = source_units[source_id]
+        start_index = max(0, unit_index - 1)
+        end_index = min(len(units) - 1, unit_index + 1)
+        key = (source_id, start_index, end_index)
+        region = regions.setdefault(
+            key,
+            {
+                "source_id": source_id,
+                "start_sentence_index": start_index,
+                "end_sentence_index": end_index,
+                "semantic_anchor_ranks": [],
+                "lexical_anchor_ranks": [],
+                "retrieved_routes": [],
+                "best_embedding_score": None,
+            },
         )
-        method = "full_corpus_entity_and_object_conjunction_scan"
-    else:
-        counterexamples = []
-        status = "CORPUS_CHECK_INCOMPLETE"
-        method = "claim_pattern_not_supported_by_narrow_deterministic_lane"
+        if route not in region["retrieved_routes"]:
+            region["retrieved_routes"].append(route)
+        if route == "semantic":
+            region["semantic_anchor_ranks"].append(semantic_rank[flat_index])
+        else:
+            region["lexical_anchor_ranks"].append(lexical_rank[flat_index])
+        score = semantic_scores[flat_index]
+        current_score = region["best_embedding_score"]
+        if current_score is None or score > current_score:
+            region["best_embedding_score"] = score
+
+    candidate_windows = sorted(
+        regions.values(),
+        key=lambda region: (
+            min(region["semantic_anchor_ranks"], default=10**9),
+            min(region["lexical_anchor_ranks"], default=10**9),
+            region["source_id"],
+            region["start_sentence_index"],
+        ),
+    )
+    for number, region in enumerate(candidate_windows, start=1):
+        source_id = region["source_id"]
+        units = source_units[source_id]
+        start_index = region["start_sentence_index"]
+        end_index = region["end_sentence_index"]
+        start_char = units[start_index]["start_char"]
+        end_char = units[end_index]["end_char"]
+        exact_text = source_by_id[source_id]["full_text"][start_char:end_char]
+        routes = region.pop("retrieved_routes")
+        region.update(
+            {
+                "candidate_id": f"CW_{number:02d}",
+                "exact_raw_text": exact_text,
+                "start_char": start_char,
+                "end_char": end_char,
+                "word_count": len(exact_text.split()),
+                "source_sentence_count": end_index - start_index + 1,
+                "semantic_anchor_ranks": sorted(region["semantic_anchor_ranks"]),
+                "lexical_anchor_ranks": sorted(region["lexical_anchor_ranks"]),
+                "retrieved_by": (
+                    "both"
+                    if len(routes) == 2
+                    else routes[0]
+                ),
+                "best_embedding_score": round(
+                    float(region["best_embedding_score"]), 6
+                ),
+            }
+        )
+    if not candidate_windows:
+        claim["corpus_check"] = {
+            "system_result": "CORPUS_CHECK_INCOMPLETE",
+            "conceptual_result": "CHECK_INCOMPLETE",
+            "method": "full_corpus_semantic_counterexample_search",
+            "positive_proposition": proposition,
+            "sources_checked": len(sources),
+            "full_corpus_windows_searched": len(flattened),
+            "candidate_windows": [],
+            "counterexamples": [],
+            "nothing_found_is_proof_of_absence": False,
+            "owner_result": None,
+            "owner_notes": "",
+        }
+        return
+    rendered = "\n\n".join(
+        f"{window['candidate_id']} ({window['source_id']}, sentences "
+        f"{window['start_sentence_index']}-{window['end_sentence_index']}):\n"
+        f"{window['exact_raw_text']}"
+        for window in candidate_windows
+    )
+    prompt = f"""Review possible counterexamples to a claim about what the
+supplied research corpus does not contain. Code semantically searched every
+deterministic source window and unioned lexical candidates. Similarity and
+lexical overlap are routing aids, not truth judgments.
+
+Corpus claim: {claim['text']}
+Positive proposition that would counter the claim: {proposition}
+
+For every candidate, say whether the raw passage materially bears on the
+positive proposition. A passage may bear on it by supporting or contradicting
+it. Do not treat failure to find a candidate as proof of absence. Return every
+candidate ID exactly once.
+
+Candidate windows:
+{rendered}"""
+    result = advisor.call(
+        "stage_7_corpus_counterexample_review",
+        prompt,
+        CORPUS_COUNTEREXAMPLE_SCHEMA,
+    )
+    assessments = result.get("candidate_assessments")
+    expected_ids = {window["candidate_id"] for window in candidate_windows}
+    if (
+        not isinstance(assessments, list)
+        or {item.get("candidate_id") for item in assessments} != expected_ids
+        or len(assessments) != len(expected_ids)
+    ):
+        raise RuntimeError(f"Incomplete corpus review for {claim['claim_id']}")
+    assessment_by_id = {item["candidate_id"]: item for item in assessments}
+    counterexamples: list[dict[str, Any]] = []
+    for window in candidate_windows:
+        assessment = assessment_by_id[window["candidate_id"]]
+        window["model_bears_on_claim"] = bool(assessment["bears_on_claim"])
+        window["model_reason"] = assessment.get("reason") or ""
+        if window["model_bears_on_claim"]:
+            counterexamples.append(window)
+    conceptual_result = (
+        "POSSIBLE_COUNTEREXAMPLE_FOUND" if counterexamples else "NOTHING_FOUND"
+    )
+    status = (
+        "COUNTEREXAMPLE_FOUND"
+        if counterexamples
+        else "CORPUS_CHECK_INCOMPLETE"
+    )
     claim["corpus_check"] = {
         "system_result": status,
-        "method": method,
+        "conceptual_result": conceptual_result,
+        "method": "full_corpus_semantic_counterexample_search",
+        "positive_proposition": proposition,
         "sources_checked": len(sources),
+        "full_corpus_windows_searched": len(flattened),
+        "semantic_top_requested": CORPUS_SEMANTIC_TOP,
+        "lexical_top_requested": CORPUS_LEXICAL_TOP,
+        "similarity_threshold": None,
+        "candidate_windows": candidate_windows,
         "counterexamples": counterexamples,
+        "winning_semantic_rank": min(
+            (
+                min(window["semantic_anchor_ranks"], default=10**9)
+                for window in counterexamples
+            ),
+            default=None,
+        ),
+        "lexical_search_helped": any(
+            window["retrieved_by"] == "lexical" for window in counterexamples
+        ),
+        "nothing_found_is_proof_of_absence": False,
+        "system_reason": result.get("reason") or "",
+        "model": advisor.model,
+        "provider": advisor.provider,
         "owner_result": None,
         "owner_notes": "",
     }
@@ -1243,6 +1640,10 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
         claim_id for claim_id, status in direct_status.items() if status == "CONFLICT"
     ] + [
         claim_id
+        for claim_id, status in inference_status.items()
+        if status == "DOES_NOT_FOLLOW"
+    ] + [
+        claim_id
         for claim_id, status in corpus_status.items()
         if status == "COUNTEREXAMPLE_FOUND"
     ]
@@ -1268,7 +1669,7 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
             ] + [
                 claim_id
                 for claim_id, result in inference_status.items()
-                if result in {"INSUFFICIENT_PREMISES", "DOES_NOT_FOLLOW"}
+                if result == "INSUFFICIENT_PREMISES"
             ] + [
                 claim_id
                 for claim_id, result in corpus_status.items()
@@ -1289,7 +1690,7 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "deterministic_status": status,
         "triggering_claim_ids": sorted(set(triggers)),
-        "rule": "code_aggregation_v1",
+        "rule": "code_aggregation_v2_does_not_follow_is_semantic_conflict",
         "owner_result": None,
         "owner_notes": "",
     }
@@ -1313,6 +1714,13 @@ def build_experiment(
     source_units = {
         source["source_id"]: source_sentence_units(source["full_text"])
         for source in sources
+    }
+    source_unit_vectors, new_source_unit_embeddings = ensure_source_unit_embeddings(
+        cache, source_units
+    )
+    fact_vector_by_id = {
+        fact["fact_id"]: vector
+        for fact, vector in zip(inventory, fact_embeddings, strict=True)
     }
 
     cards: list[dict[str, Any]] = []
@@ -1355,6 +1763,8 @@ def build_experiment(
                 candidate,
                 source["full_text"],
                 source_units[candidate["source_id"]],
+                fact_vector_by_id[candidate["fact_id"]],
+                source_unit_vectors[candidate["source_id"]],
             )
 
     evidence_objects, dedup_stats = deduplicate_evidence(all_direct)
@@ -1375,7 +1785,14 @@ def build_experiment(
             elif claim["type"] == "WRITER_ANALYSIS":
                 claim["analysis_result"] = "NO_SOURCE_VERIFICATION_REQUIRED"
             elif claim["type"] == "CORPUS_META":
-                check_corpus_claim(claim, sources, source_units)
+                check_corpus_claim(
+                    claim,
+                    sources,
+                    source_units,
+                    source_unit_vectors,
+                    cache,
+                    advisor,
+                )
         card["sentence_advisory"] = deterministic_advisory(claims)
 
     localized_lengths = [
@@ -1388,6 +1805,8 @@ def build_experiment(
         **retrieval_stats,
         **dedup_stats,
         "new_query_embeddings": new_query_embeddings,
+        "new_source_unit_embeddings": new_source_unit_embeddings,
+        "full_source_unit_inventory": sum(len(units) for units in source_units.values()),
         "retrieval_candidate_occurrences": sum(
             len(claim["retrieval"]["candidates"]) for claim in all_direct
         ),
@@ -1404,6 +1823,40 @@ def build_experiment(
             for candidate in claim["retrieval"]["candidates"]
             if (candidate.get("evidence_proposal") or {}).get("status")
             == "NO_SUPPORTING_SPAN_FOUND"
+        ),
+        "localizations_where_lexical_search_helped": sum(
+            1
+            for claim in all_direct
+            for candidate in claim["retrieval"]["candidates"]
+            if (candidate.get("evidence_proposal") or {}).get("search_metadata", {}).get(
+                "lexical_search_helped"
+            )
+        ),
+        "localized_evidence_old_route_would_have_missed": sum(
+            1
+            for claim in all_direct
+            for candidate in claim["retrieval"]["candidates"]
+            if (candidate.get("evidence_proposal") or {}).get("search_metadata", {}).get(
+                "old_routing_location_would_have_missed_final_evidence"
+            )
+        ),
+        "corpus_claim_conceptual_results": dict(
+            sorted(
+                {
+                    result: sum(
+                        1
+                        for card in cards
+                        for claim in card["system_decomposition"]["claims"]
+                        if claim["type"] == "CORPUS_META"
+                        and claim["corpus_check"]["conceptual_result"] == result
+                    )
+                    for result in (
+                        "POSSIBLE_COUNTEREXAMPLE_FOUND",
+                        "NOTHING_FOUND",
+                        "CHECK_INCOMPLETE",
+                    )
+                }.items()
+            )
         ),
         "evidence_words": {
             "mean": round(statistics.mean(localized_lengths), 2)
@@ -1474,6 +1927,18 @@ HTML_TEMPLATE = r'''<!doctype html>
 </main>
 <script>
 const DATA=__EMBEDDED_DATA__;
+const FRIENDLY_LABELS={
+DIRECT_SOURCE_CLAIM:"Source-based fact",SOURCE_GROUNDED_INFERENCE:"Conclusion drawn from the research",WRITER_ANALYSIS:"Writer's analysis",CORPUS_META:"Claim about the research itself",
+DIRECTLY_RELEVANT:"Clearly relevant",PARTIALLY_RELEVANT:"Somewhat relevant",NOT_RELEVANT:"Not relevant",UNCLEAR:"Not sure",
+SUPPORTED:"Supported",PARTIALLY_SUPPORTED:"Partly supported",CONFLICT:"Evidence says something different",INSUFFICIENT_EVIDENCE:"Not enough evidence",
+REASONABLE_INFERENCE:"Conclusion makes sense",OVERSTATED_PARTIAL:"Conclusion goes too far",DOES_NOT_FOLLOW:"Conclusion doesn't follow",INSUFFICIENT_PREMISES:"Not enough information to judge",
+NO_SUPPORTING_SPAN_FOUND:"Couldn't find the source passage",POSSIBLE_COUNTEREXAMPLE_FOUND:"Possible counterexample found",NOTHING_FOUND:"Nothing found — absence not proven",CHECK_INCOMPLETE:"Check incomplete",
+CORPUS_CLAIM_VERIFIED:"No counterexample found — absence not proven",COUNTEREXAMPLE_FOUND:"Possible counterexample found",CORPUS_CHECK_INCOMPLETE:"Not proven — needs review",
+SEMANTIC_CONFLICT:"Semantic problem found",PARTIAL_WARNING:"Partial-support warning",UNVERIFIED:"Not verified",NO_SEMANTIC_ISSUE_FOUND:"No semantic issue found",NO_SOURCE_VERIFICATION_REQUIRED:"No source verification required",
+SUFFICIENT:"Sufficient",TOO_BROAD:"Too broad",MISSING_NEEDED_CONTEXT:"Missing needed context",DOES_NOT_SUPPORT_FACT:"Doesn't support the fact",CORRECTLY_GROUPED:"Correctly grouped",SHOULD_BE_SEPARATE:"Should be separate",MISSING_DUPLICATE:"Missing duplicate",
+ACCEPT:"Accept",WRONG_BOUNDARY:"Wrong boundary",WRONG_TYPE:"Wrong type",MISSING_CLAIM:"Missing claim",SHOULD_BE_ONE_CLAIM:"Should be one claim",CORRECT_PREMISE:"Correct premise",WRONG_PREMISE:"Wrong premise",MISSING_PREMISE:"Missing premise",FALSE_CONFLICT:"False conflict",MISSED_CONFLICT:"Missed conflict"
+};
+function friendly(value){const text=String(value??"");return FRIENDLY_LABELS[value]||(/^[A-Z0-9_]+$/.test(text)?text.replaceAll("_"," ").toLowerCase().replace(/^./,c=>c.toUpperCase()):text)}
 const STORAGE_KEY="semantic-labeling-v3:2:"+DATA.metadata.artifact_sha256;
 const STAGE_NAMES=["Decompose","Retrieve","Relevance","Localize","Dedup","Direct referee","Inference / corpus","Advisory"];
 const byId=id=>document.getElementById(id);
@@ -1489,22 +1954,22 @@ function directClaims(item){return systemClaims(item).filter(c=>c.type==="DIRECT
 function inferenceClaims(item){return systemClaims(item).filter(c=>c.type==="SOURCE_GROUNDED_INFERENCE")}
 function corpusClaims(item){return systemClaims(item).filter(c=>c.type==="CORPUS_META")}
 function relevantCandidates(claim){return claim.retrieval.candidates.filter(c=>["DIRECTLY_RELEVANT","PARTIALLY_RELEVANT"].includes(c.system_relevance.label))}
-function selectField(options,value,onchange){const select=el("select");const empty=el("option",null,"Choose…");empty.value="";select.append(empty);options.forEach(option=>{const node=el("option",null,option.replaceAll("_"," "));node.value=option;node.selected=option===value;select.append(node)});select.addEventListener("change",()=>onchange(select.value||null));return select}
-function choiceButtons(options,value,onchange){const box=el("div","choices");options.forEach(option=>{const button=el("button",null,option.replaceAll("_"," "));button.type="button";button.setAttribute("aria-pressed",String(value===option));button.addEventListener("click",()=>onchange(option));box.append(button)});return box}
+function selectField(options,value,onchange){const select=el("select");const empty=el("option",null,"Choose…");empty.value="";select.append(empty);options.forEach(option=>{const node=el("option",null,friendly(option));node.value=option;node.selected=option===value;select.append(node)});select.addEventListener("change",()=>onchange(select.value||null));return select}
+function choiceButtons(options,value,onchange){const box=el("div","choices");options.forEach(option=>{const button=el("button",null,friendly(option));button.type="button";button.setAttribute("aria-pressed",String(value===option));button.addEventListener("click",()=>onchange(option));box.append(button)});return box}
 function ensureClaimState(a,claim){if(!a.direct_claims[claim.claim_id])a.direct_claims[claim.claim_id]={missing_fact_or_evidence:false,candidates:{}};return a.direct_claims[claim.claim_id]}
 function ensureCandidateState(a,claim,candidate){const cs=ensureClaimState(a,claim);if(!cs.candidates[candidate.fact_id])cs.candidates[candidate.fact_id]={owner_relevance:null,owner_evidence_localization:null,owner_start_sentence_index:null,owner_end_sentence_index:null};return cs.candidates[candidate.fact_id]}
 function stageComplete(item,a,index){if(index===0){if(!a.decomposition_review||!a.owner_decomposition.length)return false;return inferenceClaims(item).every(c=>!!a.premise_link_judgments[c.claim_id])}if(index===1)return true;if(index===2)return directClaims(item).every(c=>c.retrieval.candidates.every(f=>!!ensureCandidateState(a,c,f).owner_relevance));if(index===3)return directClaims(item).every(c=>relevantCandidates(c).every(f=>!!ensureCandidateState(a,c,f).owner_evidence_localization));if(index===4)return DATA.evidence_objects.filter(e=>e.routed_claim_ids.some(id=>systemClaims(item).some(c=>c.claim_id===id))).every(e=>!!a.evidence_grouping[e.evidence_id]);if(index===5)return directClaims(item).every(c=>!!a.direct_referees[c.claim_id]?.owner_result);if(index===6)return inferenceClaims(item).every(c=>!!a.inference_referees[c.claim_id]?.owner_result)&&corpusClaims(item).every(c=>!!a.corpus_checks[c.claim_id]);if(index===7)return !!a.sentence_advisory;return false}
 function sentenceComplete(item){const a=answer(item);return STAGE_NAMES.every((_,i)=>stageComplete(item,a,i))}
 function heading(title,help){const h=el("h2",null,title);const p=el("p","lede",help);return [h,p]}
-function systemBox(label,value){const box=el("div","system");box.append(el("div","eyebrow",label),el("div","status",value));return box}
-function renderStage1(panel,item,a){panel.append(...heading("Stage 1 · Claim decomposition","Review Terra’s proposal, then correct a separate owner copy. Keep qualifiers and inference premise links."));panel.append(systemBox("SYSTEM MODEL",item.system_decomposition.provider+" · "+item.system_decomposition.model));systemClaims(item).forEach(c=>{const box=el("div","claim");box.append(el("div","meta",c.claim_id+" · "+c.type),el("div",null,c.text));if(c.derived_from_claim_ids.length)box.append(el("div","meta","Premises: "+c.derived_from_claim_ids.join(", ")));panel.append(box)});panel.append(el("h3",null,"Overall proposal judgment"),choiceButtons(["ACCEPT","WRONG_BOUNDARY","WRONG_TYPE","MISSING_CLAIM","SHOULD_BE_ONE_CLAIM"],a.decomposition_review,v=>{a.decomposition_review=v;save();render()}),el("h3",null,"Owner-corrected claims"));a.owner_decomposition.forEach((c,index)=>{const row=el("div","row");const type=selectField([...DATA.metadata.allowed_claim_types],c.type,v=>{c.type=v;save()});const text=el("textarea");text.value=c.text;text.addEventListener("input",()=>{c.text=text.value;save()});const del=el("button",null,"Delete");del.type="button";del.addEventListener("click",()=>{a.owner_decomposition.splice(index,1);save();render()});row.append(type,text,del);panel.append(row);if(c.type==="SOURCE_GROUNDED_INFERENCE"){const label=el("label");label.append(el("div","eyebrow","EDIT PREMISE CLAIM IDS (comma-separated)"));const input=el("input");input.value=(c.derived_from_claim_ids||[]).join(", ");input.addEventListener("input",()=>{c.derived_from_claim_ids=input.value.split(",").map(x=>x.trim()).filter(Boolean);save()});label.append(input);panel.append(label)}});const add=el("button",null,"Add missing claim");add.type="button";add.addEventListener("click",()=>{a.owner_decomposition.push({claim_id:item.sentence_id+":OWNER_"+(a.owner_decomposition.length+1),type:"DIRECT_SOURCE_CLAIM",text:"",derived_from_claim_ids:[]});save();render()});panel.append(add);if(inferenceClaims(item).length)panel.append(el("h3",null,"Inference-link judgments"));inferenceClaims(item).forEach(c=>{const box=el("div","claim");box.append(el("div","meta",c.claim_id+" · "+c.derived_from_claim_ids.join(", ")),choiceButtons(["CORRECT_PREMISE","WRONG_PREMISE","MISSING_PREMISE"],a.premise_link_judgments[c.claim_id],v=>{a.premise_link_judgments[c.claim_id]=v;save();render()}));panel.append(box)})}
-function renderStage2(panel,item){panel.append(...heading("Stage 2 · Broad retrieval","Code retrieved top 10 exact plus top 10 actor-masked per direct claim, then deduplicated only exact FACT_ID. Scores measure retrieval, never truth."));directClaims(item).forEach(c=>{panel.append(systemBox(c.claim_id,c.text));const counts={exact:0,actor_masked:0,both:0};c.retrieval.candidates.forEach(f=>counts[f.retrieved_by]++);panel.append(el("p","meta",`${c.retrieval.candidates.length} union candidates · exact ${counts.exact} · masked ${counts.actor_masked} · both ${counts.both} · no floor`))});if(!directClaims(item).length)panel.append(el("p","notice","No DIRECT_SOURCE_CLAIM was proposed, so retrieval is not exercised for this sentence."))}
+function systemBox(label,value){const box=el("div","system");box.append(el("div","eyebrow",label),el("div","status",friendly(value)));return box}
+function renderStage1(panel,item,a){panel.append(...heading("Stage 1 · Claim decomposition","Review Terra’s proposal, then correct a separate owner copy. Keep qualifiers and inference premise links."));panel.append(systemBox("SYSTEM MODEL",item.system_decomposition.provider+" · "+item.system_decomposition.model));systemClaims(item).forEach(c=>{const box=el("div","claim");box.append(el("div","meta",c.claim_id+" · "+friendly(c.type)),el("div",null,c.text));if(c.derived_from_claim_ids.length)box.append(el("div","meta","Premises: "+c.derived_from_claim_ids.join(", ")));panel.append(box)});panel.append(el("h3",null,"Overall proposal judgment"),choiceButtons(["ACCEPT","WRONG_BOUNDARY","WRONG_TYPE","MISSING_CLAIM","SHOULD_BE_ONE_CLAIM"],a.decomposition_review,v=>{a.decomposition_review=v;save();render()}),el("h3",null,"Owner-corrected claims"));a.owner_decomposition.forEach((c,index)=>{const row=el("div","row");const type=selectField([...DATA.metadata.allowed_claim_types],c.type,v=>{c.type=v;save()});const text=el("textarea");text.value=c.text;text.addEventListener("input",()=>{c.text=text.value;save()});const del=el("button",null,"Delete");del.type="button";del.addEventListener("click",()=>{a.owner_decomposition.splice(index,1);save();render()});row.append(type,text,del);panel.append(row);if(c.type==="SOURCE_GROUNDED_INFERENCE"){const label=el("label");label.append(el("div","eyebrow","EDIT PREMISE CLAIM IDS (comma-separated)"));const input=el("input");input.value=(c.derived_from_claim_ids||[]).join(", ");input.addEventListener("input",()=>{c.derived_from_claim_ids=input.value.split(",").map(x=>x.trim()).filter(Boolean);save()});label.append(input);panel.append(label)}});const add=el("button",null,"Add missing claim");add.type="button";add.addEventListener("click",()=>{a.owner_decomposition.push({claim_id:item.sentence_id+":OWNER_"+(a.owner_decomposition.length+1),type:"DIRECT_SOURCE_CLAIM",text:"",derived_from_claim_ids:[]});save();render()});panel.append(add);if(inferenceClaims(item).length)panel.append(el("h3",null,"Inference-link judgments"));inferenceClaims(item).forEach(c=>{const box=el("div","claim");box.append(el("div","meta",c.claim_id+" · "+c.derived_from_claim_ids.join(", ")),choiceButtons(["CORRECT_PREMISE","WRONG_PREMISE","MISSING_PREMISE"],a.premise_link_judgments[c.claim_id],v=>{a.premise_link_judgments[c.claim_id]=v;save();render()}));panel.append(box)})}
+function renderStage2(panel,item){panel.append(...heading("Stage 2 · Broad retrieval","Code retrieved top 10 exact plus top 10 actor-masked per source-based fact, then deduplicated only exact fact ID. Scores measure retrieval, never truth."));directClaims(item).forEach(c=>{panel.append(systemBox(c.claim_id,c.text));const counts={exact:0,actor_masked:0,both:0};c.retrieval.candidates.forEach(f=>counts[f.retrieved_by]++);panel.append(el("p","meta",`${c.retrieval.candidates.length} union candidates · exact ${counts.exact} · masked ${counts.actor_masked} · both ${counts.both} · no floor`))});if(!directClaims(item).length)panel.append(el("p","notice","No source-based fact was proposed, so retrieval is not exercised for this sentence."))}
 function renderStage3(panel,item,a){panel.append(...heading("Stage 3 · Claim ↔ fact relevance","Judge relevance without seeing raw passages. Contradictions are relevant. Support is a different question."));directClaims(item).forEach(c=>{const cs=ensureClaimState(a,c);panel.append(systemBox(c.claim_id,c.text));const missing=el("label","notice");const check=el("input");check.type="checkbox";check.style.width="auto";check.checked=cs.missing_fact_or_evidence;check.addEventListener("change",()=>{cs.missing_fact_or_evidence=check.checked;save()});missing.append(check,document.createTextNode(" MISSING THE FACT/EVIDENCE I NEED"));panel.append(missing);c.retrieval.candidates.forEach(f=>{const fs=ensureCandidateState(a,c,f),box=el("div","candidate");box.append(el("div","meta",`#${f.union_rank} · ${f.fact_id} · ${f.source_id} · ${f.retrieved_by} · best ${f.best_embedding_score.toFixed(3)}`),el("div","fact",f.fact_text),systemBox("SYSTEM RELEVANCE",f.system_relevance.label),selectField([...DATA.metadata.allowed_relevance_labels],fs.owner_relevance,v=>{fs.owner_relevance=v;save();render()}));panel.append(box)})});if(!directClaims(item).length)panel.append(el("p","notice","Not exercised: no direct claims."))}
-function renderStage4(panel,item,a){panel.append(...heading("Stage 4 · Precise evidence localization","For system-relevant candidates, judge the smallest proposed raw span. You may record corrected sentence boundaries."));let shown=0;directClaims(item).forEach(c=>relevantCandidates(c).forEach(f=>{shown++;const fs=ensureCandidateState(a,c,f),box=el("div","evidence");box.append(el("div","meta",`${c.claim_id} · ${f.fact_id} · ${f.source_id}`),el("div","fact",f.fact_text));const p=f.evidence_proposal;if(p.status==="SPAN_FOUND"){box.append(el("div","raw",p.exact_raw_text),el("div","meta",`${p.word_count} words · ${p.source_sentence_count} sentence(s) · chars ${p.start_char}-${p.end_char}`))}else box.append(el("p","notice","NO SUPPORTING SPAN FOUND: "+p.system_reason));box.append(selectField([...DATA.metadata.allowed_localization_labels],fs.owner_evidence_localization,v=>{fs.owner_evidence_localization=v;save();render()}));if(p.status==="SPAN_FOUND"){const grid=el("div","grid");["start","end"].forEach(which=>{const label=el("label");label.append(el("div","eyebrow","OWNER "+which.toUpperCase()+" SENTENCE INDEX"));const input=el("input");input.type="number";input.value=fs["owner_"+which+"_sentence_index"]??p[which+"_sentence_index"];input.addEventListener("input",()=>{fs["owner_"+which+"_sentence_index"]=input.value===""?null:Number(input.value);save()});label.append(input);grid.append(label)});box.append(grid)}panel.append(box)}));if(!shown)panel.append(el("p","notice","Not exercised: no candidates survived system relevance."))}
+function renderStage4(panel,item,a){panel.append(...heading("Stage 4 · Precise evidence localization","For relevant candidates, judge the smallest proposed raw span. The whole known source was searched; a miss does not mean the fact is false."));let shown=0;directClaims(item).forEach(c=>relevantCandidates(c).forEach(f=>{shown++;const fs=ensureCandidateState(a,c,f),box=el("div","evidence");box.append(el("div","meta",`${c.claim_id} · ${f.fact_id} · ${f.source_id}`),el("div","fact",f.fact_text));const p=f.evidence_proposal;if(p.status==="SPAN_FOUND"){box.append(el("div","raw",p.exact_raw_text),el("div","meta",`${p.word_count} words · ${p.source_sentence_count} sentence(s) · chars ${p.start_char}-${p.end_char} · semantic rank ${p.search_metadata.winning_semantic_rank}`))}else box.append(el("p","notice",friendly("NO_SUPPORTING_SPAN_FOUND")+": "+p.system_reason));box.append(selectField([...DATA.metadata.allowed_localization_labels],fs.owner_evidence_localization,v=>{fs.owner_evidence_localization=v;save();render()}));if(p.status==="SPAN_FOUND"){const grid=el("div","grid");["start","end"].forEach(which=>{const label=el("label");label.append(el("div","eyebrow","OWNER "+which.toUpperCase()+" SENTENCE INDEX"));const input=el("input");input.type="number";input.value=fs["owner_"+which+"_sentence_index"]??p[which+"_sentence_index"];input.addEventListener("input",()=>{fs["owner_"+which+"_sentence_index"]=input.value===""?null:Number(input.value);save()});label.append(input);grid.append(label)});box.append(grid)}panel.append(box)}));if(!shown)panel.append(el("p","notice","Not exercised: no candidates survived the relevance review."))}
 function sentenceEvidence(item){const ids=new Set(systemClaims(item).map(c=>c.claim_id));return DATA.evidence_objects.filter(e=>e.routed_claim_ids.some(id=>ids.has(id)))}
 function renderStage5(panel,item,a){panel.append(...heading("Stage 5 · Evidence identity / dedup","A fact is not evidence. Review code’s exact source/span grouping. Different sources are never merged."));const evidence=sentenceEvidence(item);evidence.forEach(e=>{const box=el("div","evidence");box.append(el("div","meta",`${e.evidence_id} · ${e.source_id} · ${e.occurrence_ids.length} occurrence(s)`),el("div","raw",e.exact_raw_text),el("div","meta","Facts: "+e.supporting_fact_ids.join(", ")),selectField([...DATA.metadata.allowed_grouping_labels],a.evidence_grouping[e.evidence_id],v=>{a.evidence_grouping[e.evidence_id]=v;save();render()}));panel.append(box)});if(!evidence.length)panel.append(el("p","notice","Not exercised: no localized evidence objects for this sentence."))}
-function renderStage6(panel,item,a){panel.append(...heading("Stage 6 · Direct claim referee","Compare the direct claim to localized evidence. INSUFFICIENT_EVIDENCE does not mean false; disagreement remains visible."));directClaims(item).forEach(c=>{const sys=c.direct_referee.system_result,box=el("div","claim");box.append(el("div","meta",c.claim_id),el("div","fact",c.text),systemBox("SYSTEM RESULT",sys.status),el("p",null,sys.reason));if(sys.mismatch_dimensions?.length)box.append(el("div","meta","Mismatch dimensions: "+sys.mismatch_dimensions.join(", ")));if(sys.conflicting_evidence)box.append(el("p","notice","CONFLICTING_EVIDENCE preserved"));const current=a.direct_referees[c.claim_id]||{owner_result:null,flags:[],notes:""};a.direct_referees[c.claim_id]=current;box.append(selectField([...DATA.metadata.allowed_direct_results],current.owner_result,v=>{current.owner_result=v;save();render()}),choiceButtons(["FALSE_CONFLICT","MISSED_CONFLICT"],current.flags[0]||null,v=>{current.flags=[v];save();render()}));const notes=el("textarea");notes.placeholder="Optional correction notes";notes.value=current.notes;notes.addEventListener("input",()=>{current.notes=notes.value;save()});box.append(notes);panel.append(box)});if(!directClaims(item).length)panel.append(el("p","notice","Not exercised: no direct claims."))}
-function renderStage7(panel,item,a){panel.append(...heading("Stage 7 · Inference and corpus checks","Judge whether each inference was earned from verified premises. Corpus-meta claims use a separate deterministic scan, never ordinary fact-to-passage support."));inferenceClaims(item).forEach(c=>{const sys=c.inference_referee.system_result,box=el("div","claim");box.append(el("div","meta",c.claim_id+" · premises "+c.derived_from_claim_ids.join(", ")),el("div","fact",c.text),systemBox("SYSTEM INFERENCE RESULT",sys.status),el("p",null,sys.reason));const current=a.inference_referees[c.claim_id]||{owner_result:null,derived_from_claim_ids:clone(c.derived_from_claim_ids),notes:""};a.inference_referees[c.claim_id]=current;box.append(selectField([...DATA.metadata.allowed_inference_results],current.owner_result,v=>{current.owner_result=v;save();render()}));const label=el("label");label.append(el("div","eyebrow","OWNER PREMISE LINKS"));const input=el("input");input.value=current.derived_from_claim_ids.join(", ");input.addEventListener("input",()=>{current.derived_from_claim_ids=input.value.split(",").map(x=>x.trim()).filter(Boolean);save()});label.append(input);box.append(label);panel.append(box)});corpusClaims(item).forEach(c=>{const sys=c.corpus_check,box=el("div","claim");box.append(el("div","meta",c.claim_id+" · "+sys.method+" · "+sys.sources_checked+" sources checked"),el("div","fact",c.text),systemBox("SYSTEM CORPUS RESULT",sys.system_result));if(sys.counterexamples.length)box.append(el("p","notice","Counterexamples: "+sys.counterexamples.map(x=>x.source_id+" sentence "+x.sentence_index).join(", ")));box.append(selectField([...DATA.metadata.allowed_corpus_results],a.corpus_checks[c.claim_id],v=>{a.corpus_checks[c.claim_id]=v;save();render()}));panel.append(box)});if(!inferenceClaims(item).length&&!corpusClaims(item).length)panel.append(el("p","notice","Not exercised: no source-grounded inference or corpus-meta claim."))}
+function renderStage6(panel,item,a){panel.append(...heading("Stage 6 · Direct claim referee","Compare each source-based fact to localized evidence. Not enough evidence does not mean false; disagreement remains visible."));directClaims(item).forEach(c=>{const sys=c.direct_referee.system_result,box=el("div","claim");box.append(el("div","meta",c.claim_id),el("div","fact",c.text),systemBox("SYSTEM RESULT",sys.status),el("p",null,sys.reason));if(sys.mismatch_dimensions?.length)box.append(el("div","meta","Mismatch dimensions: "+sys.mismatch_dimensions.map(friendly).join(", ")));if(sys.conflicting_evidence)box.append(el("p","notice","Conflicting evidence preserved"));const current=a.direct_referees[c.claim_id]||{owner_result:null,flags:[],notes:""};a.direct_referees[c.claim_id]=current;box.append(selectField([...DATA.metadata.allowed_direct_results],current.owner_result,v=>{current.owner_result=v;save();render()}),choiceButtons(["FALSE_CONFLICT","MISSED_CONFLICT"],current.flags[0]||null,v=>{current.flags=[v];save();render()}));const notes=el("textarea");notes.placeholder="Optional correction notes";notes.value=current.notes;notes.addEventListener("input",()=>{current.notes=notes.value;save()});box.append(notes);panel.append(box)});if(!directClaims(item).length)panel.append(el("p","notice","Not exercised: no source-based facts."))}
+function renderStage7(panel,item,a){panel.append(...heading("Stage 7 · Conclusions and research-content checks","Judge whether each conclusion was earned from its premises. Claims about the research use a full-corpus counterexample search; finding nothing never proves absence."));inferenceClaims(item).forEach(c=>{const sys=c.inference_referee.system_result,box=el("div","claim");box.append(el("div","meta",c.claim_id+" · premises "+c.derived_from_claim_ids.join(", ")),el("div","fact",c.text),systemBox("SYSTEM CONCLUSION RESULT",sys.status),el("p",null,sys.reason));const current=a.inference_referees[c.claim_id]||{owner_result:null,derived_from_claim_ids:clone(c.derived_from_claim_ids),notes:""};a.inference_referees[c.claim_id]=current;box.append(selectField([...DATA.metadata.allowed_inference_results],current.owner_result,v=>{current.owner_result=v;save();render()}));const label=el("label");label.append(el("div","eyebrow","OWNER PREMISE LINKS"));const input=el("input");input.value=current.derived_from_claim_ids.join(", ");input.addEventListener("input",()=>{current.derived_from_claim_ids=input.value.split(",").map(x=>x.trim()).filter(Boolean);save()});label.append(input);box.append(label);panel.append(box)});corpusClaims(item).forEach(c=>{const sys=c.corpus_check,box=el("div","claim");box.append(el("div","meta",c.claim_id+" · "+sys.sources_checked+" sources searched"),el("div","fact",c.text),systemBox("SYSTEM RESEARCH-CONTENT RESULT",sys.conceptual_result),el("p","meta","Searched for: "+sys.positive_proposition));if(sys.counterexamples.length){box.append(el("p","notice","Possible counterexamples for owner inspection:"));sys.counterexamples.forEach(x=>{const evidence=el("div","evidence");evidence.append(el("div","meta",x.source_id+" · sentences "+x.start_sentence_index+"-"+x.end_sentence_index+" · semantic rank "+(x.semantic_anchor_ranks[0]??"outside semantic top")),el("div","raw",x.exact_raw_text),el("p",null,x.model_reason));box.append(evidence)})}else box.append(el("p","notice","Nothing was found in the reviewed candidates. This does not prove the research lacks it."));box.append(selectField([...DATA.metadata.allowed_corpus_results],a.corpus_checks[c.claim_id],v=>{a.corpus_checks[c.claim_id]=v;save();render()}));panel.append(box)});if(!inferenceClaims(item).length&&!corpusClaims(item).length)panel.append(el("p","notice","Not exercised: no conclusion drawn from research or claim about the research itself."))}
 function renderStage8(panel,item,a){panel.append(...heading("Stage 8 · Deterministic sentence advisory","Code combines claim-unit proposals. No extra model makes a whole-sentence verdict, and nothing edits the Read."));const sys=item.sentence_advisory;panel.append(systemBox("CODE ADVISORY",sys.deterministic_status),el("p","meta","Triggering claims: "+(sys.triggering_claim_ids.join(", ")||"none")),el("h3",null,"Owner sentence advisory"),selectField([...DATA.metadata.allowed_sentence_advisories],a.sentence_advisory,v=>{a.sentence_advisory=v;save();render()}))}
 const renderers=[renderStage1,renderStage2,renderStage3,renderStage4,renderStage5,renderStage6,renderStage7,renderStage8];
 function render(focus=false){const item=DATA.sentences[currentSentence],a=answer(item);byId("version").textContent=DATA.metadata.current_read_identifier+" · "+DATA.metadata.judge.provider+"/"+DATA.metadata.judge.model;byId("sentenceProgress").textContent=(currentSentence+1)+" / "+DATA.sentences.length;const complete=DATA.sentences.filter(sentenceComplete).length;byId("completionProgress").textContent=complete+" sentences complete";byId("position").textContent=item.sentence_id+" · "+item.paragraph_label+" · paragraph "+item.paragraph_index+", sentence "+item.sentence_index_in_paragraph;byId("sentence").textContent=item.sentence;const stages=byId("stages");stages.replaceChildren();STAGE_NAMES.forEach((name,index)=>{const button=el("button","stage "+(stageComplete(item,a,index)?"done ":"")+(currentStage===index?"active":""),(index+1)+". "+name);button.type="button";button.addEventListener("click",()=>{currentStage=index;render()});stages.append(button)});const panel=byId("panel");panel.replaceChildren();renderers[currentStage](panel,item,a);byId("notes").value=a.notes;byId("prevSentence").disabled=currentSentence===0;byId("nextSentence").disabled=currentSentence===DATA.sentences.length-1;byId("prevStage").disabled=currentStage===0;byId("nextStage").disabled=currentStage===STAGE_NAMES.length-1;if(focus){byId("card").focus();scrollTo({top:0,behavior:"smooth"})}}
@@ -1612,6 +2077,7 @@ def main() -> None:
             "fact_inventory_sha256": inventory_sha,
             "dimensions": dimensions,
             "v3_query_cache": args.v3_cache.name,
+            "source_unit_embeddings_cached_in_v3_cache": True,
         },
         "judge": {
             "provider": judge_provider,
@@ -1630,6 +2096,28 @@ def main() -> None:
             "fact_deduplication": "exact FACT_ID only",
             "force_source_diversity": False,
             "similarity_is_correctness_verdict": False,
+        },
+        "localization": {
+            "search_scope": "entire known source",
+            "semantic_model": EMBEDDING_MODEL,
+            "semantic_top_regions": LOCALIZATION_SEMANTIC_TOP,
+            "lexical_top_regions_union": LOCALIZATION_LEXICAL_TOP,
+            "similarity_threshold": None,
+            "terra_selects_smallest_contiguous_sentence_count": [1, 3],
+            "no_supporting_span_found_is_truth_verdict": False,
+            "legacy_routing_used_only_for_miss_measurement": True,
+        },
+        "corpus_check": {
+            "method": "full_corpus_semantic_counterexample_search",
+            "semantic_model": EMBEDDING_MODEL,
+            "semantic_top_regions": CORPUS_SEMANTIC_TOP,
+            "lexical_top_regions_union": CORPUS_LEXICAL_TOP,
+            "nothing_found_proves_absence": False,
+            "conceptual_results": [
+                "POSSIBLE_COUNTEREXAMPLE_FOUND",
+                "NOTHING_FOUND",
+                "CHECK_INCOMPLETE",
+            ],
         },
         "evidence_identity": {
             "fields": [
