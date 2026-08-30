@@ -1,0 +1,65 @@
+{
+ "glm-5.3-flash": [
+  {
+   "gaps": 5,
+   "atoms": 0,
+   "ungrounded": 0,
+   "pct": 0.0,
+   "words": 0,
+   "secs": 17.3,
+   "missing_sample": []
+  },
+  {
+   "gaps": 6,
+   "atoms": 9,
+   "ungrounded": 2,
+   "pct": 22.2,
+   "words": 326,
+   "secs": 13.5,
+   "missing_sample": [
+    "1870",
+    "1880"
+   ]
+  },
+  {
+   "gaps": 6,
+   "atoms": 11,
+   "ungrounded": 1,
+   "pct": 9.1,
+   "words": 313,
+   "secs": 11.0,
+   "missing_sample": [
+    "19"
+   ]
+  }
+ ],
+ "gpt-5.4-mini": [
+  {
+   "gaps": 6,
+   "atoms": 7,
+   "ungrounded": 0,
+   "pct": 0.0,
+   "words": 409,
+   "secs": 5.1,
+   "missing_sample": []
+  },
+  {
+   "gaps": 5,
+   "atoms": 5,
+   "ungrounded": 0,
+   "pct": 0.0,
+   "words": 321,
+   "secs": 4.0,
+   "missing_sample": []
+  },
+  {
+   "gaps": 5,
+   "atoms": 3,
+   "ungrounded": 0,
+   "pct": 0.0,
+   "words": 270,
+   "secs": 3.6,
+   "missing_sample": []
+  }
+ ]
+}

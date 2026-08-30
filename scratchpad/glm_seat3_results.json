@@ -1,0 +1,96 @@
+{
+ "gpt-5.6-luna": [
+  {
+   "words": 1826,
+   "facts_delivered": 76,
+   "per_100w": 4.2,
+   "atoms": 76,
+   "ungrounded": 7,
+   "pct": 9.2,
+   "secs": 0,
+   "missing_sample": [
+    "32",
+    "6",
+    "Meyers",
+    "Cundey"
+   ]
+  },
+  {
+   "words": 1947,
+   "facts_delivered": 79,
+   "per_100w": 4.1,
+   "atoms": 79,
+   "ungrounded": 6,
+   "pct": 7.6,
+   "secs": 102.0,
+   "missing_sample": [
+    "1990",
+    "32",
+    "6",
+    "SRC"
+   ]
+  },
+  {
+   "words": 2302,
+   "facts_delivered": 81,
+   "per_100w": 3.5,
+   "atoms": 81,
+   "ungrounded": 6,
+   "pct": 7.4,
+   "secs": 102.0,
+   "missing_sample": [
+    "32",
+    "6",
+    "Cundey",
+    "SRC"
+   ]
+  }
+ ],
+ "glm-5.3-flash": [
+  {
+   "words": 1110,
+   "facts_delivered": 89,
+   "per_100w": 8.0,
+   "atoms": 89,
+   "ungrounded": 9,
+   "pct": 10.1,
+   "secs": 112.0,
+   "missing_sample": [
+    "32",
+    "6",
+    "70",
+    "10"
+   ]
+  },
+  {
+   "words": 1231,
+   "facts_delivered": 78,
+   "per_100w": 6.3,
+   "atoms": 78,
+   "ungrounded": 11,
+   "pct": 14.1,
+   "secs": 111.0,
+   "missing_sample": [
+    "32",
+    "6",
+    "2025",
+    "70"
+   ]
+  },
+  {
+   "words": 1101,
+   "facts_delivered": 86,
+   "per_100w": 7.8,
+   "atoms": 86,
+   "ungrounded": 10,
+   "pct": 11.6,
+   "secs": 689.0,
+   "missing_sample": [
+    "32",
+    "6",
+    "70",
+    "Cundey"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,79 @@
+{
+ "glm-5.3-flash": {
+  "SRC_8": {
+   "facts": 0,
+   "per_1k": 0.0,
+   "atoms": 0,
+   "ungrounded": 0,
+   "ungrounded_pct": 0.0,
+   "secs": 1.9,
+   "sample_missing": []
+  },
+  "SRC_1": {
+   "facts": 32,
+   "per_1k": 10.2,
+   "atoms": 101,
+   "ungrounded": 30,
+   "ungrounded_pct": 29.7,
+   "secs": 20.5,
+   "sample_missing": [
+    "Burrows",
+    "Burrows",
+    "Burrows",
+    "Akers"
+   ]
+  },
+  "SRC_16": {
+   "facts": 129,
+   "per_1k": 14.5,
+   "atoms": 1058,
+   "ungrounded": 9,
+   "ungrounded_pct": 0.9,
+   "secs": 108.5,
+   "sample_missing": [
+    "1500",
+    "Lemnian",
+    "1740",
+    "Frederick"
+   ]
+  }
+ },
+ "gpt-5.4-mini": {
+  "SRC_8": {
+   "facts": 13,
+   "per_1k": 45.8,
+   "atoms": 46,
+   "ungrounded": 0,
+   "ungrounded_pct": 0.0,
+   "secs": 3.5,
+   "sample_missing": []
+  },
+  "SRC_1": {
+   "facts": 41,
+   "per_1k": 13.1,
+   "atoms": 83,
+   "ungrounded": 16,
+   "ungrounded_pct": 19.3,
+   "secs": 7.7,
+   "sample_missing": [
+    "Pomponius",
+    "Pliny",
+    "Diodorus",
+    "Strabo"
+   ]
+  },
+  "SRC_16": {
+   "facts": 316,
+   "per_1k": 35.4,
+   "atoms": 1062,
+   "ungrounded": 3,
+   "ungrounded_pct": 0.3,
+   "secs": 42.0,
+   "sample_missing": [
+    "1500",
+    "1740",
+    "1844"
+   ]
+  }
+ }
+}
