@@ -211,7 +211,7 @@ CORPUS_COUNTEREXAMPLE_SCHEMA = schema_object(
             "items": schema_object(
                 {
                     "candidate_id": {"type": "string"},
-                    "bears_on_claim": {"type": "boolean"},
+                    "relation": {"type": "string"},
                     "reason": {"type": "string"},
                 }
             ),
@@ -1271,7 +1271,13 @@ aids. Choose SUPPORTED, PARTIALLY_SUPPORTED, CONFLICT, or
 INSUFFICIENT_EVIDENCE. INSUFFICIENT_EVIDENCE does not mean false. Preserve
 disagreement between evidence objects; never majority-vote or pick a winner.
 Assess actor, action/relationship, object, polarity, time/status, quantity,
-certainty/modality, and attribution. Return every evidence ID exactly once.
+certainty/modality, and attribution. If the claim itself attributes a statement,
+analysis, or opinion to a source ("X says", "the analysis suggests"), judge whether
+the evidence establishes that attribution: an accurately attributed statement is
+SUPPORTED even though the underlying assertion is the source's own view. Reserve
+PARTIALLY_SUPPORTED for claims where a material part of what the claim asserts is
+not established — never for the mere presence of attributed or analytical content.
+Return every evidence ID exactly once.
 
 Claim ID: {claim['claim_id']}
 Claim: {claim['text']}
@@ -1354,7 +1360,11 @@ def propose_inference_referee(
 premises, not by searching for source language that literally states the
 conclusion. First determine whether each required premise is established.
 Then ask whether the conclusion reasonably follows without adding a material
-unsupported leap. Choose REASONABLE_INFERENCE, OVERSTATED_PARTIAL,
+unsupported leap. A conclusion that follows plainly from established premises is
+REASONABLE_INFERENCE even when it adds judgment or restates their consequence
+("so they are not independent"). Choose OVERSTATED_PARTIAL only when the conclusion
+asserts materially MORE than the premises establish — not because the conclusion is
+an inference rather than a stated fact. Choose REASONABLE_INFERENCE, OVERSTATED_PARTIAL,
 DOES_NOT_FOLLOW, or INSUFFICIENT_PREMISES. Return every premise claim ID once.
 
 Inference ID: {inference['claim_id']}
@@ -1542,18 +1552,24 @@ def check_corpus_claim(
         f"{window['exact_raw_text']}"
         for window in candidate_windows
     )
-    prompt = f"""Review possible counterexamples to a claim about what the
-supplied research corpus does not contain. Code semantically searched every
-deterministic source window and unioned lexical candidates. Similarity and
+    prompt = f"""Review candidate passages against a claim about what the
+supplied research corpus does or does not contain. Code semantically searched
+every deterministic source window and unioned lexical candidates. Similarity and
 lexical overlap are routing aids, not truth judgments.
 
 Corpus claim: {claim['text']}
 Positive proposition that would counter the claim: {proposition}
 
-For every candidate, say whether the raw passage materially bears on the
-positive proposition. A passage may bear on it by supporting or contradicting
-it. Do not treat failure to find a candidate as proof of absence. Return every
-candidate ID exactly once.
+For every candidate, classify its relation to the CORPUS CLAIM with exactly one of:
+CONTRADICTS_CLAIM — the passage shows the positive proposition is true, i.e. it is
+evidence AGAINST the corpus claim;
+SUPPORTS_CLAIM — the passage is consistent with or confirms the corpus claim
+(for a negative claim, a passage that itself lacks or defers the denied content
+supports the claim, it does not contradict it);
+UNRELATED — the passage does not materially bear on the claim either way.
+Direction matters: never classify a passage that confirms the corpus claim as a
+counterexample. Do not treat failure to find a candidate as proof of absence.
+Return every candidate ID exactly once.
 
 Candidate windows:
 {rendered}"""
@@ -1571,13 +1587,22 @@ Candidate windows:
     ):
         raise RuntimeError(f"Incomplete corpus review for {claim['claim_id']}")
     assessment_by_id = {item["candidate_id"]: item for item in assessments}
+    allowed_relations = {"CONTRADICTS_CLAIM", "SUPPORTS_CLAIM", "UNRELATED"}
     counterexamples: list[dict[str, Any]] = []
+    confirming_passages: list[dict[str, Any]] = []
     for window in candidate_windows:
         assessment = assessment_by_id[window["candidate_id"]]
-        window["model_bears_on_claim"] = bool(assessment["bears_on_claim"])
+        relation = assessment.get("relation")
+        if relation not in allowed_relations:
+            raise RuntimeError(
+                f"Invalid corpus relation {relation!r} for {claim['claim_id']}"
+            )
+        window["model_relation"] = relation
         window["model_reason"] = assessment.get("reason") or ""
-        if window["model_bears_on_claim"]:
+        if relation == "CONTRADICTS_CLAIM":
             counterexamples.append(window)
+        elif relation == "SUPPORTS_CLAIM":
+            confirming_passages.append(window)
     conceptual_result = (
         "POSSIBLE_COUNTEREXAMPLE_FOUND" if counterexamples else "NOTHING_FOUND"
     )
@@ -1598,6 +1623,7 @@ Candidate windows:
         "similarity_threshold": None,
         "candidate_windows": candidate_windows,
         "counterexamples": counterexamples,
+        "confirming_passages": confirming_passages,
         "winning_semantic_rank": min(
             (
                 min(window["semantic_anchor_ranks"], default=10**9)
@@ -1632,7 +1658,7 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
         for claim in inferences
     }
     corpus_status = {
-        claim["claim_id"]: claim["corpus_check"]["system_result"]
+        claim["claim_id"]: claim["corpus_check"]["conceptual_result"]
         for claim in corpus
     }
 
@@ -1645,7 +1671,7 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
     ] + [
         claim_id
         for claim_id, status in corpus_status.items()
-        if status == "COUNTEREXAMPLE_FOUND"
+        if status == "POSSIBLE_COUNTEREXAMPLE_FOUND"
     ]
     if triggers:
         status = "SEMANTIC_CONFLICT"
@@ -1673,10 +1699,17 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
             ] + [
                 claim_id
                 for claim_id, result in corpus_status.items()
-                if result == "CORPUS_CHECK_INCOMPLETE"
+                if result == "CHECK_INCOMPLETE"
             ]
             if triggers:
                 status = "UNVERIFIED"
+            elif any(result == "NOTHING_FOUND" for result in corpus_status.values()):
+                status = "NOTHING_FOUND_AGAINST"
+                triggers = [
+                    claim_id
+                    for claim_id, result in corpus_status.items()
+                    if result == "NOTHING_FOUND"
+                ]
             elif not direct and not inferences and not corpus:
                 status = "NO_SOURCE_VERIFICATION_REQUIRED"
                 triggers = [
@@ -1690,7 +1723,7 @@ def deterministic_advisory(claims: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "deterministic_status": status,
         "triggering_claim_ids": sorted(set(triggers)),
-        "rule": "code_aggregation_v2_does_not_follow_is_semantic_conflict",
+        "rule": "code_aggregation_v3_corpus_conceptual_nothing_found_tier",
         "owner_result": None,
         "owner_notes": "",
     }
@@ -1934,7 +1967,7 @@ SUPPORTED:"Supported",PARTIALLY_SUPPORTED:"Partly supported",CONFLICT:"Evidence 
 REASONABLE_INFERENCE:"Conclusion makes sense",OVERSTATED_PARTIAL:"Conclusion goes too far",DOES_NOT_FOLLOW:"Conclusion doesn't follow",INSUFFICIENT_PREMISES:"Not enough information to judge",
 NO_SUPPORTING_SPAN_FOUND:"Couldn't find the source passage",POSSIBLE_COUNTEREXAMPLE_FOUND:"Possible counterexample found",NOTHING_FOUND:"Nothing found — absence not proven",CHECK_INCOMPLETE:"Check incomplete",
 CORPUS_CLAIM_VERIFIED:"No counterexample found — absence not proven",COUNTEREXAMPLE_FOUND:"Possible counterexample found",CORPUS_CHECK_INCOMPLETE:"Not proven — needs review",
-SEMANTIC_CONFLICT:"Semantic problem found",PARTIAL_WARNING:"Partial-support warning",UNVERIFIED:"Not verified",NO_SEMANTIC_ISSUE_FOUND:"No semantic issue found",NO_SOURCE_VERIFICATION_REQUIRED:"No source verification required",
+SEMANTIC_CONFLICT:"Semantic problem found",PARTIAL_WARNING:"Partial-support warning",UNVERIFIED:"Not verified",NOTHING_FOUND_AGAINST:"Nothing found against this — absence not proven",NO_SEMANTIC_ISSUE_FOUND:"No semantic issue found",NO_SOURCE_VERIFICATION_REQUIRED:"No source verification required",
 SUFFICIENT:"Sufficient",TOO_BROAD:"Too broad",MISSING_NEEDED_CONTEXT:"Missing needed context",DOES_NOT_SUPPORT_FACT:"Doesn't support the fact",CORRECTLY_GROUPED:"Correctly grouped",SHOULD_BE_SEPARATE:"Should be separate",MISSING_DUPLICATE:"Missing duplicate",
 ACCEPT:"Accept",WRONG_BOUNDARY:"Wrong boundary",WRONG_TYPE:"Wrong type",MISSING_CLAIM:"Missing claim",SHOULD_BE_ONE_CLAIM:"Should be one claim",CORRECT_PREMISE:"Correct premise",WRONG_PREMISE:"Wrong premise",MISSING_PREMISE:"Missing premise",FALSE_CONFLICT:"False conflict",MISSED_CONFLICT:"Missed conflict"
 };
@@ -2154,6 +2187,7 @@ def main() -> None:
             "SEMANTIC_CONFLICT",
             "PARTIAL_WARNING",
             "UNVERIFIED",
+            "NOTHING_FOUND_AGAINST",
             "NO_SEMANTIC_ISSUE_FOUND",
             "NO_SOURCE_VERIFICATION_REQUIRED",
         ],

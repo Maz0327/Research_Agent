@@ -227,6 +227,11 @@ def main() -> None:
                 counterexample_ids = {
                     window["candidate_id"] for window in corpus_check["counterexamples"]
                 }
+                confirming_ids = {
+                    window["candidate_id"]
+                    for window in corpus_check["confirming_passages"]
+                }
+                assert not (counterexample_ids & confirming_ids)
                 seen_window_ids = set()
                 for window in corpus_check["candidate_windows"]:
                     seen_window_ids.add(window["candidate_id"])
@@ -235,10 +240,19 @@ def main() -> None:
                         raw[window["start_char"] : window["end_char"]]
                         == window["exact_raw_text"]
                     )
-                    assert window["model_bears_on_claim"] is (
+                    relation = window["model_relation"]
+                    assert relation in {
+                        "CONTRADICTS_CLAIM",
+                        "SUPPORTS_CLAIM",
+                        "UNRELATED",
+                    }
+                    assert (relation == "CONTRADICTS_CLAIM") is (
                         window["candidate_id"] in counterexample_ids
                     )
-                assert counterexample_ids <= seen_window_ids
+                    assert (relation == "SUPPORTS_CLAIM") is (
+                        window["candidate_id"] in confirming_ids
+                    )
+                assert (counterexample_ids | confirming_ids) <= seen_window_ids
                 corpus_conceptual_counts[corpus_check["conceptual_result"]] += 1
                 query_keys.add(f"{claim['claim_id']}:corpus_positive_proposition")
                 assert corpus_check["owner_result"] is None
@@ -425,6 +439,7 @@ def main() -> None:
         "Couldn't find the source passage" in html
     )
     assert "Nothing found" in html
+    assert "Nothing found against this" in html
     scrubbed = re.sub(
         r"const DATA=.*?;\nconst FRIENDLY_LABELS=",
         "const FRIENDLY_LABELS=",
