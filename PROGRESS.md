@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-30
 **Current Phase:** ⭐ SEMANTIC ADVISORY INTEGRATION — v3 experiment closed at the decision gate (owner verdicts 13/15, correction round 246fbaa; gate decisions D-SEM-5..7 in `Maz0327/lost-with-maz-mem`)
-**Current Task:** deterministic spine integrated as `backend/pipeline/semantic_advisory.py` (20 tests; 15/15 advisory + dedup parity vs the frozen v3 artifact). NEXT: wire model-seat orchestration (decomposition/relevance/localization/referee calls via structured_client seats) as the follow-on task, then run the checker on a fresh topic to test generalization.
+**Current Task:** deterministic spine integrated as `backend/pipeline/semantic_advisory.py` (20 tests; 15/15 advisory + dedup parity vs the frozen v3 artifact). Runner wired: `backend/pipeline/semantic_advisory_runner.py` (injected model/embedder seats, production adapters, 8 end-to-end tests with fakes). NEXT: fresh-topic generalization run, then wire into the live job pipeline as an optional post-Read stage.
 **Branch:** feature/product-viability-overhaul
 
 ---
