@@ -36,7 +36,7 @@ class TestOffenderDetection:
 class TestPairApplication:
     def _run(self, graph, edits):
         with patch(
-            "backend.integrations.anthropic_client.get_anthropic_client"
+            "backend.integrations.structured_client.get_structured_client"
         ) as factory:
             factory.return_value.generate_structured.return_value = (
                 {"edits": edits},
@@ -95,7 +95,7 @@ class TestPairApplication:
         data = _graph_dict()
         graph = ClaimGraph.model_validate(data)
         with patch(
-            "backend.integrations.anthropic_client.get_anthropic_client"
+            "backend.integrations.structured_client.get_structured_client"
         ) as factory:
             graph, stats = repair_voice("test-job", graph)
             factory.assert_not_called()

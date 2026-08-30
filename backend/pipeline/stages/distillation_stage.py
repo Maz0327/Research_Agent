@@ -201,10 +201,13 @@ def distill_corpus(
     Raises:
         ValueError: If both attempts fail to produce a valid graph.
     """
-    from backend.integrations.anthropic_client import (
-        AnthropicError,
-        SchemaInvalidError,
-        get_anthropic_client,
+    # Reseat 2026-08-30 (owner decision): route through the shared structured
+    # client so the configured seats (MODEL_DISTILL / MODEL_ESCALATION) pick
+    # the provider. The old code hardcoded the Anthropic client regardless of
+    # seat names, pinning this stage to a credit-less account.
+    from backend.integrations.structured_client import (
+        StructuredCallError,
+        get_structured_client,
     )
 
     settings = get_settings()
@@ -225,13 +228,12 @@ def distill_corpus(
     for index, model_id in enumerate(attempts):
         label = "distillation" if index == 0 else "escalation retry"
         try:
-            client = get_anthropic_client(model=model_id)
+            client = get_structured_client(model_id)
             data, usage = client.generate_structured(
                 prompt=prompt,
                 schema=schema,
                 system=DISTILLATION_ROLE,
                 max_tokens=DISTILL_MAX_TOKENS,
-                model=model_id,
             )
             usages.append(usage)
 
@@ -255,10 +257,10 @@ def distill_corpus(
             )
             return graph, usages
 
-        except (SchemaInvalidError, ValidationError, ValueError) as e:
+        except (ValidationError, ValueError) as e:
             failures.append(f"{model_id}: {e}")
             logger.warning(f"[{job_id}] {label} produced an invalid graph: {e}")
-        except AnthropicError as e:
+        except StructuredCallError as e:
             failures.append(f"{model_id}: {e}")
             logger.error(f"[{job_id}] {label} call failed: {e}")
 
@@ -354,10 +356,13 @@ def write_telling_layer(
     Raises:
         ValueError: If both attempts fail to produce a valid telling layer.
     """
-    from backend.integrations.anthropic_client import (
-        AnthropicError,
-        SchemaInvalidError,
-        get_anthropic_client,
+    # Reseat 2026-08-30 (owner decision): route through the shared structured
+    # client so the configured seats (MODEL_DISTILL / MODEL_ESCALATION) pick
+    # the provider. The old code hardcoded the Anthropic client regardless of
+    # seat names, pinning this stage to a credit-less account.
+    from backend.integrations.structured_client import (
+        StructuredCallError,
+        get_structured_client,
     )
     from backend.models.claim_graph import TellingLayer, telling_json_schema
     from backend.pipeline.prompts.distillation_prompt import (
@@ -379,13 +384,12 @@ def write_telling_layer(
     for index, model_id in enumerate(attempts):
         label = "telling pass" if index == 0 else "telling escalation retry"
         try:
-            client = get_anthropic_client(model=model_id)
+            client = get_structured_client(model_id)
             data, usage = client.generate_structured(
                 prompt=prompt,
                 schema=schema,
                 system=TELLING_ROLE,
                 max_tokens=DISTILL_MAX_TOKENS,
-                model=model_id,
             )
             usages.append(usage)
 
@@ -411,10 +415,10 @@ def write_telling_layer(
             )
             return full, usages
 
-        except (SchemaInvalidError, ValidationError, ValueError) as e:
+        except (ValidationError, ValueError) as e:
             failures.append(f"{model_id}: {e}")
             logger.warning(f"[{job_id}] {label} produced an invalid layer: {e}")
-        except AnthropicError as e:
+        except StructuredCallError as e:
             failures.append(f"{model_id}: {e}")
             logger.error(f"[{job_id}] {label} call failed: {e}")
 

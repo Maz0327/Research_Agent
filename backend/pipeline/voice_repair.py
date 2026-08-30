@@ -143,7 +143,8 @@ def repair_voice(
     Returns:
         Tuple of (graph, stats dict with counts and usage).
     """
-    from backend.integrations.anthropic_client import get_anthropic_client
+    from backend.config import get_settings
+    from backend.integrations.structured_client import get_structured_client
 
     offenders: list[tuple[str, str]] = []
     pure_meta_all: list[str] = []
@@ -189,13 +190,14 @@ def repair_voice(
         definition["required"] = list(definition.get("properties", {}))
     schema["required"] = list(schema.get("properties", {}))
 
-    client = get_anthropic_client(model=model)
+    # Reseat 2026-08-30: default to the configured distill seat; the old
+    # Anthropic client carried its own internal Claude default.
+    client = get_structured_client(model or get_settings().model_distill)
     data, usage = client.generate_structured(
         prompt=f"Fix these sentences.\n\n{listing}",
         schema=schema,
         system=REPAIR_SYSTEM,
         max_tokens=8_000,
-        model=model,
     )
     stats["cost"] = usage.get("cost", 0.0)
 

@@ -277,6 +277,11 @@ def grounding_gate(
                     GateFinding("number", number, where, "not present in any source text")
                 )
         for name in names_in(text):
+            # Source-ID citation tokens ("SRC", "SRC_3") are corpus references,
+            # not name claims; flagging them drowned real findings 11-to-1 on
+            # the 2026-08-30 Packer run.
+            if re.fullmatch(r"SRC(?:_\d+)?", name):
+                continue
             report.checked += 1
             if normalize(name) not in corpus:
                 report.findings.append(

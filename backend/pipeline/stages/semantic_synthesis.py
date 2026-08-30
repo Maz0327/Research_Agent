@@ -269,6 +269,8 @@ def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
 
     # Parse semantic core
     semantic_core_data = response_data.get("semantic_core", {})
+    if not isinstance(semantic_core_data, dict):
+        semantic_core_data = {"text": str(semantic_core_data)} if semantic_core_data else {}
     if isinstance(semantic_core_data, dict):
         result["semantic_core"] = semantic_core_data.get("text", "")
         result["semantic_core_based_on"] = semantic_core_data.get("based_on", [])
@@ -276,7 +278,9 @@ def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
         result["semantic_core"] = semantic_core_data
 
     # Parse synthesized themes
-    for theme_data in response_data.get("themes", []):
+    for theme_data in response_data.get("themes", []) or []:
+        if not isinstance(theme_data, dict):
+            continue
         theme = Theme(
             theme_id=theme_data.get("theme_id", f"THEME_{len(result['themes']) + 1}"),
             label=theme_data.get("label", theme_data.get("description", "")[:50]),
@@ -289,8 +293,12 @@ def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
     # The merge is code-decided and narrow; see theme_dedup for the measurement.
     result["themes"], result["theme_merges"] = merge_similar_themes(result["themes"])
 
-    # Parse speculative observations
-    for obs_data in response_data.get("speculative_observations", []):
+    # Parse speculative observations. Model output shapes drift under load:
+    # every sub-object is coerced, never trusted (a list here crashed the
+    # 11-source Packer run with "'list' object has no attribute 'get'").
+    for obs_data in response_data.get("speculative_observations", []) or []:
+        if not isinstance(obs_data, dict):
+            continue
         result["speculative_observations"].append({
             "text": obs_data.get("text", ""),
             "based_on": obs_data.get("based_on", []),
@@ -299,13 +307,18 @@ def parse_synthesis_response(response_data: dict[str, Any]) -> dict:
 
     # Parse confidence assessment
     confidence_data = response_data.get("confidence_assessment", {})
+    if not isinstance(confidence_data, dict):
+        confidence_data = {}
     level_str = confidence_data.get("level", "medium")
+    if not isinstance(level_str, str):
+        level_str = "medium"
     try:
         result["confidence_level"] = ConfidenceLevel(level_str.lower())
     except ValueError:
         result["confidence_level"] = ConfidenceLevel.MEDIUM
 
-    result["confidence_reasoning"] = confidence_data.get("reasoning", [])
+    reasoning = confidence_data.get("reasoning", [])
+    result["confidence_reasoning"] = reasoning if isinstance(reasoning, list) else [str(reasoning)]
 
     return result
 
@@ -492,7 +505,7 @@ def stage_semantic_synthesis(ctx: PipelineContext) -> None:
         )
 
     except Exception as e:
-        logger.error(f"Semantic synthesis failed: {e}")
+        logger.exception(f"Semantic synthesis failed: {e}")
         ctx.add_warning(f"Semantic synthesis error: {str(e)}")
         # Set defaults to allow pipeline to continue
         ctx.semantic_core = ""
