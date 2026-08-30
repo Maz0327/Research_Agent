@@ -1,8 +1,8 @@
 # Research Agent — Implementation Progress
 
-**Last Updated:** 2026-08-15
-**Current Phase:** ⭐ CLAIM GRAPH + BRIEFING BUILD — `plans/260814-claim-graph-briefing/EXECUTION-PLAN.md` (Decision 023; supersedes the PP-4..7 track for now)
-**Current Task:** ⏸️ Section-1 narrative pass (see SESSION-HANDOFF-2026-08-17.md — the resume file; P0/P1 done, P2 redirected at the gate)
+**Last Updated:** 2026-08-30
+**Current Phase:** ⭐ SEMANTIC ADVISORY INTEGRATION — v3 experiment closed at the decision gate (owner verdicts 13/15, correction round 246fbaa; gate decisions D-SEM-5..7 in `Maz0327/lost-with-maz-mem`)
+**Current Task:** deterministic spine integrated as `backend/pipeline/semantic_advisory.py` (20 tests; 15/15 advisory + dedup parity vs the frozen v3 artifact). NEXT: wire model-seat orchestration (decomposition/relevance/localization/referee calls via structured_client seats) as the follow-on task, then run the checker on a fresh topic to test generalization.
 **Branch:** feature/product-viability-overhaul
 
 ---

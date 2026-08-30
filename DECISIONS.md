@@ -1906,3 +1906,22 @@ prose was fine while the owner was reading it and finding it unreadable.
 whether it is dense, grounded and covered. Those are necessary and they are not
 sufficient, and any future session tempted to tune this pass on numbers alone
 should read the output instead.
+
+## ADR-013: Semantic Advisory — deterministic spine in production, models advise only
+
+**Date:** 2026-08-30 · **Status:** Accepted (owner-approved decision gate; full record: `Maz0327/lost-with-maz-mem` D-SEM-5..7)
+
+The v3 post-Read semantic-verification experiment closed with owner verdicts
+(13/15 agreement, zero missed problems) and one bounded correction round
+(`246fbaa`). Deterministic fixes went 2/2; prompt-calibrating a single-call
+judge went 0/2 with one re-roll flip — single-call model judgments are noisy.
+
+Therefore: `backend/pipeline/semantic_advisory.py` integrates the deterministic
+spine (exact-offset sentence units, full-known-source candidate regions,
+evidence identity/dedup, directional corpus routing where a passage supporting
+a negative claim is never a counterexample, and the v3 aggregation ladder incl.
+NOTHING_FOUND_AGAINST). Model outputs enter as advisory inputs and are surfaced
+with a recorded noise caveat. The report never gates, blocks, or edits a Read.
+Ported logic is parity-verified against the frozen v3 artifact (15/15
+advisories, identical evidence-ID sets). Future accuracy work uses sampling/
+ensembles or deterministic checks — never another prompt-wording round.
