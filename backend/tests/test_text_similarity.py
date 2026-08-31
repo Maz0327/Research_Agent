@@ -157,3 +157,43 @@ class TestGroupMatching:
     def test_empty_input(self):
         """No items, no groups."""
         assert group_matching([]) == {}
+
+
+class TestPolarityVeto:
+    """A statement and its negation are opposites, never restatements."""
+
+    def test_a_negation_never_matches_its_affirmation(self):
+        from backend.pipeline.text_similarity import says_the_same_thing
+
+        assert not says_the_same_thing(
+            "The jury found Packer not guilty of murder in the second trial",
+            "The jury found Packer guilty of murder in the second trial",
+        )
+
+    def test_a_contraction_counts_as_negation(self):
+        from backend.pipeline.text_similarity import says_the_same_thing
+
+        assert not says_the_same_thing(
+            "Forensic evidence didn't support the murder conviction at all",
+            "Forensic evidence supported the murder conviction at all points",
+        )
+
+    def test_two_negated_restatements_still_match(self):
+        from backend.pipeline.text_similarity import says_the_same_thing
+
+        assert says_the_same_thing(
+            "The jury did not find Packer guilty of premeditated murder",
+            "The jury found Packer not guilty of premeditated murder",
+        )
+
+    def test_dedup_no_longer_deletes_the_negated_fact(self):
+        """The silent-loss case: grouping must keep opposites apart."""
+        from backend.pipeline.text_similarity import group_matching
+
+        groups = group_matching(
+            [
+                ("F1", "The jury found Packer guilty of murder in the trial"),
+                ("F2", "The jury found Packer not guilty of murder in the trial"),
+            ]
+        )
+        assert groups["F1"] != groups["F2"]

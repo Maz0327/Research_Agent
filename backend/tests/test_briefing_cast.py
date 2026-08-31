@@ -137,3 +137,34 @@ class TestSpecificityWins:
             "Alfred Packer confessed twice.",
             "Packer walked out of the mountains alone.",
         ]
+
+
+class TestSharedSurnameTies:
+    """A line matched only by a shared form goes to its most-mentioned holder."""
+
+    def test_the_father_is_not_written_from_the_sons_biography(self):
+        """"James Packer" got a card as a confessed cannibal — he is the father,
+        mentioned once; every "Packer" line belongs to Alferd."""
+        brief = (
+            "Alferd Packer led the party. Packer confessed at the agency. "
+            "Packer was convicted, and Alferd Packer was later paroled. His "
+            "father James Packer farmed in Pennsylvania."
+        )
+        cast = [
+            {"name": "Alferd Packer", "kind": "person",
+             "forms": ["Alferd Packer", "Packer"]},
+            {"name": "James Packer", "kind": "person",
+             "forms": ["James Packer", "Packer"]},
+        ]
+        inventory = [
+            {"text": "Packer confessed to eating his companions."},
+            {"text": "James Packer farmed in Pennsylvania."},
+        ]
+        client, material = _client(cast)
+        build_cast(client, brief, inventory)
+        # The bare-surname confession line is Alferd's alone; the father keeps
+        # only the line that names him in full.
+        assert material["Alferd Packer"] == [
+            "Packer confessed to eating his companions."
+        ]
+        assert material["James Packer"] == ["James Packer farmed in Pennsylvania."]

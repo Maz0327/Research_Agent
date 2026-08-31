@@ -341,6 +341,20 @@ def stage_harvest(ctx: PipelineContext) -> None:
     if ctx.cost_tracker and total_cost:
         ctx.add_cost("fact_harvest", total_cost)
 
+    # The floor. Sources with text but zero facts harvested from any of them
+    # means the harvester itself is broken — a dead API key, an exhausted
+    # quota — not that the sources were thin. Without this the job "succeeds":
+    # an empty inventory flows into an empty Record, empty Files, a thin Read,
+    # the coverage gate passes having checked nothing, and the owner reads a
+    # hollow briefing before anyone notices. Failing here costs a re-run;
+    # failing at his desk costs the whole cycle.
+    if packages and not ctx.harvest_inventory:
+        raise RuntimeError(
+            f"Harvest returned zero facts from {len(packages)} sources with "
+            f"text. That is a broken harvester, not thin sources; fix the "
+            f"cause and re-run rather than letting an empty briefing ship."
+        )
+
     with_numbers = sum(1 for fact in ctx.harvest_inventory if fact["has_number"])
     logger.info(
         f"[{ctx.job_id}] Fact harvest: {len(ctx.harvest_inventory)} facts from "

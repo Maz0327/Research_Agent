@@ -70,6 +70,28 @@ def numbers_in(text: str) -> set[str]:
     return {m.replace(",", "").rstrip(".") for m in _NUMBER_PATTERN.findall(text)}
 
 
+# Negation markers, read from RAW tokens before stopword removal — "not" and
+# "no" are stopwords, which is exactly why a sentence and its negation used to
+# look identical here: "found Packer not guilty" and "found Packer guilty"
+# scored 1.000. The n't check catches contractions ("wasn't", "didn't"),
+# which tokenize with the apostrophe preserved.
+_NEGATORS = frozenset(["not", "no", "never", "nor", "neither", "cannot", "without"])
+
+
+def has_negation(text: str) -> bool:
+    """Whether a statement contains a negation marker.
+
+    Args:
+        text: Any text.
+
+    Returns:
+        True when a negator word or an -n't contraction is present.
+    """
+    return any(
+        token in _NEGATORS or token.endswith("n't") for token in tokenize(text)
+    )
+
+
 def shingles(text: str, size: int = 8) -> set[str]:
     """Overlapping word n-grams, the unit of duplicate detection.
 
@@ -178,6 +200,19 @@ def says_the_same_thing(
         return False
     if bool(numbers_a) != bool(numbers_b):
         # One cites a figure and the other does not: they are not the same claim.
+        return False
+
+    # A statement and its negation are opposites, not restatements. Without
+    # this, harvest dedup could DELETE "the jury found Packer not guilty" as a
+    # duplicate of "the jury found Packer guilty" — a silent loss at the
+    # inventory layer everything downstream trusts — and synthesis pooled
+    # source IDs across polarity-opposite key points, fabricating
+    # corroboration. Refusing the match only makes matching more conservative,
+    # which is this function's stated safe direction: a missed duplicate is
+    # recoverable, a deleted negation is not. The cost is that two negated
+    # restatements of the same claim also need the veto to agree — they do,
+    # since both carry negation.
+    if has_negation(text_a) != has_negation(text_b):
         return False
 
     return statement_similarity(text_a, text_b) >= threshold

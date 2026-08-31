@@ -56,6 +56,10 @@ def build_cast(
         entry["name"]: [tokens for tokens in map(content_tokens, entry["forms"]) if tokens]
         for entry in cast
     }
+    mentions_by_name = {
+        entry["name"]: sum(brief_text.count(form) for form in entry["forms"])
+        for entry in cast
+    }
 
     def best_match(name: str, tokens: set) -> set | None:
         """The most specific form of `name` the text contains, if any.
@@ -79,6 +83,13 @@ def build_cast(
         "Packer", so a line about Esther Packer matches him too. It is withheld
         when another name in the cast matches the same line by a longer form
         containing his — the line is about her, and she is the one who gets it.
+
+        And a tie needs the third: Alferd and his father James are BOTH called
+        just "Packer", so on a line matching only that surname neither outranks
+        the other, and letting both keep it wrote the father a card out of his
+        son's biography — an invented confessed cannibal, on the page. A line
+        matched only by a form that several cast members share goes to the one
+        the briefing mentions most; the rest get nothing from it.
         """
         kept = []
         for text in texts:
@@ -86,13 +97,18 @@ def build_cast(
             mine = best_match(name, tokens)
             if mine is None:
                 continue
-            outranked = any(
-                other != name
-                and (theirs := best_match(other, tokens)) is not None
-                and mine < theirs
+            rivals = {
+                other: theirs
                 for other in forms_by_name
+                if other != name
+                and (theirs := best_match(other, tokens)) is not None
+            }
+            outranked = any(mine < theirs for theirs in rivals.values())
+            loses_tie = any(
+                theirs == mine and mentions_by_name[other] > mentions_by_name[name]
+                for other, theirs in rivals.items()
             )
-            if not outranked:
+            if not outranked and not loses_tie:
                 kept.append(text)
             if len(kept) == MATERIAL_PER_NAME:
                 break
