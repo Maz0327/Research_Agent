@@ -221,6 +221,34 @@ class TestBriefingRenderer:
 
         assert numbers == list(range(1, len(numbers) + 1))
 
+    def test_the_page_declares_its_encoding(self):
+        """The prose is full of curly quotes and em dashes. Without a charset
+        the browser guesses Latin-1 and every one of them renders as
+        mojibake — seen live on 2026-08-31."""
+        html = render_briefing_html(_briefing())
+
+        assert '<meta charset="utf-8">' in html
+        assert html.index("charset") < html.index("<title>")
+
+    def test_sections_open_as_an_index_not_a_wall(self):
+        """Nine sections and 28,000 words need somewhere to start reading."""
+        html = render_briefing_html(_briefing())
+
+        assert "<details" in html and "<summary>" in html
+        # The Read is the part meant to be read straight through.
+        opened = html.split("<summary>")[0]
+        assert "<details open>" in opened
+
+    def test_only_the_read_starts_open(self):
+        html = render_briefing_html(_briefing())
+
+        assert html.count("<details open>") == 1
+
+    def test_collapsing_needs_no_script(self):
+        """The escape test guarantees no script tag can reach the page; a
+        disclosure must not be the thing that weakens it."""
+        assert "<script" not in render_briefing_html(_briefing())
+
     def test_empty_sections_are_omitted_not_faked(self):
         """A thin document says less rather than showing empty furniture."""
         briefing = _briefing()

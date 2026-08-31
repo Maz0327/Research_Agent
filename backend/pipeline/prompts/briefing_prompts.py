@@ -335,6 +335,31 @@ Rules:
 - Add nothing you were not given."""
 
 
+CAST_ROLE = """You list the named people, organisations and places a research
+briefing actually talks about.
+
+You are reading the finished document a person will read. Return everything it
+names, so a reader can look up anyone they meet in the text.
+
+For each entry give:
+- the fullest form of the name as the document writes it
+- what kind it is: person, organisation, or place
+- every form the document uses for it, including bare surnames
+
+The forms matter. A document introduces someone once by full name and then
+calls them by surname for the rest of the page; both are the same entry, and
+missing that loses almost every mention of them.
+
+Rules:
+- Only what the document names. Never add a person you know of but it does not.
+- One entry per entity. "Alferd Packer", "Alfred Packer" and "Packer" are one
+  person, listed once, with all three as forms.
+- A title that contains a name is not a person: a book called after someone,
+  a collection named for them, a restaurant. Skip those.
+- A place is somewhere on a map. An organisation acts: a newspaper, a court, a
+  museum, an agency. A person is a human being.
+- Say nothing about who they are. Another pass writes that from the sources."""
+
 CONTRIBUTION_ROLE = """You write one line per source saying what only that source contributes.
 
 For each source you are given its title, type, and the facts harvested from it.

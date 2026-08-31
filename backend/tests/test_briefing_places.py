@@ -244,21 +244,22 @@ PROSE = (
 )
 
 
-def _scripted_client():
+def _scripted_client(prose=None):
     """Answers every pass; the split is what is under test, not the wording."""
+    prose = prose or PROSE
     client = MagicMock()
 
     def answer(prompt, schema, system, max_tokens=8000, model=None):
         keys = set(schema.get("properties", {}))
         if keys == {"lede", "paragraphs"}:
-            data = {"lede": "Read it.", "paragraphs": [{"label": "", "text": PROSE}]}
+            data = {"lede": "Read it.", "paragraphs": [{"label": "", "text": prose}]}
         elif keys == {"subjects", "anecdote_fact_ids"}:
             data = {
                 "subjects": [{"title": "The journey", "fact_ids": ["SRC_1:F_1"]}],
                 "anecdote_fact_ids": [],
             }
         elif keys == {"title", "body"}:
-            data = {"title": "The journey", "body": PROSE}
+            data = {"title": "The journey", "body": prose}
         elif keys == {"blurbs"}:
             data = {"blurbs": []}
         elif keys == {"names"}:
@@ -268,11 +269,36 @@ def _scripted_client():
                     {"name": "Gunnison River", "kind": "place"},
                 ]
             }
+        elif keys == {"cast"}:
+            # The cast is now read out of the finished briefing, so only
+            # names the prose actually contains come back.
+            data = {
+                "cast": [
+                    entry
+                    for entry in (
+                        {"name": "Alferd Packer", "kind": "person",
+                         "forms": ["Alferd Packer", "Packer"]},
+                        {"name": "Gunnison River", "kind": "place",
+                         "forms": ["Gunnison River"]},
+                        {"name": "Denver Post", "kind": "organisation",
+                         "forms": ["Denver Post"]},
+                    )
+                    if entry["name"] in prompt
+                ]
+            }
         elif keys == {"players"}:
+            # Echo a card for whatever names this pass was handed, so the
+            # same branch serves people and organisations.
+            asked = [
+                line.strip()
+                for line in prompt.split("NAMES AND THEIR MATERIAL", 1)[-1].splitlines()
+                if line.strip() and not line.startswith("  - ")
+            ]
             data = {
                 "players": [
-                    {"name": "Alferd Packer", "role": "led the party",
-                     "body": "Alferd Packer led the party."}
+                    {"name": name, "role": "appears in the story",
+                     "body": f"{name} appears in the story."}
+                    for name in asked
                 ]
             }
         elif keys == {"places"}:
@@ -300,17 +326,18 @@ def _scripted_client():
 class TestStageSplit:
     """End to end: a place never reaches the players pass or its section."""
 
-    def _build(self):
+    def _build(self, prose=None):
+        prose = prose or PROSE
         ctx = PipelineContext(job_id="job-1", topic="Alferd Packer")
         ctx.harvest_inventory = [
-            {"fact_id": "SRC_1:F_1", "source_id": "SRC_1", "text": PROSE},
+            {"fact_id": "SRC_1:F_1", "source_id": "SRC_1", "text": prose},
         ]
         sources = [
-            {"source_id": "SRC_1", "title": "A record", "full_text": PROSE},
-            {"source_id": "SRC_2", "title": "A retelling", "full_text": PROSE},
+            {"source_id": "SRC_1", "title": "A record", "full_text": prose},
+            {"source_id": "SRC_2", "title": "A retelling", "full_text": prose},
         ]
         with patch("backend.pipeline.stages.briefing_stage.update_job"):
-            briefing, _report = build_briefing(ctx, _scripted_client(), sources)
+            briefing, _report = build_briefing(ctx, _scripted_client(prose), sources)
         return briefing
 
     def test_places_are_excluded_from_the_players_section(self):
@@ -336,3 +363,89 @@ class TestStageSplit:
         html = render_briefing_html(briefing)
         assert html.index("The Players") < html.index("The Places")
         assert "Gunnison River" in html.split("The Places", 1)[1]
+
+
+class TestCastPassReadsTheBriefing:
+    """The cast pass only works if the model is actually shown the briefing.
+
+    A reversed `delimit()` call once fenced the briefing as the *label* and
+    sent the bare word "BRIEFING" as the body, so every name failed the
+    presence check and all three sections came back empty. The document
+    reaching the model is the thing worth asserting.
+    """
+
+    def test_the_prompt_carries_the_briefing_text(self):
+        from unittest.mock import MagicMock
+
+        from backend.pipeline.briefing_passes import run_cast_pass
+
+        seen = {}
+        client = MagicMock()
+
+        def answer(prompt, schema, system, max_tokens=8000, model=None):
+            seen["prompt"] = prompt
+            return ({"cast": []}, {})
+
+        client.generate_structured.side_effect = answer
+        run_cast_pass(client, PROSE)
+        assert PROSE in seen["prompt"]
+
+    def test_a_name_the_briefing_never_uses_is_dropped(self):
+        from unittest.mock import MagicMock
+
+        from backend.pipeline.briefing_passes import run_cast_pass
+
+        client = MagicMock()
+        client.generate_structured.side_effect = lambda **kw: (
+            {
+                "cast": [
+                    {"name": "Alferd Packer", "kind": "person",
+                     "forms": ["Alferd Packer", "Packer", "Colonel Packer"]},
+                    {"name": "Shannon Bell", "kind": "person", "forms": ["Bell"]},
+                ]
+            },
+            {},
+        )
+        cast = run_cast_pass(client, PROSE)
+        # Shannon Bell is nowhere in the prose, so the model cannot add him;
+        # "Colonel Packer" is a form the prose never uses, so it goes too.
+        assert [entry["name"] for entry in cast] == ["Alferd Packer"]
+        assert cast[0]["forms"] == ["Alferd Packer", "Packer"]
+
+
+class TestOrganisationsSection:
+    """Organisations get their own section, between the people and the places."""
+
+    PROSE_WITH_ORG = (
+        "Alferd Packer led the party and the Gunnison River claimed three men "
+        "in 1874, and the Denver Post ran the campaign that freed him."
+    )
+
+    def test_an_organisation_never_reaches_the_players_or_places_section(self):
+        briefing = TestStageSplit()._build(self.PROSE_WITH_ORG)
+        assert [p.name for p in briefing.players] == ["Alferd Packer"]
+        assert [p.name for p in briefing.organisations] == ["Denver Post"]
+        assert [p.name for p in briefing.places] == ["Gunnison River"]
+
+    def test_the_organisations_section_sits_between_players_and_places(self):
+        from backend.pipeline.formatters.briefing_renderer import (
+            render_briefing_markdown,
+        )
+
+        markdown = render_briefing_markdown(TestStageSplit()._build(self.PROSE_WITH_ORG))
+        assert (
+            markdown.index("## 2. The Players")
+            < markdown.index("## 3. The Organisations")
+            < markdown.index("## 4. The Places")
+        )
+        between = markdown.split("The Organisations", 1)[1].split("The Places", 1)[0]
+        assert "Denver Post" in between
+
+    def test_no_organisations_means_no_section_and_no_gap_in_numbering(self):
+        from backend.pipeline.formatters.briefing_renderer import (
+            render_briefing_markdown,
+        )
+
+        markdown = render_briefing_markdown(TestStageSplit()._build())
+        assert "The Organisations" not in markdown
+        assert "## 3. The Places" in markdown

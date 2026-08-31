@@ -223,6 +223,11 @@ class Briefing(_Base):
     meta: BriefingMeta
     read: Read
     players: list[Player] = Field(default_factory=list)
+    # Organisations act in a story the way a person does, but a reader
+    # looking up who someone is should not have to read past the Denver
+    # Post to find them (owner, 2026-08-31). Same card shape, own
+    # section. Optional, so stored Briefings still validate.
+    organisations: list[Player] = Field(default_factory=list)
     places: list[Place] = Field(default_factory=list)
     record: list[RecordEntry] = Field(default_factory=list)
     files: list[File] = Field(default_factory=list)

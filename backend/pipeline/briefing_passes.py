@@ -42,6 +42,7 @@ from backend.pipeline.briefing_routing import paragraphs_for_fact
 from backend.pipeline.injection_guard import DATA_NOTICE, delimit
 from backend.pipeline.prompts.briefing_prompts import (
     BLURB_ROLE,
+    CAST_ROLE,
     CONTRIBUTION_ROLE,
     DENSIFY_ROLE,
     DISPUTE_ROLE,
@@ -62,6 +63,10 @@ from backend.pipeline.text_similarity import statement_similarity
 # nowhere near its context limit. Nothing is trimmed unless the corpus actually
 # exceeds the total.
 READ_TOTAL_CHARS = 700_000
+
+# The cast pass reads the finished briefing, which is far smaller than the
+# corpus. The cap is a guard against a runaway document, not a real budget.
+CAST_READ_CHARS = 400_000
 READ_MIN_CHARS_PER_SOURCE = 20_000
 READ_MAX_TOKENS = 24_000
 
@@ -793,6 +798,74 @@ def build_anecdotes(
 # already-built object here double-wraps it, and the model then echoes the
 # schema's own scaffolding back as data — which reads as "no names are people"
 # and silently suppressed 25 real lint findings before it was caught.
+
+CAST_SCHEMA: dict = _object(
+    {
+        "cast": _array_of(
+            {
+                "name": {"type": "string"},
+                "kind": {"type": "string"},
+                "forms": {"type": "array", "items": {"type": "string"}},
+            }
+        )
+    }
+)
+
+
+def run_cast_pass(client: Any, brief_text: str) -> list[dict[str, Any]]:
+    """Read the finished briefing and name everyone in it.
+
+    This replaces a capitalisation heuristic that could not see a person the
+    document referred to by surname. On the Packer briefing that heuristic
+    missed the man the whole document is about: it required a space in a name,
+    so 601 mentions of "Packer" were invisible, and alias-merging folded the
+    two-word form into a cookbook title. A model reads the document instead,
+    which is what the job actually needs — knowing that "Bell" is Shannon Bell
+    is understanding, not pattern matching.
+
+    Code still decides. Every name and every form the model returns is checked
+    against the document text; anything not literally there is dropped, so the
+    model can omit someone but cannot invent one.
+
+    Args:
+        client: A structured-output client.
+        brief_text: The finished briefing's prose, all sections.
+
+    Returns:
+        One entry per entity: `name`, `kind` (one of NAME_KINDS), and `forms`,
+        the wordings the document uses for it. Entries the document does not
+        contain are dropped.
+    """
+    if not brief_text.strip():
+        return []
+
+    data, _usage = client.generate_structured(
+        prompt=delimit(brief_text[:CAST_READ_CHARS], "BRIEFING"),
+        schema=CAST_SCHEMA,
+        system=CAST_ROLE,
+        max_tokens=SMALL_CALL_MAX_TOKENS,
+    )
+
+    cast: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in data.get("cast") or []:
+        name = (entry.get("name") or "").strip()
+        kind = (entry.get("kind") or "").strip().lower()
+        if not name or kind not in NAME_KINDS or name.lower() in seen:
+            continue
+        if name not in brief_text:
+            logger.info(f"Cast: dropped {name!r}, not present in the briefing")
+            continue
+        forms = {
+            form.strip()
+            for form in ([name] + list(entry.get("forms") or []))
+            if form and form.strip() and form.strip() in brief_text
+        }
+        seen.add(name.lower())
+        cast.append({"name": name, "kind": kind, "forms": sorted(forms)})
+    return cast
+
+
 NAME_KINDS_SCHEMA: dict = _object(
     {
         "names": _array_of(

@@ -11,12 +11,14 @@ Markdown and Drive exports are lossy secondary renders of the same JSON.
 
 import html
 import itertools
+import re
 
 from backend.models.briefing import Briefing
 
 SECTION_TITLES = [
     "The Read",
     "The Players",
+    "The Organisations",
     "The Places",
     "The Record",
     "The Files",
@@ -137,6 +139,23 @@ BRIEFING_CSS = r"""  :root {
 
   /* ---------- section scaffolding ---------- */
   section { margin-top: 64px; }
+  summary { cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+  .sec-head { position: relative; }
+  .sec-head::after {
+    content: "\\25B8"; position: absolute; right: 0; top: 50%;
+    transform: translateY(-50%); opacity: .45; font-size: 20px;
+    transition: transform .15s ease;
+  }
+  details[open] > summary .sec-head::after { transform: translateY(-50%) rotate(90deg); }
+  details.file { border-top: 1px solid rgba(128,128,128,.25); padding-top: 12px; }
+  details.file > summary .filehead { position: relative; padding-right: 22px; }
+  details.file > summary .filehead::after {
+    content: "\\25B8"; position: absolute; right: 0; top: 4px; opacity: .45;
+    transition: transform .15s ease;
+  }
+  details.file[open] > summary .filehead::after { transform: rotate(90deg); }
   .sec-head { border-top: 3px solid var(--ink); padding-top: 14px; }
   .sec-num {
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -462,6 +481,29 @@ def _render_players(briefing: Briefing, vault_url: str) -> str:
     )
 
 
+def _render_organisations(briefing: Briefing, vault_url: str) -> str:
+    """Section 3. Same card as a player; a reader looking up a person should
+    not have to read past a newspaper to find them."""
+    if not briefing.organisations:
+        return ""
+    cards = []
+    for org in briefing.organisations:
+        cards.append(
+            '<details class="player"><summary>'
+            f'<span class="name">{_esc(org.name)}</span>'
+            f'<span class="role">{_esc(org.role)}</span></summary>'
+            f"<p>{_esc(org.body)} {_src_tag(org.source_ids, vault_url)}</p>"
+            "</details>"
+        )
+    return (
+        "<section>"
+        + _section_head(3, SECTION_TITLES[2])
+        + '<div class="players">'
+        + "".join(cards)
+        + "</div></section>"
+    )
+
+
 def _render_places(briefing: Briefing, vault_url: str) -> str:
     """Place cards reuse the player card markup on purpose: the stylesheet is
     the owner-approved mockup's verbatim, so a new section borrows a validated
@@ -479,7 +521,7 @@ def _render_places(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(3, SECTION_TITLES[2])
+        + _section_head(4, SECTION_TITLES[3])
         + '<div class="players">'
         + "".join(cards)
         + "</div></section>"
@@ -504,7 +546,7 @@ def _render_record(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(4, SECTION_TITLES[3])
+        + _section_head(5, SECTION_TITLES[4])
         + '<ul class="timeline">'
         + "".join(rows)
         + "</ul></section>"
@@ -517,13 +559,13 @@ def _render_files(briefing: Briefing, vault_url: str) -> str:
     blocks = []
     for file in briefing.files:
         blocks.append(
-            '<div class="file">'
-            f'<div class="filehead"><h3>File: {_esc(file.title)}</h3> {_chips(file.chips)}</div>'
+            '<details class="file">'
+            f'<summary><div class="filehead"><h3>File: {_esc(file.title)}</h3> {_chips(file.chips)}</div></summary>'
             f"{_paragraphs(file.body)}"
             f"<p>{_src_tag(file.source_ids, vault_url)}</p>"
-            "</div>"
+            "</details>"
         )
-    return "<section>" + _section_head(5, SECTION_TITLES[4]) + "".join(blocks) + "</section>"
+    return "<section>" + _section_head(6, SECTION_TITLES[5]) + "".join(blocks) + "</section>"
 
 
 def _render_disputes(briefing: Briefing, vault_url: str) -> str:
@@ -549,7 +591,7 @@ def _render_disputes(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(6, SECTION_TITLES[5])
+        + _section_head(7, SECTION_TITLES[6])
         + '<div class="disputes">'
         + "".join(blocks)
         + "</div></section>"
@@ -573,7 +615,7 @@ def _render_anecdotes(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(7, SECTION_TITLES[6])
+        + _section_head(8, SECTION_TITLES[7])
         + '<ul class="anecdotes">'
         + "".join(items)
         + "</ul></section>"
@@ -591,7 +633,7 @@ def _render_gaps(briefing: Briefing) -> str:
         )
     return (
         "<section>"
-        + _section_head(8, SECTION_TITLES[7])
+        + _section_head(9, SECTION_TITLES[8])
         + '<ol class="oq">'
         + "".join(items)
         + "</ol></section>"
@@ -628,7 +670,7 @@ def _render_trail(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(9, SECTION_TITLES[8])
+        + _section_head(10, SECTION_TITLES[9])
         + '<div class="trail">'
         + "".join(rows)
         + "</div></section>"
@@ -716,6 +758,45 @@ def _render_addendum(briefing: Briefing) -> str:
     )
 
 
+_SECTION_RE = re.compile(
+    r'<section([^>]*)>(<div class="sec-head">.*?</div>)(.*?)</section>', re.S
+)
+
+
+def _collapsible(html: str) -> str:
+    """Turn each numbered section into a disclosure.
+
+    A briefing is a reference document, not an essay: nine sections and 28,000
+    words open as a wall unless the page starts as an index. The Read stays
+    open because that is the part meant to be read straight through; the
+    reference sections open on demand.
+
+    Args:
+        html: The assembled document body.
+
+    Returns:
+        The same document with each numbered section collapsible.
+    """
+
+    counter = itertools.count(1)
+
+    def wrap(match: "re.Match[str]") -> str:
+        attrs, head, body = match.groups()
+        # Numbers follow what is actually emitted. Every section is
+        # conditional but each carried a hardcoded number, so an empty one
+        # made the numbering skip — and adding Organisations would have made
+        # that visible on every briefing without places.
+        number = next(counter)
+        head = re.sub(r"(<span class=\"sec-num\">SECTION )\d+", rf"\g<1>{number}", head)
+        opened = " open" if number == 1 else ""
+        return (
+            f"<section{attrs}><details{opened}>"
+            f"<summary>{head}</summary>{body}</details></section>"
+        )
+
+    return _SECTION_RE.sub(wrap, html)
+
+
 def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
     """Render a Briefing as a standalone HTML page.
 
@@ -734,6 +815,7 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
             _render_balance(briefing),
             _render_read(briefing),
             _render_players(briefing, vault_url),
+            _render_organisations(briefing, vault_url),
             _render_places(briefing, vault_url),
             _render_record(briefing, vault_url),
             _render_files(briefing, vault_url),
@@ -756,9 +838,13 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
         + "</footer>"
     )
     return (
+        # Without this the file is read as Latin-1 when opened directly or
+        # served without a charset header, and every curly quote and dash
+        # in the prose renders as mojibake (2026-08-31).
+        '<meta charset="utf-8">\n'
         f"<title>{_esc(briefing.topic)}</title>\n"
         f"<style>{BRIEFING_CSS}</style>\n"
-        f'<div class="page">{body}{footer}</div>\n'
+        f'<div class="page">{_collapsible(body)}{footer}</div>\n'
     )
 
 
@@ -818,6 +904,17 @@ def render_briefing_markdown(briefing: Briefing) -> str:
                 f"**{_md_escape(player.name)}** — {_md_escape(player.role)}",
                 "",
                 f"{_md_escape(player.body)}{cite}",
+                "",
+            ]
+
+    if briefing.organisations:
+        out += [heading("The Organisations"), ""]
+        for org in briefing.organisations:
+            cite = f" ({' · '.join(org.source_ids)})" if org.source_ids else ""
+            out += [
+                f"**{_md_escape(org.name)}** — {_md_escape(org.role)}",
+                "",
+                f"{_md_escape(org.body)}{cite}",
                 "",
             ]
 

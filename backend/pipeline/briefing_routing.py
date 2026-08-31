@@ -54,6 +54,17 @@ MAX_PLAYER_CARDS = 14
 # that had been posing as players were already a full geography for one story.
 MAX_PLACE_CARDS = 8
 
+# How many words a fuller form of a name may add before it stops being the
+# same entity. See merge_aliases.
+_ALIAS_MAX_EXTRA_WORDS = 2
+
+# Function words never appear inside a proper name, only in phrases that
+# contain one. See merge_aliases.
+_PHRASE_WORDS = frozenset({
+    "of", "the", "a", "an", "and", "or", "in", "on", "at", "for", "with",
+    "from", "to", "by", "about",
+})
+
 # A player DOES something. Places, monuments, and eras recur constantly in a
 # research corpus and belong in the prose, not in the cast, so a candidate has
 # to be seen acting somewhere.
@@ -263,6 +274,28 @@ def paragraphs_for_fact(fact_text: str, raw_text: str, window: int = 2) -> list[
     return [paragraph for _, _, paragraph in best]
 
 
+def _strip_sentence_case(candidate: str, lowercase_words: set[str]) -> str:
+    """Drop leading words that are capitalised only because a sentence began.
+
+    A hand-written stop list never finishes: the Packer run produced "When
+    David Bailey", "Only Bell" and "Reaching Ouray", none of which the list
+    knew. The corpus answers it instead — a word that appears lowercase
+    somewhere in the same prose is a normal word, and a real given name
+    essentially never does.
+
+    Args:
+        candidate: A capitalised run from the text.
+        lowercase_words: Every word seen lowercase anywhere in the prose.
+
+    Returns:
+        The candidate with leading ordinary words removed.
+    """
+    tokens = candidate.split()
+    while len(tokens) > 1 and tokens[0].lower().strip(".,'\u2019") in lowercase_words:
+        tokens = tokens[1:]
+    return " ".join(tokens)
+
+
 def name_candidates(text: str) -> set[str]:
     """Names worth considering for a Players card.
 
@@ -275,10 +308,19 @@ def name_candidates(text: str) -> set[str]:
     """
     from backend.pipeline.briefing_gates import _NAME
 
+    text = text or ""
+    lowercase_words = {word.lower() for word in re.findall(r"\b[a-z]{2,}\b", text)}
+
     found = set()
-    for match in _NAME.finditer(text or ""):
+    for match in _NAME.finditer(text):
         candidate = re.sub(r"[’'][a-z]{1,2}$", "", match.group(0).strip())
         candidate = _LEADING_NOISE.sub("", candidate).strip()
+        # Only where a sentence actually began: mid-sentence a capital is
+        # the writer's choice. Stripping regardless turned "New York Times"
+        # into "York Times", because "new" is also an ordinary word.
+        before = text[max(0, match.start() - 2) : match.start()]
+        if not before.strip() or before.rstrip().endswith((".", "!", "?", ":", ";")):
+            candidate = _strip_sentence_case(candidate, lowercase_words)
         if " " in candidate and len(candidate) > 5:
             found.add(candidate)
     return found
@@ -300,7 +342,10 @@ def names_by_section(sections: dict[str, str]) -> dict[str, set[str]]:
     return appearances
 
 
-def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, dict]:
+def merge_aliases(
+    appearances: dict[str, set[str]],
+    lowercase_words: set[str] | None = None,
+) -> dict[str, dict]:
     """Fold shorter forms of a name into the fullest form of it.
 
     "De Cordier" and "Louis De Cordier" are one person; "Ministry of Tourism"
@@ -320,11 +365,32 @@ def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, dict]:
     names = sorted(appearances, key=lambda n: (-len(n.split()), -len(n), n))
     merged: dict[str, dict] = {}
 
+    def normalise(value: str) -> set[str]:
+        return {
+            token.lower().strip(".,").removesuffix("’s").removesuffix("'s")
+            for token in value.split()
+        }
+
     for name in names:
-        tokens = {t.lower().strip(".,") for t in name.split()}
+        tokens = normalise(name)
         target = None
         for canonical in merged:
-            canonical_tokens = {t.lower().strip(".,") for t in canonical.split()}
+            canonical_tokens = normalise(canonical)
+            # A fuller form of a name adds a word or two — a first name, a
+            # middle name, a title. It does not add five. Without this,
+            # "Alferd Packer" folded into "Alferd Packer's High Protein
+            # Gourmet Cookbook" and the subject of the briefing vanished from
+            # his own cast list (2026-08-31).
+            if abs(len(canonical.split()) - len(name.split())) > _ALIAS_MAX_EXTRA_WORDS:
+                continue
+            # A fuller name adds more name-words; a title embeds a name in a
+            # phrase, and the giveaway is grammatical. "Alferd Packer" folded
+            # into "The Legend of Alfred Packer" and the subject of the
+            # briefing left his own cast list. Testing for function words
+            # catches that without rejecting "Los Pinos Indian Agency", whose
+            # extra words are ordinary nouns but part of the name.
+            if (tokens ^ canonical_tokens) & _PHRASE_WORDS:
+                continue
             # Token containment catches shorter word-boundary forms. The
             # prefix check catches truncation artifacts, which end mid-word
             # and so share no last token with the full form: on the Packer run
@@ -393,8 +459,9 @@ def rank_players(sections: dict[str, str]) -> list[dict]:
     Returns:
         List of `{"name", "sections", "mentions", "aliases"}`, best first.
     """
-    merged = merge_aliases(names_by_section(sections))
     everything = " ".join(sections.values())
+    lowercase_words = {w.lower() for w in re.findall(r"\b[a-z]{2,}\b", everything)}
+    merged = merge_aliases(names_by_section(sections), lowercase_words)
 
     ranked = [
         {

@@ -33,9 +33,9 @@ from backend.pipeline.briefing_lint import lint_briefing
 from backend.pipeline.briefing_passes import (
     build_anecdotes,
     build_record_entries,
-    classify_name_kinds,
     repair_file_coverage,
     run_blurb_pass,
+    run_cast_pass,
     run_contribution_pass,
     run_dispute_pass,
     run_file_pass,
@@ -46,10 +46,8 @@ from backend.pipeline.briefing_passes import (
 )
 from backend.pipeline.briefing_routing import (
     evidence_chip,
-    qualifying_players,
     route_facts,
     select_disputes,
-    split_cast,
 )
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.corpus_balance import build_corpus_balance
@@ -225,25 +223,48 @@ def build_briefing(
             for d in disputes
         ),
     }
-    names = qualifying_players(section_prose)
-    material = {
-        name: [
-            fact["text"]
-            for fact in inventory
-            if content_tokens(name) & content_tokens(fact["text"])
+    # The cast is read out of the finished briefing, because that is the
+    # document a reader looks names up in. The capitalisation heuristic this
+    # replaces required a space in a name, so it never saw the 601 mentions of
+    # "Packer" and left the subject of the briefing out of his own cast list.
+    brief_text = "\n\n".join(section_prose.values())
+    cast = run_cast_pass(client, brief_text)
+
+    def material_for(forms: list[str]) -> list[str]:
+        """Harvested facts mentioning any form of a name.
+
+        Matching every form is the point: a person appears once by full name
+        and then by surname, and the facts about them use both.
+        """
+        wanted = set()
+        for form in forms:
+            wanted |= content_tokens(form)
+        return [
+            fact["text"] for fact in inventory if wanted & content_tokens(fact["text"])
         ][:12]
-        for name in names
-    }
-    # The ranking cannot tell a place from a player — on the Packer run it
-    # handed five places to the players pass, which wrote each a biography —
-    # so the qualifying names are classified before any card is written.
-    kinds = classify_name_kinds(names, client, ctx.topic)
-    player_names, place_names = split_cast(names, kinds)
+
+    material = {entry["name"]: material_for(entry["forms"]) for entry in cast}
+
+    def named(kind: str) -> list[str]:
+        """Cast of one kind, most-mentioned first — code counts, not the model."""
+        rows = [entry for entry in cast if entry["kind"] == kind]
+        rows.sort(
+            key=lambda entry: (
+                -sum(brief_text.count(form) for form in entry["forms"]),
+                entry["name"],
+            )
+        )
+        return [entry["name"] for entry in rows]
+
+    player_names, org_names, place_names = (
+        named("person"), named("organisation"), named("place")
+    )
     logger.info(
-        f"[{ctx.job_id}] Briefing pass 6: {len(player_names)} players and "
-        f"{len(place_names)} places qualify"
+        f"[{ctx.job_id}] Briefing pass 6: {len(player_names)} people, "
+        f"{len(org_names)} organisations, {len(place_names)} places"
     )
     players = run_players_pass(client, player_names, material)
+    organisations = run_players_pass(client, org_names, material)
     places = run_places_pass(client, place_names, material)
 
     # --- Pass 7: anecdotes, gaps, source trail ------------------------------
@@ -309,6 +330,7 @@ def build_briefing(
         ),
         read=read,
         players=players,
+        organisations=organisations,
         places=places,
         record=record,
         files=files,

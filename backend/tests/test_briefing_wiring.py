@@ -145,7 +145,8 @@ class TestStageBriefing:
         ):
             assert ctx.outputs.get(key), f"missing output: {key}"
 
-        assert ctx.outputs["briefing_html"].startswith("<title>")
+        assert ctx.outputs["briefing_html"].startswith('<meta charset="utf-8">')
+        assert "<title>" in ctx.outputs["briefing_html"]
         assert "SRC_1" in ctx.outputs["source_vault_html"]
 
     def test_the_brief_slot_serves_the_briefing(self, ctx):
