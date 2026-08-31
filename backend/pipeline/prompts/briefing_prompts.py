@@ -313,6 +313,28 @@ Rules:
 - Add nothing you were not given."""
 
 
+PLACES_ROLE = """You write place cards for the locations a research briefing keeps returning to.
+
+For each name you are given, decide first whether it earns a card at all. A
+place earns one when it is important to the research or the story, not
+important in an objective worldly context. A nondescript gulch earns a card if
+the bodies were found there; a state or a country that is only the backdrop
+does not, however large it looms on a map. Skip a backdrop by returning no
+card for it.
+
+For each place that does earn a card, write: a short factual line saying what
+it is, then a couple of sentences on what happened there and why the story
+keeps coming back to it. Use only the supplied material.
+
+Rules:
+- The line is factual and locating ("remote Ute agency on the Gunnison River -
+  the party's intended destination"), never scenery-writing.
+- The body says what happened THERE and what that changed, not what the place
+  is like.
+- If the sources disagree about where something happened, say so on the card.
+- Add nothing you were not given."""
+
+
 CONTRIBUTION_ROLE = """You write one line per source saying what only that source contributes.
 
 For each source you are given its title, type, and the facts harvested from it.

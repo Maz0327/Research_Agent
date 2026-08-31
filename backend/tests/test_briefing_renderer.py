@@ -2,10 +2,12 @@
 
 Cover for P3 work-order item 15. Rendering is code's job end to end (D-025):
 the JSON is canonical, the HTML is a function of it, and no model is involved.
-These tests pin what the page must always carry - the eight sections in order,
+These tests pin what the page must always carry - the nine sections in order,
 chips with their tone, citations linked into the vault, and raw text that is
 never cleaned up.
 """
+import re
+
 from backend.models.briefing import (
     Anecdote,
     Briefing,
@@ -14,6 +16,7 @@ from backend.models.briefing import (
     DisputeSide,
     File,
     InfoGap,
+    Place,
     Player,
     Read,
     ReadParagraph,
@@ -21,7 +24,10 @@ from backend.models.briefing import (
     SourceTrailEntry,
     chip,
 )
-from backend.pipeline.formatters.briefing_renderer import render_briefing_html
+from backend.pipeline.formatters.briefing_renderer import (
+    render_briefing_html,
+    render_briefing_markdown,
+)
 from backend.pipeline.formatters.source_vault import looks_paywalled, render_source_vault
 
 
@@ -50,6 +56,14 @@ def _briefing() -> Briefing:
                 name="Flinders Petrie",
                 role="excavated Hawara in 1888",
                 body="Found the stone bed and called it a foundation.",
+                source_ids=["SRC_1"],
+            )
+        ],
+        places=[
+            Place(
+                name="Hawara",
+                line="the pyramid site at the Fayum entrance",
+                body="Every dig and every scan in the pile happened here.",
                 source_ids=["SRC_1"],
             )
         ],
@@ -118,7 +132,7 @@ def _briefing() -> Briefing:
 class TestBriefingRenderer:
     """The page is a pure function of the JSON."""
 
-    def test_all_eight_sections_render_in_order(self):
+    def test_all_nine_sections_render_in_order(self):
         """Order is the format; a reader learns where things are."""
         html = render_briefing_html(_briefing())
 
@@ -127,6 +141,7 @@ class TestBriefingRenderer:
             for title in [
                 "The Read",
                 "The Players",
+                "The Places",
                 "The Record",
                 "The Files",
                 "Disputed &amp; Uncertain",
@@ -190,6 +205,21 @@ class TestBriefingRenderer:
         html = render_briefing_html(_briefing())
 
         assert "republication of SRC_2" in html
+
+    def test_section_numbers_never_skip_when_a_section_is_empty(self):
+        """Numbers follow what is emitted. They used to be hardcoded, so a
+        briefing with no places rendered "2. The Players" into "4. The
+        Record" — a number the reader never sees (2026-08-31)."""
+        briefing = _briefing()
+        briefing.places = []
+
+        numbers = [
+            int(match) for match in re.findall(
+                r"^## (\d+)\. ", render_briefing_markdown(briefing), re.M
+            )
+        ]
+
+        assert numbers == list(range(1, len(numbers) + 1))
 
     def test_empty_sections_are_omitted_not_faked(self):
         """A thin document says less rather than showing empty furniture."""

@@ -9,8 +9,8 @@ Nothing here re-emits a document to edit it. Coverage misses are repaired by
 appending, which is the only edit shape this project trusts.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from loguru import logger
 
@@ -33,11 +33,13 @@ from backend.pipeline.briefing_lint import lint_briefing
 from backend.pipeline.briefing_passes import (
     build_anecdotes,
     build_record_entries,
+    classify_name_kinds,
     repair_file_coverage,
     run_blurb_pass,
     run_contribution_pass,
     run_dispute_pass,
     run_file_pass,
+    run_places_pass,
     run_players_pass,
     run_read_pass,
     run_subject_map_pass,
@@ -47,6 +49,7 @@ from backend.pipeline.briefing_routing import (
     qualifying_players,
     route_facts,
     select_disputes,
+    split_cast,
 )
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.corpus_balance import build_corpus_balance
@@ -65,10 +68,10 @@ def build_briefing(
     ctx: PipelineContext,
     client: Any,
     sources: list[dict],
-    disputes_input: Optional[list[dict]] = None,
-    gaps: Optional[list[dict]] = None,
-    read: Optional[Read] = None,
-    subject_map: Optional[tuple[list[dict], list[str]]] = None,
+    disputes_input: list[dict] | None = None,
+    gaps: list[dict] | None = None,
+    read: Read | None = None,
+    subject_map: tuple[list[dict], list[str]] | None = None,
     read_client: Any = None,
 ) -> tuple[Briefing, dict]:
     """Run every pass and assemble the Briefing.
@@ -231,8 +234,17 @@ def build_briefing(
         ][:12]
         for name in names
     }
-    logger.info(f"[{ctx.job_id}] Briefing pass 6: {len(names)} players qualify")
-    players = run_players_pass(client, names, material)
+    # The ranking cannot tell a place from a player — on the Packer run it
+    # handed five places to the players pass, which wrote each a biography —
+    # so the qualifying names are classified before any card is written.
+    kinds = classify_name_kinds(names, client, ctx.topic)
+    player_names, place_names = split_cast(names, kinds)
+    logger.info(
+        f"[{ctx.job_id}] Briefing pass 6: {len(player_names)} players and "
+        f"{len(place_names)} places qualify"
+    )
+    players = run_players_pass(client, player_names, material)
+    places = run_places_pass(client, place_names, material)
 
     # --- Pass 7: anecdotes, gaps, source trail ------------------------------
     anecdote_facts = [by_id[i] for i in anecdote_ids if i in by_id]
@@ -293,10 +305,11 @@ def build_briefing(
             quote_verification_rate=getattr(ctx, "verification_rate", None),
             confidence=getattr(ctx, "overall_confidence", None)
             and getattr(getattr(ctx, "overall_confidence", None), "value", None),
-            generated_on=datetime.now(timezone.utc).date().isoformat(),
+            generated_on=datetime.now(UTC).date().isoformat(),
         ),
         read=read,
         players=players,
+        places=places,
         record=record,
         files=files,
         disputes=disputes,

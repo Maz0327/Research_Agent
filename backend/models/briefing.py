@@ -4,24 +4,27 @@ Format locked as Decision 025 (2026-08-18) after two-topic validation. The
 canonical artifact is this JSON; HTML is rendered from it by deterministic
 code, and Markdown or Drive exports are lossy secondary renders.
 
-Eight sections, in order:
+Nine sections, in order:
 
 1. The Read - the argument told once, linear, written from RAW source text.
 2. The Players - cast cards; a name in 2+ sections gets one.
-3. The Record - dated chronology, every entry cited, each with context.
-4. The Files - the lossless layer, facts merged by subject, coverage checked
+3. The Places - the geography that matters to this story, split out of the
+   cast; on the Packer run five of fourteen "players" were places, each with
+   a biography.
+4. The Record - dated chronology, every entry cited, each with context.
+5. The Files - the lossless layer, facts merged by subject, coverage checked
    mechanically against the harvest inventory.
-5. Disputed & Uncertain - holders, a code-computed status chip, both cases.
-6. Details & Anecdotes - the texture bin, so small material cannot vanish.
-7. Info Gaps - what the corpus lacks, phrased as go-get instructions.
-8. Source Trail - each source's one unique contribution, linked to the vault.
+6. Disputed & Uncertain - holders, a code-computed status chip, both cases.
+7. Details & Anecdotes - the texture bin, so small material cannot vanish.
+8. Info Gaps - what the corpus lacks, phrased as go-get instructions.
+9. Source Trail - each source's one unique contribution, linked to the vault.
 
 The division of labour is the point (work order Section J): models write
 content fields, code decides structure, counts, chips, coverage, and
 rendering. Every field here is one or the other, and the docstrings say which.
 """
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -73,9 +76,9 @@ class BriefingMeta(_Base):
     source_count: int
     independent_source_count: int
     raw_words: int
-    quote_verification_rate: Optional[float] = None
-    confidence: Optional[str] = None
-    generated_on: Optional[str] = None
+    quote_verification_rate: float | None = None
+    confidence: str | None = None
+    generated_on: str | None = None
 
 
 class ReadParagraph(_Base):
@@ -84,7 +87,7 @@ class ReadParagraph(_Base):
     Written by the Read pass (LLM) from raw source text.
     """
 
-    label: Optional[str] = None
+    label: str | None = None
     text: str
 
 
@@ -104,18 +107,32 @@ class Player(_Base):
     source_ids: list[str] = Field(default_factory=list)
 
 
+class Place(_Base):
+    """Section 3 card. Code decides which qualifying names are places; the
+    model writes the card, and only for places that matter to this story.
+
+    Optional on the document: Briefings stored before the section existed
+    validate with an empty list.
+    """
+
+    name: str
+    line: str
+    body: str
+    source_ids: list[str] = Field(default_factory=list)
+
+
 class RecordEntry(_Base):
-    """Section 3 entry. Code places and sorts it; the model writes `context`."""
+    """Section 4 entry. Code places and sorts it; the model writes `context`."""
 
     when: str
     what: str
     source_ids: list[str] = Field(default_factory=list)
-    context: Optional[str] = None
-    sort_key: Optional[float] = None
+    context: str | None = None
+    sort_key: float | None = None
 
 
 class File(_Base):
-    """Section 4 subject file. Code assigns the facts and computes the chips."""
+    """Section 5 subject file. Code assigns the facts and computes the chips."""
 
     title: str
     chips: list[Chip] = Field(default_factory=list)
@@ -133,7 +150,7 @@ class DisputeSide(_Base):
 
 
 class Dispute(_Base):
-    """Section 5 entry. Code selects the dispute and computes the chip."""
+    """Section 6 entry. Code selects the dispute and computes the chip."""
 
     claim: str
     holders: str
@@ -143,15 +160,15 @@ class Dispute(_Base):
 
 
 class Anecdote(_Base):
-    """Section 6 item. Code selects it; the model writes the context blurb."""
+    """Section 7 item. Code selects it; the model writes the context blurb."""
 
     text: str
     source_ids: list[str] = Field(default_factory=list)
-    context: Optional[str] = None
+    context: str | None = None
 
 
 class InfoGap(_Base):
-    """Section 7 item. A pure code transform of the gap-analysis output."""
+    """Section 8 item. A pure code transform of the gap-analysis output."""
 
     question: str
     why: str
@@ -159,26 +176,26 @@ class InfoGap(_Base):
 
 
 class SourceTrailEntry(_Base):
-    """Section 8 row. Everything but `contribution` is code."""
+    """Section 9 row. Everything but `contribution` is code."""
 
     source_id: str
     title: str
-    kind: Optional[str] = None
-    year: Optional[str] = None
-    creator: Optional[str] = None
-    contribution: Optional[str] = None
-    vault_anchor: Optional[str] = None
-    duplicate_of: Optional[str] = None
+    kind: str | None = None
+    year: str | None = None
+    creator: str | None = None
+    contribution: str | None = None
+    vault_anchor: str | None = None
+    duplicate_of: str | None = None
     accessible: bool = True
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class CorpusBalance(_Base):
     """Header advisory (work order I.24). Skew may be deliberate; never hidden."""
 
     domains: dict[str, int] = Field(default_factory=dict)
-    date_range: Optional[str] = None
-    network_note: Optional[str] = None
+    date_range: str | None = None
+    network_note: str | None = None
     stance_counts: dict[str, int] = Field(default_factory=dict)
 
 
@@ -206,14 +223,15 @@ class Briefing(_Base):
     meta: BriefingMeta
     read: Read
     players: list[Player] = Field(default_factory=list)
+    places: list[Place] = Field(default_factory=list)
     record: list[RecordEntry] = Field(default_factory=list)
     files: list[File] = Field(default_factory=list)
     disputes: list[Dispute] = Field(default_factory=list)
     anecdotes: list[Anecdote] = Field(default_factory=list)
     info_gaps: list[InfoGap] = Field(default_factory=list)
     source_trail: list[SourceTrailEntry] = Field(default_factory=list)
-    corpus_balance: Optional[CorpusBalance] = None
-    addendum: Optional[Addendum] = None
+    corpus_balance: CorpusBalance | None = None
+    addendum: Addendum | None = None
 
     @model_validator(mode="after")
     def _read_is_present(self) -> "Briefing":
@@ -232,6 +250,8 @@ class Briefing(_Base):
         cited: set[str] = set()
         for player in self.players:
             cited.update(player.source_ids)
+        for place in self.places:
+            cited.update(place.source_ids)
         for entry in self.record:
             cited.update(entry.source_ids)
         for file in self.files:
@@ -361,6 +381,13 @@ BLURBS_SCHEMA = _object(
 # Pass 6: cards for the names code decided qualify.
 PLAYERS_SCHEMA = _object(
     {"players": _array_of({"name": _STRING, "role": _STRING, "body": _STRING})}
+)
+
+# Pass 6b: cards for the qualifying names code classified as places. The model
+# may return fewer cards than names it was given: whether a place matters to
+# this story is a reading judgement, so the backdrop rule lives in the prompt.
+PLACES_SCHEMA = _object(
+    {"places": _array_of({"name": _STRING, "line": _STRING, "body": _STRING})}
 )
 
 # Pass 7: one line per source, saying what only that source contributes.

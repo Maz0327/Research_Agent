@@ -24,7 +24,6 @@ plus this deterministic post-check.
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Optional
 
 from backend.pipeline.text_similarity import content_tokens, statement_similarity
 
@@ -222,6 +221,10 @@ def briefing_prose(briefing) -> list[tuple[str, str]]:
         prose.append(
             (f"players[{player.name}]", f"{player.name}, {player.role}. {player.body}")
         )
+    for place in briefing.places:
+        prose.append(
+            (f"places[{place.name}]", f"{place.name}, {place.line}. {place.body}")
+        )
     for index, entry in enumerate(briefing.record):
         prose.append((f"record[{index}]", entry.what))
         if entry.context:
@@ -248,7 +251,7 @@ def briefing_prose(briefing) -> list[tuple[str, str]]:
 def grounding_gate(
     briefing,
     raw_texts: Iterable[str],
-    harvest_facts: Optional[Iterable[str]] = None,
+    harvest_facts: Iterable[str] | None = None,
 ) -> GateReport:
     """Check that every hard atom in the Briefing exists in the corpus.
 
@@ -407,7 +410,7 @@ def strip_ungrounded(text: str, values: Iterable[str]) -> tuple[str, list[str]]:
 def strip_ungrounded_fields(briefing, report: GateReport) -> list[dict]:
     """Strip ungrounded sentences from the short generated fields.
 
-    Applied to context notes, player cards, and source-trail lines, which are
+    Applied to context notes, player and place cards, and source-trail lines, which are
     small enough that removing a sentence leaves something coherent. Findings
     in the long prose sections are left for a repair round instead: deleting a
     sentence out of the middle of an argument is its own kind of damage.
@@ -425,7 +428,7 @@ def strip_ungrounded_fields(briefing, report: GateReport) -> list[dict]:
 
     removals: list[dict] = []
 
-    def apply(where: str, text: str) -> Optional[str]:
+    def apply(where: str, text: str) -> str | None:
         values = by_location.get(where)
         if not values:
             return text
@@ -447,6 +450,13 @@ def strip_ungrounded_fields(briefing, report: GateReport) -> list[dict]:
         elif updated != f"{player.name}, {player.role}. {player.body}":
             # Keep the card's identity line; only the body loses sentences.
             player.body = updated
+    for place in briefing.places:
+        updated = apply(f"places[{place.name}]", f"{place.name}, {place.line}. {place.body}")
+        if updated is None:
+            place.body = ""
+        elif updated != f"{place.name}, {place.line}. {place.body}":
+            # Keep the card's identity line; only the body loses sentences.
+            place.body = updated
     for entry in briefing.source_trail:
         if entry.contribution:
             entry.contribution = apply(

@@ -10,14 +10,15 @@ which sections were touched, and which were not. A section nobody touched is
 the most valuable thing this can report, because it is the part the owner can
 safely skip.
 """
-from typing import Any, Optional
+from typing import Any
 
 from backend.models.briefing import Briefing
 
-# The eight sections, in the order the document presents them.
+# The nine sections, in the order the document presents them.
 SECTIONS = (
     "read",
     "players",
+    "places",
     "record",
     "files",
     "disputes",
@@ -56,7 +57,7 @@ def _section_text(briefing: Briefing, section: str) -> str:
     parts: list[str] = []
     for item in value:
         for field in (
-            "name", "role", "body", "when", "what", "context", "title",
+            "name", "role", "line", "body", "when", "what", "context", "title",
             "text", "claim", "holders", "question", "why", "go_get",
             "contribution", "heading",
         ):
@@ -83,9 +84,9 @@ def changed_sections(old: Briefing, new: Briefing) -> dict[str, bool]:
 
 
 def diff_briefings(
-    old: Optional[Briefing],
+    old: Briefing | None,
     new: Briefing,
-    addendum: Optional[dict] = None,
+    addendum: dict | None = None,
 ) -> dict[str, Any]:
     """Describe what changed between two Briefings, for a person.
 

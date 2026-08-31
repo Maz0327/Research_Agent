@@ -12,7 +12,7 @@ from has less room to wander than one handed the whole corpus.
 
 import re
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any
 
 from backend.models.briefing import Chip, chip
 from backend.pipeline.text_similarity import content_tokens, statement_similarity
@@ -48,6 +48,11 @@ PLAYER_SECTION_THRESHOLD = 2
 # alone returned 61 names on the labyrinth corpus, most of them places and
 # aliases; after those are handled the rule stands, and this caps what is left.
 MAX_PLAYER_CARDS = 14
+
+# The Places section is capped the way the cast is, and smaller: a reader
+# holds fewer locations than actors, and on the Packer corpus the five places
+# that had been posing as players were already a full geography for one story.
+MAX_PLACE_CARDS = 8
 
 # A player DOES something. Places, monuments, and eras recur constantly in a
 # research corpus and belong in the prose, not in the cast, so a candidate has
@@ -130,7 +135,7 @@ def looks_like_an_event(text: str, date_written: str) -> bool:
     return not _CITATION_MARKER.search(after)
 
 
-def date_in(text: str) -> Optional[tuple[float, str]]:
+def date_in(text: str) -> tuple[float, str] | None:
     """Find the date a fact is about, if it has one.
 
     Args:
@@ -309,7 +314,10 @@ def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, dict]:
         Map of canonical name to `{"sections": set, "aliases": set}`. Aliases
         are kept because the ranking counts every form a name appears under.
     """
-    names = sorted(appearances, key=lambda n: (-len(n.split()), n))
+    # Longest form first — by tokens, then by characters, so the fullest form
+    # is always the canonical one even when a truncated variant has the same
+    # token count ("Denver Po" and "Denver Post" are both two tokens).
+    names = sorted(appearances, key=lambda n: (-len(n.split()), -len(n), n))
     merged: dict[str, dict] = {}
 
     for name in names:
@@ -317,7 +325,16 @@ def merge_aliases(appearances: dict[str, set[str]]) -> dict[str, dict]:
         target = None
         for canonical in merged:
             canonical_tokens = {t.lower().strip(".,") for t in canonical.split()}
-            if tokens <= canonical_tokens or canonical_tokens <= tokens:
+            # Token containment catches shorter word-boundary forms. The
+            # prefix check catches truncation artifacts, which end mid-word
+            # and so share no last token with the full form: on the Packer run
+            # the name extractor cut "Los Piños Indian Agency" at the "ñ" and
+            # both "Los Pi" and the full agency name got a card.
+            if (
+                tokens <= canonical_tokens
+                or canonical_tokens <= tokens
+                or canonical.lower().startswith(name.lower())
+            ):
                 target = canonical
                 break
         if target:
@@ -409,10 +426,41 @@ def qualifying_players(
     return [row["name"] for row in rank_players(sections)[:maximum]]
 
 
+def split_cast(
+    names: list[str],
+    kinds: dict[str, str] | None,
+    max_places: int = MAX_PLACE_CARDS,
+) -> tuple[list[str], list[str]]:
+    """Split the qualifying names into Players and Places, by classification.
+
+    Players keeps people AND organisations — the Denver Post and the Colorado
+    Supreme Court act in a story the way a person does. Places gets geographic
+    locations only. The split exists because the 2+-section rule counts a
+    river as readily as a reporter: on the Packer run five of fourteen
+    "players" were places, each handed a biography.
+
+    Args:
+        names: Qualifying names, best first.
+        kinds: Name-to-kind map from `classify_name_kinds`, or None when the
+            classification failed. None keeps every name a player, the
+            pre-split behaviour and the safe direction; so does a name the
+            classifier did not answer for.
+        max_places: Ceiling on the Places section.
+
+    Returns:
+        Tuple of (player names, place names), each in ranking order.
+    """
+    if kinds is None:
+        return list(names), []
+    players = [name for name in names if kinds.get(name) != "place"]
+    places = [name for name in names if kinds.get(name) == "place"][:max_places]
+    return players, places
+
+
 def below_the_line(
     sections: dict[str, str],
     maximum: int = MAX_PLAYER_CARDS,
-    people: Optional[set[str]] = None,
+    people: set[str] | None = None,
 ) -> list[str]:
     """Names that met the threshold but fell below the cap.
 
@@ -444,7 +492,7 @@ def below_the_line(
 
 def evidence_chip(
     source_ids: Iterable[str],
-    duplicate_of: Optional[dict] = None,
+    duplicate_of: dict | None = None,
     contested: bool = False,
     belief_migration: bool = False,
     verifiable: bool = True,
@@ -504,10 +552,10 @@ def _dedupe_claims(claims: list[dict]) -> list[dict]:
 
 
 def select_disputes(
-    claim_graph: Optional[Any] = None,
+    claim_graph: Any | None = None,
     tensions: Iterable[Any] = (),
     inventory: Iterable[dict] = (),
-    key_points: Optional[dict] = None,
+    key_points: dict | None = None,
     max_disputes: int = 8,
 ) -> list[dict]:
     """Choose the disputes, by code, from what the pipeline already found.

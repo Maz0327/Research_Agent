@@ -13,7 +13,7 @@ blurbs, players, and contributions are small calls; the harvest (a separate
 stage) is one call per source. Roughly 25-30 calls per job.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -23,12 +23,14 @@ from backend.models.briefing import (
     CONTRIBUTIONS_SCHEMA,
     DISPUTE_SCHEMA,
     FILE_SCHEMA,
+    PLACES_SCHEMA,
     PLAYERS_SCHEMA,
     READ_SCHEMA,
     SUBJECT_MAP_SCHEMA,
     Anecdote,
     DisputeSide,
     File,
+    Place,
     Player,
     Read,
     ReadParagraph,
@@ -44,6 +46,7 @@ from backend.pipeline.prompts.briefing_prompts import (
     DENSIFY_ROLE,
     DISPUTE_ROLE,
     FILE_ROLE,
+    PLACES_ROLE,
     PLAYERS_ROLE,
     READ_EXAMPLES,
     READ_ROLE,
@@ -555,7 +558,7 @@ def run_dispute_pass(
 def run_blurb_pass(
     client: Any,
     items: list[str],
-    context_by_index: Optional[dict[int, str]] = None,
+    context_by_index: dict[int, str] | None = None,
     role: str = BLURB_ROLE,
 ) -> dict[int, str]:
     """Pass 5 and 7a: write context notes for entries code already placed.
@@ -641,6 +644,55 @@ def run_players_pass(
     return [cards[name] for name in names if name in cards]
 
 
+def run_places_pass(
+    client: Any, names: list[str], material_by_name: dict[str, list[str]]
+) -> list[Place]:
+    """Pass 6b: cards for the qualifying names code classified as places.
+
+    Selection is the model's half here, by design: whether a gulch matters to
+    THIS story is a reading judgement, so the rule lives in the pass prompt
+    and the model returns no card for a backdrop. Everything else works as the
+    players pass does: cards keep code's order, and cards for names that were
+    not asked for are discarded.
+
+    Args:
+        client: A structured-output client.
+        names: Qualifying names classified as places, best first.
+        material_by_name: Facts mentioning each name.
+
+    Returns:
+        Cards for the places that earned one, in the order code supplied them.
+    """
+    if not names:
+        return []
+
+    blocks = []
+    for name in names:
+        material = material_by_name.get(name, [])
+        blocks.append(f"{name}\n" + "\n".join(f"  - {m}" for m in material))
+
+    data, _ = client.generate_structured(
+        prompt="NAMES AND THEIR MATERIAL\n\n" + "\n\n".join(blocks),
+        schema=PLACES_SCHEMA,
+        system=PLACES_ROLE,
+        max_tokens=SMALL_CALL_MAX_TOKENS,
+    )
+
+    wanted = {name.lower(): name for name in names}
+    cards: dict[str, Place] = {}
+    for place in data.get("places", []):
+        written = (place.get("name") or "").strip()
+        canonical = wanted.get(written.lower())
+        if not canonical or canonical in cards:
+            continue
+        cards[canonical] = Place(
+            name=canonical,
+            line=(place.get("line") or "").strip(),
+            body=(place.get("body") or "").strip(),
+        )
+    return [cards[name] for name in names if name in cards]
+
+
 def run_contribution_pass(
     client: Any, sources: list[dict], facts_by_source: dict[str, list[str]]
 ) -> dict[str, str]:
@@ -683,7 +735,7 @@ def run_contribution_pass(
 
 
 def build_record_entries(
-    dated_facts: list[dict], blurbs: Optional[dict[int, str]] = None
+    dated_facts: list[dict], blurbs: dict[int, str] | None = None
 ) -> list[RecordEntry]:
     """Pass 5, code half: the chronology skeleton.
 
@@ -712,7 +764,7 @@ def build_record_entries(
 
 
 def build_anecdotes(
-    facts: list[dict], blurbs: Optional[dict[int, str]] = None
+    facts: list[dict], blurbs: dict[int, str] | None = None
 ) -> list[Anecdote]:
     """Pass 7a, code half: the texture bin.
 
@@ -741,28 +793,46 @@ def build_anecdotes(
 # already-built object here double-wraps it, and the model then echoes the
 # schema's own scaffolding back as data — which reads as "no names are people"
 # and silently suppressed 25 real lint findings before it was caught.
-PEOPLE_SCHEMA: dict = _object(
+NAME_KINDS_SCHEMA: dict = _object(
     {
-        "people": _array_of(
+        "names": _array_of(
             {
                 "name": {"type": "string"},
-                "is_person": {"type": "boolean"},
+                "kind": {"type": "string"},
             }
         )
     }
 )
 
-PEOPLE_ROLE = """You are sorting names out of a research document into people and
-not-people.
+# The kinds code accepts back. The grammar ceiling keeps the wire schema a
+# plain string, so the vocabulary is enforced here: an answer outside it reads
+# as no answer, and the name stays where it already was.
+NAME_KINDS = ("person", "organisation", "place")
+
+NAME_KINDS_ROLE = """You are sorting names out of a research document into three
+kinds: person, organisation, and place.
 
 A PERSON is a human being — a researcher, an author, an official, a witness, an
-ancient writer. Anything else is not: places, lakes, regions, historical
-periods, institutions, technologies, instruments, companies, podcasts, books,
-papers, and video titles are all NOT people.
+ancient writer.
 
-Judge the name itself. If you genuinely cannot tell, answer false — the cost of
-a wrong "true" is a document that stops to explain who Synthetic Aperture Radar
-is, and the cost of a wrong "false" is only that a minor name goes unglossed.
+An ORGANISATION is a body that acts: a newspaper, a court, a company, a
+government office, an expedition, a broadcaster. Named works and instruments
+that act as sources in the story — a podcast, a book, a paper, a survey
+technology — also count as organisations here: they belong with the cast, not
+the geography.
+
+A PLACE is a geographic location: a city, a county, a river, a lake, a valley,
+a region, a site, a building. A named outpost that could be either — an
+agency, a fort, a mission — is a place when the document mostly uses it to say
+where events happened, and an organisation when it is shown deciding or doing
+things.
+
+Answer "kind" with exactly one of: person, organisation, place.
+
+Judge the name itself. If you genuinely cannot tell whether something is a
+place, do not call it a place — the cost of a wrong "place" is a person or an
+organisation silently dropped from the cast, and the cost of a wrong "person"
+is only a document that stops to explain who Synthetic Aperture Radar is.
 
 Return one entry for every name you are given, and no others."""
 
@@ -809,11 +879,57 @@ If the passage gives you nothing at all to say about them, return an empty
 string for that name. An empty answer is better than an invented credential."""
 
 
-def classify_people(names: list[str], client: Any, topic: str = "") -> set[str]:
-    """Decide which of these names are people.
+def classify_name_kinds(
+    names: list[str], client: Any, topic: str = ""
+) -> dict[str, str] | None:
+    """Sort candidate names into person, organisation, and place.
 
     One call for the whole list: the judgement is comparative and the answers
     are steadier when the model sees the field at once.
+
+    Args:
+        names: Candidate names from the ranking.
+        client: A structured client.
+        topic: The job topic, for context.
+
+    Returns:
+        Map of name to kind, covering the names the model answered with a kind
+        code accepts; a name it skipped or mislabelled is simply absent, and
+        callers leave absent names where they already were. None on model
+        failure — the whole ranking then stays in Players, the pre-split
+        behaviour, which is the safe direction: on the Packer run the cost of
+        a missed split was a river with a biography, but a real player
+        silently dropped from the cast would be worse.
+    """
+    if not names:
+        return {}
+
+    try:
+        data, _usage = client.generate_structured(
+            prompt=(f"TOPIC: {topic}\n\n" if topic else "")
+            + "NAMES:\n"
+            + "\n".join(f"- {name}" for name in names),
+            schema=NAME_KINDS_SCHEMA,
+            system=NAME_KINDS_ROLE,
+            max_tokens=2_000,
+        )
+    except Exception as exc:
+        logger.warning(f"Name-kind classification failed ({exc}); keeping every name")
+        return None
+
+    known = set(names)
+    return {
+        entry["name"]: entry["kind"]
+        for entry in (data.get("names") or [])
+        if entry.get("name") in known and entry.get("kind") in NAME_KINDS
+    }
+
+
+def classify_people(names: list[str], client: Any, topic: str = "") -> set[str]:
+    """Decide which of these names are people.
+
+    A view over `classify_name_kinds`, kept because the one-off rule and its
+    lint only care about the person/not-person line.
 
     Args:
         names: Candidate names from the ranking.
@@ -826,28 +942,10 @@ def classify_people(names: list[str], client: Any, topic: str = "") -> set[str]:
         direction: a spurious lint error is noise, a missing one is a reader
         meeting a name cold.
     """
-    if not names:
-        return set()
-
-    try:
-        data, _usage = client.generate_structured(
-            prompt=(f"TOPIC: {topic}\n\n" if topic else "")
-            + "NAMES:\n"
-            + "\n".join(f"- {name}" for name in names),
-            schema=PEOPLE_SCHEMA,
-            system=PEOPLE_ROLE,
-            max_tokens=2_000,
-        )
-    except Exception as exc:
-        logger.warning(f"Person classification failed ({exc}); keeping every name")
+    kinds = classify_name_kinds(names, client, topic)
+    if kinds is None:
         return set(names)
-
-    known = set(names)
-    return {
-        entry["name"]
-        for entry in (data.get("people") or [])
-        if entry.get("is_person") and entry.get("name") in known
-    }
+    return {name for name in names if kinds.get(name) == "person"}
 
 
 def write_introductions(

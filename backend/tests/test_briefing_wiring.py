@@ -58,6 +58,10 @@ def _scripted_client():
             data = {"blurbs": [{"index": 0, "context": "He read it as a foundation."}]}
         elif keys == {"players"}:
             data = {"players": []}
+        elif keys == {"places"}:
+            data = {"places": []}
+        elif keys == {"names"}:
+            data = {"names": []}
         elif keys == {"contributions"}:
             data = {"contributions": [{"source_id": "SRC_1", "contribution": "the dig record."}]}
         else:

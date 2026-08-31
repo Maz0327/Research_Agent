@@ -10,13 +10,14 @@ Markdown and Drive exports are lossy secondary renders of the same JSON.
 """
 
 import html
-from typing import Optional
+import itertools
 
 from backend.models.briefing import Briefing
 
 SECTION_TITLES = [
     "The Read",
     "The Players",
+    "The Places",
     "The Record",
     "The Files",
     "Disputed & Uncertain",
@@ -384,7 +385,7 @@ BRIEFING_CSS = r"""  :root {
 """
 
 
-def _esc(text: Optional[str]) -> str:
+def _esc(text: str | None) -> str:
     """HTML-escape a value, treating None as empty."""
     return html.escape(text or "", quote=True)
 
@@ -461,6 +462,30 @@ def _render_players(briefing: Briefing, vault_url: str) -> str:
     )
 
 
+def _render_places(briefing: Briefing, vault_url: str) -> str:
+    """Place cards reuse the player card markup on purpose: the stylesheet is
+    the owner-approved mockup's verbatim, so a new section borrows a validated
+    shape rather than growing its own."""
+    if not briefing.places:
+        return ""
+    cards = []
+    for place in briefing.places:
+        cards.append(
+            '<details class="player"><summary>'
+            f'<span class="name">{_esc(place.name)}</span>'
+            f'<span class="role">{_esc(place.line)}</span></summary>'
+            f"<p>{_esc(place.body)} {_src_tag(place.source_ids, vault_url)}</p>"
+            "</details>"
+        )
+    return (
+        "<section>"
+        + _section_head(3, SECTION_TITLES[2])
+        + '<div class="players">'
+        + "".join(cards)
+        + "</div></section>"
+    )
+
+
 def _render_record(briefing: Briefing, vault_url: str) -> str:
     if not briefing.record:
         return ""
@@ -479,7 +504,7 @@ def _render_record(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(3, SECTION_TITLES[2])
+        + _section_head(4, SECTION_TITLES[3])
         + '<ul class="timeline">'
         + "".join(rows)
         + "</ul></section>"
@@ -498,7 +523,7 @@ def _render_files(briefing: Briefing, vault_url: str) -> str:
             f"<p>{_src_tag(file.source_ids, vault_url)}</p>"
             "</div>"
         )
-    return "<section>" + _section_head(4, SECTION_TITLES[3]) + "".join(blocks) + "</section>"
+    return "<section>" + _section_head(5, SECTION_TITLES[4]) + "".join(blocks) + "</section>"
 
 
 def _render_disputes(briefing: Briefing, vault_url: str) -> str:
@@ -524,7 +549,7 @@ def _render_disputes(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(5, SECTION_TITLES[4])
+        + _section_head(6, SECTION_TITLES[5])
         + '<div class="disputes">'
         + "".join(blocks)
         + "</div></section>"
@@ -548,7 +573,7 @@ def _render_anecdotes(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(6, SECTION_TITLES[5])
+        + _section_head(7, SECTION_TITLES[6])
         + '<ul class="anecdotes">'
         + "".join(items)
         + "</ul></section>"
@@ -566,7 +591,7 @@ def _render_gaps(briefing: Briefing) -> str:
         )
     return (
         "<section>"
-        + _section_head(7, SECTION_TITLES[6])
+        + _section_head(8, SECTION_TITLES[7])
         + '<ol class="oq">'
         + "".join(items)
         + "</ol></section>"
@@ -603,7 +628,7 @@ def _render_trail(briefing: Briefing, vault_url: str) -> str:
         )
     return (
         "<section>"
-        + _section_head(8, SECTION_TITLES[7])
+        + _section_head(9, SECTION_TITLES[8])
         + '<div class="trail">'
         + "".join(rows)
         + "</div></section>"
@@ -709,6 +734,7 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
             _render_balance(briefing),
             _render_read(briefing),
             _render_players(briefing, vault_url),
+            _render_places(briefing, vault_url),
             _render_record(briefing, vault_url),
             _render_files(briefing, vault_url),
             _render_disputes(briefing, vault_url),
@@ -720,7 +746,7 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
     footer = (
         "<footer>Briefing generated from job "
         f"{_esc(briefing.job_id)} &middot; every claim traces to raw source text via the "
-        "IDs shown &middot; Section 1 is written for reading; Sections 2&ndash;8 are the "
+        "IDs shown &middot; Section 1 is written for reading; Sections 2&ndash;9 are the "
         "reference layer"
         + (
             f' &middot; <a href="{_esc(vault_url)}">raw texts of all sources</a>'
@@ -736,7 +762,7 @@ def render_briefing_html(briefing: Briefing, vault_url: str = "") -> str:
     )
 
 
-def _md_escape(text: Optional[str]) -> str:
+def _md_escape(text: str | None) -> str:
     """Keep markdown structural characters from reflowing source text."""
     return (text or "").replace("\\", "\\\\").replace("*", "\\*").replace("_", "\\_")
 
@@ -770,13 +796,22 @@ def render_briefing_markdown(briefing: Briefing) -> str:
         facts.append(meta.generated_on)
     out += [" · ".join(facts), ""]
 
-    out += ["## 1. The Read", "", _md_escape(briefing.read.lede), ""]
+    # Numbers follow what is actually emitted. Every section here is
+    # conditional, so hardcoded numbers skipped one whenever a section was
+    # empty — visible the moment Places arrived and a briefing with no places
+    # rendered "2. The Players" straight into "4. The Record" (2026-08-31).
+    counter = itertools.count(1)
+
+    def heading(title: str) -> str:
+        return f"## {next(counter)}. {title}"
+
+    out += [heading("The Read"), "", _md_escape(briefing.read.lede), ""]
     for paragraph in briefing.read.paragraphs:
         lead = f"**{_md_escape(paragraph.label)}:** " if paragraph.label else ""
         out += [f"{lead}{_md_escape(paragraph.text)}", ""]
 
     if briefing.players:
-        out += ["## 2. The Players", ""]
+        out += [heading("The Players"), ""]
         for player in briefing.players:
             cite = f" ({' · '.join(player.source_ids)})" if player.source_ids else ""
             out += [
@@ -786,8 +821,19 @@ def render_briefing_markdown(briefing: Briefing) -> str:
                 "",
             ]
 
+    if briefing.places:
+        out += [heading("The Places"), ""]
+        for place in briefing.places:
+            cite = f" ({' · '.join(place.source_ids)})" if place.source_ids else ""
+            out += [
+                f"**{_md_escape(place.name)}** — {_md_escape(place.line)}",
+                "",
+                f"{_md_escape(place.body)}{cite}",
+                "",
+            ]
+
     if briefing.record:
-        out += ["## 3. The Record", ""]
+        out += [heading("The Record"), ""]
         for entry in briefing.record:
             cite = f" ({' · '.join(entry.source_ids)})" if entry.source_ids else ""
             out.append(f"- **{_md_escape(entry.when)}** — {_md_escape(entry.what)}{cite}")
@@ -796,7 +842,7 @@ def render_briefing_markdown(briefing: Briefing) -> str:
         out.append("")
 
     if briefing.files:
-        out += ["## 4. The Files", ""]
+        out += [heading("The Files"), ""]
         for file in briefing.files:
             chips = " ".join(f"`{c.label}`" for c in file.chips)
             cite = f" ({' · '.join(file.source_ids)})" if file.source_ids else ""
@@ -808,7 +854,7 @@ def render_briefing_markdown(briefing: Briefing) -> str:
                 out += [cite.strip(), ""]
 
     if briefing.disputes:
-        out += ["## 5. Disputed & Uncertain", ""]
+        out += [heading("Disputed & Uncertain"), ""]
         for dispute in briefing.disputes:
             out += [
                 f"### {_md_escape(dispute.claim)} `{dispute.chip.label}`",
@@ -826,7 +872,7 @@ def render_briefing_markdown(briefing: Briefing) -> str:
             ]
 
     if briefing.anecdotes:
-        out += ["## 6. Details & Anecdotes", ""]
+        out += [heading("Details & Anecdotes"), ""]
         for anecdote in briefing.anecdotes:
             cite = f" ({' · '.join(anecdote.source_ids)})" if anecdote.source_ids else ""
             out.append(f"- {_md_escape(anecdote.text)}{cite}")
@@ -835,7 +881,7 @@ def render_briefing_markdown(briefing: Briefing) -> str:
         out.append("")
 
     if briefing.info_gaps:
-        out += ["## 7. Info Gaps", ""]
+        out += [heading("Info Gaps"), ""]
         for gap in briefing.info_gaps:
             out.append(
                 f"- **{_md_escape(gap.question)}** {_md_escape(gap.why)} "
@@ -844,7 +890,7 @@ def render_briefing_markdown(briefing: Briefing) -> str:
         out.append("")
 
     if briefing.source_trail:
-        out += ["## 8. Source Trail", ""]
+        out += [heading("Source Trail"), ""]
         for entry in briefing.source_trail:
             descriptors = [d for d in (entry.kind, entry.year, entry.creator) if d]
             descriptor = f" ({', '.join(str(d) for d in descriptors)})" if descriptors else ""

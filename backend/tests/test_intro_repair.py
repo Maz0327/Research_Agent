@@ -200,7 +200,8 @@ class TestRepairRound:
                     for line in kwargs["prompt"].splitlines()
                     if line.startswith("- ")
                 ]
-                return ({"people": [{"name": n, "is_person": people} for n in names]}, {})
+                kind = "person" if people else "organisation"
+                return ({"names": [{"name": n, "kind": kind} for n in names]}, {})
             names = [
                 line.split("name: ", 1)[1]
                 for line in kwargs["prompt"].splitlines()
