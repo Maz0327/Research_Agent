@@ -24,63 +24,463 @@ Read all eleven entries. Here’s what is actually in the pile, told straight. T
 
 ## 2. The Players
 
-**Denver Post** — Newspaper that publicized Packer’s case and employed him after prison
+**Alfred Griner Packer** — Prospector and guide whose accounts formed the basis of the Colorado Cannibal case
 
-The Denver Post published Polly Pry’s reporting and campaign on Packer’s behalf. It petitioned for his release after he had served seventeen years, and Packer later worked there as a guard. Many believed the job came through Pry and the newspaper’s efforts to secure his release.
+Alfred joined a party of prospectors after offering his services as a guide between Utah and Brackenridge. He later arrived at the agency carrying a rifle and other belongings, gave conflicting accounts of the party’s deaths, and signed a confession prepared by General Charles Adams. His story, prosecution, parole campaign, and later forensic investigations make him the central recurring figure.
 
-**Polly Pry** — Denver Post reporter who led a campaign for Packer’s release
+**Shannon Wilson Bell** — Prospector identified as one of Packer’s companions and as a reported killer in Packer’s account
 
-Polly Pry partly believed Alfred Packer after hearing his story and visited him at Colorado State Penitentiary in 1899. She used his Army service to portray him as a common man caught in a regrettable situation, then publicized his plight. Packer was paroled in 1901 after a campaign led first by Duane Hatch and later by Pry; he called her his “Liberator.” Polly Pry was the pen name of Leonel Campbell Ross O’Bryan.
+Packer said Bell shot James Humphrey, George Noon, and Frank Miller, helped carry and eat their remains, and later attacked him with a hatchet. Packer claimed he shot Bell in self-defense and then finished him. Bell’s body was later identified near the Gunnison River; it had been stripped nearly to the bones and showed a head injury.
 
-**Los Pi** — Variant name for the agency where Packer emerged alone in April 1874
+**Leonel Campbell Ross O’Bryan** — Denver Post reporter who wrote under the name Polly Pry and led a campaign for Packer’s release
 
-The supplied material uses “Los Pi” for the Los Piños or Los Pinos Indian Agency near Saguache, Colorado. Packer arrived there alone on April 16, 1874, after traveling for 65 days, carrying a Winchester rifle, a skinning knife, and a coffee pot with live coals. Other members of the expedition reached the agency later or were said to have disappeared.
+O’Bryan learned of Packer’s case while reporting as Polly Pry and launched a media campaign portraying him as a common man and victim of circumstances. She visited Packer at the Colorado State Penitentiary in 1899, and many believed her efforts and those of her employers helped secure his release and later job at The Denver Post. Packer called her his Liberator. O’Bryan was born in 1857 and died on July 16, 1938; she later worked as a freelancer.
 
-**Colorado Supreme Court** — State court associated with the reversal of Packer’s sentence
+**Chief Ouray** — Ute leader who sheltered Packer’s party and warned them against winter travel
 
-The Colorado Supreme Court reversed Packer’s sentence in October 1885 on ex post facto grounds. Packer’s lawyers had argued that Colorado Territory had no murder statute when the deaths occurred, before statehood and before Colorado established the relevant laws. The court therefore recurs in accounts of the legal technicality that affected his prosecution.
+Ouray’s camp near Montrose gave the prospectors food and lodging on January 21, 1874. He warned that no Ute would attempt the mountain journey in those conditions, urged the men to remain until spring, and directed them toward the Gunnison River as the safer route. The prospectors ultimately left his camp on February 9 with insufficient food and ignored his warning.
 
-**Israel Swan** — Prospector identified in Packer’s confessions as the first person to die
+**Israel Swan** — Elderly prospector whose death and reported killing became part of Packer’s changing confessions
 
-Packer said Israel Swan died from hunger and exposure after the party’s supplies ran out, and that he ate Swan. In another account, Packer said Swan was struck in the head with a hatchet, after which the other men butchered him. Packer’s first signed confession said Swan died first and was eaten by the other five men about ten days after they left camp.
+Packer said Swan died from hunger and exposure after giving him a rifle, while other accounts said Swan was struck in the head with a hatchet and killed. Packer said the men ate Swan’s body, divided several thousand dollars found on him, and continued with his rifle and money. In Packer’s signed first confession, Swan, called Old Man Swan, died first and was eaten by the other five people.
 
-**Harper’s Weekly** — National publication that illustrated and reported the 1874 deaths
+**Preston Nutter** — Original party member who led the group that followed the river and challenged Packer’s account
 
-John A. Randolph, an illustrator for Harper’s Weekly, found the site of the incident in August and reported it to authorities in Lake City. Harper’s Weekly covered the story in its October 17, 1874 issue with Randolph’s illustration, “A Colorado Tragedy.” The coverage drew national attention to the crime, although most historians conclude that the illustrator found the remains while on assignment in the area.
+Nutter arrived at the agency in May, then went to Saguache seeking answers and immediately suspected Packer because he knew him as a liar. He told General Adams that the others would not have abandoned Packer, identified the rifle and pipe Packer had left behind, and noted that Packer had originally possessed no money. Nutter became so angry that he dragged Packer outside, later called him a “whining fraud,” and testified that Packer had repeatedly asked how much money the others had.
 
-**Lake Fork** — Area near the Gunnison River where Packer said the party became lost
+**Charles Adams** — General overseeing the agency who questioned Packer, recorded his confession, and took him to trial
 
-Packer said that after traveling with little food, he and Bell camped beside a large lake near hemlock trees. After two weeks, near the Lake Fork of the Gunnison River, he said he was lost and no longer recognized the surroundings. The area northeast of Lake City where the party became lost is labeled “Cannibal Plateau,” and Lake City later developed Packer-related attractions including Al Packer Days and the Packer Burger.
+Adams had his men feed Packer when he arrived and later sent a mounted man to retrieve him for questioning. He asked about Packer’s money, the belongings of other men, and how he had survived while appearing well-fed, then had Packer’s confession written down and signed as a sworn statement. Adams later led a mountain search for the bodies, found nothing, confirmed Packer’s identity in Denver, and took him away for trial.
 
-**Jefferson County** — Colorado county where Packer died in 1907
+**James E. Starrs** — George Washington University law and forensic science professor who led the 1989 exhumation
 
-Alfred Griner Packer died in Jefferson County, Colorado, on April 23, 1907, at age 65. The supplied material also connects Packer’s escape, assumed identity, and arrest in Wyoming with his eventual return to Hinsdale County for trial. Accounts of his imprisonment and prosecution recur alongside descriptions of the Hinsdale County Museum’s Packer memorabilia.
+Starrs led a forensic team that exhumed the five bodies from a mass grave in the San Juan mountains on July 17, 1989. With Walter H. Birkby, he said cannibalism could not be scientifically demonstrated without an eyewitness to the eating. Starrs concluded from the evidence that Packer had murdered his companions, likely for their belongings, and described cannibalism as a subsequent necessity rather than the initial intent.
 
-**Colorado State Archives** — State archival source associated with the Packer case and forensic evidence
+**Frank Miller** — Prospector identified by Packer as one of the men killed around the campfire
 
-The supplied material links the Colorado State Archives with accounts of Packer’s journey, prosecution, the ex post facto legal issue, his parole in 1901, and objects made or carried during his imprisonment. It also records that analysis at Mesa State College’s Electron Microscopy Facility matched bullet fragments from the burial site to lead from Packer’s old pistol. Packer’s pistol is now displayed at the Museum of Western Colorado.
+Miller was among the five prospectors trying to reach Breckenridge before the fortune hunters arrived. Packer said he quarreled constantly with Miller and that Bell, Humphrey, Noon, and Packer secretly decided Miller would be next because he was stocky and had soft flesh. According to Packer, Miller was killed with a hatchet while stooping to pick up firewood.
 
-**Los Pinos Indian Agency** — Agency where Packer arrived alone and where the separated party sought help
+**David P. Bailey** — Museum of Western Colorado curator who investigated the firearms and forensic evidence in the Packer case
 
-Los Pinos Indian Agency near Saguache, Colorado, was the destination chosen by the expedition after the party split. Chief Ouray advised the men to follow the Gunnison River north to the agency; the party that followed that route ran out of food, while Packer arrived alone on April 16, 1874. General Charles Adams gave Packer food there, and Preston Nutter later arrived and sought answers in Saguache. Two Ute men also brought pieces of flesh they said came from a human found near the agency.
+Bailey began a 1994 investigation seeking stronger evidence than Starrs had produced about Packer’s claim that he shot Bell. He found an 1862 Colt revolver, located archived forensic samples from the 1989 exhumation, and arranged for Richard Dujay and Mesa State College’s Electron Microscopy Lab to examine them. The lead fragment matched bullets from Bailey’s revolver chemically, although he had not proved a link between the pistol and Packer by 2000, and Michelle Pierce remained unconvinced. In mock trials, including Bailey’s evidence led juries to acquit Packer more often than not.
 
-**Colorado State Penitentiary** — Prison where Packer was held before his 1901 parole
+**Alva Adams** — Colorado governor-elect who directed the renewed inquiry into Packer
 
-Packer was imprisoned at Colorado State Penitentiary and visited there by Denver Post reporter Polly Pry in 1899. Pry wrote about his desire for freedom and launched a media campaign on his behalf. While in prison, Packer made horsehair bridles; one is displayed at the Museum of Western Colorado.
+Adams questioned Alfred about his money, possessions, survival, and earlier account, and arranged for a mounted officer to bring Packer from Saguache for questioning under the pretense of recruiting him for a search party. He received warnings from Loutsenhizer and an agency officer about Packer’s suspicious stories, spending, horse, saddle, and possessions. Adams also heard Packer’s later account of the bodies and questioned why it had not been told nine years earlier. As governor-elect, he warned Newman against defending Packer, but later relented and forwarded her letter to the State Penitentiary in 1887.
 
-**Hinsdale County Historical Society** — Historical organization associated with the Hinsdale County Museum’s Packer collection
+**James Humphrey** — Packer-party member whose death was described differently in Packer’s confessions
 
-The supplied material connects the Hinsdale County Historical Society with the Hinsdale County Museum, which travel magazines describe as having the largest known collection of Packer memorabilia. The reported collection includes skull fragments, victims’ clothing buttons, and shackles used when Packer was imprisoned. The material also places Packer’s detention, prosecution, and intended execution in Hinsdale County.
+Packer first said Shannon Bell killed Humphrey, George Noon, and Frank Miller as they slept, and later said Humphrey died several days afterward and was eaten; he also claimed to have taken about $133 from Humphrey’s pocketbook. In an amended account, Packer said James Humphrey died from exposure to extreme cold. Humphrey’s remains were found with Noon’s: a largely flayed torso attached to skeletal legs, an intact bearded face, possible hatchet blows to the head, broken bones, and substantial remaining flesh and organs. Humphrey was one of five men seeking to reach Breckenridge before the arrival of thousands of fortune hunters.
 
-**Chief Ouray** — Ute leader who sheltered Packer’s expedition and warned it against winter travel
+**George Noon** — Packer-party member whose remains became central to the conflicting murder accounts
 
-Chief Ouray’s camp near Montrose gave the party food and lodging after it arrived on January 21, 1874. He advised the prospectors to remain until spring, warned that the mountain journey would mean certain death in those conditions, and recommended following the Gunnison River to the agency. Packer ignored the warning and left Ouray’s camp with five other prospectors on February 9; the party had only enough food for one grown man for a week.
+Packer said Shannon Bell killed Noon, James Humphrey, and Frank Miller while they slept, while his first confession said Bell killed a man called “California” and that Packer then killed Bell in self-defense. Noon’s remains, found with Humphrey’s, consisted largely of a flayed torso and rotting viscera attached to skeletal legs; his bearded face remained intact. His head showed blows suggestive of a hatchet, and his body had noticeable broken bones and flesh that could have been eaten. Noon was among the five men trying to reach Breckenridge before the fortune hunters arrived.
 
-**Gunnison River** — Route followed by one branch of Packer’s divided expedition
+**Tom Miller** — Miller identified in Packer’s account as the stocky party member killed for his flesh; later linked to Packer’s bust unveiling
 
-After the party split, five men followed Oliver Loutsenhizer along the Gunnison River while Packer and five others headed through the San Juan Mountains. Chief Ouray had recommended the river route, and Bob McGrue guided Packer’s men along it until the horses could go no farther. Two of the five men on that route eventually reached the Los Piños Indian Agency, while the river’s tributaries and nearby terrain later figured in accounts of the deaths and the discovery of the remains.
+Packer said Miller left a knife stuck in a tree, was selected because he was stocky and had much soft flesh, and was killed with a hatchet blow while stooping to collect firewood. The New York Times reported in 1982 that Lamm congratulated sculptor Tom Miller at the unveiling of Packer’s bust. At that unveiling, Lamm quoted Alferd Packer as saying, “Well done!” to Tom Miller.
 
-## 3. The Record
+**Melville Gerry** — District Court judge who presided over Packer’s first trial and sentencing
+
+Judge Gerry ordered the sheriff to search the highways and byways for additional jurors. After the jury found Packer guilty of murder, Gerry sentenced him to be “hung from your neck until you are dead, dead, dead.” Newspaper reports attributed colorful insults and a statement about Packer reducing the state’s Democratic population to Gerry, but the famous quotation is presented as likely false. Fred M. Mazzula used trial transcripts to identify Gerry’s less colorful, accurate wording and noted that Gerry did not speak in the exaggerated style attributed to him.
+
+**Herman Lauter** — Constable and transcriber of Packer’s first official statement
+
+Lauter transcribed Packer’s first official statement and led a search party composed of five Utah miners, agency officers, and Packer as guide. During the return, Packer tried to murder Lauter with a knife. Packer was restrained and arrested, and Lauter testified that Packer lunged at him with murder in his eyes when ordered to surrender the knife.
+
+**Jean “Frenchy” Cabazon** — Original-party member who found and identified Packer under an alias
+
+Cabazon found Packer in Cheyenne on March 11, 1883, living as “John Schwartze,” after Packer approached him to buy supplies. Cabazon had been part of the original party from Provo and had stayed in Chief Ouray’s camp before reaching the destination with Bob McGrue and Preston Nutter’s party. He reported Packer to the sheriff, confirmed his identity when summoned, and accompanied him by train to Denver for Packer’s second confession.
+
+**John A. Randolph** — Harper’s Weekly illustrator who discovered the five bodies
+
+While traveling over the mountains during Alfred’s trial, Randolph came down a pass near Lake City and noticed something protruding from the ground, followed by a strong stench. He discovered five men in different stages of decomposition in a pine-shaded gulch at the foot of Slumgullion Pass, two miles southeast of Lake City, Colorado. Randolph sketched the scene and reported it to authorities in Lake City, making his discovery a recurring link between Packer’s account and the physical evidence.
+
+**Oliver D. Loutsenhizer** — Leader of the river-route group and prosecution witness against Packer
+
+The party split between five men following Loutsenhizer along the Gunnison River and six, including Packer, traveling through the San Juan Mountains. Loutsenhizer threatened to shoot Packer if he followed, later told Adams that Packer was untrustworthy, and identified Packer’s Winchester and pipe as belonging to other party members. With Nutter, he challenged Packer’s qualifications as a guide and emphasized his character flaws, inconsistent stories, and contradictions. Loutsenhizer testified for the prosecution alongside Otto Mears, Larry Dolan, and Preston Nutter.
+
+**Robert McGrue** — Organizer and guide of the Salt Lake City party bound for the San Juan Mountains
+
+McGrue assembled a party of 20 in Salt Lake City after hearing of gold discoveries in Breckenridge. He guided Packer’s group along the river route advised by Chief Ouray until the horses could go no farther, then unloaded the provisions and returned to Ouray’s camp. Members of his party later said Packer had overstated or possibly fabricated his experience with the area. Cabazon was part of the original party associated with McGrue and Preston Nutter’s group.
+
+**Trey Parker** — Cannibal! The Musical director and South Park co-creator
+
+Parker and fellow CU film student Matt Stone produced Cannibal! The Musical in 1993, which marked Parker’s directorial debut. They later created the television show South Park, making Parker recur in accounts of Packer’s cultural afterlife.
+
+**Michelle Pierce** — Former Lake City town clerk and archival critic of the official Packer narrative
+
+Pierce’s archival research found details that she says do not fit the official account. She believes Packer did not murder the five men and portrays him as a pitiable person whose social pathologies arose from a misunderstood disease and harsh contemporary judgments. She was also unconvinced that Bailey’s pistol was the decisive evidence.
+
+**Nick Charles** — Fictional detective in The Thin Man who discusses Packer’s expeditions
+
+In Dashiell Hammett’s novel The Thin Man, Nick Charles advises Gilbert Wynant to read a selection about Packer’s expeditions. He recurs as part of Packer’s literary and cultural afterlife. He is distinct from former Colorado Governor Charles Thomas, who paroled Packer in 1901.
+
+**Bob Bergland** — U.S. Secretary of Agriculture who unveiled the Alferd Packer Memorial Grill plaque
+
+On August 10, 1977, Bergland and his employees held a press conference unveiling a plaque naming the executive cafeteria the “Alferd Packer Memorial Grill.” Bergland said Packer’s life exemplified the cafeteria’s spirit and fare and would “serve all mankind.” He later removed the plaque after a bureaucratic objection that it lacked official GSA authorization.
+
+**Grant Houston** — Hinsdale County Historical Society head and Lake City Silver World editor and publisher
+
+Houston says many people in Lake City believe Packer was guilty, suspecting that he lured the men into the area for their money or guns, killed them, and left. He remained skeptical because tourists had long found old guns and bullets near the massacre site and claimed they belonged to Packer or the other prospectors.
+
+**Harry Tammen** — Denver Post publisher who helped secure Packer’s defense and retrial demand
+
+During the shooting, Pry jumped in front of Harry Heye Tammen and tried to shield him as Anderson prepared to shoot again. Tammen and fellow Denver Post publisher Fred Bonfils hired a lawyer to defend Packer. Pry persuaded Tammen to pay for Packer’s defense and demand a retrial.
+
+**Larry Dolan** — Packer associate and prosecution witness in the trial record
+
+Dolan later said Packer spent around $100 during his stay and offered to lend him $300. He testified for the prosecution alongside Otto Mears, Oliver D. Loutsenhizer, and Preston Nutter; Nutter was the key witness.
+
+**Richard Dujay** — Mesa State College researcher who examined archived Packer forensic samples
+
+In 2001, Dr. Dujay analyzed archived samples with an electron microscope after Bailey arranged for him and the Electron Microscopy Lab at Mesa State College to examine them. His team found microscopic lead fragments, including a tiny fragment in soil taken from under Shannon Bell’s remains. He recurs because the analysis was used in the later examination of the forensic evidence.
+
+**Richard Lamm** — Colorado governor who declined Packer’s posthumous unconditional pardon
+
+The United Press International reported that Lamm declined Packer’s posthumous pardon in 1981. At the 1982 unveiling of Packer’s bust in the Capitol Rotunda, Lamm acknowledged objections to his refusal and said critics believed the evidence showed Packer killed only one man in self-defense. He also said, “Unfortunately, the proof was in the pudding and Alferd ate that, too,” and quoted Packer as saying “Well done!” to sculptor Tom Miller.
+
+**Walter H. Birkby** — Researcher who rejected definitive scientific proof of the alleged cannibalism
+
+Birkby and Starrs said cannibalism could not be scientifically demonstrated unless someone actually saw the eating. Birkby said there was nothing to corroborate or refute Packer’s account and that no solid physical evidence would ever establish who committed the acts.
+
+**Matt Stone** — CU film student and co-creator of Cannibal! The Musical and South Park
+
+Matt Stone and Trey Parker produced Cannibal! The Musical in 1993 while they were CU film students. They later created the TV show South Park, which is why Stone recurs in material about the musical and its creators.
+
+**Otto Mears** — General-store owner and prosecution witness in the Packer case
+
+Packer spent an additional $78 in Otto Mears’ general store. Mears testified for the prosecution, alongside Larry Dolan, Oliver D. Loutsenhizer, and Preston Nutter; Nutter was the key witness. Mears also testified that Packer had valuable Wells Fargo drafts when he came out of the mountains.
+
+**Phil Ochs** — Songwriter of “The Ballad of Alferd Packer”
+
+Phil Ochs wrote “The Ballad of Alferd Packer” in 1964 about the expedition and its aftermath. The song’s humor reflects a seemingly lighthearted ongoing attitude toward Packer and his alleged crimes. It did not appear on Ochs’s studio or live albums, but appeared on compilations issued after his death in 1976, most recently on the 2010 compilation On My Way, which collected demos from 1963.
+
+**W. W. Anderson** — Attorney who shot two men during a confrontation involving Harry Heye Tammen
+
+During the confrontation, W. W. Anderson pulled a gun and shot both men. As he prepared to shoot again, Pry tried to shield Harry Heye Tammen, stalling Anderson long enough for police to arrive. The film included the incident, but Anderson was not named and was called [the supplied material ends here].
+
+**Fred Bonfils** — Denver Post publisher who hired Pry and helped arrange Packer’s defense
+
+In 1898, Frederick Bonfils hired Pry for the Denver Post. Bonfils and fellow Denver Post publisher Harry Tammen also hired a lawyer to defend Packer. He recurs through both Pry’s employment and the newspaper’s connection to the case.
+
+**Thomas Samuel Duke** — Author of Celebrated Criminal Cases of America
+
+A selection from Thomas Samuel Duke’s Celebrated Criminal Cases of America gives Packer’s first name as Alfred. Duke recurs as the source of that version of Packer’s name.
+
+**Barbara Walters** — ABC Evening News journalist associated with coverage of the 1977 plaque event
+
+ABC Evening News covered the 1977 plaque event with Barbara Walters. She recurs because of that broadcast coverage.
+
+**Fred M. Mazzula** — Author of Al Packer, A Colorado Cannibal and researcher of the trial record
+
+In Al Packer, A Colorado Cannibal, Fred M. Mazzula argued that Judge Gerry did not speak like the exaggerated quote suggests. He used trial transcripts to determine what Judge Gerry actually said, linking his account directly to the primary trial record.
+
+**George Anthony** — Railroad industrialist who eloped with Pry
+
+At age fifteen, Pry eloped to Mexico with George Anthony. Five years later, she left Anthony and moved to New York to become a reporter. He recurs as an early figure in Pry’s biography.
+
+**Toddy Walters** — Actor who played Polly Pry in the musical
+
+Toddy Walters played Polly Pry in the Musical. The production went more deeply into Pry’s involvement with the case but ignored that she was married, making her a love interest for Packer; Walters therefore recurs in material about the musical’s portrayal of Pry.
+
+**Audrey Thrailkill** — Firearms collector whose museum collection included a revolver linked to the Packer case
+
+A Colt revolver in the Audrey Thrailkill collection was reportedly found at the site of Packer’s alleged crime. She recurs because the firearm is associated with the material history of the case.
+
+**C. W. McCall** — Songwriter of “Comin’ Back for More,” a song about Packer
+
+C. W. McCall wrote “Comin’ Back for More” about Packer, connecting Packer’s story to popular music.
+
+**Cynthia Nessin** — Actor who portrayed Polly Pry in Jim Roberson’s 1980 film The Legend of Alfred Packer
+
+Nessin appears in the Packer story through her role as Polly Pry in Jim Roberson’s The Legend of Alfred Packer (1980).
+
+**Dashiell Hammett** — Novelist who included Packer-related reading in The Thin Man
+
+In Hammett’s novel The Thin Man, Nick Charles advises Gilbert Wynant to read a selection about Packer’s expeditions. Hammett recurs because Packer appears as a reference within the novel.
+
+**Frank E. Deane** — Gunnison photographer who photographed Packer during the 1886 trial
+
+According to Paul H. Gantt’s The Case of Alferd Packer, Deane took a portrait of Packer during the 1886 trial. His connection is photographic and tied to the trial record.
+
+**Gilbert Wynant** — The Thin Man character advised to read about Packer’s expeditions
+
+In Dashiell Hammett’s novel The Thin Man, Nick Charles advises Gilbert Wynant to read a selection about Packer’s expeditions. Wynant recurs as the fictional recipient of that Packer-related reference.
+
+**Harold Schechter** — True-crime author of Man-Eater, a book about Packer
+
+Schechter made Packer the subject of his true-crime book Man-Eater. He recurs as an author who interpreted Packer’s story for a true-crime readership.
+
+**James E. Bank** — Author of Alferd Packer’s Wilderness Cookbook
+
+In 1998, Bank wrote Alferd Packer’s Wilderness Cookbook. His connection to Packer is through a book focused on wilderness food and Packer’s story.
+
+**Major Downer** — Buyer of Packer’s Winchester rifle
+
+Packer said he was broke and sold the Winchester rifle he carried to Major Downer for $10. Downer recurs because he acquired a weapon associated with Packer’s expedition.
+
+**Stanley Weston** — USDA employee memorialized by the plaque; lived from 1931 to 1984
+
+The plaque also serves as a memorial to Weston, who worked at the USDA. He is deceased, having lived from 1931 to 1984.
+
+## 3. The Organisations
+
+**Los Piños Indian Agency** — Colorado agency where Alfred arrived during the 1874 expedition crisis
+
+Men at the agency near Saguache saw Alfred enter the mess hall during a snowstorm on April 16, 1874, and General Charles Adams oversaw efforts to feed him. Alfred described the party’s journey after several whiskeys, but his well-fed appearance and unexplained money after selling his rifle raised questions. Preston Nutter arrived at the agency in May with the river party, while no one heard from the other men again until Alfred appeared months later.
+
+**The Denver Post** — Newspaper whose columnist helped secure Packer’s parole and later employed him
+
+Denver Post writer Polly Pry visited Packer in prison in 1899 and used his Army service to portray him as a common man and a victim of circumstances. A Denver Post columnist crusaded for his release, and Packer was paroled in 1901 after serving seventeen years. He later worked as a guard at the newspaper, a job many believed resulted from Pry and the paper’s efforts.
+
+**Ute tribe** — Indigenous community whose leader warned the prospectors against the 1874 winter journey
+
+The prospectors reached a Ute encampment led by Chief Ouray near present-day Montrose on January 21, 1874, after exhausting their food and supplies. Ouray warned that no Ute would attempt the journey in those conditions and that it meant almost certain death; he also advised the party to follow the Gunnison River toward Los Piños. Two Ute men later brought strips of dried human flesh to the agency, saying they had found them on a hill near the agency, making the tribe recur in accounts of the discovery and aftermath.
+
+**Colorado State Archives** — Repository of legal, historical, and Packer-related records
+
+The Colorado State Archives holds several legal and historical records concerning Alfred Packer, including books from the 1989 Alfred G. Packer Victims Exhumation Project in Lake City. The Alfred Packer Collection is available online, with users directed to choose the “Browse Archive” option below the State Archives logo. The archive recurs as a source for records about Packer and the case.
+
+**Colorado State Penitentiary** — Cañon City prison where Packer served his 40-year sentence
+
+After a retrial in 1886, Packer was convicted of manslaughter and sentenced to forty years of hard labor at the Colorado State Penitentiary in Cañon City. Denver Post writer Polly Pry first met and interviewed him there while researching Colorado’s prison system. She returned to visit him in 1899, linking the prison to the later campaign for his release.
+
+**University of Colorado Boulder** — University whose students named a cafeteria grill for Packer
+
+In 1968, students at the University of Colorado Boulder named the student union restaurant the Alferd G. or E. Packer Memorial Grill. CU film students Matt Stone and Trey Parker later produced Cannibal! The Musical in 1993. The university recurs because its cafeteria and student culture helped preserve and popularize Packer’s name.
+
+**Harper’s Weekly** — Magazine that covered the case and published an illustration of the remains
+
+Harper’s Weekly covered the story on October 17, 1874, and included an illustration by Randolph, a traveling illustrator who worked for the magazine. Most historians conclude that the illustrator found the decomposing remains of the five missing prospectors near the Gunnison River while on assignment. The magazine therefore recurs in accounts of both the discovery and the story’s early public presentation.
+
+**Alferd Packer Grill** — Boulder restaurant and cafeteria attraction named for Packer
+
+The restaurant was originally named the Alferd E. or G. Packer Memorial Grill after University of Colorado Boulder students renamed their cafeteria in 1968. It was later renamed the Alferd Packer Restaurant & Grill, and students eat beneath a giant portrait of Packer carrying the slogan “Have a friend for lunch!” The name also appears in broader Packer tourism and commemoration, including the Packer Burger and related attractions in Lake City.
+
+**Colorado Supreme Court** — State court that overturned and later upheld Packer’s sentence
+
+The Colorado Supreme Court overturned Packer’s death sentence in 1885 on ex post facto grounds, with accounts also describing the ruling as based on a territorial statute barring the death penalty before statehood. It granted a change of venue that led to a second trial in Gunnison. On June 19, 1899, the court officially upheld his sentence, making it central to the case’s legal history.
+
+**16th Infantry Regiment** — Union Army regiment to which Packer was assigned during the Civil War
+
+Packer enlisted in the Union army on April 22, 1862, in Winona, Minnesota. He was assigned to Company F of the 16th Infantry Regiment. His Army service later became part of Polly Pry’s portrayal of him in The Denver Post as a common man and victim of circumstances.
+
+**Ripley’s** — Museum reported to hold Packer’s dissected skull
+
+Ripley’s said it bought Packer’s dissected skull from an anonymous party for $20,000. The skull was reported to have passed through a traveling sideshow and a private party before reaching the museum. As of 2008, it was reported to be at Ripley’s Museum in San Antonio after relocation from New Orleans following Hurricane Katrina.
+
+**Museum of Western Colorado** — Grand Junction museum displaying Packer artifacts and sponsoring a pistol investigation
+
+The museum displays a horsehair bridle Packer made in prison and Packer’s pistol. In 1994, curator David P. Bailey began an investigation into Packer’s claim that he had shot Bell, seeking more conclusive results than Starrs. Bailey later arranged for Mesa State College researchers to examine forensic samples.
+
+**General Services Administration** — Federal agency whose authorization was cited in a plaque dispute
+
+The General Services Administration was involved indirectly in the removal of a plaque. Bergland later removed the plaque because of a bureaucratic objection that it lacked official GSA authorization.
+
+**Mesa State College** — Institution whose electron microscopy facility analyzed Packer-related bullet fragments
+
+Mesa State College’s Electron Microscopy Facility matched bullet fragments from the burial site to lead from Packer’s old pistol. In 2001, the archived samples were analyzed there by Dr. Richard Dujay. The college recurs because Bailey arranged for its laboratory to examine the forensic evidence.
+
+**Packer Saloon & Cannibal Grill** — Lake City attraction built around the Packer story
+
+The Packer Saloon & Cannibal Grill is one of Lake City’s attractions. The town also promotes Al Packer Days, the Packer Burger at the Cannibal Grill, and a large wooden marker for the Alferd Packer Massacre Site. The venue recurs as part of the modern tourist network surrounding Packer.
+
+**Rocky Mountain News** — Historical newspaper represented in the research archive
+
+Microfilm of Denver and Colorado newspapers from the relevant era includes a complete run of the Rocky Mountain News. It appears alongside the Denver Post in the newspaper materials used for the research.
+
+**8th Iowa Cavalry Regiment** — Civil War regiment Packer joined in 1863
+
+Packer enlisted in the 8th Iowa Cavalry Regiment at Ottumwa, Iowa, on June 25, 1863. The regiment recurs as part of the account of Packer’s earlier history.
+
+**Dolan’s Saloon** — Saguache saloon where Packer played poker and was later found
+
+Packer played high-stakes poker at Dolan’s Saloon, bought a $70 horse, and booked a room there. Preston Nutter later arrived in Saguache with two other original party members and found Packer in the saloon.
+
+**Hinsdale District Court** — Court whose original case files are held in the research collection
+
+The collection includes original case files from Gunnison and Hinsdale District Court. Hinsdale District Court recurs as part of the documentary record surrounding the case.
+
+**National Press Club** — Washington venue displaying the Packer plaque and naming a burger for him
+
+The plaque is displayed on the wall of the National Press Club’s members-only bar, The Reliable Source. The club’s hamburger is called the Alfred Packer Burger, making it another modern setting in which Packer’s name appears.
+
+**The New York Times** — Newspaper that published accounts involving Lamm and Pry
+
+The New York Times reported in 1982 that Lamm congratulated sculptor Tom Miller at Packer’s bust unveiling. It initially rejected Pry, but gave her a trial assignment on a recent slum fire; the article she wrote earned her a full-time job there.
+
+**Union Army** — Civil War military organization in which Alfred and Packer served
+
+Alfred served twice in the Union Army during the Civil War and was honorably discharged both times. Packer enlisted on April 22, 1862, in Winona, Minnesota, and was assigned to Company F of the 16th Infantry Regiment. He was later discharged because of frequent seizures.
+
+**Western History/Genealogy Department** — Denver Public Library department holding research materials on Packer
+
+The department holds materials for researching Packer’s life and crimes. The article directs readers there for the real story of Packer’s crimes, trials, and life. Its holdings include original case files from Gunnison and Hinsdale District Court, including Gunnison District Court cases 238–241.
+
+**ABC Evening News** — Television news program that covered the 1977 plaque event
+
+ABC Evening News covered the 1977 plaque event with Barbara Walters. It recurs as part of the account of public attention surrounding that event.
+
+**Cannibal Cabins** — Lake City attraction associated with Packer-themed tourism
+
+The Cannibal Cabins are listed among Lake City’s attractions, alongside the Packer Saloon & Cannibal Grill. They recur as part of the town’s presentation of attractions connected to Packer.
+
+**Denver Public Library** — Library whose Western History/Genealogy Department holds Packer materials
+
+Denver Public Library’s Western History/Genealogy Department holds materials for researching Packer’s life and crimes. The department’s collection includes original case files from Gunnison and Hinsdale District Court, including Gunnison District Court cases 238–241.
+
+**Denver Woman’s Press Club** — Press club of which Pry was a member
+
+Pry became the Denver Post’s first female reporter in 1898 and was a member of the Denver Woman’s Press Club. The club recurs as part of her professional and organizational context.
+
+**George Washington University** — University where Starrs taught law and forensic science
+
+Starrs was a law professor at George Washington University specializing in forensic science. He is also described as a professor of law and forensic science there, placing the university in his academic and professional network.
+
+**Gunnison District Court** — Court whose case files concern Packer’s legal history
+
+The collection includes original case files from Gunnison and Hinsdale District Court. It specifically includes Gunnison District Court cases 238–241, making the court recur in the documentary record of Packer’s trials.
+
+**Hinsdale County Historical Society** — Local historical society led by Grant Houston
+
+Grant Houston, head of the Hinsdale County Historical Society and editor and publisher of the Lake City Silver World, says many people in town believe Packer was guilty. The society recurs through Houston’s local historical and publishing role.
+
+**Littleton Cemetery Association** — Cemetery association that cemented over Packer’s grave in 1973
+
+The Littleton Cemetery Association cemented over Packer’s grave to deter grave robbing and vandalism. It recurs as the organization responsible for the grave’s later covering.
+
+**The Reliable Source** — National Press Club members-only bar displaying the plaque
+
+The plaque is now displayed on the wall of The Reliable Source. The venue recurs as the plaque’s current location; Alfred concluded that hunting was not a reliable source of food.
+
+## 4. The Places
+
+**Lake City** — Hinsdale County seat near the discovery site at the foot of Slumgullion Pass
+
+Randolph discovered all five bodies in a gulch two miles southeast of Lake City and reported them to authorities there. Because the crime was considered to have occurred in Hinsdale County, Packer was detained, tried, and sentenced in Lake City; the place remains central to the story through its Packer commemorations and memorabilia.
+
+**Saguache** — Town near the Los Piños Indian Agency where Packer reappeared in April 1874
+
+Packer emerged alone from the woods on April 16, 1874, and entered the agency during a snowstorm. After staying there for ten days, he went to Saguache, where he rented a room and saloon, spent money taken from the dead men on drinking and gambling, and was later arrested after Preston Nutter confronted him there; witnesses also testified about his changing accounts.
+
+**Denver** — Colorado city where Packer was taken after his arrest and where a later confession was obtained
+
+Alfred was arrested and taken to Denver, where General Adams and Cabazon helped confirm his identity. Cabazon accompanied him by train to Denver for Packer’s second confession, keeping the city part of the investigation and legal history.
+
+**Gunnison** — Colorado town where Packer’s second trial and long incarceration took place
+
+After the Colorado Supreme Court granted a change of venue, Packer’s second trial was moved to Gunnison, where he was convicted of manslaughter in 1886 and sentenced to 40 years. He was incarcerated there for nearly four years and became a local celebrity, including through a portrait taken during the trial.
+
+**Gunnison River** — River route and watershed connected to the party’s journey and the discovery of the remains
+
+Chief Ouray advised the travelers to descend to the Gunnison River and follow it, but Packer led his group higher into the San Juan Mountains instead. The bodies were reported as lying above the Lake Fork of the Gunnison River, now called Dead Man’s Gulch, while another account says an illustrator for Harper’s Weekly found the remains near the Gunnison River.
+
+**San Juan Mountains** — Mountain range crossed by Packer and five companions in the winter of 1874
+
+The six-man party entered the San Juan Mountains while trying to reach newly discovered goldfields, despite the winter conditions and roughly 120 miles still to cross. Packer later confessed that the group starved there, that Israel Swan died from hunger and exposure, and that he ate him; he emerged as the sole survivor.
+
+**Hinsdale County** — County containing the reported crime site and the jurisdiction for Packer’s prosecution
+
+Because the actual crime was considered to have occurred in Hinsdale County rather than neighboring Saguache County, Packer was returned there after his apprehension in Wyoming and sent to Lake City for detention and prosecution. He was tried in the county, found guilty of murder, and sentenced to hang, although the material also records the later second trial in Gunnison.
+
+**Breckenridge** — Colorado goldfields that the prospecting party intended to reach
+
+The men set out for newly reported goldfields near Breckenridge, hoping to arrive before thousands of fortune hunters. Packer claimed he could guide them there, and the journey toward Breckenridge led the party first toward the Los Pinos Indian Agency.
+
+**Bingham Canyon** — Utah starting point for the prospecting party
+
+In November 1873, a party of 20 or 21 men departed Bingham Canyon for the San Juan region in search of mining claims. Before the deaths of his companions, Packer falsely told the miners near Bingham Canyon that he could guide them to Colorado’s rich metal region.
+
+**Boulder** — Colorado city associated with later public treatments of the Packer story
+
+Boulder became a site of continuing popular interest in Packer: a restaurant there was named the Alferd Packer Grill, residents held mock trials, and UC-Boulder students hosted Al Packer Days. The comedy musical Cannibal! The Musical was released exclusively in Boulder in 1993 before its wider U.S. release in 1996.
+
+**Wyoming** — State where Packer was captured after escaping and changing his identity
+
+After Packer escaped from jail in Saguache and changed his identity, he was arrested in Wyoming and returned for trial. The sources also state that he was captured there in 1883 and brought back to Lake City or Hinsdale County.
+
+**Cheyenne** — Wyoming city where Packer was found under an alias in 1883
+
+On March 11, 1883, Jean "Frenchy" Cabazon found Packer in Cheyenne living as John Schwartze and confirmed his identity. Cabazon accompanied him by train to Denver, where Packer made his second confession.
+
+**Jefferson County** — Colorado county where Packer was reported to have died in 1907
+
+Packer’s death is placed in Jefferson County on April 23, 1907, at age 65. Another account says he died two years later at a ranch near Deer Creek in western Jefferson County, so the sources disagree on both the date and the precise circumstances.
+
+**Littleton** — Colorado suburb of Denver where Packer lived, prospected, and was buried
+
+Packer moved to Littleton after living in Denver, bought a copper mine, and returned to prospecting. He was buried there, although the sources disagree about whether he died in Littleton in 1907 at age 69 or in Jefferson County at a different date and age.
+
+**Montrose** — Colorado location near the Uncompahgre Valley where the party encountered Chief Ouray’s Ute camp
+
+On January 21, 1874, the exhausted party reached a Ute encampment led by Chief Ouray near present-day Montrose, with its food and supplies gone. The encounter became a turning point in the journey toward the Los Pinos Indian Agency and the Breckenridge goldfields.
+
+**Cañon City** — Colorado city containing the Colorado State Penitentiary where Packer was imprisoned
+
+After his 1886 retrial, Packer was convicted of manslaughter and sentenced to forty years of hard labor at the state penitentiary in Cañon City. The place returns to the story because he remained a subject of public interest there, including Polly Pry’s 1899 visit.
+
+**Deadman’s Gulch** — site above the Lake Fork of the Gunnison River where the bodies were found
+
+The bodies were found five miles beyond town at the place called Deadman’s Gulch. Its identification anchors the account of the crime and gives the recovered bodies a specific location.
+
+**Saguache County** — county where Packer was jailed, escaped, and was later held before being sent to Hinsdale County
+
+Packer was kept in a log-cabin jail on the Saguache County sheriff’s ranch, escaped, changed his identity, and was arrested in Wyoming before being returned for trial. Because the crime occurred in Hinsdale County, authorities eventually sent him to Lake City for detention and prosecution; the county also figures in reports that officials objected to the cost of guarding him.
+
+**San Antonio** — Texas city reported to house Packer’s skull at the Ripley’s Museum
+
+As of 2008, Packer’s skull was reported to be at the Ripley’s Museum in San Antonio after being relocated from New Orleans following Hurricane Katrina. San Antonio therefore remains part of the story through the reported later location of the physical evidence.
+
+**Cannibal Plateau** — area northeast of Lake City where Packer’s party became lost
+
+Maps label the area “Cannibal Plateau,” tying it directly to the party’s ordeal. In the 1950s, a rusted 1862 Colt Police Model .32 five-shot revolver was found there with two shots missing, keeping the plateau connected to questions about what happened.
+
+**Salt Lake City** — Utah city where Robert McGrue assembled a party bound for the San Juan Mountains
+
+Robert McGrue formed a party of twenty in Salt Lake City after hearing of gold discovered in Breckenridge, and the group later met Alfred about twenty-five miles south of the city. Rumors that Packer had previously been jailed there for allegedly murdering a hunting partner also return Salt Lake City to the account.
+
+**Slumgullion Pass** — pass two miles southeast of Lake City, Colorado - the site where the five bodies were found
+
+Randolph discovered all five bodies at the foot of the pass in a pine-shaded gulch. Alfred also took the pass's yellow color and resemblance to stew as evidence that he was in Slumgullion Pass, tying the location to both the discovery and the account of the journey.
+
+**Douglas** — town in Wyoming - where Packer was found living under an alias
+
+In March 1883, Packer was found there living as John Swartze. His discovery in Douglas brought the alias and his whereabouts back into the story.
+
+**New Orleans** — former location of the skull before its reported relocation
+
+As of 2008, the skull was reported to be at Ripley's Museum in San Antonio, Texas, after being moved from New Orleans following Hurricane Katrina. New Orleans remains part of the skull's relocation history.
+
+**Provo** — Utah location where the original party began its journey
+
+George Tracy said the party met the 23-year-old Alfred Packer near Provo. Cabazon was also a member of the original party that left Provo, making the place part of the group's starting point and early history.
+
+**Uncompahgre Valley** — valley near Montrose, Colorado, where the party reached Chief Ouray's camp
+
+On January 21, 1874, the party came to Chief Ouray's camp in the valley. This stop connects the party's journey with the camp before the later events involving the Ute reservation.
+
+**Ute Reservation** — reservation involved in the jurisdiction of Packer's case
+
+Packer appealed for a retrial, arguing that the crime was committed on the reservation in early 1874 and should therefore have been subject to federal rather than local jurisdiction. The case also reflects prospectors' eagerness to trespass into the reservation, making the location central to the legal dispute and its context.
+
+**Capitol Rotunda** — site of the 1982 bust unveiling of Alferd Packer
+
+At the unveiling, Governor Lamm addressed his refusal to grant Packer an unconditional pardon the previous year and disputed claims that Packer killed only one man in self-defense. His remarks, including the line that “the proof was in the pudding and Alferd ate that, too,” kept the controversy over Packer’s guilt at the center of the event.
+
+**Deer Creek** — site of the ranch near Deer Creek in western Jefferson County where Packer died
+
+Packer died at a ranch near Deer Creek two years after the events described. The place returns to the story as the location of his death.
+
+**Lake San Cristobal** — possible identity of the frozen lake reached by Packer’s party
+
+Alfred said the party followed a stream for a day before reaching a frozen lake, possibly Lake San Cristobal. The uncertainty over whether this was the lake they reached keeps the location tied to the party’s journey.
+
+**Spanish Trail** — route traveled by Packer’s party
+
+While traveling the Spanish Trail, the party encountered heavy snow that hid the path. They were forced to rely almost entirely on a compass, making the trail part of the account of how the journey became difficult to navigate.
+
+## 5. The Record
 
 - **1842** — Alferd G. Packer was born in 1842 and died in 1907. (SRC_10)
   - This establishes the lifespan attributed to Packer in one account. It provides a chronological boundary for interpreting his military service, western travels, and later notoriety.
@@ -315,7 +715,7 @@ After the party split, five men followed Oliver Loutsenhizer along the Gunnison 
 - **2008** — As of 2008, the skull was reported to be at the Ripley's Museum in San Antonio, Texas, after relocation from New Orleans following Hurricane Katrina. (SRC_3)
   - The skull’s reported location shows how the physical remains had become part of a museum display history. Its relocation after Hurricane Katrina also illustrates the vulnerability of the surviving evidence to events unrelated to the original case.
 
-## 4. The Files
+## 6. The Files
 
 ### The investigation `established`
 
@@ -559,7 +959,7 @@ The Washington report likewise describes Packer as a “scurrilous liar and thie
 
 (SRC_1 · SRC_3 · SRC_4 · SRC_5 · SRC_6 · SRC_7 · SRC_8)
 
-## 5. Disputed & Uncertain
+## 7. Disputed & Uncertain
 
 ### The survival story is real in the sources, but the exact meaning of it is still contested. `established`
 
@@ -625,7 +1025,7 @@ The Washington report likewise describes Packer as a “scurrilous liar and thie
 
 **Case against the claim** — No evidence against the claim was supplied. Accordingly, this side cannot identify specific evidence showing that the indications were not conflicting.
 
-## 6. Details & Anecdotes
+## 8. Details & Anecdotes
 
 - A commenter says the Lake City museum has items Packer created while in prison. (SRC_5)
   - The museum preserves a tangible connection to Packer’s years behind bars. These objects give visitors something more concrete than the surviving stories and legends.
@@ -648,14 +1048,14 @@ The Washington report likewise describes Packer as a “scurrilous liar and thie
 - The author replies that Alferd’s name is sometimes spelled Alfred in the blog because quoted sources used that spelling. (SRC_5)
   - The explanation distinguishes the author’s own usage from the spelling found in source material. It shows that the inconsistency comes from preserving quotations rather than from a deliberate change to the historical name.
 
-## 7. Info Gaps
+## 9. Info Gaps
 
 - **You don't have the primary trial transcripts or official court testimony from Packer's 1883 murder trial. Without them, you can't show viewers what was actually said under oath versus what modern sources claim happened.** A major historical murder trial that went to the state supreme court would leave behind formal court records and contemporary sworn testimony. → Query the Colorado State Archives digital collections specifically for the 1883 Lake City trial transcripts and court filings.
 - **Your sources mention that Chief Ouray and Indigenous leaders warned the expedition, but you don't have direct contemporary accounts or recorded statements from the Ute Tribe members who interacted with the party.** Chief Ouray's encampment was the last known stop before the group entered the mountains. First-hand perspectives from the Ute witnesses who saw the group's physical condition and equipment are essential for a complete timeline. → Search for historical records from the Los Pinos Indian Agency or regional 1874 news reports detailing Chief Ouray's account of the expedition.
 - **You have a nine-year gap between Packer escaping jail in 1874 and his recapture in Wyoming in 1883. Your sources don't detail how he successfully evaded authorities for nearly a decade under the alias John Swartze.** A long-term fugitive evasion is a major narrative arc in a crime story. A viewer would expect to know how he hid, where he worked, and how he was eventually exposed. → Research 1883 Wyoming newspaper accounts detailing Packer's arrest in Cheyenne and his life as 'John Swartze'.
 - **Your sources note that Packer was paroled in 1901 and died in 1907, but you have no details about his daily life, where he lived, or his interactions with the public during those final six years.** When telling the full biography of a notorious figure who gained public sympathy and parole, you need to show the resolution of their life after release. → Look into local Littleton or Denver census records and local obituary archives from 1907 covering Packer's final years in Deer Creek.
 
-## 8. Source Trail
+## 10. Source Trail
 
 - **SRC_1** His Horrifying Ordeal in Colorado Mountains (youtube, 2023-11-19T00:00:00.000Z, Scary Interesting) — It uniquely describes Packer bursting into the Los Piños mess hall during a snowstorm in foot rags, carrying a coffee pot and rifle, and vomiting after eating too quickly.
 - **SRC_2** Alferd Packer (article, 2009-02-08, Author Gulliford; Andrew) — It uniquely reports Packer’s claim that the starving party cooked and ate their rawhide moccasins after three or four days without provisions.
@@ -668,8 +1068,3 @@ The Washington report likewise describes Packer as a “scurrilous liar and thie
 - **SRC_9** Polly Pry - Wikipedia (article, 2007-01-08, Authority control databases International VIAF National United States France BnF data Other Yale LUX) — It uniquely identifies Polly Pry as Leonel Campbell Ross O’Bryan, the Denver Post’s first female reporter, whose career connected her to the Packer case.
 - **SRC_10** Alferd Packer (article, 2025-05-05, Town of Lake City) — It uniquely details the 21-man expedition’s division at the Ute encampment into three factions after Chief Ouray warned them about the winter conditions.
 - **SRC_11** Cannibal Correspondence - True West Magazine (article, 2022-09-06, Kellen Cutsforth) — It uniquely describes Packer receiving romantic fan mail from adoring women while incarcerated, framing this as an early example of what is now called hybristophilia.
-
-## 9. Corpus Balance
-
-- Sources span **2003-2026**.
-- Stance mix across the corpus: 1 believer, 10 neutral.

@@ -23,6 +23,7 @@ from backend.models.briefing import (
     Read,
     SourceTrailEntry,
 )
+from backend.pipeline.briefing_cast import build_cast
 from backend.pipeline.briefing_gates import (
     coverage_gate,
     fact_is_covered,
@@ -35,12 +36,9 @@ from backend.pipeline.briefing_passes import (
     build_record_entries,
     repair_file_coverage,
     run_blurb_pass,
-    run_cast_pass,
     run_contribution_pass,
     run_dispute_pass,
     run_file_pass,
-    run_places_pass,
-    run_players_pass,
     run_read_pass,
     run_subject_map_pass,
 )
@@ -58,7 +56,6 @@ from backend.pipeline.formatters.briefing_renderer import (
 from backend.pipeline.formatters.source_vault import render_source_vault
 from backend.pipeline.grounding_repair import repair_grounding
 from backend.pipeline.intro_repair import repair_inline_introductions
-from backend.pipeline.text_similarity import content_tokens
 from backend.state import update_job
 
 
@@ -228,44 +225,9 @@ def build_briefing(
     # replaces required a space in a name, so it never saw the 601 mentions of
     # "Packer" and left the subject of the briefing out of his own cast list.
     brief_text = "\n\n".join(section_prose.values())
-    cast = run_cast_pass(client, brief_text)
-
-    def material_for(forms: list[str]) -> list[str]:
-        """Harvested facts mentioning any form of a name.
-
-        Matching every form is the point: a person appears once by full name
-        and then by surname, and the facts about them use both.
-        """
-        wanted = set()
-        for form in forms:
-            wanted |= content_tokens(form)
-        return [
-            fact["text"] for fact in inventory if wanted & content_tokens(fact["text"])
-        ][:12]
-
-    material = {entry["name"]: material_for(entry["forms"]) for entry in cast}
-
-    def named(kind: str) -> list[str]:
-        """Cast of one kind, most-mentioned first — code counts, not the model."""
-        rows = [entry for entry in cast if entry["kind"] == kind]
-        rows.sort(
-            key=lambda entry: (
-                -sum(brief_text.count(form) for form in entry["forms"]),
-                entry["name"],
-            )
-        )
-        return [entry["name"] for entry in rows]
-
-    player_names, org_names, place_names = (
-        named("person"), named("organisation"), named("place")
+    players, organisations, places = build_cast(
+        client, brief_text, inventory, ctx.job_id
     )
-    logger.info(
-        f"[{ctx.job_id}] Briefing pass 6: {len(player_names)} people, "
-        f"{len(org_names)} organisations, {len(place_names)} places"
-    )
-    players = run_players_pass(client, player_names, material)
-    organisations = run_players_pass(client, org_names, material)
-    places = run_places_pass(client, place_names, material)
 
     # --- Pass 7: anecdotes, gaps, source trail ------------------------------
     anecdote_facts = [by_id[i] for i in anecdote_ids if i in by_id]

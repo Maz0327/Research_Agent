@@ -72,6 +72,11 @@ READ_MAX_TOKENS = 24_000
 
 SMALL_CALL_MAX_TOKENS = 4_000
 
+# The cast pass answers with one entry per named entity across the whole
+# briefing, so its output scales with the document, not with one section.
+# At the small budget a full-length brief silently returned nothing.
+CAST_MAX_TOKENS = 16_000
+
 # A file section carries every fact routed to its subject, and the harvest got
 # roughly twice as dense once chunking and the length quota landed (D-032,
 # D-033): 633 facts became 1,258, which is ~157 per file and ~1,250 words of
@@ -605,6 +610,51 @@ def run_blurb_pass(
     return blurbs
 
 
+# One call per this many names. The cast is read out of the whole briefing
+# now, so a full-length brief asks for dozens of cards at once; asking for all
+# of them in a single call overran the output budget and the model came back
+# with nothing, taking the entire section with it. Batching also means a
+# failure costs one batch, not the section.
+CARD_BATCH = 10
+
+
+def _card_batches(
+    client: Any,
+    names: list[str],
+    material_by_name: dict[str, list[str]],
+    schema: dict,
+    role: str,
+    key: str,
+) -> list[dict]:
+    """Ask for cards in batches and return every row the model wrote.
+
+    A batch that fails is logged and skipped rather than raised: the briefing
+    is already written and paid for, and losing ten cards is recoverable where
+    losing the run is not. Callers check what came back against what they
+    asked for.
+    """
+    rows: list[dict] = []
+    for start in range(0, len(names), CARD_BATCH):
+        batch = names[start : start + CARD_BATCH]
+        blocks = [
+            f"{name}\n"
+            + "\n".join(f"  - {m}" for m in material_by_name.get(name, []))
+            for name in batch
+        ]
+        try:
+            data, _ = client.generate_structured(
+                prompt="NAMES AND THEIR MATERIAL\n\n" + "\n\n".join(blocks),
+                schema=schema,
+                system=role,
+                max_tokens=SMALL_CALL_MAX_TOKENS,
+            )
+        except Exception as e:
+            logger.error(f"Card batch failed for {batch}: {e}")
+            continue
+        rows.extend(data.get(key) or [])
+    return rows
+
+
 def run_players_pass(
     client: Any, names: list[str], material_by_name: dict[str, list[str]]
 ) -> list[Player]:
@@ -622,21 +672,13 @@ def run_players_pass(
     if not names:
         return []
 
-    blocks = []
-    for name in names:
-        material = material_by_name.get(name, [])
-        blocks.append(f"{name}\n" + "\n".join(f"  - {m}" for m in material))
-
-    data, _ = client.generate_structured(
-        prompt="NAMES AND THEIR MATERIAL\n\n" + "\n\n".join(blocks),
-        schema=PLAYERS_SCHEMA,
-        system=PLAYERS_ROLE,
-        max_tokens=SMALL_CALL_MAX_TOKENS,
+    rows = _card_batches(
+        client, names, material_by_name, PLAYERS_SCHEMA, PLAYERS_ROLE, "players"
     )
 
     wanted = {name.lower(): name for name in names}
     cards: dict[str, Player] = {}
-    for player in data.get("players", []):
+    for player in rows:
         written = (player.get("name") or "").strip()
         canonical = wanted.get(written.lower())
         if not canonical or canonical in cards:
@@ -671,21 +713,13 @@ def run_places_pass(
     if not names:
         return []
 
-    blocks = []
-    for name in names:
-        material = material_by_name.get(name, [])
-        blocks.append(f"{name}\n" + "\n".join(f"  - {m}" for m in material))
-
-    data, _ = client.generate_structured(
-        prompt="NAMES AND THEIR MATERIAL\n\n" + "\n\n".join(blocks),
-        schema=PLACES_SCHEMA,
-        system=PLACES_ROLE,
-        max_tokens=SMALL_CALL_MAX_TOKENS,
+    rows = _card_batches(
+        client, names, material_by_name, PLACES_SCHEMA, PLACES_ROLE, "places"
     )
 
     wanted = {name.lower(): name for name in names}
     cards: dict[str, Place] = {}
-    for place in data.get("places", []):
+    for place in rows:
         written = (place.get("name") or "").strip()
         canonical = wanted.get(written.lower())
         if not canonical or canonical in cards:
@@ -843,7 +877,7 @@ def run_cast_pass(client: Any, brief_text: str) -> list[dict[str, Any]]:
         prompt=delimit(brief_text[:CAST_READ_CHARS], "BRIEFING"),
         schema=CAST_SCHEMA,
         system=CAST_ROLE,
-        max_tokens=SMALL_CALL_MAX_TOKENS,
+        max_tokens=CAST_MAX_TOKENS,
     )
 
     cast: list[dict[str, Any]] = []

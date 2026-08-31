@@ -221,6 +221,10 @@ def briefing_prose(briefing) -> list[tuple[str, str]]:
         prose.append(
             (f"players[{player.name}]", f"{player.name}, {player.role}. {player.body}")
         )
+    for org in briefing.organisations:
+        prose.append(
+            (f"organisations[{org.name}]", f"{org.name}, {org.role}. {org.body}")
+        )
     for place in briefing.places:
         prose.append(
             (f"places[{place.name}]", f"{place.name}, {place.line}. {place.body}")
@@ -443,20 +447,18 @@ def strip_ungrounded_fields(briefing, report: GateReport) -> list[dict]:
     for index, anecdote in enumerate(briefing.anecdotes):
         if anecdote.context:
             anecdote.context = apply(f"anecdotes[{index}].context", anecdote.context)
-    for player in briefing.players:
-        updated = apply(f"players[{player.name}]", f"{player.name}, {player.role}. {player.body}")
-        if updated is None:
-            player.body = ""
-        elif updated != f"{player.name}, {player.role}. {player.body}":
-            # Keep the card's identity line; only the body loses sentences.
-            player.body = updated
-    for place in briefing.places:
-        updated = apply(f"places[{place.name}]", f"{place.name}, {place.line}. {place.body}")
-        if updated is None:
-            place.body = ""
-        elif updated != f"{place.name}, {place.line}. {place.body}":
-            # Keep the card's identity line; only the body loses sentences.
-            place.body = updated
+    # Only the body is stripped. The gate checks the identity line too, and
+    # reports on it, but a card cannot lose its own name to a repair: writing
+    # the checked string back rendered the identity twice, as "Polly Pry /
+    # DENVER POST REPORTER / Polly Pry, Denver Post reporter. She campaigned…".
+    for card, section in (
+        [(c, "players") for c in briefing.players]
+        + [(c, "organisations") for c in briefing.organisations]
+        + [(c, "places") for c in briefing.places]
+    ):
+        identity = getattr(card, "role", None) or getattr(card, "line", "")
+        apply(f"{section}[{card.name}].identity", f"{card.name}, {identity}.")
+        card.body = apply(f"{section}[{card.name}]", card.body) or ""
     for entry in briefing.source_trail:
         if entry.contribution:
             entry.contribution = apply(
