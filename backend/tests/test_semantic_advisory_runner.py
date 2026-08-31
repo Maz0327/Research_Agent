@@ -6,10 +6,14 @@ relevance, full-source localization, dedup, referees, directional corpus
 check, report — with injected fakes and zero network access.
 """
 
+import json
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from backend.pipeline.semantic_advisory import source_sentence_units
 from backend.pipeline.semantic_advisory_runner import (
+    DashScopeEmbedder,
     SemanticAdvisoryRunner,
     actor_mask,
     positive_proposition,
@@ -247,6 +251,115 @@ class TestLocalizationCache:
 
         assert runner.model.stages_called.count("stage_4_localization") == before + 1
         assert runner.localization_calls_saved == 0
+
+
+class TestEmbeddingCache:
+    """A corpus embeds to the same vectors every run.
+
+    Measured 2026-08-31: nine minutes of a Packer run elapsed before the first
+    model call, spent re-embedding 989 facts and ~2,300 source sentences that
+    had been embedded identically an hour before.
+    """
+
+    def _embedder(self, tmp_path, payloads):
+        with patch("backend.config.get_settings") as settings:
+            settings.return_value.dashscope_api_key = "test-key"
+            settings.return_value.dashscope_base_url = "https://example.invalid/v1"
+            embedder = DashScopeEmbedder(
+                batch_size=2, cache_path=tmp_path / "vectors.json.gz"
+            )
+        embedder._payloads = payloads
+        return embedder
+
+    def _serve(self, embedder, vectors_by_text):
+        """Answer every request from a dict, counting the requests."""
+        calls = []
+
+        def fake_urlopen(request, timeout=0):
+            body = json.loads(request.data.decode())
+            calls.append(body["input"])
+            response = MagicMock()
+            response.__enter__.return_value = response
+            response.read.return_value = json.dumps(
+                {
+                    "data": [
+                        {"index": i, "embedding": vectors_by_text[text]}
+                        for i, text in enumerate(body["input"])
+                    ]
+                }
+            ).encode()
+            return response
+
+        return calls, fake_urlopen
+
+    def test_a_second_run_sends_nothing(self, tmp_path):
+        vectors = {"alpha": [1.0, 0.0], "beta": [0.0, 1.0]}
+        first = self._embedder(tmp_path, None)
+        calls, fake = self._serve(first, vectors)
+
+        with patch("urllib.request.urlopen", fake):
+            got = first.embed(["alpha", "beta"])
+
+        assert got == [[1.0, 0.0], [0.0, 1.0]]
+        assert len(calls) == 1
+
+        second = self._embedder(tmp_path, None)
+        calls2, fake2 = self._serve(second, vectors)
+        with patch("urllib.request.urlopen", fake2):
+            again = second.embed(["alpha", "beta"])
+
+        assert again == got
+        assert calls2 == []
+        assert second.cache_hits == 2
+        assert second.cache_misses == 0
+
+    def test_only_the_misses_are_sent(self, tmp_path):
+        vectors = {"alpha": [1.0, 0.0], "beta": [0.0, 1.0], "gamma": [0.5, 0.5]}
+        first = self._embedder(tmp_path, None)
+        _, fake = self._serve(first, vectors)
+        with patch("urllib.request.urlopen", fake):
+            first.embed(["alpha"])
+
+        second = self._embedder(tmp_path, None)
+        calls, fake2 = self._serve(second, vectors)
+        with patch("urllib.request.urlopen", fake2):
+            got = second.embed(["alpha", "beta", "gamma"])
+
+        assert got == [[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]]
+        assert [text for batch in calls for text in batch] == ["beta", "gamma"]
+
+    def test_a_cache_for_another_model_is_ignored(self, tmp_path):
+        vectors = {"alpha": [1.0, 0.0]}
+        first = self._embedder(tmp_path, None)
+        _, fake = self._serve(first, vectors)
+        with patch("urllib.request.urlopen", fake):
+            first.embed(["alpha"])
+
+        with patch("backend.config.get_settings") as settings:
+            settings.return_value.dashscope_api_key = "test-key"
+            settings.return_value.dashscope_base_url = "https://example.invalid/v1"
+            other = DashScopeEmbedder(
+                model="a-different-model",
+                batch_size=2,
+                cache_path=tmp_path / "vectors.json.gz",
+            )
+
+        assert other._cache == {}
+
+    def test_no_cache_path_keeps_the_old_behaviour(self, tmp_path):
+        vectors = {"alpha": [1.0, 0.0]}
+        with patch("backend.config.get_settings") as settings:
+            settings.return_value.dashscope_api_key = "test-key"
+            settings.return_value.dashscope_base_url = "https://example.invalid/v1"
+            embedder = DashScopeEmbedder(batch_size=2)
+        calls, fake = self._serve(embedder, vectors)
+
+        with patch("urllib.request.urlopen", fake):
+            embedder.embed(["alpha"])
+            embedder.embed(["alpha"])
+
+        assert len(calls) == 1  # in-process memo still applies
+        assert not (tmp_path / "vectors.json.gz").exists()
 
 
 class TestHelpers:

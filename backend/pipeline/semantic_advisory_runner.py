@@ -18,13 +18,18 @@ structured client and the DashScope embeddings endpoint.
 
 from __future__ import annotations
 
+import gzip
+import hashlib
 import json
 import re
 import time
 import urllib.request
 from collections.abc import Callable
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, Protocol
+
+from loguru import logger
 
 from backend.pipeline.semantic_advisory import (
     assemble_advisory_report,
@@ -874,7 +879,20 @@ class StructuredSeatModel:
 class DashScopeEmbedder:
     """Production Embedder over the DashScope OpenAI-compatible endpoint."""
 
-    def __init__(self, model: str = EMBEDDING_MODEL, batch_size: int = 10) -> None:
+    def __init__(
+        self,
+        model: str = EMBEDDING_MODEL,
+        batch_size: int = 10,
+        cache_path: Path | None = None,
+    ) -> None:
+        """Build the embedder, optionally backed by a cache on disk.
+
+        Args:
+            model: Embedding model ID.
+            batch_size: Texts per request.
+            cache_path: Where to keep vectors between runs. None keeps the
+                old behaviour of embedding everything every time.
+        """
         from backend.config import get_settings
 
         settings = get_settings()
@@ -884,12 +902,50 @@ class DashScopeEmbedder:
         self._endpoint = settings.dashscope_base_url.rstrip("/") + "/embeddings"
         self.model = model
         self.batch_size = batch_size
+        # A corpus embeds to the same vectors every run, so a fresh process
+        # paying for them again is pure waste. Measured 2026-08-31: nine
+        # minutes of a Packer run elapsed before the first model call, spent
+        # embedding 989 facts and ~2,300 source sentences that had been
+        # embedded identically an hour earlier.
+        self.cache_path = cache_path
+        self._cache: dict[str, list[float]] = {}
+        self.cache_hits = 0
+        self.cache_misses = 0
+        if cache_path and cache_path.exists():
+            try:
+                with gzip.open(cache_path, "rt", encoding="utf-8") as handle:
+                    stored = json.load(handle)
+                if stored.get("model") == model:
+                    self._cache = stored.get("vectors", {})
+            except (OSError, ValueError) as error:
+                logger.warning(f"Embedding cache unreadable, starting fresh: {error}")
+
+    def _key_for(self, text: str) -> str:
+        """Cache key for one text under this model."""
+        return hashlib.sha256(f"{self.model}\x00{text}".encode()).hexdigest()
+
+    def _save_cache(self) -> None:
+        """Write the cache, atomically, if one is configured."""
+        if not self.cache_path:
+            return
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.cache_path.with_suffix(self.cache_path.suffix + ".tmp")
+        with gzip.open(temporary, "wt", encoding="utf-8") as handle:
+            json.dump({"model": self.model, "vectors": self._cache}, handle)
+        temporary.replace(self.cache_path)
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts in order, batched, with bounded retries."""
-        vectors: list[list[float]] = []
-        for start in range(0, len(texts), self.batch_size):
-            batch = texts[start : start + self.batch_size]
+        """Embed texts in order, batched, with bounded retries.
+
+        Anything already in the cache is served from it; only the misses are
+        sent. The cache is written as it fills, so a run killed part way
+        leaves its work behind for the next one.
+        """
+        missing = [text for text in texts if self._key_for(text) not in self._cache]
+        self.cache_hits += len(texts) - len(missing)
+        self.cache_misses += len(missing)
+        for start in range(0, len(missing), self.batch_size):
+            batch = missing[start : start + self.batch_size]
             payload = json.dumps({"model": self.model, "input": batch}).encode()
             last_error: Exception | None = None
             for attempt in range(1, 6):
@@ -905,7 +961,8 @@ class DashScopeEmbedder:
                     with urllib.request.urlopen(request, timeout=120) as response:
                         data = json.loads(response.read().decode())
                     items = sorted(data["data"], key=lambda item: item["index"])
-                    vectors.extend(item["embedding"] for item in items)
+                    for text, item in zip(batch, items, strict=True):
+                        self._cache[self._key_for(text)] = item["embedding"]
                     last_error = None
                     break
                 except Exception as error:  # noqa: BLE001 — retry then surface
@@ -913,4 +970,9 @@ class DashScopeEmbedder:
                     time.sleep(min(2**attempt, 20))
             if last_error is not None:
                 raise RuntimeError(f"embedding batch failed after retries: {last_error}")
-        return vectors
+            # Checkpoint as it fills: a killed run should not cost the next one.
+            if start and not (start // self.batch_size) % 25:
+                self._save_cache()
+        if missing:
+            self._save_cache()
+        return [self._cache[self._key_for(text)] for text in texts]
