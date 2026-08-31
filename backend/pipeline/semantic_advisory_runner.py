@@ -23,6 +23,7 @@ import re
 import time
 import urllib.request
 from collections.abc import Callable
+from copy import deepcopy
 from typing import Any, Protocol
 
 from backend.pipeline.semantic_advisory import (
@@ -252,6 +253,14 @@ class SemanticAdvisoryRunner:
         self.embedder = embedder
         self.top_per_route = top_per_route
         self._embedding_memo: dict[str, list[float]] = {}
+        # Where a harvested fact lives in its source is a property of the fact
+        # and the source, not of the claim that retrieved it — the claim goes
+        # into the prompt marked "context only". So the same fact pulled by
+        # three claims was answered by three identical calls. On the Hawara
+        # run that was 202 localizations collapsing to 121 distinct pieces of
+        # evidence: about 40% of the most expensive stage, re-derived.
+        self._localization_memo: dict[str, dict[str, Any]] = {}
+        self.localization_calls_saved = 0
 
     # ---- embeddings -----------------------------------------------------
 
@@ -446,6 +455,12 @@ Candidates:
         unit_vectors: list[list[float]],
     ) -> None:
         """Search the ENTIRE known source, then the model picks the minimal span."""
+        cached = self._localization_memo.get(candidate["fact_id"])
+        if cached is not None:
+            self.localization_calls_saved += 1
+            candidate["evidence_proposal"] = deepcopy(cached)
+            return
+
         fact_vector = self._embed([candidate["fact_text"]])[0]
         fact_tokens = set(candidate["fact_text"].lower().split())
         regions = full_source_candidate_regions(fact_tokens, fact_vector, units, unit_vectors)
@@ -515,6 +530,7 @@ Full-source candidate regions ({len(units)} source units searched):
                 "full_source_units_searched": len(units),
                 "system_reason": result.get("reason") or "",
             }
+            self._localization_memo[candidate["fact_id"]] = candidate["evidence_proposal"]
             return
         start_index, end_index = result["start_sentence_index"], result["end_sentence_index"]
         start_char = units[start_index]["start_char"]
@@ -536,6 +552,7 @@ Full-source candidate regions ({len(units)} source units searched):
         }
         proposal["evidence_id"] = evidence_identity(proposal)
         candidate["evidence_proposal"] = proposal
+        self._localization_memo[candidate["fact_id"]] = proposal
 
     # ---- stages 6/7: referees ------------------------------------------
 

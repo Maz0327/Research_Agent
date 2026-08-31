@@ -8,6 +8,7 @@ check, report — with injected fakes and zero network access.
 
 import pytest
 
+from backend.pipeline.semantic_advisory import source_sentence_units
 from backend.pipeline.semantic_advisory_runner import (
     SemanticAdvisoryRunner,
     actor_mask,
@@ -181,6 +182,71 @@ class TestEndToEnd:
         candidates = s1["claims"][0]["retrieval"]["candidates"]
         irrelevant = [c for c in candidates if c["system_relevance"]["label"] == "NOT_RELEVANT"]
         assert irrelevant and all(c["evidence_proposal"] is None for c in irrelevant)
+
+
+class TestLocalizationCache:
+    """The same fact retrieved by several claims is located once.
+
+    Where a fact lives in its source depends on the fact and the source; the
+    claim goes into the prompt marked "context only". Localization is 85% of
+    the calls this runner makes, so re-deriving it is the single most
+    expensive thing it can do (2026-08-31).
+    """
+
+    def _runner(self):
+        return SemanticAdvisoryRunner(FakeModel(), FakeEmbedder(), top_per_route=2)
+
+    def _candidate(self, fact_id="SRC_1:F_1"):
+        return {
+            "fact_id": fact_id,
+            "source_id": "SRC_1",
+            "fact_text": "team found a stone wall",
+            "system_relevance": {"label": "DIRECTLY_RELEVANT", "reason": ""},
+            "evidence_proposal": None,
+        }
+
+    def test_a_repeated_fact_is_not_localized_twice(self):
+        runner = self._runner()
+        units = source_sentence_units(SOURCE_TEXT)
+        vectors = runner._embed([u["text"] for u in units])
+        claim = {"claim_id": "S1:C01", "text": "They found a wall."}
+
+        first, second = self._candidate(), self._candidate()
+        runner.localize(claim, first, SOURCE_TEXT, units, vectors)
+        calls_after_first = runner.model.stages_called.count("stage_4_localization")
+        runner.localize(claim, second, SOURCE_TEXT, units, vectors)
+
+        assert runner.model.stages_called.count("stage_4_localization") == calls_after_first
+        assert runner.localization_calls_saved == 1
+        assert second["evidence_proposal"] == first["evidence_proposal"]
+
+    def test_the_cached_copy_is_independent(self):
+        """A later claim editing its own proposal must not reach back into the
+        one already stored."""
+        runner = self._runner()
+        units = source_sentence_units(SOURCE_TEXT)
+        vectors = runner._embed([u["text"] for u in units])
+        claim = {"claim_id": "S1:C01", "text": "They found a wall."}
+
+        first, second = self._candidate(), self._candidate()
+        runner.localize(claim, first, SOURCE_TEXT, units, vectors)
+        runner.localize(claim, second, SOURCE_TEXT, units, vectors)
+        second["evidence_proposal"]["exact_raw_text"] = "TAMPERED"
+
+        assert first["evidence_proposal"]["exact_raw_text"] != "TAMPERED"
+
+    def test_a_different_fact_still_costs_a_call(self):
+        runner = self._runner()
+        units = source_sentence_units(SOURCE_TEXT)
+        vectors = runner._embed([u["text"] for u in units])
+        claim = {"claim_id": "S1:C01", "text": "They found a wall."}
+
+        runner.localize(claim, self._candidate("SRC_1:F_1"), SOURCE_TEXT, units, vectors)
+        before = runner.model.stages_called.count("stage_4_localization")
+        runner.localize(claim, self._candidate("SRC_1:F_2"), SOURCE_TEXT, units, vectors)
+
+        assert runner.model.stages_called.count("stage_4_localization") == before + 1
+        assert runner.localization_calls_saved == 0
 
 
 class TestHelpers:
