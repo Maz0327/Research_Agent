@@ -69,7 +69,7 @@ def first_appearance(briefing: Briefing, name: str) -> Optional[str]:
 # there corrupts the list: the gloss's commas become list separators, so
 # "Miller, James Humphrey, and Bell" reads as an extra person. Found live in
 # the 2026-08-31 Packer briefing, where a five-man roster read as six.
-_LIST_BEFORE = re.compile(r",\s*[A-Z][\w'\u2019-]+(?:\s+[A-Z][\w'\u2019-]+)*,\s*$")
+_LIST_BEFORE = re.compile(r"(?:^|,)\s*[A-Z][\w'\u2019-]+(?:\s+[A-Z][\w'\u2019-]+)*,\s*$")
 # A capitalised sibling right after the name is signal enough; the list need
 # not end there ("..., and Shannon Wilson Bell left camp").
 _LIST_AFTER = re.compile(r"^\s*,\s*(?:and\s+)?[A-Z][\w'\u2019-]+")
@@ -80,6 +80,10 @@ def _in_name_list(text: str, position: int, name: str) -> bool:
 
     Both sides must look like siblings before this fires: one capitalised
     neighbour on its own is ordinary prose ("Packer, Israel Swan said ...").
+
+    A sibling opening the passage counts, so the second name of a list is
+    protected like the fifth (owner ruling, 2026-08-31: an appositive never
+    belongs inside a run of names, wherever the run starts).
 
     Args:
         text: The passage.

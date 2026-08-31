@@ -18,6 +18,7 @@ from backend.models.briefing import (
     SourceTrailEntry,
 )
 from backend.pipeline.briefing_lint import (
+    check_garbled_prose,
     check_inline_introductions,
     check_named_citations,
     check_player_cards,
@@ -227,6 +228,97 @@ class TestStagingDisclosure:
         )
 
         assert check_staging_disclosure(briefing) == []
+
+
+class TestGarbledProse:
+    """Sentences that read as machine-edited. Every fixture is a real one from
+    the 2026-08-31 Packer briefing (owner: "that's not a human form of
+    reading/writing")."""
+
+    def test_two_descriptions_stacked_on_one_name(self):
+        briefing = _briefing(
+            read=Read(
+                lede=(
+                "Walter Birkby, the forensic anthropologist who disputed Starrs, "
+                "the forensic anthropologist assisting him, disagreed."
+            ),
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        assert any("stacked" in f for f in check_garbled_prose(briefing))
+
+    def test_a_description_inside_a_run_of_names(self):
+        briefing = _briefing(
+            read=Read(
+                lede=(
+                "Packer, Israel Swan, Frank Miller, James Humphrey, a prospector "
+                "who left camp, and Shannon Bell set out."
+            ),
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        assert any("run of names" in f for f in check_garbled_prose(briefing))
+
+    def test_a_phrase_the_sentence_says_twice(self):
+        briefing = _briefing(
+            read=Read(
+                lede=(
+                "They were drawn by reports of enormous fortunes, and the paper "
+                "promised tales of enormous fortunes for the asking."
+            ),
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        assert any("repeats itself" in f for f in check_garbled_prose(briefing))
+
+    def test_grammar_words_repeating_are_not_reported(self):
+        """"that he was" twice is grammar, not a stutter."""
+        briefing = _briefing(
+            read=Read(
+                lede="He said that he was cold and that he was hungry that night.",
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        assert not any("repeats itself" in f for f in check_garbled_prose(briefing))
+
+    def test_a_sentence_opener_is_not_read_as_a_name(self):
+        """"Afterward, the six men were no longer seen together, and Packer ..."
+        is ordinary prose."""
+        briefing = _briefing(
+            read=Read(
+                lede=(
+                "Afterward, the six men were no longer seen together, and Packer "
+                "reached the agency alone."
+            ),
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        assert check_garbled_prose(briefing) == []
+
+    def test_clean_prose_passes(self):
+        briefing = _briefing(
+            read=Read(
+                lede="Packer reached the agency on 16 April 1874.",
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        assert check_garbled_prose(briefing) == []
+
+    def test_findings_are_advisories_not_errors(self):
+        """A reader decides whether a sentence reads badly, so this never
+        blocks a build."""
+        briefing = _briefing(
+            read=Read(
+                lede=(
+                "Walter Birkby, the forensic anthropologist who disputed Starrs, "
+                "the forensic anthropologist assisting him, disagreed."
+            ),
+                paragraphs=[ReadParagraph(text="A paragraph.")],
+            )
+        )
+        result = lint_briefing(briefing)
+        assert any("stacked" in a for a in result.advisories)
+        assert not any("stacked" in e for e in result.errors)
 
 
 class TestLintBriefing:

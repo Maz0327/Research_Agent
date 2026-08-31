@@ -43,10 +43,13 @@ class TestSpliceGrammar:
 
     def test_an_existing_comma_is_reused_not_doubled(self):
         """The first version produced "Akers the researcher,," — no opening
-        comma and two closing ones."""
-        out, _ = splice("Brown, Robert Schoch, and Grassi", "Robert Schoch", GLOSS)
+        comma and two closing ones.
+
+        Checked outside a name list: as of the owner ruling of 2026-08-31 a
+        gloss never goes inside a run of names, so the original fixture for
+        this case is now covered by TestPackerDefects instead."""
+        out, _ = splice("Then Robert Schoch, who wrote it, spoke.", "Robert Schoch", GLOSS)
         assert ",," not in out
-        assert f"Robert Schoch, {GLOSS}, and Grassi" in out
 
     def test_a_possessive_takes_the_gloss_in_front(self):
         """"Robert Schoch, the geologist,'s findings" is not English."""
@@ -65,13 +68,18 @@ class TestSpliceGrammar:
         assert f"Robert Schoch, {GLOSS}, wrote more" in out
 
     def test_every_spliced_form_satisfies_the_lint(self):
-        """The repair and the check have to agree, or the round never converges."""
+        """The repair and the check have to agree, or the round never converges.
+
+        Only where the repair acts: a name it declines to gloss stays flagged,
+        which the module docstring calls the correct outcome.
+        """
         for text in (
             "Then Robert Schoch spoke.",
-            "Brown, Robert Schoch, and Grassi went.",
+            "Brown and Grassi went, and Robert Schoch followed.",
             "Robert Schoch's findings stand.",
         ):
-            out, _ = splice(text, "Robert Schoch", GLOSS)
+            out, changed = splice(text, "Robert Schoch", GLOSS)
+            assert changed is True, text
             assert _is_introduced(out, out.index("Robert Schoch"), "Robert Schoch"), out
 
     def test_an_already_introduced_name_is_left_alone(self):
@@ -108,6 +116,16 @@ class TestPackerDefects:
         )
         _, changed = splice(text, "James Humphrey", "a prospector who left camp")
         assert changed is False
+
+    def test_a_list_is_protected_wherever_it_starts(self):
+        """The guard used to need a comma before the first sibling, so the
+        second name of a list was glossed and the fifth was not."""
+        for text in (
+            "Brown, Robert Schoch, and Grassi",
+            "The men were Brown, Robert Schoch, and Grassi",
+        ):
+            _, changed = splice(text, "Robert Schoch", GLOSS)
+            assert changed is False, text
 
     def test_two_adjacent_names_are_not_a_list(self):
         """The guard needs siblings on both sides; one neighbour is prose."""

@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 from backend.pipeline.briefing_gates import briefing_prose
 from backend.pipeline.briefing_routing import below_the_line, qualifying_players
+from backend.pipeline.text_similarity import content_tokens
 
 _BARE_ID = re.compile(r"\b(?:CLM|SRC|KP|TEN|GAP|STG|HOLE|QT|OBS|THEME)_\d+\b")
 
@@ -195,6 +196,93 @@ def check_named_citations(briefing) -> list[str]:
     return findings
 
 
+# Prose shapes that read as machine-edited. See check_garbled_prose.
+# Sentence openers that are capitalised but are not names. Without this,
+# "Afterward, the six men were no longer seen together, and Packer ..." reads
+# to the pattern as a name carrying a gloss.
+_NOT_A_NAME = frozenset({
+    "afterward", "afterwards", "then", "later", "meanwhile", "however",
+    "therefore", "instead", "besides", "still", "yet", "nevertheless",
+    "nonetheless", "moreover", "finally", "first", "second", "third", "next",
+    "earlier", "today", "yesterday", "eventually", "initially",
+    "subsequently", "together", "separately",
+})
+
+_STACKED_APPOSITIVE = re.compile(
+    r"[A-Z][\w'\u2019-]+(?:\s+[A-Z][\w'\u2019-]+)*,\s+(?:the|an?)\s+[^,]{3,70},"
+    r"\s+(?:the|an?)\s+[^,]{3,70},"
+)
+_LIST_APPOSITIVE = re.compile(
+    r"[A-Z][\w'\u2019-]+(?:\s+[A-Z][\w'\u2019-]+)*,\s+(?:the|an?)\s+[^,]{3,70},"
+    r"\s+and\s+[A-Z]"
+)
+_DOUBLED_WORD = re.compile(r"\b(\w{3,})\s+\1\b", re.I)
+
+
+def _repeated_phrase(sentence: str, length: int = 3) -> str:
+    """The first content phrase a sentence says twice, if any.
+
+    Args:
+        sentence: One sentence.
+        length: How many words make a phrase worth reporting.
+
+    Returns:
+        The repeated phrase, or an empty string.
+    """
+    words = re.findall(r"[\w'\u2019-]+", sentence.lower())
+    seen = set()
+    for index in range(len(words) - length + 1):
+        window = words[index: index + length]
+        phrase = " ".join(window)
+        # "that he was" repeating is grammar, not a stutter worth a reader's
+        # time; two content words make it one.
+        if len(content_tokens(phrase)) < 2:
+            continue
+        if phrase in seen:
+            return phrase
+        seen.add(phrase)
+    return ""
+
+
+def check_garbled_prose(briefing) -> list[str]:
+    """Flag passages that do not read the way a person writes.
+
+    Every pattern here was produced by a machine editing a machine's prose and
+    survived into a briefing the owner read (2026-08-31). None of them are
+    factual errors, which is why nothing else catches them: the sentences are
+    well formed, sourced, and wrong only to an ear.
+
+    Advisory, not error: the judgement of whether a sentence reads badly is a
+    reader's, so this surfaces the passage and lets a person decide.
+
+    Args:
+        briefing: The assembled Briefing.
+
+    Returns:
+        One advisory per suspect passage.
+    """
+    findings = []
+    for where, text in briefing_prose(briefing):
+        text = text or ""
+        for label, pattern in (
+            ("two descriptions stacked on one name", _STACKED_APPOSITIVE),
+            ("a description inside a run of names", _LIST_APPOSITIVE),
+            ("a word repeated back to back", _DOUBLED_WORD),
+        ):
+            match = pattern.search(text)
+            if match and match.group(0).split(",")[0].strip().lower() in _NOT_A_NAME:
+                match = None
+            if match:
+                findings.append(f"{where} reads oddly - {label}: \"{match.group(0)[:90]}\"")
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            phrase = _repeated_phrase(sentence)
+            if phrase:
+                findings.append(
+                    f"{where} repeats itself within one sentence: \"{phrase}\""
+                )
+    return findings
+
+
 def check_staging_disclosure(briefing) -> list[str]:
     """Where a source performs a fact, the document must say where the fact lives.
 
@@ -229,5 +317,5 @@ def lint_briefing(briefing, people=None) -> BriefingLintResult:
         errors=check_player_cards(briefing, people=people)
         + check_named_citations(briefing)
         + check_inline_introductions(briefing, people=people),
-        advisories=check_staging_disclosure(briefing),
+        advisories=check_staging_disclosure(briefing) + check_garbled_prose(briefing),
     )
