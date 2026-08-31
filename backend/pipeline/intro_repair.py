@@ -23,6 +23,7 @@ from backend.models.briefing import Briefing
 from backend.pipeline.briefing_lint import _is_introduced, _sections_of
 from backend.pipeline.briefing_passes import classify_people, write_introductions
 from backend.pipeline.briefing_routing import MAX_PLAYER_CARDS, below_the_line
+from backend.pipeline.text_similarity import content_tokens
 
 # Fields that carry prose a name can appear in, by section.
 _EDITABLE = (
@@ -64,6 +65,63 @@ def first_appearance(briefing: Briefing, name: str) -> Optional[str]:
     return None
 
 
+# A name inside a comma-separated run of other names. Splicing an appositive
+# there corrupts the list: the gloss's commas become list separators, so
+# "Miller, James Humphrey, and Bell" reads as an extra person. Found live in
+# the 2026-08-31 Packer briefing, where a five-man roster read as six.
+_LIST_BEFORE = re.compile(r",\s*[A-Z][\w'\u2019-]+(?:\s+[A-Z][\w'\u2019-]+)*,\s*$")
+# A capitalised sibling right after the name is signal enough; the list need
+# not end there ("..., and Shannon Wilson Bell left camp").
+_LIST_AFTER = re.compile(r"^\s*,\s*(?:and\s+)?[A-Z][\w'\u2019-]+")
+
+
+def _in_name_list(text: str, position: int, name: str) -> bool:
+    """Does this appearance sit inside a comma-separated run of names?
+
+    Both sides must look like siblings before this fires: one capitalised
+    neighbour on its own is ordinary prose ("Packer, Israel Swan said ...").
+
+    Args:
+        text: The passage.
+        position: Where the name starts.
+        name: The name itself.
+
+    Returns:
+        True when the name is one item of a list.
+    """
+    before = text[max(0, position - 120):position]
+    after = text[position + len(name): position + len(name) + 120]
+    return bool(_LIST_BEFORE.search(before) and _LIST_AFTER.match(after))
+
+
+def _restates_sentence(text: str, position: int, introduction: str) -> bool:
+    """Would this gloss just repeat the sentence it lands in?
+
+    A gloss that restates the predicate reads as a stutter: "Robert McGrue,
+    leader of the larger prospecting party, led the larger party." The lint
+    cannot see it because the appositive is well-formed, so it is caught here.
+
+    Args:
+        text: The passage.
+        position: Where the name starts.
+        introduction: The proposed gloss.
+
+    Returns:
+        True when most of the gloss's content words are already in the sentence.
+    """
+    start = max(text.rfind(". ", 0, position) + 1, 0)
+    end = text.find(". ", position)
+    sentence = text[start: end if end != -1 else len(text)]
+    gloss_words = content_tokens(introduction)
+    if not gloss_words:
+        return False
+    shared = gloss_words & content_tokens(sentence)
+    # Half the gloss already present, and more than one word of it. One shared
+    # word is coincidence; two or more is the gloss repeating the sentence
+    # ("leader of the larger prospecting party" beside "led the larger party").
+    return len(shared) >= 2 and len(shared) / len(gloss_words) >= 0.5
+
+
 def splice(text: str, name: str, introduction: str) -> tuple[str, bool]:
     """Insert a gloss after the first unintroduced appearance of a name.
 
@@ -85,6 +143,10 @@ def splice(text: str, name: str, introduction: str) -> tuple[str, bool]:
     possessive = None
     for match in re.finditer(re.escape(name), text):
         if _is_introduced(text, match.start(), name):
+            continue
+        if _in_name_list(text, match.start(), name):
+            continue
+        if _restates_sentence(text, match.start(), introduction):
             continue
         # "Alan Lloyd's argument" cannot take an appositive after the name —
         # splicing there produces "Alan Lloyd, the scholar,'s argument". Hold

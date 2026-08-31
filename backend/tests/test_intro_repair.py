@@ -86,6 +86,58 @@ class TestSpliceGrammar:
         )
 
 
+class TestPackerDefects:
+    """Three splice failures found live on the 2026-08-31 Packer briefing."""
+
+    def test_a_long_existing_appositive_is_not_doubled(self):
+        """The guard only looked 40 characters ahead, so a long appositive lost
+        its closing comma to the truncation and the name was glossed twice:
+        "Walter Birkby, the forensic anthropologist who disputed Starrs, the
+        forensic anthropologist assisting him, disagreed."."""
+        text = "Walter Birkby, the forensic anthropologist assisting him, disagreed."
+        assert _is_introduced(text, text.index("Walter Birkby"), "Walter Birkby")
+        _, changed = splice(text, "Walter Birkby", GLOSS)
+        assert changed is False
+
+    def test_no_gloss_inside_a_run_of_names(self):
+        """A gloss between list commas reads as another item: five men became
+        six on the Packer roster."""
+        text = (
+            "On February 9, Packer, Israel Swan, George Noon, Frank Miller, "
+            "James Humphrey, and Shannon Wilson Bell left camp."
+        )
+        _, changed = splice(text, "James Humphrey", "a prospector who left camp")
+        assert changed is False
+
+    def test_two_adjacent_names_are_not_a_list(self):
+        """The guard needs siblings on both sides; one neighbour is prose."""
+        out, changed = splice(
+            "Packer, Israel Swan had argued about rations.", "Israel Swan", GLOSS
+        )
+        assert changed is True
+        assert f"Israel Swan, {GLOSS}," in out
+
+    def test_a_gloss_that_restates_the_sentence_is_skipped(self):
+        """"Robert McGrue, leader of the larger prospecting party, led the
+        larger party" is a stutter the lint cannot see, because the appositive
+        is well formed."""
+        _, changed = splice(
+            "Robert McGrue led the larger party.",
+            "Robert McGrue",
+            "leader of the larger prospecting party",
+        )
+        assert changed is False
+
+    def test_an_unrelated_gloss_still_lands(self):
+        out, changed = splice(
+            "The panel met three times. Jack Ruina chaired it.",
+            "Jack Ruina",
+            "the MIT engineer",
+        )
+        assert changed is True
+        assert "Jack Ruina, the MIT engineer, chaired it." in out
+
+
 class TestContextWindow:
     """The gloss writer must see the name it is being asked about."""
 

@@ -37,6 +37,10 @@ _APPOSITIVE_AFTER = re.compile(
 # A leading appositive: "the geologist who dated the Sphinx, Robert Schoch's".
 # The trailing comma is optional because both "the scholar X" and "the scholar
 # X," precede a name legitimately.
+# How far past a name to look for its closing comma. Long enough for a full
+# appositive clause; see _is_introduced.
+_APPOSITIVE_WINDOW = 160
+
 _APPOSITIVE_BEFORE = re.compile(
     r"(?:^|[.;:]\s|,\s|\(|\s)(?:the|a|an)\s+[\w'-]+(?:\s+[\w'-]+){0,6}\s*,?\s*$",
     re.I,
@@ -126,7 +130,12 @@ def _is_introduced(text: str, position: int, name: str) -> bool:
     Returns:
         True when an appositive sits immediately before or after the name.
     """
-    after = text[position + len(name): position + len(name) + 40]
+    # The window has to outrun the appositive itself. At 40 characters a long
+    # gloss lost its closing comma to the truncation ("Walter Birkby, the
+    # forensic anthropologist assisting |him,"), the pattern failed to match,
+    # and the repair spliced a SECOND appositive onto a name that already had
+    # one. Found live in the 2026-08-31 Packer briefing.
+    after = text[position + len(name): position + len(name) + _APPOSITIVE_WINDOW]
     before = text[max(0, position - 80): position]
     return bool(_APPOSITIVE_AFTER.match(after) or _APPOSITIVE_BEFORE.search(before))
 
