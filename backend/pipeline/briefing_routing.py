@@ -32,6 +32,13 @@ _DATE_PATTERNS = [
     # c. 450 BC / 25 BC / 43 AD
     re.compile(r"\bc?\.?\s*(\d{1,4})\s*(?:BC|BCE)\b", re.I),
     re.compile(r"\b(\d{1,4})\s*(?:AD|CE)\b"),
+    # the 1950s / early 1900s / mid-1800s. Without this a decade is invisible:
+    # "1950s" has no word boundary before the "s", so the bare-year pattern
+    # skips it and the next number in the sentence wins. That filed "In the
+    # 1950s, a rusted 1862 Colt was found" under 1862, putting a discovery
+    # between Packer's birth and his enlistment, and it dropped decade-only
+    # events out of the Record entirely.
+    re.compile(r"\b(?:(?:early|mid|late)[-\s]+)?((?:1\d{2}|20\d)0)s\b", re.I),
     # bare four-digit year
     re.compile(r"\b(1\d{3}|20\d{2})\b"),
 ]
@@ -157,10 +164,17 @@ def date_in(text: str) -> tuple[float, str] | None:
         fact carries no date. BC years sort negative.
 
     """
-    for pattern in _DATE_PATTERNS:
-        match = pattern.search(text)
-        if not match:
-            continue
+    # The date a sentence is about is normally the first one it names. Taking
+    # the leftmost match rather than the first pattern that hits keeps "In 1874
+    # the party set out; the gun surfaced in the 1950s" at 1874, while still
+    # reading the decade when the decade comes first.
+    found = [
+        (match.start(), index, match)
+        for index, pattern in enumerate(_DATE_PATTERNS)
+        if (match := pattern.search(text))
+    ]
+    if found:
+        _, _, match = min(found, key=lambda row: (row[0], row[1]))
         year = int(match.group(1))
         written = match.group(0).strip().rstrip(",")
         # "7000-5000 BC" matches the range pattern, which does not capture the
@@ -618,12 +632,35 @@ def _dedupe_claims(claims: list[dict]) -> list[dict]:
     return kept
 
 
+def _who(source_ids: Iterable[str], source_names: dict[str, str]) -> str:
+    """Name the sources behind a side, in words a reader knows.
+
+    Never an internal ID. "SRC_1" is a fact about the pipeline, and the page
+    is about Packer; the IDs also used to be echoed into prose by the model
+    that was shown them, and then flagged by the grounding gate as ungrounded
+    names, which cost sixteen amputated sentences on the first live briefing.
+    """
+    named = [
+        (source_names.get(sid) or "").strip()
+        for sid in sorted(set(source_ids))
+    ]
+    named = [name for name in named if name]
+    if not named:
+        return ""
+    if len(named) == 1:
+        return named[0]
+    if len(named) == 2:
+        return f"{named[0]} and {named[1]}"
+    return f"{', '.join(named[:-1])} and {named[-1]}"
+
+
 def select_disputes(
     claim_graph: Any | None = None,
     tensions: Iterable[Any] = (),
     inventory: Iterable[dict] = (),
     key_points: dict | None = None,
     max_disputes: int = 8,
+    source_names: dict[str, str] | None = None,
 ) -> list[dict]:
     """Choose the disputes, by code, from what the pipeline already found.
 
@@ -659,8 +696,7 @@ def select_disputes(
         candidates.append(
             {
                 "claim": getattr(claim, "title", "") or "",
-                "holders": f"For: {', '.join(sorted(set(sources))) or 'the sources'}. "
-                f"Against: the pushback in the same corpus.",
+                "holders": "",  # written below, once both sides are known
                 "statement_for": getattr(claim, "what_sources_say", "") or "",
                 "statement_against": pushback,
                 "source_ids_for": sorted(set(sources)),
@@ -703,7 +739,7 @@ def select_disputes(
         candidates.append(
             {
                 "claim": claim,
-                "holders": f"Held across: {', '.join(sorted(set(sources))) or 'the corpus'}.",
+                "holders": "",  # written below, once both sides are known
                 "statement_for": statement_for,
                 "statement_against": statement_against,
                 "source_ids_for": sorted(set(sources)),
@@ -712,9 +748,10 @@ def select_disputes(
             }
         )
 
-    disputes = _dedupe_claims(candidates)[:max_disputes]
+    names = source_names or {}
+    disputes = []
 
-    for dispute in disputes:
+    for dispute in _dedupe_claims(candidates):
         dispute["evidence_for"] = [
             fact["text"]
             for fact in facts
@@ -726,6 +763,16 @@ def select_disputes(
             if dispute["statement_against"]
             and statement_similarity(fact["text"], dispute["statement_against"]) >= 0.30
         ][:8]
+
+        # A claim nobody argues with is not disputed, and a section called
+        # "Disputed & Uncertain" is the wrong place to read about it. Staging
+        # it anyway produced the worst prose in the first live briefing: the
+        # writer, handed "(none supplied)" as the other side, wrote a truthful
+        # paragraph about having been given nothing — a page about the
+        # pipeline's inputs instead of a page about the story.
+        if not dispute["statement_against"] or not dispute["evidence_against"]:
+            continue
+
         dispute["source_ids_against"] = sorted(
             {
                 fact["source_id"]
@@ -733,4 +780,225 @@ def select_disputes(
                 if fact["text"] in dispute["evidence_against"]
             }
         )
+        for_side = _who(dispute["source_ids_for"], names)
+        against_side = _who(dispute["source_ids_against"], names)
+        if for_side and against_side:
+            dispute["holders"] = f"{for_side} say yes; {against_side} say otherwise."
+        elif for_side:
+            dispute["holders"] = f"Held by {for_side}."
+        else:
+            dispute["holders"] = ""
+
+        disputes.append(dispute)
+        if len(disputes) == max_disputes:
+            break
+
     return disputes
+
+
+_YEAR_IN_TEXT = re.compile(r"\b(1[5-9]\d{2}|20\d{2})\b")
+
+# Two years this close together, in restatements of one event, are two
+# readings of the same number rather than two different moments.
+_COMPETING_YEARS = 10
+
+# How alike two sentences must read, once their numbers are removed, to count
+# as the same event told twice.
+SAME_EVENT_FLOOR = 0.62
+
+
+def _without_digits(text: str) -> str:
+    return _YEAR_IN_TEXT.sub(" ", text)
+
+
+_ANY_NUMBER = re.compile(r"\b(\d{1,4})\b")
+
+
+def _outvoted(facts: list[dict], pattern: re.Pattern, support: dict) -> set[str]:
+    """Numbers in these facts that a better-supported near neighbour beats.
+
+    Two numbers only compete when no single fact uses both: "eight years for
+    each of the five victims" is one sentence about two different quantities,
+    not two readings of one. Two readings of one number look like 1907 against
+    1909, or an age of 65 against 69 — never side by side, always close, and
+    one of them carried by far fewer sources.
+    """
+    per_fact = [set(pattern.findall(fact.get("text") or "")) for fact in facts]
+    everything = set().union(*per_fact) if per_fact else set()
+    together = {
+        frozenset((a, b))
+        for found in per_fact
+        for a in found
+        for b in found
+        if a != b
+    }
+
+    def backing(value: str) -> int:
+        return len(support.get(value, ()))
+
+    return {
+        value
+        for value in everything
+        for rival in everything
+        if value != rival
+        and frozenset((value, rival)) not in together
+        and abs(int(value) - int(rival)) <= _COMPETING_YEARS
+        and backing(rival) >= 2
+        and backing(rival) >= 2 * backing(value)
+    }
+
+
+def collapse_same_event(dated_facts: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Collapse restatements of one event, and settle years they disagree on.
+
+    The Record placed every dated fact verbatim and never compared neighbours,
+    so the first live briefing opened with four consecutive "Packer was born"
+    entries, two of which gave different death years — 1907 and 1909 — sitting
+    side by side as though nobody had noticed. Seven sources said 1907; the one
+    saying 1909 contradicted itself elsewhere. That is not a disagreement a
+    reader should have to arbitrate mid-page; it is arithmetic.
+
+    So: facts about the same year that read alike once their numbers are
+    stripped are one event. Within that group, years close enough to be
+    readings of the same number are compared, and the reading fewer sources
+    support loses. What survives is the fullest remaining telling.
+
+    Args:
+        dated_facts: Routed facts carrying `text`, `source_id`, `sort_key`.
+
+    Returns:
+        `(kept, dropped)` — the facts to render, in their original order, and
+        the ones collapsed away, each with a `dropped_because` note.
+    """
+    support: dict[str, set] = {}
+    for fact in dated_facts:
+        for year in _YEAR_IN_TEXT.findall(fact.get("text") or ""):
+            support.setdefault(year, set()).add(fact.get("source_id"))
+
+    number_support: dict[str, set] = {}
+    for fact in dated_facts:
+        for value in _ANY_NUMBER.findall(fact.get("text") or ""):
+            number_support.setdefault(value, set()).add(fact.get("source_id"))
+
+    def backing(year: str) -> int:
+        return len(support.get(year, ()))
+
+    order = {id(fact): index for index, fact in enumerate(dated_facts)}
+    buckets: dict[Any, list[dict]] = {}
+    for fact in dated_facts:
+        buckets.setdefault(fact.get("sort_key"), []).append(fact)
+
+    kept: list[dict] = []
+    dropped: list[dict] = []
+
+    for sort_key, bucket in buckets.items():
+        # Every fact here is anchored to the same year, so a second year one of
+        # them names is a further detail about the same subject — a death year
+        # beside a birth year. Two such years close together are two readings
+        # of one number, and the reading fewer sources support is an error, not
+        # a disagreement for the reader to arbitrate. The margin has to be
+        # clear: outvoted means beaten at least two to one.
+        secondary = {
+            year
+            for fact in bucket
+            for year in _YEAR_IN_TEXT.findall(fact.get("text") or "")
+            if float(year) != sort_key
+        }
+        outvoted = _outvoted(bucket, _YEAR_IN_TEXT, support) & secondary
+
+        survivors = []
+        for fact in bucket:
+            losing = set(_YEAR_IN_TEXT.findall(fact["text"])) & outvoted
+            if losing:
+                winner = min(
+                    (y for y in secondary - outvoted
+                     if any(abs(int(y) - int(bad)) <= _COMPETING_YEARS for bad in losing)),
+                    key=lambda y: -backing(y),
+                    default="",
+                )
+                dropped.append({
+                    **fact,
+                    "dropped_because": (
+                        f"gives {', '.join(sorted(losing))} where "
+                        f"{backing(winner)} sources give {winner}"
+                        if winner else f"outvoted year {', '.join(sorted(losing))}"
+                    ),
+                })
+            else:
+                survivors.append(fact)
+        if not survivors:  # never empty a year on arithmetic alone
+            survivors, dropped = bucket, [
+                d for d in dropped
+                if d.get("fact_id") not in {f.get("fact_id") for f in bucket}
+            ]
+
+        # What is left may still tell one event several times over.
+        clusters: list[list[dict]] = []
+        for fact in survivors:
+            stripped = _without_digits(fact.get("text") or "")
+            for cluster in clusters:
+                head = _without_digits(cluster[0].get("text") or "")
+                if statement_similarity(stripped, head) >= SAME_EVENT_FLOOR:
+                    cluster.append(fact)
+                    break
+            else:
+                clusters.append([fact])
+
+        for cluster in clusters:
+            # Before printing the fullest telling, drop the tellings that lose
+            # on a number. Length alone once chose a death entry giving Packer's
+            # age as 69 over three sources giving 65, purely because that
+            # sentence ran longer.
+            beaten = _outvoted(cluster, _ANY_NUMBER, number_support)
+            standing = [
+                fact
+                for fact in cluster
+                if not (set(_ANY_NUMBER.findall(fact["text"])) & beaten)
+            ] or cluster
+            for fact in cluster:
+                if fact not in standing:
+                    losing = sorted(set(_ANY_NUMBER.findall(fact["text"])) & beaten)
+                    dropped.append(
+                        {**fact, "dropped_because": f"outvoted on {', '.join(losing)}"}
+                    )
+
+            best = max(standing, key=lambda f: len(f.get("text") or ""))
+            kept.append(best)
+            for fact in standing:
+                if fact is not best:
+                    dropped.append(
+                        {**fact, "dropped_because": "restates the same event"}
+                    )
+
+    kept.sort(key=lambda fact: order[id(fact)])
+    return kept, dropped
+
+
+# A harvested fact sometimes carries the extractor's framing rather than the
+# thing itself — "the text says his reputation lives on". The briefing is about
+# Packer, not about the documents Packer is in, so the framing comes off.
+_SOURCE_VOICE = [
+    (re.compile(r"^(?:the (?:text|document|source|article)|it) (?:says|states|notes|reports) that ", re.I), ""),
+    (re.compile(r"^(?:the (?:text|document|source|article)|it) (?:says|states|notes|reports) ", re.I), ""),
+    (re.compile(r",? and the (?:text|document|source|article) (?:says|states|notes|reports) that ", re.I), ", and "),
+    (re.compile(r",? and the (?:text|document|source|article) (?:says|states|notes|reports) ", re.I), ", and "),
+    (re.compile(r"^according to the (?:text|document|source|article),\s*", re.I), ""),
+]
+
+
+def strip_source_voice(text: str) -> str:
+    """Remove a fact's reference to the document it came from.
+
+    Args:
+        text: A harvested fact statement.
+
+    Returns:
+        The statement, said about the world rather than about the corpus.
+    """
+    cleaned = text
+    for pattern, replacement in _SOURCE_VOICE:
+        cleaned = pattern.sub(replacement, cleaned)
+    cleaned = cleaned.strip()
+    if cleaned and cleaned[0].islower() and not text.startswith(cleaned[0]):
+        cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned or text

@@ -43,9 +43,11 @@ from backend.pipeline.briefing_passes import (
     run_subject_map_pass,
 )
 from backend.pipeline.briefing_routing import (
+    collapse_same_event,
     evidence_chip,
     route_facts,
     select_disputes,
+    strip_source_voice,
 )
 from backend.pipeline.context import PipelineContext
 from backend.pipeline.corpus_balance import build_corpus_balance
@@ -179,15 +181,20 @@ def build_briefing(
     disputes = []
     for spec in disputes_input:
         logger.info(f"[{ctx.job_id}] Briefing pass 4: dispute '{spec.get('claim', '')[:50]}'")
-        case_for, case_against = run_dispute_pass(
-            client,
-            claim=spec.get("claim", ""),
-            holders=spec.get("holders", ""),
-            evidence_for=spec.get("evidence_for", []),
-            evidence_against=spec.get("evidence_against", []),
-            source_ids_for=spec.get("source_ids_for", []),
-            source_ids_against=spec.get("source_ids_against", []),
-        )
+        try:
+            case_for, case_against = run_dispute_pass(
+                client,
+                claim=spec.get("claim", ""),
+                holders=spec.get("holders", ""),
+                evidence_for=spec.get("evidence_for", []),
+                evidence_against=spec.get("evidence_against", []),
+                source_ids_for=spec.get("source_ids_for", []),
+                source_ids_against=spec.get("source_ids_against", []),
+            )
+        except ValueError as e:
+            # Better a shorter section than a staged fight with one fighter.
+            logger.warning(f"[{ctx.job_id}] dispute skipped: {e}")
+            continue
         disputes.append(
             Dispute(
                 claim=spec.get("claim", ""),
@@ -207,8 +214,20 @@ def build_briefing(
 
     # --- Pass 5: the Record (code skeleton, model blurbs) -------------------
     logger.info(f"[{ctx.job_id}] Briefing pass 5: the Record")
-    record_blurbs = run_blurb_pass(client, [f["text"] for f in routed["record"]])
-    record = build_record_entries(routed["record"], record_blurbs)
+    # One event told four times, with two of the tellings disagreeing on a
+    # number, is not a chronology. Code settles it before the model writes a
+    # single note about any of it.
+    dated, collapsed = collapse_same_event(routed["record"])
+    for fact in dated:
+        fact["text"] = strip_source_voice(fact["text"])
+    if collapsed:
+        logger.info(
+            f"[{ctx.job_id}] Record: {len(dated)} entries, {len(collapsed)} collapsed"
+        )
+        for fact in collapsed:
+            logger.info(f"[{ctx.job_id}]   {fact['dropped_because']}: {fact['text'][:80]}")
+    record_blurbs = run_blurb_pass(client, [f["text"] for f in dated])
+    record = build_record_entries(dated, record_blurbs)
 
     # --- Pass 6: players (code counts, model writes) ------------------------
     section_prose = {
@@ -406,6 +425,10 @@ def stage_briefing(ctx: PipelineContext) -> None:
         ],
         inventory=getattr(ctx, "harvest_inventory", []) or [],
         key_points=key_points,
+        source_names={
+            source["source_id"]: (source.get("creator") or source.get("title") or "")
+            for source in sources
+        },
     )
 
     try:

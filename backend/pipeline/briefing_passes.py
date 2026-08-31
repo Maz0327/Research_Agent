@@ -538,11 +538,22 @@ def run_dispute_pass(
     Returns:
         Tuple of (case for, case against).
     """
+    # Both sides must have something behind them. There is no placeholder for
+    # an empty side, because the writer used it: handed "(none supplied)", it
+    # wrote a paragraph about having been given nothing, and that paragraph
+    # shipped — a page about the pipeline's inputs instead of about the story.
+    # select_disputes guarantees this; a caller that does not is a bug.
+    if not evidence_for or not evidence_against:
+        raise ValueError(
+            f"a dispute needs evidence on both sides: {claim[:60]!r} has "
+            f"{len(evidence_for)} for and {len(evidence_against)} against"
+        )
+
     prompt = (
         f"DISPUTED CLAIM: {claim}\nHOLDERS: {holders}\n\n"
-        "EVIDENCE FOR\n" + "\n".join(f"- {e}" for e in evidence_for or ["(none supplied)"])
+        "EVIDENCE FOR\n" + "\n".join(f"- {e}" for e in evidence_for)
         + "\n\nEVIDENCE AGAINST\n"
-        + "\n".join(f"- {e}" for e in evidence_against or ["(none supplied)"])
+        + "\n".join(f"- {e}" for e in evidence_against)
     )
     data, _ = client.generate_structured(
         prompt=prompt,

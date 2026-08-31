@@ -391,17 +391,36 @@ class TestCodeHalves:
         """Restated tensions do not stage the same fight twice."""
 
         class _Tension:
-            def __init__(self, description):
-                self.description = description
-                self.source_ids = ["SRC_1"]
+            def __init__(self, points):
+                self.description = "Sources disagree"
+                self.involved_key_points = points
+                self.source_ids = []
+
+        key_points = {
+            "SRC_1:KP_1": {"statement": "The roof survives under the sand",
+                           "source_ids": ["SRC_1"]},
+            "SRC_2:KP_1": {"statement": "The roof was quarried away entirely",
+                           "source_ids": ["SRC_2"]},
+            "SRC_1:KP_2": {"statement": "The canal was dug in the twelfth dynasty",
+                           "source_ids": ["SRC_1"]},
+            "SRC_2:KP_2": {"statement": "The canal is a Roman period cutting",
+                           "source_ids": ["SRC_2"]},
+        }
+        inventory = [
+            _fact("SRC_1:F_1", "SRC_1", "The roof survives under the sand."),
+            _fact("SRC_2:F_1", "SRC_2", "The roof was quarried away entirely."),
+            _fact("SRC_1:F_2", "SRC_1", "The canal was dug in the twelfth dynasty."),
+            _fact("SRC_2:F_2", "SRC_2", "The canal is a Roman period cutting."),
+        ]
 
         disputes = select_disputes(
             tensions=[
-                _Tension("Sources disagree about whether the roof survives"),
-                _Tension("Whether the roof survives is disputed among the sources"),
-                _Tension("The dating of the canal is disputed"),
+                _Tension(["SRC_1:KP_1", "SRC_2:KP_1"]),
+                _Tension(["SRC_1:KP_1", "SRC_2:KP_1"]),  # the same fight, restated
+                _Tension(["SRC_1:KP_2", "SRC_2:KP_2"]),
             ],
-            inventory=[_fact("SRC_1:F_1", "SRC_1", "The roof survives under the sand.")],
+            inventory=inventory,
+            key_points=key_points,
         )
 
         assert len(disputes) == 2
@@ -437,17 +456,75 @@ class TestCodeHalves:
         assert dispute["evidence_for"] and dispute["evidence_against"]
         assert dispute["source_ids_for"] == ["SRC_1", "SRC_2"]
 
-    def test_unresolvable_key_points_fall_back_to_the_description(self):
-        """A corpus extracted before B6 has colliding IDs; it still produces a dispute."""
+    def test_a_tension_with_only_one_side_is_not_a_dispute(self):
+        """No second side means the section has nothing to stage.
+
+        A corpus extracted before B6 has colliding key-point IDs, so a tension
+        resolves to its description and nothing states the opposing position.
+        Staging it anyway is what produced the worst prose in the first live
+        briefing: handed "(none supplied)" as the other side, the writer wrote
+        a truthful paragraph about having been given nothing — a page about
+        the pipeline instead of a page about the story.
+        """
 
         class _Tension:
             description = "Sources disagree about whether the roof survives"
             involved_key_points = ["KP_2", "KP_3"]
             source_ids = ["SRC_1"]
 
-        dispute = select_disputes(tensions=[_Tension()], inventory=[], key_points={})[0]
+        assert select_disputes(tensions=[_Tension()], inventory=[], key_points={}) == []
 
-        assert dispute["claim"] == "Sources disagree about whether the roof survives"
+    def test_a_claim_nobody_argues_with_is_dropped(self):
+        """Evidence only on one side is not a dispute either."""
+
+        class _Tension:
+            description = "The party set out in winter"
+            involved_key_points = ["SRC_1:KP_1", "SRC_2:KP_1"]
+            source_ids = []
+
+        key_points = {
+            "SRC_1:KP_1": {"statement": "The party set out in winter",
+                           "source_ids": ["SRC_1"]},
+            "SRC_2:KP_1": {"statement": "Nothing here resembles the other statement",
+                           "source_ids": ["SRC_2"]},
+        }
+        # Only the supporting side has any matching fact behind it.
+        inventory = [_fact("SRC_1:F_1", "SRC_1", "The party set out in winter.")]
+
+        assert select_disputes(
+            tensions=[_Tension()], inventory=inventory, key_points=key_points
+        ) == []
+
+    def test_holders_name_the_sources_rather_than_their_ids(self):
+        """"SRC_1" is a fact about the pipeline; the page is about the story."""
+
+        class _Tension:
+            description = "Sources disagree"
+            involved_key_points = ["SRC_1:KP_1", "SRC_2:KP_1"]
+            source_ids = []
+
+        key_points = {
+            "SRC_1:KP_1": {"statement": "The roof survives under the sand",
+                           "source_ids": ["SRC_1"]},
+            "SRC_2:KP_1": {"statement": "The roof was quarried away entirely",
+                           "source_ids": ["SRC_2"]},
+        }
+        inventory = [
+            _fact("SRC_1:F_1", "SRC_1", "The roof survives under the sand."),
+            _fact("SRC_2:F_1", "SRC_2", "The roof was quarried away entirely."),
+        ]
+
+        dispute = select_disputes(
+            tensions=[_Tension()],
+            inventory=inventory,
+            key_points=key_points,
+            source_names={"SRC_1": "Petrie", "SRC_2": "History Colorado"},
+        )[0]
+
+        assert "SRC_" not in dispute["holders"]
+        assert "corpus" not in dispute["holders"]
+        assert "Petrie" in dispute["holders"]
+        assert "History Colorado" in dispute["holders"]
 
     def test_date_reading_handles_how_sources_write_dates(self):
         """Years, months, ranges, centuries, and BC all sort correctly."""
