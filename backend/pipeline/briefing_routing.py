@@ -14,6 +14,8 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+from loguru import logger
+
 from backend.models.briefing import Chip, chip
 from backend.pipeline.text_similarity import content_tokens, statement_similarity
 
@@ -632,6 +634,45 @@ def _dedupe_claims(claims: list[dict]) -> list[dict]:
     return kept
 
 
+# Scraped bylines that name no one: a Wikipedia footer widget, a CMS field.
+_NOT_A_BYLINE = re.compile(
+    r"^(authority control|authority control databases|admin|editor|staff|"
+    r"unknown|n/?a|none|wikipedia contributors)\b",
+    re.I,
+)
+# "Alfred Packer - Wikipedia", "Cannibal Correspondence - True West Magazine"
+_TITLE_PUBLISHER = re.compile(r"\s+[-–—|]\s+([^-–—|]{2,40})$")
+
+
+def source_display_name(source: dict) -> str:
+    """What to call a source on the page.
+
+    A reader knows publications, not bylines and not scraped CMS fields. The
+    first live briefing attributed a side of a dispute to "Authority control
+    databases", which is the name of a footer widget on a Wikipedia page.
+
+    Args:
+        source: A source dict with `title` and optional `creator`.
+
+    Returns:
+        A name to print, or "" when nothing usable is there.
+    """
+    title = (source.get("title") or "").strip()
+    creator = (source.get("creator") or "").strip()
+
+    publisher = _TITLE_PUBLISHER.search(title)
+    if publisher:
+        return publisher.group(1).strip()
+    if creator and not _NOT_A_BYLINE.match(creator):
+        # "KAREN TIMMONS" is a byline shouted by a CMS, not emphasis.
+        if creator.isupper():
+            creator = creator.title()
+        # "Author Gulliford; Andrew" — a CMS label, then a surname-first byline.
+        creator = re.sub(r"^(?:author|by|written by)\s+", "", creator, flags=re.I)
+        return creator.split(";")[0].strip()
+    return title
+
+
 def _who(source_ids: Iterable[str], source_names: dict[str, str]) -> str:
     """Name the sources behind a side, in words a reader knows.
 
@@ -654,6 +695,44 @@ def _who(source_ids: Iterable[str], source_names: dict[str, str]) -> str:
     return f"{', '.join(named[:-1])} and {named[-1]}"
 
 
+# How an extractor writes a disagreement down. The opposition lives in the
+# description — "self-defense versus coroner reports of identical trauma" —
+# not in the key points it cites, which routinely state one side twice.
+_VERSUS = re.compile(r"\s+(?:versus|vs\.?)\s+|,\s+(?:yet|whereas|while)\s+", re.I)
+
+# "Criminal Conviction vs. Forensic Evidence: Packer served…" — a label, then
+# the actual sentence. The label is a heading, not one of the two sides.
+_TENSION_LABEL = re.compile(r"^[^.:]{0,70}:\s+")
+
+
+def split_tension(description: str) -> tuple[str, str]:
+    """Split a tension into the two positions it sets against each other.
+
+    Returns `("", "")` when the description states no opposition, which is the
+    honest answer: taking two cited key points and assuming the second opposes
+    the first staged the undisputed core story of the first live briefing as a
+    fight, and a reader asked afterwards found that none of the eight pairs
+    disagreed at all.
+    """
+    def halve(text: str) -> tuple[str, str]:
+        halves = _VERSUS.split(text.strip(), maxsplit=1)
+        if len(halves) != 2:
+            return "", ""
+        left, right = (half.strip(" .") for half in halves)
+        return (left, right) if left and right else ("", "")
+
+    # "Criminal Conviction vs. Forensic Evidence: Packer served seventeen years,
+    # yet bullet lead suggests…" — the heading names the fight and the sentence
+    # states it. The sentence is the better pair, so it is tried first.
+    text = description.strip()
+    head, colon, body = text.partition(":")
+    if colon and len(head) <= 90:
+        sides = halve(body)
+        if sides != ("", ""):
+            return sides
+    return halve(text)
+
+
 def select_disputes(
     claim_graph: Any | None = None,
     tensions: Iterable[Any] = (),
@@ -661,6 +740,7 @@ def select_disputes(
     key_points: dict | None = None,
     max_disputes: int = 8,
     source_names: dict[str, str] | None = None,
+    opposition_check: Any = None,
 ) -> list[dict]:
     """Choose the disputes, by code, from what the pipeline already found.
 
@@ -723,18 +803,10 @@ def select_disputes(
         # A dispute reads as the thing being disputed, not as a sentence about
         # there being a disagreement. The key points carry the concrete
         # assertion; the description is the fallback when they do not resolve.
-        if len(involved) >= 2:
-            claim = involved[0].get("statement", description)
-            statement_for = involved[0].get("statement", description)
-            statement_against = involved[1].get("statement", "")
-        elif involved:
-            claim = involved[0].get("statement", description)
-            statement_for = claim
-            statement_against = ""
-        else:
-            claim = description
-            statement_for = description
-            statement_against = ""
+        # The two sides come from the description, which is where the extractor
+        # actually wrote the disagreement down.
+        statement_for, statement_against = split_tension(description)
+        claim = statement_for or description
 
         candidates.append(
             {
@@ -773,25 +845,57 @@ def select_disputes(
         if not dispute["statement_against"] or not dispute["evidence_against"]:
             continue
 
-        dispute["source_ids_against"] = sorted(
-            {
-                fact["source_id"]
-                for fact in facts
-                if fact["text"] in dispute["evidence_against"]
-            }
-        )
-        for_side = _who(dispute["source_ids_for"], names)
-        against_side = _who(dispute["source_ids_against"], names)
+        # Each side is credited to the sources of the evidence actually behind
+        # it. Crediting the "for" side with every source the tension cited put
+        # the opposing source on both sides of its own argument.
+        for side in ("for", "against"):
+            behind = sorted(
+                {
+                    fact["source_id"]
+                    for fact in facts
+                    if fact["text"] in dispute[f"evidence_{side}"]
+                }
+            )
+            if behind:
+                dispute[f"source_ids_{side}"] = behind
+        # A source carrying both sides is not two camps; it is one account that
+        # argues with itself, which is worth saying but not as a line-up.
+        supporting = set(dispute["source_ids_for"])
+        opposing = set(dispute["source_ids_against"])
+        for_side = _who(supporting - opposing, names)
+        against_side = _who(opposing - supporting, names)
         if for_side and against_side:
-            dispute["holders"] = f"{for_side} say yes; {against_side} say otherwise."
+            dispute["holders"] = f"Held by {for_side}; disputed by {against_side}."
         elif for_side:
             dispute["holders"] = f"Held by {for_side}."
+        elif against_side:
+            dispute["holders"] = f"Disputed by {against_side}."
         else:
-            dispute["holders"] = ""
+            both = _who(supporting & opposing, names)
+            dispute["holders"] = (
+                f"{both} carries both sides of this." if both else ""
+            )
 
         disputes.append(dispute)
         if len(disputes) == max_disputes:
             break
+
+    # Last: do the two sides actually disagree? Lexical similarity cannot tell
+    # opposition from restatement — "not" is a stopword, so a sentence and its
+    # negation score 0.86 — so a reader is asked, and code applies the answer.
+    # Without this the tension path staged the undisputed core story of the
+    # briefing as a fight, having only assumed its two key points opposed.
+    if opposition_check is not None and disputes:
+        opposed = opposition_check(
+            [(d["statement_for"], d["statement_against"]) for d in disputes]
+        )
+        kept = [d for index, d in enumerate(disputes) if index in opposed]
+        for index, dispute in enumerate(disputes):
+            if index not in opposed:
+                logger.info(
+                    f"Dispute dropped, sides do not disagree: {dispute['claim'][:70]}"
+                )
+        disputes = kept
 
     return disputes
 

@@ -47,6 +47,7 @@ from backend.pipeline.prompts.briefing_prompts import (
     DENSIFY_ROLE,
     DISPUTE_ROLE,
     FILE_ROLE,
+    OPPOSITION_ROLE,
     PLACES_ROLE,
     PLAYERS_ROLE,
     READ_EXAMPLES,
@@ -1114,3 +1115,62 @@ def write_introductions(
             f"Introduction pass wrote nothing for {len(needed)} names; they stay flagged"
         )
     return written
+
+
+OPPOSITION_SCHEMA: dict = _object(
+    {
+        "pairs": _array_of(
+            {
+                "number": {"type": "integer"},
+                "opposed": {"type": "boolean"},
+            }
+        )
+    }
+)
+
+
+def run_opposition_pass(client: Any, pairs: list[tuple[str, str]]) -> set[int]:
+    """Ask which candidate disputes have two sides that actually disagree.
+
+    Code chooses what is eligible and code applies the answer; the model is
+    asked one narrow reading question it is better at than a lexical matcher.
+    Similarity cannot tell opposition from restatement — "not" is a stopword,
+    so a sentence and its negation score 0.86 — which is how the first live
+    briefing staged the undisputed core story as a fight: the tension path
+    assumed two key points opposed without ever checking.
+
+    Args:
+        client: A structured-output client.
+        pairs: `(statement_for, statement_against)` for each candidate.
+
+    Returns:
+        Indices of the pairs that genuinely oppose. On any failure the set is
+        empty, so a dispute is dropped rather than staged on a guess.
+    """
+    if not pairs:
+        return set()
+
+    listing = "\n\n".join(
+        f"{number}.\nA: {for_side}\nB: {against_side}"
+        for number, (for_side, against_side) in enumerate(pairs)
+    )
+    try:
+        data, _ = client.generate_structured(
+            prompt=delimit(listing, "PAIRS"),
+            schema=OPPOSITION_SCHEMA,
+            system=OPPOSITION_ROLE,
+            max_tokens=SMALL_CALL_MAX_TOKENS,
+        )
+    except Exception as e:
+        logger.error(f"Opposition pass failed; staging no disputes from it: {e}")
+        return set()
+
+    opposed = {
+        row["number"]
+        for row in (data.get("pairs") or [])
+        if isinstance(row.get("number"), int)
+        and row.get("opposed") is True
+        and 0 <= row["number"] < len(pairs)
+    }
+    logger.info(f"Opposition: {len(opposed)} of {len(pairs)} candidate disputes oppose")
+    return opposed

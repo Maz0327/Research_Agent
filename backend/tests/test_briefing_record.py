@@ -101,3 +101,65 @@ class TestTheRecordDoesNotTalkAboutItsSources:
     def test_ordinary_prose_is_untouched(self):
         plain = "Packer emerged at the agency on April 16, 1874."
         assert strip_source_voice(plain) == plain
+
+
+class TestTensionsStateTheirOwnOpposition:
+    """The two sides come from the description, not from the key points cited."""
+
+    def test_a_versus_description_splits_into_two_sides(self):
+        from backend.pipeline.briefing_routing import split_tension
+
+        left, right = split_tension(
+            "Packer's claim of self-defense against Shannon Bell versus coroner "
+            "reports indicating all five bodies suffered identical blunt trauma"
+        )
+        assert left == "Packer's claim of self-defense against Shannon Bell"
+        assert right.startswith("coroner reports")
+
+    def test_a_heading_before_the_sentence_is_not_one_of_the_sides(self):
+        from backend.pipeline.briefing_routing import split_tension
+
+        left, right = split_tension(
+            "Criminal Conviction vs. Forensic Evidence: Packer served seventeen "
+            "years for murder, yet bullet lead matching supports his account"
+        )
+        assert left == "Packer served seventeen years for murder"
+        assert right.startswith("bullet lead matching")
+
+    def test_a_description_stating_no_opposition_yields_no_sides(self):
+        """Better an empty answer than two sides invented from one."""
+        from backend.pipeline.briefing_routing import split_tension
+
+        assert split_tension("Sources disagree about the roof") == ("", "")
+
+
+class TestSourcesAreCalledWhatReadersCallThem:
+    def test_a_scraped_footer_widget_is_not_a_byline(self):
+        """The first live briefing credited "Authority control databases"."""
+        from backend.pipeline.briefing_routing import source_display_name
+
+        assert source_display_name(
+            {"title": "Alfred Packer - Wikipedia", "creator": "Authority control databases"}
+        ) == "Wikipedia"
+
+    def test_the_publication_beats_the_byline(self):
+        from backend.pipeline.briefing_routing import source_display_name
+
+        assert source_display_name(
+            {"title": "Cannibal Correspondence - True West Magazine",
+             "creator": "Kellen Cutsforth"}
+        ) == "True West Magazine"
+
+    def test_a_shouted_byline_is_calmed_down(self):
+        from backend.pipeline.briefing_routing import source_display_name
+
+        assert source_display_name(
+            {"title": "Alfred Packer ate 'em", "creator": "KAREN TIMMONS"}
+        ) == "Karen Timmons"
+
+    def test_a_cms_label_is_not_part_of_the_name(self):
+        from backend.pipeline.briefing_routing import source_display_name
+
+        assert source_display_name(
+            {"title": "Alferd Packer", "creator": "Author Gulliford; Andrew"}
+        ) == "Gulliford"

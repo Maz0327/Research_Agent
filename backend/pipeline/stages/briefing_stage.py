@@ -39,6 +39,7 @@ from backend.pipeline.briefing_passes import (
     run_contribution_pass,
     run_dispute_pass,
     run_file_pass,
+    run_opposition_pass,
     run_read_pass,
     run_subject_map_pass,
 )
@@ -47,6 +48,7 @@ from backend.pipeline.briefing_routing import (
     evidence_chip,
     route_facts,
     select_disputes,
+    source_display_name,
     strip_source_voice,
 )
 from backend.pipeline.context import PipelineContext
@@ -97,7 +99,14 @@ def build_briefing(
         repair record.
     """
     duplicate_of = getattr(ctx, "duplicate_sources", {}) or {}
-    inventory = list(getattr(ctx, "harvest_inventory", []) or [])
+    # Strip the corpus's own voice out of every fact once, here, so no pass
+    # downstream can echo it onto the page. A dispute case otherwise reads
+    # "The text therefore says it appears likely that…", which tells the reader
+    # about the document rather than about Packer.
+    inventory = [
+        {**fact, "text": strip_source_voice(fact.get("text") or "")}
+        for fact in (getattr(ctx, "harvest_inventory", []) or [])
+    ]
     raw_by_source = {
         s["source_id"]: (s.get("full_text") or "") for s in sources if s.get("source_id")
     }
@@ -218,8 +227,6 @@ def build_briefing(
     # number, is not a chronology. Code settles it before the model writes a
     # single note about any of it.
     dated, collapsed = collapse_same_event(routed["record"])
-    for fact in dated:
-        fact["text"] = strip_source_voice(fact["text"])
     if collapsed:
         logger.info(
             f"[{ctx.job_id}] Record: {len(dated)} entries, {len(collapsed)} collapsed"
@@ -375,6 +382,22 @@ def build_briefing(
     return briefing, report
 
 
+def _opposition_checker():
+    """A reader for the one question similarity cannot answer.
+
+    Imported here rather than at module scope for the same reason the Briefing
+    client is (D-034): the provider is env-driven and resolved at call time.
+    """
+    from backend.integrations.structured_client import get_structured_client
+
+    def check(pairs):
+        return run_opposition_pass(
+            get_structured_client(get_settings().model_distill), pairs
+        )
+
+    return check
+
+
 def stage_briefing(ctx: PipelineContext) -> None:
     """Pipeline stage: generate the Briefing and store it on the context.
 
@@ -423,12 +446,15 @@ def stage_briefing(ctx: PipelineContext) -> None:
             for extraction in getattr(ctx, "semantic_extractions", [])
             for tension in getattr(extraction, "tensions", [])
         ],
-        inventory=getattr(ctx, "harvest_inventory", []) or [],
+        inventory=[
+            {**fact, "text": strip_source_voice(fact.get("text") or "")}
+            for fact in (getattr(ctx, "harvest_inventory", []) or [])
+        ],
         key_points=key_points,
         source_names={
-            source["source_id"]: (source.get("creator") or source.get("title") or "")
-            for source in sources
+            source["source_id"]: source_display_name(source) for source in sources
         },
+        opposition_check=_opposition_checker(),
     )
 
     try:

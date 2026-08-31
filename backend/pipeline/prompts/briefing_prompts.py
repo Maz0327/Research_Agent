@@ -371,3 +371,21 @@ Rules:
 - Be concrete: name the detail rather than describing its category.
 - If a source's only distinction is that it repeats another one, say that.
 - Answer with the same source IDs you were given."""
+
+
+OPPOSITION_ROLE = """You decide one narrow thing: do these two statements
+actually contradict each other?
+
+Two statements oppose when both cannot be true at once — different causes for
+the same death, different dates for the same event, one saying a thing happened
+and the other saying it did not.
+
+Two statements do NOT oppose when they simply cover different ground, when one
+adds detail the other omits, when they describe different moments, or when they
+are two wordings of the same claim. A pair that merely sits under a heading
+about disagreement is not opposed; read what the sentences say.
+
+Be strict. A section called "Disputed & Uncertain" that stages a fight nobody
+is having is worse than a shorter section. When you are unsure, answer no.
+
+For each numbered pair, return its number and true or false."""

@@ -291,6 +291,12 @@ class TestPlayersAndContributions:
         assert lines == {"SRC_1": "the only interview."}
 
 
+ROOF = "The roof survives under the sand versus the roof was quarried away entirely"
+CANAL = (
+    "The canal was dug in the twelfth dynasty versus the canal is a Roman cutting"
+)
+
+
 class TestCodeHalves:
     """The parts no model touches at all."""
 
@@ -391,8 +397,8 @@ class TestCodeHalves:
         """Restated tensions do not stage the same fight twice."""
 
         class _Tension:
-            def __init__(self, points):
-                self.description = "Sources disagree"
+            def __init__(self, points, description):
+                self.description = description
                 self.involved_key_points = points
                 self.source_ids = []
 
@@ -415,9 +421,9 @@ class TestCodeHalves:
 
         disputes = select_disputes(
             tensions=[
-                _Tension(["SRC_1:KP_1", "SRC_2:KP_1"]),
-                _Tension(["SRC_1:KP_1", "SRC_2:KP_1"]),  # the same fight, restated
-                _Tension(["SRC_1:KP_2", "SRC_2:KP_2"]),
+                _Tension(["SRC_1:KP_1", "SRC_2:KP_1"], ROOF),
+                _Tension(["SRC_1:KP_1", "SRC_2:KP_1"], ROOF),  # the same fight again
+                _Tension(["SRC_1:KP_2", "SRC_2:KP_2"], CANAL),
             ],
             inventory=inventory,
             key_points=key_points,
@@ -429,7 +435,10 @@ class TestCodeHalves:
         """The section stages fights, so its title line is the thing at stake."""
 
         class _Tension:
-            description = "There is a direct contradiction between the consensus and the scans"
+            description = (
+                "The labyrinth was quarried away, leaving only its foundation "
+                "versus scans reporting a grid of granite walls beneath the bed"
+            )
             involved_key_points = ["SRC_1:KP_2", "SRC_2:KP_3"]
             source_ids = []
 
@@ -454,7 +463,10 @@ class TestCodeHalves:
 
         assert dispute["claim"].startswith("The labyrinth was quarried away")
         assert dispute["evidence_for"] and dispute["evidence_against"]
-        assert dispute["source_ids_for"] == ["SRC_1", "SRC_2"]
+        # Each side is credited to the sources of its own evidence, so the
+        # source arguing the other way is not also listed as supporting it.
+        assert dispute["source_ids_for"] == ["SRC_1"]
+        assert dispute["source_ids_against"] == ["SRC_2"]
 
     def test_a_tension_with_only_one_side_is_not_a_dispute(self):
         """No second side means the section has nothing to stage.
@@ -499,7 +511,7 @@ class TestCodeHalves:
         """"SRC_1" is a fact about the pipeline; the page is about the story."""
 
         class _Tension:
-            description = "Sources disagree"
+            description = ROOF
             involved_key_points = ["SRC_1:KP_1", "SRC_2:KP_1"]
             source_ids = []
 
@@ -533,3 +545,50 @@ class TestCodeHalves:
         assert date_in("Herodotus wrote c. 450 BC")[0] == -450
         assert date_in("the 5th century BC")[0] == -450
         assert date_in("no dates here") is None
+
+
+class TestOppositionGatesTheSection:
+    """A tension only becomes a dispute if its two sides actually disagree."""
+
+    def _candidates(self):
+        class _Tension:
+            description = ROOF
+            involved_key_points = ["SRC_1:KP_1", "SRC_2:KP_1"]
+            source_ids = []
+
+        key_points = {
+            "SRC_1:KP_1": {"statement": "The roof survives under the sand",
+                           "source_ids": ["SRC_1"]},
+            "SRC_2:KP_1": {"statement": "The roof was quarried away entirely",
+                           "source_ids": ["SRC_2"]},
+        }
+        inventory = [
+            _fact("SRC_1:F_1", "SRC_1", "The roof survives under the sand."),
+            _fact("SRC_2:F_1", "SRC_2", "The roof was quarried away entirely."),
+        ]
+        return dict(tensions=[_Tension()], inventory=inventory, key_points=key_points)
+
+    def test_a_pair_that_does_not_oppose_is_dropped(self):
+        assert select_disputes(
+            **self._candidates(), opposition_check=lambda pairs: set()
+        ) == []
+
+    def test_a_pair_that_opposes_survives(self):
+        disputes = select_disputes(
+            **self._candidates(),
+            opposition_check=lambda pairs: set(range(len(pairs))),
+        )
+        assert len(disputes) == 1
+
+    def test_without_a_reader_selection_stays_pure_code(self):
+        """The check is optional, so code-only callers behave as before."""
+        assert len(select_disputes(**self._candidates())) == 1
+
+    def test_a_failed_reader_stages_nothing_rather_than_guessing(self):
+        from unittest.mock import MagicMock
+
+        from backend.pipeline.briefing_passes import run_opposition_pass
+
+        client = MagicMock()
+        client.generate_structured.side_effect = RuntimeError("no")
+        assert run_opposition_pass(client, [("a", "b")]) == set()
