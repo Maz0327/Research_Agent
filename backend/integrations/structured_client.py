@@ -17,6 +17,7 @@ as written. Those differences belong here rather than in the passes.
 
 import json
 import re
+import time
 from typing import Any, Optional
 
 from loguru import logger
@@ -239,6 +240,51 @@ class GeminiStructuredClient:
         return data, usage
 
 
+# A 429 means two opposite things. "Rate limit reached ... try again in 104ms"
+# is a wait; "You have no credits remaining" is a wall. Treating them alike
+# cost a completed semantic-check run on 2026-08-31: the account emptied
+# mid-pass and every remaining call burned both request shapes before failing,
+# losing ~380 calls of finished work with no report written.
+_FATAL_MARKERS = (
+    "insufficient_quota",
+    "credit_balance_exhausted",
+    "no credits remaining",
+    "invalid_api_key",
+    "incorrect api key",
+    "account is not active",
+)
+_RETRYABLE_MARKERS = ("rate_limit", "rate limit", "overloaded", "timeout", "try again")
+
+# Waits between rate-limited retries. Short: the limits that bite here are
+# per-minute token ceilings, which clear on their own in seconds.
+_BACKOFF_SECONDS = (1, 4, 10)
+
+
+class FatalCallError(StructuredCallError):
+    """A call that will fail the same way however often it is retried.
+
+    Out of credit, bad key, disabled account. Raised immediately so a long
+    pass stops on the first one instead of grinding through what is left.
+    """
+
+
+def _error_kind(error: Exception) -> str:
+    """Classify a provider error as fatal, retryable, or neither.
+
+    Args:
+        error: The exception the provider raised.
+
+    Returns:
+        One of "fatal", "retryable", "other".
+    """
+    text = str(error).lower()
+    if any(marker in text for marker in _FATAL_MARKERS):
+        return "fatal"
+    if any(marker in text for marker in _RETRYABLE_MARKERS):
+        return "retryable"
+    return "other"
+
+
 class OpenAIStructuredClient:
     """OpenAI and any OpenAI-compatible endpoint (Moonshot included)."""
 
@@ -262,6 +308,41 @@ class OpenAIStructuredClient:
 
         self.model = model
         self.client = openai.OpenAI(api_key=key, base_url=base_url) if base_url else openai.OpenAI(api_key=key)
+
+    def _create_with_backoff(self, model_id: str, turn: list, kwargs: dict):
+        """Make one chat call, waiting out rate limits and stopping on walls.
+
+        Args:
+            model_id: Exact model ID.
+            turn: The message list for this attempt.
+            kwargs: Request shape (token key, response_format, extras).
+
+        Returns:
+            The provider's response object.
+
+        Raises:
+            FatalCallError: Out of credit, bad key, disabled account.
+            Exception: Whatever the provider raised, once retries are spent.
+        """
+        last: Exception | None = None
+        for index, wait in enumerate((*_BACKOFF_SECONDS, None)):
+            try:
+                return self.client.chat.completions.create(
+                    model=model_id, messages=turn, **kwargs
+                )
+            except Exception as error:
+                kind = _error_kind(error)
+                if kind == "fatal":
+                    raise FatalCallError(f"{model_id}: {error}") from error
+                if kind != "retryable" or wait is None:
+                    raise
+                last = error
+                logger.warning(
+                    f"{model_id} rate limited; waiting {wait}s "
+                    f"(attempt {index + 1} of {len(_BACKOFF_SECONDS)})"
+                )
+                time.sleep(wait)
+        raise last if last else RuntimeError("unreachable")
 
     def generate_structured(
         self,
@@ -341,9 +422,7 @@ class OpenAIStructuredClient:
                     }
                 )
             try:
-                response = self.client.chat.completions.create(
-                    model=model_id, messages=turn, **kwargs
-                )
+                response = self._create_with_backoff(model_id, turn, kwargs)
                 text = _strip_fences(response.choices[0].message.content or "")
                 if not text:
                     # Measured: kimi-k2.6 answers a strict json_schema request
@@ -355,6 +434,9 @@ class OpenAIStructuredClient:
                 break
             except json.JSONDecodeError as e:
                 last_error = e
+            except FatalCallError:
+                # Nothing about a second request shape fixes an empty account.
+                raise
             except Exception as e:
                 last_error = e
 

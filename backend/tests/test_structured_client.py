@@ -12,9 +12,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from backend.integrations.structured_client import (
+    FatalCallError,
     OpenAIStructuredClient,
     StructuredCallError,
     _accepts_minimal_thinking,
+    _error_kind,
     _strip_for_gemini,
     provider_for,
 )
@@ -235,3 +237,105 @@ class TestOpenAICompatibleClient:
         constructed.assert_called_once_with(
             model="kimi-k2.6", api_key="test-key", base_url=MOONSHOT_BASE_URL
         )
+
+
+# --- rate limits vs walls -------------------------------------------------
+# Both arrive as 429s and need opposite handling. Written after the
+# 2026-08-31 semantic-check run: the account emptied mid-pass, every
+# remaining call burned both request shapes before failing, and ~380 calls
+# of finished work was lost with no report written.
+
+RATE_LIMIT = Exception(
+    "Error code: 429 - {'error': {'message': 'Rate limit reached for gpt-4o "
+    "on tokens per min (TPM): Limit 30000. Please try again in 104ms.', "
+    "'code': 'rate_limit_exceeded'}}"
+)
+NO_CREDIT = Exception(
+    "Error code: 429 - {'error': {'message': 'You have no credits remaining.', "
+    "'type': 'insufficient_quota', 'code': 'credit_balance_exhausted'}}"
+)
+SCHEMA = {
+    "type": "object",
+    "properties": {"ok": {"type": "boolean"}},
+    "required": ["ok"],
+    "additionalProperties": False,
+}
+
+
+def _client() -> OpenAIStructuredClient:
+    with patch("openai.OpenAI"):
+        client = OpenAIStructuredClient("gpt-5.6-terra", api_key="test-key")
+    client.client = MagicMock()
+    return client
+
+
+def _answer(payload: str = '{"ok": true}'):
+    response = MagicMock()
+    response.choices = [MagicMock()]
+    response.choices[0].message.content = payload
+    response.usage.prompt_tokens = 10
+    response.usage.completion_tokens = 2
+    return response
+
+
+class TestErrorKind:
+    def test_a_rate_limit_is_retryable(self):
+        assert _error_kind(RATE_LIMIT) == "retryable"
+
+    def test_an_empty_account_is_fatal(self):
+        assert _error_kind(NO_CREDIT) == "fatal"
+
+    def test_a_bad_key_is_fatal(self):
+        assert _error_kind(Exception("Incorrect API key provided: sk-xxx")) == "fatal"
+
+    def test_an_ordinary_failure_is_neither(self):
+        assert _error_kind(ValueError("schema mismatch")) == "other"
+
+
+class TestBackoff:
+    def test_a_rate_limit_waits_then_succeeds(self):
+        client = _client()
+        client.client.chat.completions.create.side_effect = [RATE_LIMIT, _answer()]
+
+        with patch("backend.integrations.structured_client.time.sleep") as slept:
+            data, _ = client.generate_structured(prompt="p", schema=SCHEMA, system="s")
+
+        assert data == {"ok": True}
+        slept.assert_called_once_with(1)
+
+    def test_waits_lengthen_and_then_give_up(self):
+        client = _client()
+        client.client.chat.completions.create.side_effect = RATE_LIMIT
+
+        with (
+            patch("backend.integrations.structured_client.time.sleep") as slept,
+            pytest.raises(StructuredCallError),
+        ):
+            client.generate_structured(prompt="p", schema=SCHEMA, system="s")
+
+        assert [call.args[0] for call in slept.call_args_list][:3] == [1, 4, 10]
+
+    def test_an_empty_account_stops_at_once(self):
+        """No waiting, and no second request shape: nothing about either fixes
+        an empty account."""
+        client = _client()
+        client.client.chat.completions.create.side_effect = NO_CREDIT
+
+        with (
+            patch("backend.integrations.structured_client.time.sleep") as slept,
+            pytest.raises(FatalCallError),
+        ):
+            client.generate_structured(prompt="p", schema=SCHEMA, system="s")
+
+        assert client.client.chat.completions.create.call_count == 1
+        slept.assert_not_called()
+
+    def test_a_clean_call_never_sleeps(self):
+        client = _client()
+        client.client.chat.completions.create.return_value = _answer()
+
+        with patch("backend.integrations.structured_client.time.sleep") as slept:
+            data, _ = client.generate_structured(prompt="p", schema=SCHEMA, system="s")
+
+        assert data == {"ok": True}
+        slept.assert_not_called()
