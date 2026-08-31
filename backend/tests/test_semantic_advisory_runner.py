@@ -7,6 +7,8 @@ check, report — with injected fakes and zero network access.
 """
 
 import json
+import random
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -253,6 +255,87 @@ class TestLocalizationCache:
         assert runner.localization_calls_saved == 0
 
 
+class TestConcurrency:
+    """Sentences are checked in parallel, and the answers must not change.
+
+    Run sequentially an 82-sentence Read took about two hours of almost pure
+    waiting (2026-08-31). Concurrency changes no prompt and no answer, so
+    these pin exactly that: same report, order intact, caches not corrupted.
+    """
+
+    def _inputs(self):
+        # The id has to carry "S1" so the fake answers with a source claim,
+        # which is the path that exercises retrieval and localization.
+        sentences = [
+            {"sentence_id": f"S1-{i:02d}", "sentence": "They found a stone wall."}
+            for i in range(1, 9)
+        ]
+        inventory = [
+            {"fact_id": "SRC_1:F_1", "source_id": "SRC_1", "text": "team found a stone wall"},
+            {"fact_id": "SRC_1:F_2", "source_id": "SRC_1", "text": "report published later"},
+        ]
+        sources = [{"source_id": "SRC_1", "full_text": SOURCE_TEXT}]
+        return sentences, inventory, sources
+
+    def test_the_report_matches_a_sequential_run(self):
+        sentences, inventory, sources = self._inputs()
+
+        one = SemanticAdvisoryRunner(
+            FakeModel(), FakeEmbedder(), top_per_route=2, max_workers=1
+        ).run("read", sentences, inventory, sources)
+        many = SemanticAdvisoryRunner(
+            FakeModel(), FakeEmbedder(), top_per_route=2, max_workers=8
+        ).run("read", sentences, inventory, sources)
+
+        assert [s["sentence_id"] for s in many["sentences"]] == [
+            s["sentence_id"] for s in one["sentences"]
+        ]
+        assert many["advisory_counts"] == one["advisory_counts"]
+        assert [e["evidence_id"] for e in many["evidence_objects"]] == [
+            e["evidence_id"] for e in one["evidence_objects"]
+        ]
+
+    def test_sentences_come_back_in_reading_order(self):
+        """Whatever order the work finishes in, the report reads top to
+        bottom."""
+        sentences, inventory, sources = self._inputs()
+
+        class Jittery(FakeModel):
+            def generate(self, stage, prompt, schema):
+                time.sleep(random.uniform(0, 0.02))
+                return super().generate(stage, prompt, schema)
+
+        report = SemanticAdvisoryRunner(
+            Jittery(), FakeEmbedder(), top_per_route=2, max_workers=8
+        ).run("read", sentences, inventory, sources)
+
+        assert [s["sentence_id"] for s in report["sentences"]] == [
+            s["sentence_id"] for s in sentences
+        ]
+
+    def test_the_shared_caches_survive_parallel_use(self):
+        """Eight workers hitting one memo must not lose or duplicate a fact."""
+        sentences, inventory, sources = self._inputs()
+        runner = SemanticAdvisoryRunner(
+            FakeModel(), FakeEmbedder(), top_per_route=2, max_workers=8
+        )
+
+        report = runner.run("read", sentences, inventory, sources)
+
+        located = [
+            candidate
+            for item in report["sentences"]
+            for claim in item["claims"]
+            if claim["type"] == "DIRECT_SOURCE_CLAIM"
+            for candidate in claim["retrieval"]["candidates"]
+            if (candidate.get("evidence_proposal") or {}).get("status") == "SPAN_FOUND"
+        ]
+        assert located
+        # One fact, one span: the memo served every repeat.
+        assert len({c["evidence_proposal"]["evidence_id"] for c in located}) == 1
+        assert runner.localization_calls_saved >= len(located) - 1
+
+
 class TestEmbeddingCache:
     """A corpus embeds to the same vectors every run.
 
@@ -299,6 +382,7 @@ class TestEmbeddingCache:
 
         with patch("urllib.request.urlopen", fake):
             got = first.embed(["alpha", "beta"])
+        first.flush()
 
         assert got == [[1.0, 0.0], [0.0, 1.0]]
         assert len(calls) == 1
@@ -319,6 +403,7 @@ class TestEmbeddingCache:
         _, fake = self._serve(first, vectors)
         with patch("urllib.request.urlopen", fake):
             first.embed(["alpha"])
+        first.flush()
 
         second = self._embedder(tmp_path, None)
         calls, fake2 = self._serve(second, vectors)
@@ -334,6 +419,7 @@ class TestEmbeddingCache:
         _, fake = self._serve(first, vectors)
         with patch("urllib.request.urlopen", fake):
             first.embed(["alpha"])
+        first.flush()
 
         with patch("backend.config.get_settings") as settings:
             settings.return_value.dashscope_api_key = "test-key"

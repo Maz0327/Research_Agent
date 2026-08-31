@@ -22,9 +22,11 @@ import gzip
 import hashlib
 import json
 import re
+import threading
 import time
 import urllib.request
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Protocol
@@ -46,6 +48,14 @@ EMBEDDING_MODEL = "qwen3.7-text-embedding"
 TOP_PER_ROUTE = 10
 CORPUS_SEMANTIC_TOP = 20
 CORPUS_LEXICAL_TOP = 10
+
+# Sentences checked at once. Measured headroom: a sequential run held ~19
+# calls a minute with zero rate limits, so a modest pool stays well inside
+# the ceiling while the backoff covers the rest.
+MAX_WORKERS = 8
+
+# New vectors to accumulate before rewriting the cache file.
+_CACHE_FLUSH_EVERY = 500
 
 CLAIM_TYPES = (
     "DIRECT_SOURCE_CLAIM",
@@ -253,10 +263,17 @@ class SemanticAdvisoryRunner:
         embedder: Embedder,
         *,
         top_per_route: int = TOP_PER_ROUTE,
+        max_workers: int = MAX_WORKERS,
     ) -> None:
         self.model = model
         self.embedder = embedder
         self.top_per_route = top_per_route
+        # Sentences do not depend on each other, and neither do the checks
+        # within one. Run sequentially, an 82-sentence Read took about two
+        # hours of almost pure waiting (2026-08-31). Concurrency changes no
+        # prompt and no answer — the same calls, overlapped.
+        self.max_workers = max_workers
+        self._memo_lock = threading.Lock()
         self._embedding_memo: dict[str, list[float]] = {}
         # Where a harvested fact lives in its source is a property of the fact
         # and the source, not of the claim that retrieved it — the claim goes
@@ -270,13 +287,18 @@ class SemanticAdvisoryRunner:
     # ---- embeddings -----------------------------------------------------
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
-        missing = [t for t in texts if t not in self._embedding_memo]
+        with self._memo_lock:
+            missing = [t for t in texts if t not in self._embedding_memo]
         if missing:
+            # The network call happens outside the lock: holding it across a
+            # round trip would serialise every worker behind one request.
             vectors = self.embedder.embed(missing)
             if len(vectors) != len(missing):
                 raise RuntimeError("embedder returned wrong vector count")
-            self._embedding_memo.update(zip(missing, vectors, strict=True))
-        return [self._embedding_memo[t] for t in texts]
+            with self._memo_lock:
+                self._embedding_memo.update(zip(missing, vectors, strict=True))
+        with self._memo_lock:
+            return [self._embedding_memo[t] for t in texts]
 
     # ---- stage 1: decomposition ----------------------------------------
 
@@ -460,9 +482,11 @@ Candidates:
         unit_vectors: list[list[float]],
     ) -> None:
         """Search the ENTIRE known source, then the model picks the minimal span."""
-        cached = self._localization_memo.get(candidate["fact_id"])
+        with self._memo_lock:
+            cached = self._localization_memo.get(candidate["fact_id"])
+            if cached is not None:
+                self.localization_calls_saved += 1
         if cached is not None:
-            self.localization_calls_saved += 1
             candidate["evidence_proposal"] = deepcopy(cached)
             return
 
@@ -535,7 +559,8 @@ Full-source candidate regions ({len(units)} source units searched):
                 "full_source_units_searched": len(units),
                 "system_reason": result.get("reason") or "",
             }
-            self._localization_memo[candidate["fact_id"]] = candidate["evidence_proposal"]
+            with self._memo_lock:
+                self._localization_memo[candidate["fact_id"]] = candidate["evidence_proposal"]
             return
         start_index, end_index = result["start_sentence_index"], result["end_sentence_index"]
         start_char = units[start_index]["start_char"]
@@ -557,7 +582,8 @@ Full-source candidate regions ({len(units)} source units searched):
         }
         proposal["evidence_id"] = evidence_identity(proposal)
         candidate["evidence_proposal"] = proposal
-        self._localization_memo[candidate["fact_id"]] = proposal
+        with self._memo_lock:
+            self._localization_memo[candidate["fact_id"]] = proposal
 
     # ---- stages 6/7: referees ------------------------------------------
 
@@ -804,34 +830,52 @@ Candidate windows:
         }
         source_texts = {s["source_id"]: s["full_text"] for s in sources}
 
-        sentences_out = []
-        all_direct: list[dict[str, Any]] = []
-        for sentence in read_sentences:
+        def check_one(sentence: dict[str, Any]) -> dict[str, Any]:
+            """Everything one sentence needs before evidence is deduplicated."""
             claims = self.decompose(sentence)
             for claim in claims:
-                if claim["type"] == "DIRECT_SOURCE_CLAIM":
-                    self.retrieve(claim, inventory, fact_vectors)
-                    self.judge_relevance(claim)
-                    for candidate in claim["retrieval"]["candidates"]:
-                        label = (candidate.get("system_relevance") or {}).get("label")
-                        if label in ("DIRECTLY_RELEVANT", "PARTIALLY_RELEVANT"):
-                            sid = candidate["source_id"]
-                            self.localize(
-                                claim,
-                                candidate,
-                                source_texts[sid],
-                                source_units[sid],
-                                source_unit_vectors[sid],
-                            )
-                    all_direct.append(claim)
-            sentences_out.append(
-                {"sentence_id": sentence["sentence_id"], "sentence": sentence["sentence"], "claims": claims}
-            )
+                if claim["type"] != "DIRECT_SOURCE_CLAIM":
+                    continue
+                self.retrieve(claim, inventory, fact_vectors)
+                self.judge_relevance(claim)
+                for candidate in claim["retrieval"]["candidates"]:
+                    label = (candidate.get("system_relevance") or {}).get("label")
+                    if label in ("DIRECTLY_RELEVANT", "PARTIALLY_RELEVANT"):
+                        sid = candidate["source_id"]
+                        self.localize(
+                            claim,
+                            candidate,
+                            source_texts[sid],
+                            source_units[sid],
+                            source_unit_vectors[sid],
+                        )
+            return {
+                "sentence_id": sentence["sentence_id"],
+                "sentence": sentence["sentence"],
+                "claims": claims,
+            }
+
+        # map keeps the Read's order, so the report reads top to bottom
+        # however the work finished.
+        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
+            sentences_out = list(pool.map(check_one, read_sentences))
+
+        all_direct = [
+            claim
+            for item in sentences_out
+            for claim in item["claims"]
+            if claim["type"] == "DIRECT_SOURCE_CLAIM"
+        ]
 
         evidence_objects, dedup_stats = deduplicate_evidence(all_direct)
         evidence_by_id = {e["evidence_id"]: e for e in evidence_objects}
 
-        for sentence in sentences_out:
+        def judge_one(sentence: dict[str, Any]) -> None:
+            """Referee one sentence's claims against the deduplicated evidence.
+
+            Direct claims are refereed first: an inference is judged through
+            its premises, so those premises need their verdicts already.
+            """
             claims_by_id = {c["claim_id"]: c for c in sentence["claims"]}
             for claim in sentence["claims"]:
                 if claim["type"] == "DIRECT_SOURCE_CLAIM":
@@ -843,6 +887,13 @@ Candidate windows:
                     claim["analysis_result"] = "NO_SOURCE_VERIFICATION_REQUIRED"
                 elif claim["type"] == "CORPUS_META":
                     self.check_corpus_claim(claim, sources, source_units, source_unit_vectors)
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
+            list(pool.map(judge_one, sentences_out))
+
+        flush = getattr(self.embedder, "flush", None)
+        if flush:
+            flush()
 
         report = assemble_advisory_report(read_identifier, sentences_out)
         report["evidence_objects"] = evidence_objects
@@ -911,6 +962,12 @@ class DashScopeEmbedder:
         self._cache: dict[str, list[float]] = {}
         self.cache_hits = 0
         self.cache_misses = 0
+        # Writing the whole file after every miss cost more than the calls it
+        # saved: a warm 20MB cache was re-gzipped on each new query embedding,
+        # and a 12-sentence run managed 18 model calls in 35 minutes
+        # (2026-08-31). Vectors accumulate and the file is written in batches.
+        self._dirty = 0
+        self._lock = threading.Lock()
         if cache_path and cache_path.exists():
             try:
                 with gzip.open(cache_path, "rt", encoding="utf-8") as handle:
@@ -924,10 +981,21 @@ class DashScopeEmbedder:
         """Cache key for one text under this model."""
         return hashlib.sha256(f"{self.model}\x00{text}".encode()).hexdigest()
 
-    def _save_cache(self) -> None:
-        """Write the cache, atomically, if one is configured."""
+    def flush(self) -> None:
+        """Write the cache now, whatever is pending."""
+        self._save_cache(force=True)
+
+    def _save_cache(self, force: bool = False) -> None:
+        """Write the cache atomically, if one is configured and enough is new.
+
+        Args:
+            force: Write even when few vectors are pending.
+        """
         if not self.cache_path:
             return
+        if not force and self._dirty < _CACHE_FLUSH_EVERY:
+            return
+        self._dirty = 0
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.cache_path.with_suffix(self.cache_path.suffix + ".tmp")
         with gzip.open(temporary, "wt", encoding="utf-8") as handle:
@@ -961,8 +1029,10 @@ class DashScopeEmbedder:
                     with urllib.request.urlopen(request, timeout=120) as response:
                         data = json.loads(response.read().decode())
                     items = sorted(data["data"], key=lambda item: item["index"])
-                    for text, item in zip(batch, items, strict=True):
-                        self._cache[self._key_for(text)] = item["embedding"]
+                    with self._lock:
+                        for text, item in zip(batch, items, strict=True):
+                            self._cache[self._key_for(text)] = item["embedding"]
+                        self._dirty += len(batch)
                     last_error = None
                     break
                 except Exception as error:  # noqa: BLE001 — retry then surface
@@ -970,9 +1040,8 @@ class DashScopeEmbedder:
                     time.sleep(min(2**attempt, 20))
             if last_error is not None:
                 raise RuntimeError(f"embedding batch failed after retries: {last_error}")
-            # Checkpoint as it fills: a killed run should not cost the next one.
-            if start and not (start // self.batch_size) % 25:
-                self._save_cache()
-        if missing:
+            # Checkpoint as it fills, but only once enough is pending to be
+            # worth rewriting the file for. The caller flushes the remainder
+            # when the run ends.
             self._save_cache()
         return [self._cache[self._key_for(text)] for text in texts]
