@@ -98,23 +98,35 @@ class TestDefect2GatesNeverLoop:
 
 
 class TestDefect5Routing:
-    def test_locked_defaults(self):
+    def test_current_authority_defaults(self, monkeypatch):
+        """D-23 survives only where nothing later superseded it (routing audit 09-01)."""
         from backend.lwm.routing import seat_model
-        assert seat_model("writer") == "deepseek-v4-pro"
-        assert seat_model("editor") == "claude-sonnet-5"
-        assert seat_model("judge") == "kimi-k3"
+        monkeypatch.delenv("LWM_MODEL_JUDGE", raising=False)
+        assert seat_model("writer") == "deepseek-v4-pro"       # D-23, unsuperseded
+        assert seat_model("editor") == "claude-sonnet-5"        # D-23, UNRESOLVED (dead provider)
+        assert seat_model("judge") == "gpt-5.6-terra"           # D-028 supersedes D-23's kimi
+        assert seat_model("reader") == "gpt-5.6-terra"          # no locked family → D-028 judge
+
+    def test_kimi_is_never_the_default_judge(self, monkeypatch):
+        """D-028: kappa 0.900 (terra) vs 0.550 (kimi); kimi-k2.5 sunset 08-31."""
+        from backend.lwm.routing import seat_model
+        monkeypatch.delenv("LWM_MODEL_JUDGE", raising=False)
+        assert "kimi" not in seat_model("judge")
 
     def test_env_override_is_deliberate(self, monkeypatch):
         from backend.lwm.routing import seat_model
         monkeypatch.setenv("LWM_MODEL_WRITER", "gpt-5.6-luna")
         assert seat_model("writer") == "gpt-5.6-luna"
 
-    def test_missing_credential_fails_loudly_never_substitutes(self, monkeypatch):
+    def test_unreachable_seat_fails_loudly_never_substitutes(self, monkeypatch):
         from backend.lwm.routing import seat_client
-        # kimi-k3 → moonshot, whose key is absent in this environment.
+        # The editor's locked provider (Anthropic) is dead on this machine and
+        # its client requires a key we deliberately remove for the test.
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.setenv("LWM_MODEL_EDITOR", "kimi-k3-test")  # moonshot: no key
         monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
-        with pytest.raises(RuntimeError, match="locked to 'kimi-k3'.*Silently switching"):
-            seat_client("judge")
+        with pytest.raises(RuntimeError, match="Silently switching"):
+            seat_client("editor")
 
 
 class TestDefect7Materiality:
