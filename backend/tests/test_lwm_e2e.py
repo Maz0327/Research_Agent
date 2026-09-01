@@ -188,3 +188,102 @@ def test_c_correction_path_regenerates_once_then_returns_to_the_ear(workspace, m
     assert "redraft used" in ledger.read_rows(d)["7 draft"].notes
     text = (d / "07-dispatch-notes.md").read_text()
     assert "door opens too early" in text
+
+
+def _fc_judge(verdict_by_run):
+    """Judge whose 10b verdicts change between runs (run index → answers)."""
+    state = {"run": 0}
+    c = MagicMock()
+    def answer(prompt, schema, system, max_tokens):
+        props = set(schema.get("properties", {}))
+        if "claims" in props:
+            state["run"] += 1
+            return {"claims": [{"claim": "The jury deliberated for three hours",
+                                "script_line": "The jury deliberated for three hours."}]}, {}
+        return verdict_by_run[min(state["run"], len(verdict_by_run)) - 1], {}
+    c.generate_structured.side_effect = answer
+    return c
+
+
+def test_adverse_path_material_blocker_correction_new_sha(workspace, monkeypatch):
+    """final candidate → D approve → SHA A → 10b material → D correction →
+    lock superseded → correction pass changes the candidate → D → SHA B →
+    10b reruns on B → passes → 11 packages B → RECORD."""
+    from backend.lwm import decisions, ledger, orchestrate
+    from backend.lwm import episode as ep
+
+    d = Path(ep.create("Adverse path", offline=True)["path"])
+    for s in ("1 angle + packaging", "2 feasibility + format", "3 brief",
+              "4 fact-check the brief", "4b briefing + structure session",
+              "5 outline", "6 grip gate A", "7 draft", "8 edit",
+              "9 grip gate B", "9b pace edit"):
+        ledger.update_row(d, s, status="done", gate="—")
+    (d / "07-draft.md").write_text(
+        "## Movement 1\n\nThe jury deliberated for three hours. The verdict came at dusk.\n")
+    # LB registry row matching the claim → NOT ENOUGH EVIDENCE would also block,
+    # but this test uses REFUTED for run 1.
+    (d / "04-sources-registry.md").write_text(
+        "| # | claim | class | status | source | LB | allowed wording | prohibited wording | anchor |\n"
+        "|---|---|---|---|---|---|---|---|---|\n"
+        "| 1 | The jury deliberated for three hours before the verdict | REALITY | CONFIRMED | SRC_1 | y | — | — | — |\n")
+
+    judge = _fc_judge([
+        {"verdict": "REFUTED", "url": "https://court.example/x",
+         "quote": "the jury deliberated for three days"},
+        {"verdict": "SUPPORTED", "url": "https://court.example/x",
+         "quote": "the jury deliberated for three days"},
+    ])
+    editor = MagicMock()
+    editor.generate_structured.return_value = ({"pairs": [
+        {"old": "deliberated for three hours", "new": "deliberated for three days",
+         "why": "Maz's factual correction"}]}, {})
+    hooks = dict(
+        editor_client=editor, judge_client=judge,
+        search=lambda q, max_results=5: [{"url": "https://court.example/x", "title": "t", "snippet": ""}],
+        fetch=lambda u: "Court record: the jury deliberated for three days before returning.",
+    )
+
+    # candidate → D approve → SHA A
+    log = orchestrate.step(**hooks)
+    assert log[-1]["stop"]["detail"].startswith("D —")
+    sha_a = decisions.decide_d(d, approve=True)["sha"]
+
+    # 10b run 1: REFUTED on an LB claim → material blocker, stop for ruling
+    log = orchestrate.step(**hooks)
+    assert log[-1]["stop"]["reason"] == "contradiction"
+    assert "material" in ledger.read_rows(d)["10b script fact-check (D-SFC-1)"].status
+
+    # No infinite loop: another continue does NOT rerun the check, same stop.
+    calls_before = judge.generate_structured.call_count
+    log = orchestrate.step(**hooks)
+    assert log[-1]["stop"]["reason"] == "contradiction"
+    assert judge.generate_structured.call_count == calls_before, "10b must not rerun on the same sha"
+
+    # Maz rules through the EXISTING D path (no fifth touchpoint).
+    r = decisions.decide_d(d, corrections="the jury deliberated for three days, not hours")
+    assert r["corrections"]
+    meta = json.loads((d / "outputs" / "final-script.json").read_text())
+    assert meta["approved"] is False, "old lock no longer counts"
+    assert meta["history"][0]["sha"] == sha_a, "old SHA preserved in history"
+    assert decisions.locked_script(d) is None
+
+    before = (d / "10-final-candidate.md").read_text()
+    log = orchestrate.step(**hooks)   # correction pass runs, stops at D
+    after = (d / "10-final-candidate.md").read_text()
+    assert log[-1]["stop"]["detail"].startswith("D — REVISED")
+    assert after != before and "three days" in after, "the correction actually changed the text"
+    assert "three hours" not in after
+    assert (d / "10-correction-pass.md").exists()
+
+    # Approve the revised candidate → SHA B ≠ SHA A; 10b reruns on B; 11 packages B.
+    sha_b = decisions.decide_d(d, approve=True)["sha"]
+    assert sha_b != sha_a
+    log = orchestrate.step(**hooks)
+    rows = ledger.read_rows(d)
+    assert rows["10b script fact-check (D-SFC-1)"].complete
+    assert sha_b in rows["10b script fact-check (D-SFC-1)"].notes, "second run checked SHA B"
+    pkg = json.loads((d / "editing" / "production-package.json").read_text())
+    assert pkg["script"]["sha"] == sha_b, "stage 11 packages the NEW sha, never the superseded one"
+    assert log[-1]["stop"]["detail"].startswith("Maz touchpoint record")
+    # The checker never edited the locked script itself.
+    assert (d / "outputs" / "final-script-locked.md").read_text() == after

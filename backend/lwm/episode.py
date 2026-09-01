@@ -118,11 +118,17 @@ def status(slug: str | None = None) -> dict:
                       ("outline", "05-outline.md"), ("draft", "07-draft.md"),
                       ("final_candidate", "10-final-candidate.md"),
                       ("fact_check", "10b-fact-check.md"),
+                      ("fact_check_json", "10b-fact-check.json"),
+                      ("correction_log", "10-correction-pass.md"),
                       ("production_package", "11-production-package.md"),
                       ("manifest", "SOURCE-MANIFEST.json"), ("ledger", "STAGE-LEDGER.md")]:
         p = ep / name
-        # Template stubs are tiny; only a real artifact counts as available.
-        artifacts[key] = str(p) if p.exists() and p.stat().st_size > 1200 else None
+        # Keys whose file exists as a tiny stub in _TEMPLATE need a size floor
+        # so the stub never masquerades as a real artifact; everything else
+        # (fact-check json, manifests, correction logs) is real by existence.
+        stubby = key in ("briefing", "briefing_html", "outline", "draft", "production_package")
+        floor = 1200 if stubby else 1
+        artifacts[key] = str(p) if p.exists() and p.stat().st_size >= floor else None
     artifacts["ledger"] = str(ep / "STAGE-LEDGER.md")
     artifacts["manifest"] = str(manifest.manifest_path(ep)) if manifest.manifest_path(ep).exists() else None
 
@@ -135,6 +141,10 @@ def status(slug: str | None = None) -> dict:
         next_text, maz = "TOUCHPOINT C — Maz hears Movement 1; `lwm decide C --approve` / `--correction`", True
     if stage == "10 ear loop + locks" and row and row.status.startswith("candidate ready"):
         next_text, maz = "TOUCHPOINT D — approve the final candidate; `lwm decide D --approve` / `--corrections`", True
+    if stage == "10 ear loop + locks" and row and row.status.startswith("corrections requested"):
+        next_text, maz = "the system applies your correction to the candidate (`lwm continue`)", False
+    if stage == "10b script fact-check (D-SFC-1)" and row and row.status.startswith("material findings"):
+        next_text, maz = "FINAL CHECK — needs your decision; correct via touchpoint D", True
 
     from backend.lwm import decisions as _dec
     locked = _dec.locked_script(ep)

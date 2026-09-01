@@ -78,35 +78,73 @@ def decide_c(episode: Path, approve: bool = False, correction: str = "") -> dict
 
 
 def decide_d(episode: Path, approve: bool = False, corrections: str = "") -> dict:
-    """Touchpoint D: the one final candidate — locked, or bounded corrections."""
+    """Touchpoint D: the one final candidate — locked, or bounded corrections.
+
+    A correction issued AFTER a lock (Maz's ruling on a material 10b finding
+    routes here too — there is no fifth touchpoint) SUPERSEDES the lock: the
+    old SHA stops being the approved script, its history is preserved in the
+    lock record, stage 10 reopens, and the correction pass revises the
+    candidate for a fresh D approval and a fresh 10b run.
+    """
+    import hashlib
+    import json
     candidate = episode / "10-final-candidate.md"
     if not candidate.exists():
         raise RuntimeError("touchpoint D recorded but no final candidate exists "
                            "(stage 10 has not prepared 10-final-candidate.md)")
+    out = episode / "outputs"
+    meta_path = out / "final-script.json"
+    meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+
     if approve:
-        import hashlib
-        import json
         text = candidate.read_text()
         sha = hashlib.sha256(text.encode()).hexdigest()[:12]
-        out = episode / "outputs"
         out.mkdir(exist_ok=True)
         locked = out / "final-script-locked.md"
         locked.write_text(text)
-        (out / "final-script.json").write_text(json.dumps({
+        meta_path.write_text(json.dumps({
             "path": str(locked), "sha": sha, "approved": True,
             "locked_at": str(date.today()),
             "lineage": ["07-draft.md", "08-edit-log.md", "09-grip-gate-b.md",
                         "09b-pace-edit.md", "10-final-candidate.md"],
+            # Every superseded lock stays on the record — provenance survives.
+            "history": meta.get("history", []),
         }, indent=1))
         ledger.update_row(episode, "10 ear loop + locks", status="done",
                           gate=f"locks: script LOCKED {sha}",
                           notes="touchpoint D approved; canonical script = outputs/final-script-locked.md")
         _log(episode, "TOUCHPOINT D — SCRIPT LOCKED", f"sha {sha} · outputs/final-script-locked.md")
         return {"touchpoint": "D", "locked": True, "sha": sha}
+
     if not corrections:
         raise ValueError("touchpoint D needs --approve or --corrections \"…\"")
+
+    if meta.get("approved"):
+        # LOCK INVALIDATION: the old SHA is no longer the approved script.
+        old_sha = meta.get("sha")
+        meta["approved"] = False
+        meta.setdefault("history", []).append({
+            "sha": old_sha, "superseded_at": str(date.today()),
+            "reason": f"D corrections after lock: {corrections[:200]}",
+        })
+        meta_path.write_text(json.dumps(meta, indent=1))
+        # Downstream work built on the dead SHA reopens with it.
+        for stage in ("10b script fact-check (D-SFC-1)", "11 production package"):
+            ledger.update_row(episode, stage, status="", gate="—",
+                              notes=f"reopened: lock {old_sha} superseded by D corrections")
+        _log(episode, "LOCK SUPERSEDED", f"sha {old_sha} is no longer the approved script")
+
+    # The correction is stored machine-readably so the stage-10 correction
+    # pass applies exactly what Maz asked, not a paraphrase from a log.
+    out.mkdir(exist_ok=True)
+    dc_path = out / "d-corrections.json"
+    dc = json.loads(dc_path.read_text()) if dc_path.exists() else {"corrections": []}
+    dc["corrections"].append({"at": str(date.today()), "text": corrections, "applied": False})
+    dc_path.write_text(json.dumps(dc, indent=1))
+
     ledger.update_row(episode, "10 ear loop + locks", status="corrections requested",
-                      notes="bounded corrections in DECISION-LOG; one more candidate")
+                      notes="correction stored in outputs/d-corrections.json; the correction "
+                            "pass revises the candidate, then back to touchpoint D")
     _log(episode, "TOUCHPOINT D — CORRECTIONS", corrections)
     return {"touchpoint": "D", "corrections": corrections}
 

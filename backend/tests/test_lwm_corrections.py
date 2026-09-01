@@ -208,3 +208,53 @@ class TestDecide:
                           notes="redraft used (cap 1)")
         with pytest.raises(RuntimeError, match="cap is spent"):
             decisions.decide_c(episode, correction="another one")
+
+
+class TestDCorrectionPass:
+    def _episode(self, workspace, correction_text):
+        import json as _json
+
+        from backend.lwm import episode as ep
+        from backend.lwm import ledger
+        d = Path(ep.create("D correction unit", offline=True)["path"])
+        (d / "10-final-candidate.md").write_text(
+            "He was sentenced to 40 years. The jury deliberated for three hours.")
+        (d / "outputs").mkdir(exist_ok=True)
+        (d / "outputs" / "d-corrections.json").write_text(_json.dumps(
+            {"corrections": [{"at": "2026-09-01", "text": correction_text, "applied": False}]}))
+        ledger.update_row(d, "10 ear loop + locks", status="corrections requested")
+        return d
+
+    def test_pairs_change_the_candidate_never_reemission(self, workspace):
+        from backend.lwm import edit, ledger
+        d = self._episode(workspace, "the jury deliberated for three days, not hours")
+        editor = MagicMock()
+        editor.generate_structured.return_value = ({"pairs": [
+            {"old": "deliberated for three hours", "new": "deliberated for three days"}]}, {})
+        r = edit.d_correction_pass(d, editor)
+        text = (d / "10-final-candidate.md").read_text()
+        assert r["changed"] and "three days" in text
+        assert text.startswith("He was sentenced to 40 years."), "untouched prose survives verbatim — pairs, not re-emission"
+        assert "candidate ready" in ledger.read_rows(d)["10 ear loop + locks"].status
+        assert "Maz asked" in (d / "10-correction-pass.md").read_text()
+
+    def test_numbers_change_only_when_the_correction_names_them(self, workspace):
+        from backend.lwm import edit
+        d = self._episode(workspace, "make the sentencing line punchier")  # names NO numbers
+        editor = MagicMock()
+        editor.generate_structured.return_value = ({"pairs": [
+            {"old": "sentenced to 40 years", "new": "sentenced to 45 years"}]}, {})
+        r = edit.d_correction_pass(d, editor)
+        assert r["applied"] == 0
+        assert "40 years" in (d / "10-final-candidate.md").read_text()
+        assert "correction did not name" in (d / "10-correction-pass.md").read_text()
+
+    def test_zero_safe_pairs_still_returns_to_d_with_the_fact_on_record(self, workspace):
+        from backend.lwm import edit, ledger
+        d = self._episode(workspace, "impossible ask")
+        editor = MagicMock()
+        editor.generate_structured.return_value = ({"pairs": []}, {})
+        r = edit.d_correction_pass(d, editor)
+        assert r["changed"] is False
+        assert "no safe pairs" in (d / "10-correction-pass.md").read_text()
+        assert "candidate ready" in ledger.read_rows(d)["10 ear loop + locks"].status

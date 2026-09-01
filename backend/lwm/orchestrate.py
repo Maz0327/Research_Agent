@@ -140,6 +140,21 @@ def step(slug: str | None = None, max_steps: int = 12, **hooks) -> list[dict]:
                 entry["did"] = f"pace edit: {r['words']}"
             elif stage == "10 ear loop + locks":
                 row = rows.get("10 ear loop + locks")
+                if row and row.status.startswith("corrections requested"):
+                    # Maz's D correction is APPLIED, not just recorded: the
+                    # editor seat proposes pairs against the current candidate,
+                    # code applies them, and the revised candidate goes back to
+                    # D. Never silently re-locked.
+                    client = hooks.get("editor_client")
+                    if client is None:
+                        client, _m = writing._client("editor")
+                    r = edit.d_correction_pass(episode, client)
+                    entry["did"] = (f"D correction applied to the candidate "
+                                    f"({r['applied']} pair(s); changed={r['changed']})")
+                    log.append(entry)
+                    return _stop(log, {"stage": stage, "macro": macro}, "touchpoint",
+                                 "D — REVISED candidate ready; `lwm decide D --approve` "
+                                 "or `--corrections …`", True)
                 if row and row.status.startswith("candidate ready"):
                     return _stop(log, entry, "touchpoint",
                                  "D — ONE final candidate at 10-final-candidate.md; "
@@ -158,6 +173,15 @@ def step(slug: str | None = None, max_steps: int = 12, **hooks) -> list[dict]:
                 if not locked:
                     raise RuntimeError("10b requires the LOCKED script (touchpoint D approval); none exists")
                 script_path, sha = locked
+                row = rows.get(stage)
+                if row and row.status.startswith("material findings") and sha in row.notes:
+                    # The check already ran against THIS sha and found material
+                    # blockers. Re-running it changes nothing — the way forward
+                    # is Maz's ruling through the D correction path. No loop.
+                    return _stop(log, entry, "contradiction",
+                                 "Final Check found material blockers on the current locked "
+                                 "script — resolve via `lwm decide D --corrections …` "
+                                 "(10b-fact-check.md has the findings)", True)
                 client = hooks.get("judge_client")
                 if client is None:
                     from backend.config import get_settings
