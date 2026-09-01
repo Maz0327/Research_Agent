@@ -2583,3 +2583,18 @@ build the semantic check → the full re-run.
   dense, grounded and covered. Read the output.
   Nine rebuilds. Suite 1692 passed.
 
+### 2026-09-01 — LWM V1 built; next = the bounded Packer Readiness Patch
+
+`backend/lwm/` is the supported V1 control surface (intake · RA→v4 handoff · stage-4 registry ·
+continue-to-touchpoint · the D-SFC-1 stage-10b script fact-checker · stage-11 package · `lwm
+decide` for the four Maz touchpoints), with the creator UI on the existing dashboard shell in
+`~/.openclaw/workspace`. Suite 1,891.
+
+An archaeology pass against the *documented* pipeline then found a bounded set of readiness gaps —
+the creator flow needs reordering so research precedes the angle; a new Angle stage; the dense
+outline's anti-thinness protections (SOLID/THIN/PRECISION-RISK + targeted backfill) were dropped
+in V1; and the writer path truncates context arbitrarily (`backend/lwm/writing.py:58-59,139-142`;
+`edit.py:105,122,141`) — the drafter currently receives no Brief material at all, and lint findings
+are discarded through stdout truncation. Contract:
+`~/lost-with-maz-mem/roadmap/PACKER-READINESS-PATCH-IMPLEMENTATION-PLAN.md`.
+Packer research must not rerun; implementation stops at the new ANGLE touchpoint.
