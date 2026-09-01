@@ -1,0 +1,430 @@
+{
+ "data": {
+  "key_points": [
+   {
+    "key_point_id": "SRC_1:KP_1",
+    "statement": "Alfred Packer led five men into the Colorado San Juan Mountains in winter 1874 and emerged as the sole survivor in a well-fed state.",
+    "source_ids": [
+     "SRC_1"
+    ],
+    "supporting_claims": [
+     "SRC_1:CLM_1",
+     "SRC_1:CLM_4"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_1:KP_2",
+    "statement": "Packer provided multiple contradictory accounts regarding the deaths of his companions and how he obtained their belongings and money.",
+    "source_ids": [
+     "SRC_1"
+    ],
+    "supporting_claims": [
+     "SRC_1:CLM_2",
+     "SRC_1:CLM_5",
+     "SRC_1:CLM_6",
+     "SRC_1:CLM_9"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_1:KP_3",
+    "statement": "Physical and forensic evidence from the site presented conflicting indications regarding whether Packer committed murder or acted in self-defense.",
+    "source_ids": [
+     "SRC_1"
+    ],
+    "supporting_claims": [
+     "SRC_1:CLM_7",
+     "SRC_1:CLM_12"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_1:KP_4",
+    "statement": "Packer avoided trial by escaping jail for nine years, but was eventually re-captured, tried on a technicality, and sentenced to 40 years for voluntary manslaughter.",
+    "source_ids": [
+     "SRC_1"
+    ],
+    "supporting_claims": [
+     "SRC_1:CLM_8",
+     "SRC_1:CLM_10"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_1:KP_5",
+    "statement": "Public perception of Packer shifted significantly over time, aided by media reporting that resulted in his parole in 1901.",
+    "source_ids": [
+     "SRC_1"
+    ],
+    "supporting_claims": [
+     "SRC_1:CLM_11"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_2:KP_1",
+    "statement": "Alferd Packer survived being trapped in the San Juan Mountains in 1874 by resorting to cannibalism after starvation.",
+    "source_ids": [
+     "SRC_2"
+    ],
+    "supporting_claims": [
+     "SRC_2:CLM_1",
+     "SRC_2:CLM_2"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_2:KP_2",
+    "statement": "Physical and forensic evidence uncovered in the 20th century supports Packer's statement that he killed in self-defense rather than premeditated murder.",
+    "source_ids": [
+     "SRC_2"
+    ],
+    "supporting_claims": [
+     "SRC_2:CLM_3"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_2:KP_3",
+    "statement": "Packer served 17 years in prison before release and spent his later years engaging in craft handiwork before dying in 1907.",
+    "source_ids": [
+     "SRC_2"
+    ],
+    "supporting_claims": [],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_2:KP_4",
+    "statement": "Packer's story shifted over time from 19th-century murder infamy to 20th and 21st-century cultural novelty and tourist attraction.",
+    "source_ids": [
+     "SRC_2"
+    ],
+    "supporting_claims": [
+     "SRC_2:CLM_4"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_1",
+    "statement": "Alfred Packer provided multiple, evolving accounts of how his five companions died in the San Juan Mountains.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_13",
+     "SRC_3:CLM_35",
+     "SRC_3:CLM_39",
+     "SRC_3:CLM_45"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_2",
+    "statement": "Physical and forensic evidence repeatedly contradicted key elements of Packer's claims.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_9",
+     "SRC_3:CLM_15",
+     "SRC_3:CLM_16",
+     "SRC_3:CLM_22",
+     "SRC_3:CLM_25",
+     "SRC_3:CLM_40",
+     "SRC_3:CLM_41"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_3",
+    "statement": "Packer displayed suspicious financial activity and possessed items belonging to the deceased shortly after emerging from the wilderness.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_10",
+     "SRC_3:CLM_11",
+     "SRC_3:CLM_52",
+     "SRC_3:CLM_59"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_4",
+    "statement": "Packer's initial death sentence was overturned on a legal technicality, leading to a voluntary manslaughter conviction.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_3",
+     "SRC_3:CLM_20",
+     "SRC_3:CLM_21",
+     "SRC_3:CLM_46",
+     "SRC_3:CLM_54"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_5",
+    "statement": "Modern forensic investigations confirmed that Shannon Bell was shot with Packer's gun, but could not settle self-defense claims.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_26",
+     "SRC_3:CLM_50"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_6",
+    "statement": "Public perception and media campaigns played a decisive role in both Packer's original condemnation and his eventual parole.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_23",
+     "SRC_3:CLM_24",
+     "SRC_3:CLM_29"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_7",
+    "statement": "Packer's life and case became integrated into American popular culture through humorous and sensationalized media.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_27",
+     "SRC_3:CLM_38",
+     "SRC_3:CLM_55",
+     "SRC_3:CLM_56",
+     "SRC_3:CLM_58"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_8",
+    "statement": "Acquaintances consistently described Packer as dishonest, incompetent, and ill-suited for wilderness guiding.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_5",
+     "SRC_3:CLM_6",
+     "SRC_3:CLM_60"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_9",
+    "statement": "Packer ignored warnings from Indigenous leaders regarding winter travel dangers before leading his group into disaster.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_7",
+     "SRC_3:CLM_8"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_10",
+    "statement": "Packer successfully evaded justice for nine years by using an alias in Wyoming before his accidental discovery.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_17",
+     "SRC_3:CLM_19"
+    ],
+    "confidence": "high"
+   },
+   {
+    "key_point_id": "SRC_3:KP_11",
+    "statement": "Forensic science has confirmed that physical cannibalism occurred, though cannibalism itself was not the crime charged.",
+    "source_ids": [
+     "SRC_3"
+    ],
+    "supporting_claims": [
+     "SRC_3:CLM_1",
+     "SRC_3:CLM_2",
+     "SRC_3:CLM_18",
+     "SRC_3:CLM_25"
+    ],
+    "confidence": "high"
+   }
+  ],
+  "tensions": [
+   {
+    "tension_id": "SRC_1:TEN_1",
+    "label": "",
+    "description": "Packer's claim of self-defense against Shannon Bell versus coroner reports indicating all five bodies suffered identical blunt force trauma to the head while asleep.",
+    "involved_key_points": [
+     "SRC_1:KP_2",
+     "SRC_1:KP_3"
+    ],
+    "source_ids": [
+     "SRC_1"
+    ]
+   },
+   {
+    "tension_id": "SRC_1:TEN_2",
+    "label": "",
+    "description": "Prosecution assertions that game was abundant and cannibalism was by choice versus Packer's detailed accounts of starvation conditions and extreme winter isolation.",
+    "involved_key_points": [
+     "SRC_1:KP_1",
+     "SRC_1:KP_4"
+    ],
+    "source_ids": [
+     "SRC_1"
+    ]
+   },
+   {
+    "tension_id": "SRC_1:TEN_3",
+    "label": "",
+    "description": "Forensic studies showing potential defensive marks on bones versus bullet fragment evidence supporting Packer's claim that Bell was shot.",
+    "involved_key_points": [
+     "SRC_1:KP_3"
+    ],
+    "source_ids": [
+     "SRC_1"
+    ]
+   },
+   {
+    "tension_id": "SRC_2:TEN_1",
+    "label": "",
+    "description": "Criminal Conviction vs. Forensic Self-Defense Evidence: Packer served seventeen years for murder, yet 1950s forensic matching of bullet lead suggests his account of shooting Shannon Bell in self-defense was accurate.",
+    "involved_key_points": [
+     "SRC_2:KP_2",
+     "SRC_2:KP_3"
+    ],
+    "source_ids": [
+     "SRC_2"
+    ]
+   },
+   {
+    "tension_id": "SRC_2:TEN_2",
+    "label": "",
+    "description": "Grisly Wilderness Tragedy vs. Lighthearted Modern Commercialization: A horrific event involving starvation and cannibalism transformed into collegiate humor, menu items ('Packer Burger'), and musical comedy.",
+    "involved_key_points": [
+     "SRC_2:KP_1",
+     "SRC_2:KP_4"
+    ],
+    "source_ids": [
+     "SRC_2"
+    ]
+   },
+   {
+    "tension_id": "SRC_3:TEN_1",
+    "label": "",
+    "description": "Packer claimed the men died individually over miles and time from starvation/exposure, but all five corpses were discovered together at a single campsite location.",
+    "involved_key_points": [
+     "SRC_3:KP_1",
+     "SRC_3:KP_2"
+    ],
+    "source_ids": [
+     "SRC_3"
+    ]
+   }
+  ],
+  "gaps": [
+   {
+    "gap_id": "GAP_1",
+    "label": "",
+    "description": "You don't have the primary trial transcripts or official court testimony from Packer's 1883 murder trial. Without them, you can't show viewers what was actually said under oath versus what modern sources claim happened.",
+    "why_expected": "A major historical murder trial that went to the state supreme court would leave behind formal court records and contemporary sworn testimony.",
+    "related_themes": [
+     "SRC_3:THEME_4",
+     "SRC_4:THM_1",
+     "SRC_6:THEME_1"
+    ],
+    "related_key_points": [
+     "SRC_1:KP_4",
+     "SRC_3:KP_4",
+     "SRC_6:KP_2"
+    ],
+    "suggested_research_direction": "Query the Colorado State Archives digital collections specifically for the 1883 Lake City trial transcripts and court filings."
+   },
+   {
+    "gap_id": "GAP_2",
+    "label": "",
+    "description": "Your sources mention that Chief Ouray and Indigenous leaders warned the expedition, but you don't have direct contemporary accounts or recorded statements from the Ute Tribe members who interacted with the party.",
+    "why_expected": "Chief Ouray's encampment was the last known stop before the group entered the mountains. First-hand perspectives from the Ute witnesses who saw the group's physical condition and equipment are essential for a complete timeline.",
+    "related_themes": [
+     "SRC_3:THEME_3",
+     "SRC_11:THEME_2"
+    ],
+    "related_key_points": [
+     "SRC_3:KP_9",
+     "SRC_11:KP_3"
+    ],
+    "suggested_research_direction": "Search for historical records from the Los Pinos Indian Agency or regional 1874 news reports detailing Chief Ouray's account of the expedition."
+   },
+   {
+    "gap_id": "GAP_3",
+    "label": "",
+    "description": "You have a nine-year gap between Packer escaping jail in 1874 and his recapture in Wyoming in 1883. Your sources don't detail how he successfully evaded authorities for nearly a decade under the alias John Swartze.",
+    "why_expected": "A long-term fugitive evasion is a major narrative arc in a crime story. A viewer would expect to know how he hid, where he worked, and how he was eventually exposed.",
+    "related_themes": [
+     "SRC_11:THEME_2"
+    ],
+    "related_key_points": [
+     "SRC_3:KP_10",
+     "SRC_11:KP_3"
+    ],
+    "suggested_research_direction": "Research 1883 Wyoming newspaper accounts detailing Packer's arrest in Cheyenne and his life as 'John Swartze'."
+   },
+   {
+    "gap_id": "GAP_4",
+    "label": "",
+    "description": "Your sources note that Packer was paroled in 1901 and died in 1907, but you have no details about his daily life, where he lived, or his interactions with the public during those final six years.",
+    "why_expected": "When telling the full biography of a notorious figure who gained public sympathy and parole, you need to show the resolution of their life after release.",
+    "related_themes": [
+     "SRC_2:THEME_1"
+    ],
+    "related_key_points": [
+     "SRC_2:KP_3",
+     "SRC_3:KP_12"
+    ],
+    "suggested_research_direction": "Look into local Littleton or Denver census records and local obituary archives from 1907 covering Packer's final years in Deer Creek."
+   }
+  ],
+  "research_directions": [
+   {
+    "priority": 1,
+    "what_to_look_for": "You don't have the primary trial transcripts or official court testimony from Packer's 1883 murder trial. Without them, you can't show viewers what was actually said under oath versus what modern sources claim happened.",
+    "example_queries": [
+     "Query the Colorado State Archives digital collections specifically for the 1883 Lake City trial transcripts and court filings."
+    ],
+    "why_it_matters": "A major historical murder trial that went to the state supreme court would leave behind formal court records and contemporary sworn testimony."
+   },
+   {
+    "priority": 2,
+    "what_to_look_for": "Your sources mention that Chief Ouray and Indigenous leaders warned the expedition, but you don't have direct contemporary accounts or recorded statements from the Ute Tribe members who interacted with the party.",
+    "example_queries": [
+     "Search for historical records from the Los Pinos Indian Agency or regional 1874 news reports detailing Chief Ouray's account of the expedition."
+    ],
+    "why_it_matters": "Chief Ouray's encampment was the last known stop before the group entered the mountains. First-hand perspectives from the Ute witnesses who saw the group's physical condition and equipment are essential for a complete timeline."
+   },
+   {
+    "priority": 3,
+    "what_to_look_for": "You have a nine-year gap between Packer escaping jail in 1874 and his recapture in Wyoming in 1883. Your sources don't detail how he successfully evaded authorities for nearly a decade under the alias John Swartze.",
+    "example_queries": [
+     "Research 1883 Wyoming newspaper accounts detailing Packer's arrest in Cheyenne and his life as 'John Swartze'."
+    ],
+    "why_it_matters": "A long-term fugitive evasion is a major narrative arc in a crime story. A viewer would expect to know how he hid, where he worked, and how he was eventually exposed."
+   },
+   {
+    "priority": 4,
+    "what_to_look_for": "Your sources note that Packer was paroled in 1901 and died in 1907, but you have no details about his daily life, where he lived, or his interactions with the public during those final six years.",
+    "example_queries": [
+     "Look into local Littleton or Denver census records and local obituary archives from 1907 covering Packer's final years in Deer Creek."
+    ],
+    "why_it_matters": "When telling the full biography of a notorious figure who gained public sympathy and parole, you need to show the resolution of their life after release."
+   }
+  ]
+ }
+}
