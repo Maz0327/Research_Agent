@@ -62,10 +62,28 @@ def main(argv=None) -> int:
 
     sub.add_parser("research", parents=[common], help="run a Research Agent round now (internal op)")
 
+    p_ang = sub.add_parser("angle", parents=[common],
+                           help="lay out the angle options, or assess an angle of your own")
+    p_ang.add_argument("--assess", default="", metavar="TEXT",
+                       help="check your own angle against the evidence (advisory; you override)")
+    p_ang.add_argument("--rebuild", action="store_true",
+                       help="lay the options out again (does NOT rerun research)")
+
+    p_bf = sub.add_parser("backfill", parents=[common],
+                          help="targeted backfill for a THIN movement (never a full RA rerun)")
+    p_bf.add_argument("movement", type=int)
+    p_bf.add_argument("--missing", action="append", default=[],
+                      help="what is missing (repeatable); defaults to the outline's own list")
+
     p_dec = sub.add_parser("decide", parents=[common],
-                           help="record a Maz touchpoint decision (A/B/C/D)")
-    p_dec.add_argument("touchpoint", choices=["A", "B", "C", "D"])
+                           help="record a Maz decision (angle/B/C/D; A kept for older callers)")
+    p_dec.add_argument("touchpoint", choices=["angle", "A", "B", "C", "D"])
     p_dec.add_argument("--angle", default="")
+    p_dec.add_argument("--baseline", action="store_true", help="angle: take the baseline story")
+    p_dec.add_argument("--alt", default="", help="angle: take alternative N")
+    p_dec.add_argument("--previous", action="store_true", help="angle: take your previous idea")
+    p_dec.add_argument("--custom", default="", help="angle: your own angle, in your words")
+    p_dec.add_argument("--why", default="", help="angle: reason, when killing")
     p_dec.add_argument("--packaging", default="")
     p_dec.add_argument("--format", dest="format_", default="")
     p_dec.add_argument("--kill", action="store_true")
@@ -134,7 +152,14 @@ def main(argv=None) -> int:
     elif args.op == "decide":
         from backend.lwm import decisions
         episode = ep.resolve(args.episode)
-        if args.touchpoint == "A":
+        if args.touchpoint == "angle":
+            choice = ("baseline" if args.baseline else
+                      f"alt-{args.alt}" if args.alt else
+                      "previous" if args.previous else
+                      "custom" if args.custom else "")
+            result = decisions.decide_angle(episode, choice=choice, custom=args.custom,
+                                            kill=args.kill, why=args.why or args.angle)
+        elif args.touchpoint == "A":
             result = decisions.decide_a(episode, args.angle, args.packaging,
                                         args.format_, kill=args.kill)
         elif args.touchpoint == "B":
@@ -146,6 +171,31 @@ def main(argv=None) -> int:
             result = decisions.decide_d(episode, approve=args.approve,
                                         corrections=args.corrections)
         _print(result, args.json)
+    elif args.op == "angle":
+        from backend.lwm import angle as angle_mod
+        episode = ep.resolve(args.episode)
+        if args.assess:
+            _print(angle_mod.assess_custom(episode, args.assess), args.json)
+        else:
+            r = angle_mod.build(episode)
+            _print({"baseline": r["baseline"].get("name"),
+                    "alternatives": [a.get("name") for a in r["alternatives"]],
+                    "baseline_is_strongest": r["baseline_is_strongest"],
+                    "previous_maz_idea": r["previous_maz_idea"],
+                    "artifact": str(episode / "01-angle-options.md")}, args.json)
+    elif args.op == "backfill":
+        import json as _json
+
+        from backend.lwm import backfill as backfill_mod
+        episode = ep.resolve(args.episode)
+        missing = args.missing
+        if not missing:
+            o = _json.loads((episode / "outputs" / "outline.json").read_text())
+            m = next((x for x in o["movements"] if int(x["n"]) == args.movement), None)
+            missing = (m or {}).get("missing_material") or []
+        result = backfill_mod.run(episode, args.movement, missing)
+        after = backfill_mod.reclassify(episode, args.movement)
+        _print({**result, "coverage_after": after["coverage"]}, args.json)
     elif args.op == "research":
         from backend.lwm import research
         episode = ep.resolve(args.episode)

@@ -52,7 +52,10 @@ class TestHandoff:
             assert (episode / name).exists(), name
         rows = ledger.read_rows(episode)
         assert rows["3 brief"].complete
-        assert "PENDING" in rows["4b briefing + structure session"].notes
+        # D-V1-6: the Briefing is a RESEARCH output and completes at the
+        # handoff; the structure session is its own later stage (4c).
+        assert rows["4b briefing"].complete
+        assert "4c" in rows["4b briefing"].notes
 
     def test_briefing_json_round_trips_through_the_production_model(self, episode):
         from backend.lwm import handoff

@@ -171,9 +171,11 @@ SRC id used in the text.
                       gate=f"judgment pass: {'run' if reg['judged'] else 'PENDING'}",
                       notes=f"{len(reg['rows'])} rows from RA provenance; "
                             f"{reg['flagged']} row(s) flagged MISSING-SOURCE by code validation.")
-    ledger.update_row(episode, "4b briefing + structure session", status="briefing ready", when=today,
+    # Under D-V1-6 the Briefing is a RESEARCH output and completes here; the
+    # structure session is its own stage (4c), after the angle and packaging.
+    ledger.update_row(episode, "4b briefing", status="done", when=today,
                       gate="briefing ready: YES (04b .md/.html/.json via lwm handoff)",
-                      notes="structure session: PENDING (Maz touchpoint B)")
+                      notes="research output; the structure session is stage 4c (touchpoint B)")
 
     return {"job_id": job_id, "registry_rows": len(reg["rows"]),
             "registry_flagged": reg["flagged"], "judged": reg["judged"],

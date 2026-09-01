@@ -12,13 +12,25 @@ from datetime import date
 
 from loguru import logger
 
-from backend.lwm import decisions, edit, factcheck, handoff, ledger, production, research, writing
+from backend.lwm import (
+    architecture,
+    decisions,
+    edit,
+    factcheck,
+    handoff,
+    ledger,
+    outline as outline_mod,
+    packaging,
+    production,
+    research,
+    writing,
+)
 from backend.lwm import episode as ep
 
+# Stages where Maz is genuinely needed, in the D-V1-6 order. The ANGLE stage is
+# NOT here: the system first lays the options out (internal work), and only the
+# "options ready" state stops for him — he is never summoned to an empty page.
 TOUCHPOINTS = {
-    "1 angle + packaging": "A — topic/angle/packaging (record with `lwm decide A …`)",
-    "2 feasibility + format": "A — format decision (record with `lwm decide A …`)",
-    "4b briefing + structure session": "B — read the Briefing; `lwm decide B --notes …` or `--waive`",
     "12 record + booth diff": "record (Maz at the mic)",
     "13 assemble + final review": "assemble/publish (Maz)",
 }
@@ -52,8 +64,8 @@ def step(slug: str | None = None, max_steps: int = 12, **hooks) -> list[dict]:
 
         if not stage:
             return _stop(log, entry, "done", "episode is PUBLISHED", False)
-        if rows.get("1 angle + packaging") and rows["1 angle + packaging"].status == "KILLED":
-            return _stop(log, entry, "kill", "episode was killed at touchpoint A", False)
+        if rows.get("1 angle") and rows["1 angle"].status == "KILLED":
+            return _stop(log, entry, "kill", "episode was killed at the angle decision", False)
         if stage in TOUCHPOINTS:
             return _stop(log, entry, "touchpoint", f"Maz touchpoint {TOUCHPOINTS[stage]}", True)
 
@@ -88,9 +100,91 @@ def step(slug: str | None = None, max_steps: int = 12, **hooks) -> list[dict]:
                                              harvest=hooks.get("harvest"),
                                              judgment_client=judgment)
                 entry["did"] = f"handoff: {result['registry_rows']} registry rows, briefing rendered"
+            elif stage == "4b briefing":
+                # The briefing is a research artifact and the handoff renders
+                # it; if it exists, the stage is simply complete.
+                if not (episode / "04b-briefing.md").exists():
+                    raise RuntimeError("stage 4b pending but no briefing was rendered by the handoff")
+                ledger.update_row(episode, "4b briefing", status="done", when=str(date.today()),
+                                  gate="briefing ready: YES",
+                                  notes="research output; the structure session is stage 4c")
+                entry["did"] = "briefing ready"
+            elif stage == "1 angle":
+                row = rows.get("1 angle")
+                if row and row.status.startswith("options ready"):
+                    return _stop(log, entry, "touchpoint",
+                                 "ANGLE — the story choice is yours: baseline, an alternative, "
+                                 "your previous idea, or your own "
+                                 "(`lwm decide angle --baseline` / `--alt N` / `--previous` / "
+                                 "`--custom \"…\"`)", True)
+                from backend.lwm import angle as angle_mod
+                r = angle_mod.build(episode, client=hooks.get("angle_client"))
+                entry["did"] = (f"angle options laid out: baseline + {len(r['alternatives'])} "
+                                f"alternative(s)"
+                                + ("; the system reads the familiar story as strongest"
+                                   if r["baseline_is_strongest"] else ""))
+                log.append(entry)
+                return _stop(log, {"stage": stage, "macro": macro}, "touchpoint",
+                             "ANGLE — the story choice is yours (01-angle-options.md)", True)
+            elif stage == "1b packaging":
+                r = packaging.build(episode, client=hooks.get("packaging_client"))
+                entry["did"] = (f"packaging: {len(r['titles'])} titles, "
+                                f"{len(r['thumbnails'])} thumbnail concepts (written only)")
+            elif stage == "2 feasibility + format":
+                # D-V1-13: the default format is settled. It is recorded, not asked.
+                ledger.update_row(episode, "2 feasibility + format", status="decided",
+                                  when=str(date.today()), gate="KILL gate: pass",
+                                  notes="default format (D-V1-13): Maz on camera + real archival / "
+                                        "press / documents / interviews / images first; AI "
+                                        "reconstruction only for genuine visual gaps")
+                entry["did"] = "format recorded from the settled default (D-V1-13)"
+            elif stage == "4c story architecture":
+                row = rows.get("4c story architecture")
+                status = row.status if row else ""
+                if not (status.startswith("structure decided") or status.startswith("structure waived")):
+                    return _stop(log, entry, "touchpoint",
+                                 "STORY — read the Briefing and tell us how to tell it; "
+                                 "`lwm decide B --notes \"…\"` or `--waive`", True)
+                r = architecture.build(episode, client=hooks.get("architecture_client"))
+                entry["did"] = (f"story architecture: {r['macro_shape']} "
+                                f"({len(r['movements'])} movements)")
             elif stage == "5 outline":
-                writing.outline(episode, client=hooks.get("writer_client"))
-                entry["did"] = "outline built"
+                r = outline_mod.build(episode, client=hooks.get("writer_client"))
+                check = outline_mod.adversarial_check(episode, client=hooks.get("judge_client"))
+                cov = r["coverage_summary"]
+                entry["did"] = (f"dense outline: {cov['SOLID']} SOLID / "
+                                f"{cov['PRECISION-RISK']} PRECISION-RISK / {cov['THIN']} THIN; "
+                                f"{len(check['findings'])} adversarial finding(s)")
+                if r["thin_movements"]:
+                    # THIN movements are an upstream information failure. Backfill
+                    # exactly what is missing — never a full RA rerun (§7).
+                    from backend.lwm import backfill as backfill_mod
+                    filled = []
+                    for m in r["movements"]:
+                        if m["coverage"] != "THIN":
+                            continue
+                        got = backfill_mod.run(episode, int(m["n"]),
+                                               m.get("missing_material") or [],
+                                               client=hooks.get("judge_client"),
+                                               search=hooks.get("search"),
+                                               fetch=hooks.get("fetch"))
+                        after = backfill_mod.reclassify(episode, int(m["n"]))
+                        filled.append({**got, "coverage_after": after["coverage"]})
+                    still_thin = [f["movement"] for f in filled if f["coverage_after"] == "THIN"]
+                    entry["did"] += (f"; targeted backfill on {len(filled)} movement(s)"
+                                     + (f", still THIN: {still_thin}" if still_thin else
+                                        ", all resolved"))
+                    if still_thin:
+                        ledger.update_row(episode, "5 outline",
+                                          status="done (THIN movements held)",
+                                          notes=f"movements {still_thin} remain THIN after targeted "
+                                                "backfill — they do not reach the writer; the "
+                                                "research, not the writing, is what is missing")
+                        return _stop(log, {"stage": stage, "macro": macro}, "contradiction",
+                                     f"movements {still_thin} have no material behind them even "
+                                     "after targeted backfill. More drafting cannot fix this — "
+                                     "the story needs sources or the outline needs to stop "
+                                     "promising what the research does not hold.", True)
             elif stage == "6 grip gate A":
                 r = writing.grip_gate(episode, "05-outline.md", "6 grip gate A",
                                       clients=hooks.get("reader_clients"))
@@ -120,11 +214,26 @@ def step(slug: str | None = None, max_steps: int = 12, **hooks) -> list[dict]:
                 client = hooks.get("editor_client")
                 if client is None:
                     client, _m = writing._client("editor")
-                r = edit.edit_train(episode, client)
-                ledger.update_row(episode, "8 edit", status="done",
-                                  gate=f"cycles used: {r['cycles']}",
-                                  notes=f"{r['applied']} pairs applied, {r['rejected']} rejected — 08-edit-log.md")
-                entry["did"] = f"edit train: {r['applied']} applied / {r['rejected']} rejected in {r['cycles']} cycle(s)"
+                r = edit.edit_train(episode, client,
+                                    reviewer_client=hooks.get("reviewer_client"))
+                counts = " · ".join(f"{k} {v}" for k, v in (r["review_counts"] or {}).items())
+                ledger.update_row(
+                    episode, "8 edit",
+                    status="done" if not r["tripwire"] else "done (tripwire: STOP WRITING)",
+                    gate=f"cycles used: {r['cycles']}/{edit.EDIT_CYCLE_CAP}",
+                    notes=f"reviewers: {counts or '—'}; lint {r['lint_flags']} flags; "
+                          f"{r['applied']} pairs applied, {r['rejected']} rejected — 08-edit-log.md")
+                entry["did"] = (f"review + edit train: {r['applied']} applied / {r['rejected']} "
+                                f"rejected in {r['cycles']} cycle(s); reviewers {counts or '—'}; "
+                                f"lint {r['lint_flags']} flags")
+                if r["tripwire"]:
+                    log.append(entry)
+                    owners = " · ".join(x["owner"] for x in r["tripwire"]["routes"])
+                    return _stop(log, {"stage": stage, "macro": macro}, "contradiction",
+                                 f"TWO-CYCLE TRIPWIRE: {r['tripwire']['material_findings']} "
+                                 f"material finding(s) survived {edit.EDIT_CYCLE_CAP} correction "
+                                 f"cycles. Stop writing — the defect is upstream ({owners}). "
+                                 "See outputs/tripwire.json.", True)
             elif stage == "9 grip gate B":
                 r = writing.grip_gate(episode, "07-draft.md", "9 grip gate B",
                                       clients=hooks.get("reader_clients"))

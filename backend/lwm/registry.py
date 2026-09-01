@@ -233,3 +233,31 @@ stage 10b). Regenerating this file replaces the whole table — rows are never a
         for r in reg["rows"]
     ]
     return head + "\n".join(lines) + "\n\nMISSING SOURCE = attribute and keep, never cut. A negative strikes the specific, never the event.\n"
+
+
+REGISTRY_COLUMNS = ("n", "claim", "class", "status", "source", "lb",
+                    "allowed", "prohibited", "anchor")
+
+
+def read_table(episode) -> list[dict]:
+    """The rendered registry, parsed back into rows.
+
+    One reader for every consumer (outline, draft packets, reviewers,
+    production), so "allowed wording" and "prohibited wording" travel with the
+    fact everywhere it goes — the Freemasons lesson, in code.
+    """
+    from pathlib import Path
+    p = Path(episode) / "04-sources-registry.md"
+    rows: list[dict] = []
+    if not p.exists():
+        return rows
+    for line in p.read_text().splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) != len(REGISTRY_COLUMNS) or cells[0] in ("#", "---", "n"):
+            continue
+        if not cells[0].isdigit():
+            continue
+        rows.append(dict(zip(REGISTRY_COLUMNS, cells, strict=True)))
+    return rows

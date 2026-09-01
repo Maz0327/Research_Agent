@@ -8,10 +8,13 @@ edit log as a typed flag with a written disposition. The pace edit consumes
 the grip map, protects held passages, and must move net length down.
 """
 
+import json
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
+
+from loguru import logger
 
 from backend.lwm import paths
 
@@ -91,18 +94,86 @@ a listener (hearing once, at pace) could mis-assign, and propose smallest old→
 them. Old verbatim, unique. No pairs is a fine answer."""
 
 
-def edit_train(episode: Path, client: Any) -> dict:
-    """Stage 8: delta scan → TIC ×2 → antecedent sweep → lint, capped, logged."""
+_CONSTRUCTIVE_ROLE = """You are the CONSTRUCTIVE EDITOR. Reviewers and a mechanical AI-tic
+detector have marked places in this script. Your job is NOT only to remove AI tells. It is to make
+the script BETTER: clearer, with more narrative force, with connective tissue that actually
+connects, explanations a listener follows at pace, transitions that are real, rhythm that sounds
+spoken — and, yes, the identified AI residue gone.
+
+You propose old→new pairs and nothing else. Code applies them. `old` must be copied VERBATIM from
+the script and be long enough to appear exactly once. Never change a number the findings did not
+name. Never touch attribution, hedges or source framing — those are load-bearing honesty, not
+padding. Smallest diffs that do the job. Where a finding is wrong, propose no pair for it; a pair
+you cannot make safely is one you should not make."""
+
+
+def _findings_brief(reviews: dict, lint: dict) -> str:
+    lines = ["REVIEWER FINDINGS"]
+    for f in reviews.get("findings", []):
+        if f.get("reviewer_failed"):
+            continue
+        lines.append(f"- [{f.get('reviewer')}·{f.get('severity')}] {f.get('problem')}")
+        if f.get("quote"):
+            lines.append(f"    at: \u201c{f['quote']}\u201d")
+        if f.get("suggested_direction"):
+            lines.append(f"    direction: {f['suggested_direction']}")
+    lines.append("")
+    lines.append("MECHANICAL AI-TIC FLAGS (locations only — the detector renders no verdict)")
+    for f in (lint.get("flags") or []):
+        lines.append(f"- L{f.get('line')} [{f.get('id')}] {f.get('name')}"
+                     + (" [in a quotation — usually leave it]" if f.get("inQuote") else "")
+                     + f": \u00ab{str(f.get('match', ''))[:120]}\u00bb")
+    for c in (lint.get("counters") or []):
+        if c.get("status") not in ("in band", "reference-only"):
+            lines.append(f"- counter [{c.get('id')}] {c.get('name')}: observed {c.get('observed')} "
+                         f"{c.get('unit', '')} — {c.get('status')}")
+    return "\n".join(lines)
+
+
+def edit_train(episode: Path, client: Any, reviewer_client: Any = None) -> dict:
+    """Stage 8: review → lint → constructive edit → mechanical passes, capped.
+
+    Order matters and it is the patch's order: the draft was written FREE, so
+    the rule walls arrive now. The three reviewers and the AI-tic detector run
+    first and their findings — whole, structured, not a truncated stdout tail —
+    become the constructive editor's brief. Then the existing mechanical passes
+    (delta scan against the registry, register/TIC, antecedent) run as before.
+
+    THE TWO-CYCLE TRIPWIRE (§14): at most two substantial prose-producing
+    correction cycles. If the script is still materially broken after that, we
+    STOP WRITING and say which upstream stage owns it. Draft 7 / Draft 8 /
+    Draft 9 is the behaviour this cap exists to prevent.
+    """
+    from backend.lwm import review as _review
+
     draft_path = episode / "07-draft.md"
     text = draft_path.read_text()
-    registry = (episode / "04-sources-registry.md").read_text() if (episode / "04-sources-registry.md").exists() else ""
+    registry_md = (episode / "04-sources-registry.md")
+    registry_text = registry_md.read_text() if registry_md.exists() else ""
     log: list[dict] = []
     cycles = 0
+    changed = False
+    reviews: dict = {"by_reviewer": {}, "findings": [], "counts": {}, "material": []}
+    lint_out: dict = {"ran": False, "flags": [], "counters": [], "summary": {}}
+    tripwire = None
 
     for cycle in range(EDIT_CYCLE_CAP):
         cycles = cycle + 1
         before = text
-        pairs = _propose(client, _DELTA_ROLE, f"REGISTRY\n{registry[:20000]}\n\nDRAFT\n{text}")
+        draft_path.write_text(text)
+
+        reviews = _review.run(episode, client=reviewer_client or client)
+        lint_out = run_lint(draft_path)
+
+        pairs = _propose(client, _CONSTRUCTIVE_ROLE,
+                         f"{_findings_brief(reviews, lint_out)}\n\nTHE SCRIPT\n{text}")
+        text, d = apply_pairs(text, pairs, "constructive")
+        log += d
+
+        # The registry travels WHOLE to the delta scan: a claim whose allowed
+        # wording fell off the end of a truncated registry is exactly the
+        # drift this pass exists to catch.
+        pairs = _propose(client, _DELTA_ROLE, f"REGISTRY\n{registry_text}\n\nDRAFT\n{text}")
         text, d = apply_pairs(text, pairs, "delta")
         log += d
         pairs = _propose(client, _TIC_ROLE, text)
@@ -111,15 +182,70 @@ def edit_train(episode: Path, client: Any) -> dict:
         pairs = _propose(client, _ANTECEDENT_ROLE, text)
         text, d = apply_pairs(text, pairs, "antecedent")
         log += d
-        if text == before:
+        changed = text != before
+        if not changed:
             break  # clean cycle — the cap exists for the other case
 
     draft_path.write_text(text)
-    lint_out = run_lint(draft_path)
-    _write_edit_log(episode, log, cycles, lint_out)
-    return {"cycles": cycles, "applied": sum(1 for e in log if e["disposition"] == "APPLIED"),
+
+    # Is it STILL materially broken? The tripwire is not about exhausting the
+    # cap; it is about the finding that more prose passes cannot fix this. If
+    # the last cycle changed nothing, the reviews we already have are current;
+    # if it did change the prose, we look again before concluding anything.
+    if changed:
+        reviews = _review.run(episode, client=reviewer_client or client)
+    material = reviews.get("material") or []
+    if material:
+        tripwire = diagnose_upstream(episode, material, cycles)
+
+    _write_edit_log(episode, log, cycles, lint_out, reviews, tripwire)
+    (episode / "08-review-findings.md").write_text(_review.render(reviews, lint_out))
+    (episode / "outputs").mkdir(exist_ok=True)
+    (episode / "outputs" / "lint-findings.json").write_text(
+        json.dumps(lint_out, indent=1, ensure_ascii=False))
+
+    return {"cycles": cycles,
+            "applied": sum(1 for e in log if e["disposition"] == "APPLIED"),
             "rejected": sum(1 for e in log if e["disposition"] != "APPLIED"),
-            "lint": lint_out[:200]}
+            "review_counts": reviews.get("counts", {}),
+            "lint_flags": (lint_out.get("summary") or {}).get("flagCount", 0),
+            "lint_counters_outside_band": (lint_out.get("summary") or {}).get("countersOutsideBand", 0),
+            "tripwire": tripwire}
+
+
+# Where a material problem that survived two edit cycles actually lives. The
+# point of the tripwire is that more prose passes cannot fix any of these.
+_UPSTREAM = [
+    ("fact-integrity", "research / registry",
+     "the material behind these claims is wrong, missing or was never sourced — "
+     "targeted backfill, not another edit pass"),
+    ("story-thread", "angle · story architecture · outline",
+     "the story being told is not landing — that is a structure decision, not a sentence problem"),
+    ("semantic-register", "writer cargo / draft packet",
+     "the drafter was handed something that made it write this way — fix the packet, redraft"),
+]
+
+
+def diagnose_upstream(episode: Path, material: list[dict], cycles: int = EDIT_CYCLE_CAP) -> dict:
+    """The tripwire's output: STOP WRITING, and name what owns the problem."""
+    by_reviewer: dict[str, int] = {}
+    for f in material:
+        by_reviewer[f.get("reviewer", "?")] = by_reviewer.get(f.get("reviewer", "?"), 0) + 1
+    routes = [{"reviewer": r, "owner": owner, "why": why, "findings": by_reviewer[r]}
+              for r, owner, why in _UPSTREAM if by_reviewer.get(r)]
+    diagnosis = {
+        "stop_writing": True,
+        "cycles_used": cycles,
+        "material_findings": len(material),
+        "by_reviewer": by_reviewer,
+        "routes": routes,
+        "rule": ("Two substantial correction cycles are the cap. A third prose pass is the "
+                 "Draft 7 / Draft 8 / Draft 9 spiral; the defect is upstream."),
+    }
+    (episode / "outputs").mkdir(exist_ok=True)
+    (episode / "outputs" / "tripwire.json").write_text(
+        json.dumps(diagnosis, indent=1, ensure_ascii=False))
+    return diagnosis
 
 
 _PACE_ROLE = """You are the pace edit — serial, whole-script, one pass. The grip map tells you
@@ -138,7 +264,9 @@ def pace_edit(episode: Path, client: Any) -> dict:
     grip_map = grip_map_path.read_text() if grip_map_path.exists() else ""
     held = re.findall(r"held: “([^”]+)”", grip_map)
 
-    pairs = _propose(client, _PACE_ROLE, f"GRIP MAP\n{grip_map[:6000]}\n\nSCRIPT\n{text}")
+    # The grip map travels whole: the held passages are the protect-list, and a
+    # protect-list cut off at a character count protects the wrong things.
+    pairs = _propose(client, _PACE_ROLE, f"GRIP MAP\n{grip_map}\n\nSCRIPT\n{text}")
     new_text, dispositions = apply_pairs(text, pairs, "pace", protected=held)
 
     before_words, after_words = len(text.split()), len(new_text.split())
@@ -159,31 +287,63 @@ def pace_edit(episode: Path, client: Any) -> dict:
     return result
 
 
-def run_lint(draft_path: Path) -> str:
+def run_lint(draft_path: Path) -> dict:
+    """The tier-1 AI-tic / regression detector, structured and whole (§12).
+
+    The detector is NOT rebuilt, NOT replaced and NOT modified — it is a large
+    researched bank of AI tells and it flags only. What changes here is that
+    its findings survive: it is asked for `--json` and the parsed result is
+    kept, instead of a 200/2000-character tail of stdout that discarded most of
+    what it found.
+    """
     mjs = paths.pipeline_dir() / "lint" / "regression-tier1.mjs"
+    if not draft_path.exists():
+        return {"ran": False, "reason": "no draft to lint", "flags": [], "counters": [],
+                "summary": {"flagCount": 0, "countersOutsideBand": 0}}
     if not mjs.exists():
-        return "lint unavailable (no regression-tier1.mjs in workspace)"
+        return {"ran": False, "reason": "lint unavailable (no regression-tier1.mjs in workspace)",
+                "flags": [], "counters": [], "summary": {"flagCount": 0, "countersOutsideBand": 0}}
     try:
-        proc = subprocess.run(["node", str(mjs), str(draft_path)],
-                              capture_output=True, text=True, timeout=120)
-        return (proc.stdout or proc.stderr)[-2000:]
+        proc = subprocess.run(["node", str(mjs), str(draft_path), "--json"],
+                              capture_output=True, text=True, timeout=180)
+        data = json.loads(proc.stdout)
+        data["ran"] = True
+        return data
     except Exception as e:  # lint is advisory; its absence is a note, not a failure
-        return f"lint failed to run: {e}"
+        logger.warning(f"lint did not run on {draft_path.name}: {e}")
+        return {"ran": False, "reason": f"lint failed to run: {e}", "flags": [], "counters": [],
+                "summary": {"flagCount": 0, "countersOutsideBand": 0}}
 
 
-def _write_edit_log(episode: Path, log: list[dict], cycles: int, lint_out: str) -> None:
+def _write_edit_log(episode: Path, log: list[dict], cycles: int, lint_out: dict,
+                    reviews: dict, tripwire: dict | None = None) -> None:
+    s = lint_out.get("summary") or {}
     lines = [
-        "<!--\nartifact:  08-edit-log\nversion:   v1 (lwm edit train)\n-->\n",
+        "<!--\nartifact:  08-edit-log\nversion:   v2 (review + constructive edit train)\n-->\n",
         f"# Edit log\n\ncycles used: {cycles} (cap {EDIT_CYCLE_CAP})\n",
+        "Reviewer findings: "
+        + (" · ".join(f"{k} {v}" for k, v in (reviews.get("counts") or {}).items()) or "—"),
+        f"Lint: {s.get('flagCount', 0)} shape flags · "
+        f"{s.get('countersOutsideBand', 0)} counters outside band"
+        + ("" if lint_out.get("ran") else f" (did not run: {lint_out.get('reason', '?')})"),
+        "\nFull findings: `08-review-findings.md` · `outputs/review-findings.json` · "
+        "`outputs/lint-findings.json`\n",
     ]
     for e in log:
         lines.append(f"- **[{e['kind']}]** {e['disposition']}")
-        lines.append(f"  - old: “{e['old'][:110]}”")
+        lines.append(f"  - old: \u201c{e['old'][:110]}\u201d")
         if e["disposition"] == "APPLIED":
-            lines.append(f"  - new: “{e['new'][:110]}”")
+            lines.append(f"  - new: \u201c{e['new'][:110]}\u201d")
         if e.get("why"):
             lines.append(f"  - why: {e['why'][:110]}")
-    lines.append(f"\n## Lint (advisory)\n```\n{lint_out}\n```")
+    if tripwire:
+        lines += ["\n## ⛔ TWO-CYCLE TRIPWIRE — STOP WRITING\n",
+                  f"{tripwire['material_findings']} material finding(s) survived "
+                  f"{tripwire['cycles_used']} correction cycles. {tripwire['rule']}\n",
+                  "Upstream owners:"]
+        lines += [f"- **{r['owner']}** ({r['findings']} finding(s) from {r['reviewer']}) — {r['why']}"
+                  for r in tripwire["routes"]]
+        lines.append("")
     (episode / "08-edit-log.md").write_text("\n".join(lines) + "\n")
 
 

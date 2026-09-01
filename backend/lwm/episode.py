@@ -78,18 +78,23 @@ def resolve(slug: str | None = None) -> Path:
     return d
 
 
-# What a caller does next, per earliest-incomplete stage. (macro, human text, maz_needed)
+# What a caller does next, per earliest-incomplete stage. (human text, maz_needed)
+# Order is the D-V1-6 creator flow: research precedes the angle.
 _NEXT = {
     "0 bootstrap": ("initialize the episode", False),
-    "1 angle + packaging": ("TOUCHPOINT A — Maz: angle, title/thumbnail promise, kill gate", True),
-    "2 feasibility + format": ("TOUCHPOINT A — Maz: format decision (archive census)", True),
     "3 brief": ("run research (`lwm continue` executes the Research Agent round)", False),
     "4 fact-check the brief": ("populate the registry from the RA job (`lwm continue`)", False),
-    "4b briefing + structure session": ("TOUCHPOINT B — Maz reads the Briefing; structure session or waiver", True),
-    "5 outline": ("build the outline from the structure decisions (`lwm continue`)", False),
+    "4b briefing": ("render the Briefing from the research (`lwm continue`)", False),
+    "1 angle": ("TOUCHPOINT ANGLE — Maz chooses the story: baseline, an alternative, "
+                "his previous idea, or his own (`lwm decide angle …`)", True),
+    "1b packaging": ("build packaging concepts for the chosen angle (`lwm continue`)", False),
+    "2 feasibility + format": ("format is the settled default (D-V1-13) — `lwm continue` records it", False),
+    "4c story architecture": ("TOUCHPOINT STORY — Maz reads the Briefing; structure session "
+                              "or explicit waiver (`lwm decide B …`)", True),
+    "5 outline": ("build the dense, coverage-classified outline (`lwm continue`)", False),
     "6 grip gate A": ("internal grip advisory on the outline (`lwm continue`)", False),
     "7 draft": ("draft/advance movements — `lwm continue`; TOUCHPOINT C clears via `lwm decide C`", False),
-    "8 edit": ("internal edit train: delta-scan, TIC pairs, lint (`lwm continue`)", False),
+    "8 edit": ("internal review + edit train: reviewers, lint, constructive editor (`lwm continue`)", False),
     "9 grip gate B": ("internal grip advisory on full prose (`lwm continue`)", False),
     "9b pace edit": ("internal pace edit (`lwm continue`)", False),
     "10 ear loop + locks": ("prepare the ONE final candidate; TOUCHPOINT D clears via `lwm decide D`", False),
@@ -115,7 +120,13 @@ def status(slug: str | None = None) -> dict:
 
     artifacts = {}
     for key, name in [("briefing", "04b-briefing.md"), ("briefing_html", "04b-briefing.html"),
+                      ("angle_options", "01-angle-options.md"),
+                      ("angle_options_json", "outputs/angle-options.json"),
+                      ("packaging", "01b-packaging.md"),
+                      ("architecture", "04c-story-architecture.md"),
                       ("outline", "05-outline.md"), ("draft", "07-draft.md"),
+                      ("review_findings", "08-review-findings.md"),
+                      ("lint_findings", "outputs/lint-findings.json"),
                       ("final_candidate", "10-final-candidate.md"),
                       ("fact_check", "10b-fact-check.md"),
                       ("fact_check_json", "10b-fact-check.json"),
@@ -137,6 +148,18 @@ def status(slug: str | None = None) -> dict:
     # Waiting-on-Maz states inside internal stages: C (M1 at the ear) and D
     # (candidate ready) flip maz_needed live, from the ledger, not from a map.
     row = rows.get(stage) if stage else None
+    # ANGLE and STORY are creator decisions, but the system lays the options
+    # out FIRST. Until the options exist the move is the system's, not Maz's —
+    # he is never summoned to an empty page.
+    if stage == "1 angle":
+        if row and row.status.startswith("options ready"):
+            next_text, maz = ("TOUCHPOINT ANGLE — choose the story: baseline, an alternative, "
+                              "your previous idea, or your own"), True
+        else:
+            next_text, maz = "the system can lay out the angle options (`lwm continue`)", False
+    if stage == "4c story architecture" and row and (
+            row.status.startswith("structure decided") or row.status.startswith("structure waived")):
+        next_text, maz = "the system can build the story architecture (`lwm continue`)", False
     if stage == "7 draft" and row and row.status.startswith("M1 drafted"):
         next_text, maz = "TOUCHPOINT C — Maz hears Movement 1; `lwm decide C --approve` / `--correction`", True
     if stage == "10 ear loop + locks" and row and row.status.startswith("candidate ready"):

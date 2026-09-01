@@ -28,7 +28,9 @@ class TestNewEpisode:
         r = ep.create("", sources=["https://youtu.be/TlAXZVdAhIo"], offline=True)
         assert r["sources"][0]["type"] == "youtube"
         s = ep.status(r["slug"])
-        assert s["macro_state"] == "TOPIC"  # angle work is Maz's; the system just made it possible
+        # D-V1-6: research precedes the angle, so a fresh episode's next state
+        # is RESEARCH — the story is not guessed before the evidence exists.
+        assert s["macro_state"] == "RESEARCH"
 
     def test_nothing_at_all_is_rejected(self, workspace):
         from backend.lwm import episode as ep
@@ -71,8 +73,8 @@ class TestStatus:
         for key in ("episode", "topic", "macro_state", "detailed_stage", "next_action",
                     "maz_needed", "sources", "artifacts", "blockers", "active"):
             assert key in s
-        assert s["macro_state"] == "TOPIC"
-        assert s["maz_needed"] is True  # touchpoint A
+        assert s["macro_state"] == "RESEARCH"
+        assert s["maz_needed"] is False  # research is the system's move, not Maz's
         assert s["sources"][0]["type"] == "youtube"
 
     def test_macro_state_tracks_ledger(self, workspace):
@@ -80,9 +82,12 @@ class TestStatus:
         from backend.lwm import ledger
         r = ep.create("Vela", offline=True)
         d = Path(r["path"])
+        # The pre-patch keys still resolve through ledger.ALIASES.
         for stage in ("1 angle + packaging", "2 feasibility + format"):
             ledger.update_row(d, stage, status="decided", gate="KILL gate: pass")
-        assert ep.status()["macro_state"] == "RESEARCH"
+        for stage in ("3 brief", "4 fact-check the brief", "4b briefing"):
+            ledger.update_row(d, stage, status="done")
+        assert ep.status()["macro_state"] == "PACKAGING"
 
     def test_stage_14_never_regresses_published(self, workspace):
         from backend.lwm import episode as ep
@@ -95,26 +100,47 @@ class TestStatus:
 
 
 class TestContinueStops:
-    def test_continue_stops_at_touchpoint_a_not_at_internal_work(self, workspace):
+    def test_continue_runs_research_first_not_an_angle_decision(self, workspace):
+        """D-V1-6: a fresh episode's first internal work is research.
+
+        The old flow stopped here for touchpoint A and made Maz guess a story
+        before any evidence existed. Now `continue` goes to research, and the
+        creative decision waits until the Brief is in.
+        """
         from backend.lwm import episode as ep
         from backend.lwm import orchestrate
         ep.create("Vela", offline=True)
         log = orchestrate.step()
         stop = log[-1]["stop"]
-        assert stop["reason"] == "touchpoint" and stop["maz_needed"]
-        assert "A —" in stop["detail"]
+        assert log[-1]["stage"] == "3 brief"
+        assert stop["reason"] == "failure"  # no network in tests; the point is WHICH stage ran
 
-    def test_continue_stops_at_touchpoint_b_after_briefing_ready(self, workspace):
+    def test_continue_stops_at_the_angle_touchpoint_once_options_exist(self, workspace):
         from backend.lwm import episode as ep
         from backend.lwm import ledger, orchestrate
         r = ep.create("Vela", offline=True)
         d = Path(r["path"])
-        for stage in ("1 angle + packaging", "2 feasibility + format"):
-            ledger.update_row(d, stage, status="decided", gate="KILL gate: pass")
-        for stage in ("3 brief", "4 fact-check the brief"):
+        for stage in ("3 brief", "4 fact-check the brief", "4b briefing"):
+            ledger.update_row(d, stage, status="done")
+        ledger.update_row(d, "1 angle", status="options ready",
+                          notes="baseline + 3 alternative(s)")
+        log = orchestrate.step()
+        stop = log[-1]["stop"]
+        assert stop["reason"] == "touchpoint" and stop["maz_needed"]
+        assert "ANGLE" in stop["detail"]
+
+    def test_continue_stops_at_the_story_touchpoint_after_the_angle(self, workspace):
+        from backend.lwm import episode as ep
+        from backend.lwm import ledger, orchestrate
+        r = ep.create("Vela", offline=True)
+        d = Path(r["path"])
+        for stage in ("3 brief", "4 fact-check the brief", "4b briefing"):
+            ledger.update_row(d, stage, status="done")
+        ledger.update_row(d, "1 angle", status="chosen", notes="baseline")
+        for stage in ("1b packaging", "2 feasibility + format"):
             ledger.update_row(d, stage, status="done")
         log = orchestrate.step()
-        assert log[-1]["stop"]["detail"].startswith("Maz touchpoint B")
+        assert "STORY" in log[-1]["stop"]["detail"]
 
 
 class TestList:
@@ -125,7 +151,7 @@ class TestList:
         rows = ep.list_all()
         assert [r["episode"] for r in rows][0] == "02-second-video"  # active first
         assert rows[0]["active"] is True and rows[1]["active"] is False
-        assert all(r["macro_state"] == "TOPIC" for r in rows)
+        assert all(r["macro_state"] == "RESEARCH" for r in rows)
 
     def test_list_survives_a_broken_episode(self, workspace):
         from backend.lwm import episode as ep

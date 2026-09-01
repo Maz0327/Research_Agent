@@ -16,19 +16,93 @@ def _log(episode: Path, title: str, body: str) -> None:
     p.write_text((p.read_text() if p.exists() else "# DECISION LOG\n") + entry)
 
 
+def decide_angle(episode: Path, choice: str = "", custom: str = "",
+                 client=None, kill: bool = False, why: str = "") -> dict:
+    """The ANGLE touchpoint (D-V1-7) — Maz picks the story, or kills the video.
+
+    `choice` is "baseline", "alt-N", "previous", or "custom". A custom angle is
+    assessed against the evidence and the verdict is RECORDED, never enforced:
+    Maz overrides regardless, which is the point of the assessment existing.
+    Nothing downstream runs until this row is chosen.
+    """
+    import json
+
+    options_path = episode / "outputs" / "angle-options.json"
+    if kill:
+        ledger.update_row(episode, "1 angle", status="KILLED",
+                          gate="KILL gate: KILLED", notes=f"Maz killed at the angle: {why or choice}")
+        _log(episode, "ANGLE — KILLED", f"Reason: {why or 'not stated'}")
+        return {"touchpoint": "angle", "killed": True}
+
+    if not options_path.exists():
+        raise RuntimeError("the angle options have not been laid out yet "
+                           "(`lwm continue` builds outputs/angle-options.json)")
+    options = json.loads(options_path.read_text())
+
+    chosen: dict
+    assessment = None
+    c = (choice or ("custom" if custom else "")).strip().lower()
+    if custom and c in ("", "custom"):
+        from backend.lwm import angle as _angle
+        assessment = _angle.assess_custom(episode, custom, client=client)
+        chosen = {"kind": "custom", "name": "Maz's own angle", "central_story": custom}
+    elif c == "baseline":
+        chosen = dict(options["baseline"], kind="baseline")
+    elif c == "previous":
+        prev = options.get("previous_maz_idea") or ""
+        if not prev:
+            raise ValueError("there is no previous angle idea recorded for this episode")
+        chosen = {"kind": "previous", "name": "Maz's previous idea", "central_story": prev}
+    elif c.startswith("alt"):
+        digits = "".join(ch for ch in c if ch.isdigit())
+        n = int(digits) if digits else 0
+        alts = options.get("alternatives") or []
+        if not 1 <= n <= len(alts):
+            raise ValueError(f"alternative {n or c!r} does not exist "
+                             f"(there are {len(alts)})")
+        chosen = dict(alts[n - 1], kind=f"alt-{n}")
+    else:
+        raise ValueError("choose --baseline, --alt N, --previous, or --custom \"…\"")
+
+    options["chosen"] = chosen
+    if assessment:
+        options["custom_assessment"] = assessment
+    options_path.write_text(json.dumps(options, indent=1, ensure_ascii=False))
+
+    verdict_note = f" · evidence check: {assessment['verdict']} (advisory)" if assessment else ""
+    ledger.update_row(episode, "1 angle", status="chosen", gate="KILL gate: pass",
+                      notes=f"{chosen['kind']}: {chosen.get('name', '')}"
+                            f" — {chosen.get('central_story', '')[:120]}{verdict_note}")
+    body = [f"- choice: {chosen['kind']} — {chosen.get('name', '')}",
+            f"- central story: {chosen.get('central_story', '')}"]
+    if chosen.get("driving_question"):
+        body.append(f"- driving question: {chosen['driving_question']}")
+    if assessment:
+        body += [f"- evidence check: **{assessment['verdict']}** — {assessment['why']}",
+                 "- (advisory only; Maz's choice stands)"]
+    _log(episode, "ANGLE CHOSEN", "\n".join(body))
+    return {"touchpoint": "angle", "chosen": chosen, "assessment": assessment}
+
+
 def decide_a(episode: Path, angle: str, packaging: str, format_: str,
              kill: bool = False) -> dict:
-    """Touchpoint A: topic/angle/packaging + feasibility/format."""
+    """Pre-D-V1-6 touchpoint A. Kept so existing callers and tests keep working.
+
+    Under the reordered flow the creative decision is `decide_angle`, taken
+    AFTER research; packaging and format are their own stages. This records the
+    same state across the rows that now carry it.
+    """
     if kill:
-        ledger.update_row(episode, "1 angle + packaging", status="KILLED",
+        ledger.update_row(episode, "1 angle", status="KILLED",
                           gate="KILL gate: KILLED", notes=f"Maz killed at A: {angle or packaging}")
         _log(episode, "TOUCHPOINT A — KILLED", f"Reason: {angle or packaging or 'not stated'}")
         return {"touchpoint": "A", "killed": True}
     if not (angle and packaging and format_):
         raise ValueError("touchpoint A needs --angle, --packaging and --format (or --kill)")
-    ledger.update_row(episode, "1 angle + packaging", status="decided",
-                      gate="KILL gate: pass",
-                      notes=f"angle: {angle} · packaging: {packaging}")
+    ledger.update_row(episode, "1 angle", status="chosen",
+                      gate="KILL gate: pass", notes=f"angle: {angle}")
+    ledger.update_row(episode, "1b packaging", status="done",
+                      gate="packaging concepts: recorded by Maz", notes=f"packaging: {packaging}")
     ledger.update_row(episode, "2 feasibility + format", status="decided",
                       gate="KILL gate: pass", notes=f"MAZ: {format_}")
     _log(episode, "TOUCHPOINT A", f"- angle: {angle}\n- packaging: {packaging}\n- format: {format_}")
@@ -36,14 +110,21 @@ def decide_a(episode: Path, angle: str, packaging: str, format_: str,
 
 
 def decide_b(episode: Path, notes: str = "", waive: bool = False) -> dict:
-    """Touchpoint B: the structure session's decisions, or an explicit waiver."""
+    """Touchpoint B (STORY): the structure session's decisions, or a waiver.
+
+    Under D-V1-6 the Briefing is a research artifact that is already rendered
+    by the time Maz gets here; what he decides at this touchpoint is how the
+    story is TOLD. His decisions become the input to the Story Architecture
+    pass, which the system then runs.
+    """
     if not notes and not waive:
         raise ValueError("touchpoint B needs --notes (structure decisions) or --waive")
-    status = "waived" if waive else "done"
-    ledger.update_row(episode, "4b briefing + structure session", status=status,
-                      gate="briefing ready: YES",
-                      notes=("structure session WAIVED by Maz — default path"
-                             if waive else "structure session held; decisions in DECISION-LOG"))
+    ledger.update_row(episode, "4c story architecture",
+                      status="structure waived" if waive else "structure decided",
+                      gate="structure session: " + ("WAIVED" if waive else "held"),
+                      notes=("structure session WAIVED by Maz — the architecture pass takes the "
+                             "briefing's own strongest order" if waive else
+                             "Maz's structure decisions in DECISION-LOG; architecture pass next"))
     _log(episode, "TOUCHPOINT B — STRUCTURE" + (" (WAIVED)" if waive else ""),
          notes or "Waived; the outline follows the briefing's own strongest order.")
     return {"touchpoint": "B", "waived": waive}

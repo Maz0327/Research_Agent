@@ -19,11 +19,24 @@ FIXTURES = Path(__file__).parent / "fixtures" / "lwm"
 JOB = "0f7e0818-5def-49dd-bec9-a16b1b534979"
 
 
+def _movement(n, rows):
+    return {"n": n, "story_job": f"movement {n} job", "events": [f"event {n}a", f"event {n}b"],
+            "audience_state_entering": "knows the outline of the case",
+            "what_changes": "they see the evidence", "names": ["Alfred Packer"],
+            "dates": ["1874"], "actions": ["walked out"], "documents": ["the coroner report"],
+            "numbers": ["five"], "quotes": [], "registry_claim_ids": rows,
+            "brief_references": [], "contradictions": ["the accounts disagree"],
+            "setup_payoff_reveal": "plant here", "forward_pull": "and then",
+            "coverage": "SOLID", "coverage_reason": "sourced", "missing_material": []}
+
+
 def _writer():
     c = MagicMock()
     def answer(prompt, schema, system, max_tokens):
-        if "build the episode outline" in system.lower():
-            return {"text": "# Outline\n\nMovement 1: the walk out.\nMovement 2: the trials.\n"}, {}
+        props = set(schema.get("properties", {}))
+        if "movements" in props:      # the dense outline
+            return {"movements": [_movement(1, [1, 2, 3, 4, 5, 6]),
+                                  _movement(2, [7, 8, 9, 10, 11, 12])]}, {}
         m = re.search(r"Draft MOVEMENT (\d)", prompt)
         n = m.group(1) if m else "1"
         if n == "1":
@@ -53,11 +66,89 @@ def _editor():
     return c
 
 
+def _angle_client():
+    """Angle options, packaging concepts and story architecture."""
+    c = MagicMock()
+    def answer(prompt, schema, system, max_tokens):
+        props = set(schema.get("properties", {}))
+        if "story_already_told" in props:
+            return {
+                "story_already_told": {
+                    "dominant_story": "a man walked out of the mountains alone",
+                    "driving_question": "did he kill them",
+                    "typical_beginning": "six men set off", "typical_middle": "one comes back",
+                    "typical_ending": "he is convicted", "common_conclusion": "he probably did it",
+                    "repeated_facts": ["five men died"], "disagreements": ["self-defence"],
+                    "missed_by_sources": ["the 1989 exhumation detail"]},
+                "baseline": {"name": "The man who came back",
+                             "central_story": "a survivor accused of eating his companions",
+                             "driving_question": "did he kill them or did he survive them",
+                             "viewer_payoff": "what the evidence can and cannot settle",
+                             "strongest_evidence": "the exhumation", "strongest_reveal": "the bodies",
+                             "stakes": "a man's name", "difference_from_baseline": "—",
+                             "weaknesses": "everyone has told it"},
+                "alternatives": [
+                    {"name": "The town that needed a monster",
+                     "central_story": "a frontier community inventing a villain it could hang",
+                     "driving_question": "why did Colorado need this man guilty",
+                     "viewer_payoff": "how a place makes a monster",
+                     "strongest_evidence": "the newspaper record", "strongest_reveal": "the second trial",
+                     "stakes": "who gets believed", "difference_from_baseline": "the town is the subject",
+                     "weaknesses": "thinner primary material"},
+                    {"name": "The forensic argument that never closed",
+                     "central_story": "a century of scientists arguing over five skeletons",
+                     "driving_question": "can bones answer a question this old",
+                     "viewer_payoff": "the limits of forensic certainty",
+                     "strongest_evidence": "the 1989 dig", "strongest_reveal": "the disagreement",
+                     "stakes": "what proof means", "difference_from_baseline": "science is the subject",
+                     "weaknesses": "no ending"},
+                    {"name": "The pardon machine",
+                     "central_story": "a newspaper campaign that freed a convicted man",
+                     "driving_question": "who decides when a sentence ends",
+                     "viewer_payoff": "how public opinion moved a state",
+                     "strongest_evidence": "the parole record", "strongest_reveal": "the release",
+                     "stakes": "the machinery of mercy",
+                     "difference_from_baseline": "the press is the subject",
+                     "weaknesses": "less visceral"}],
+                "baseline_is_strongest": False,
+                "strongest_why": "the town angle uses material the others skip"}, {}
+        if "titles" in props:
+            return {"titles": [{"title": f"T{i}", "why_it_fits": "fits", "risk": "low"}
+                               for i in range(5)],
+                    "thumbnails": [{"concept": f"C{i}", "why_it_fits": "fits", "risk": "low"}
+                                   for i in range(3)],
+                    "viewer_promise": "you will see how a town made a monster",
+                    "mismatch_risk": "do not promise a confession"}, {}
+        if "macro_shape" in props:
+            return {"macro_shape": "investigation", "why_this_shape": "the evidence arrives in stages",
+                    "audience_belief_entering": "he was a cannibal",
+                    "what_changes_that_belief": "the record is thinner than the legend",
+                    "information_order_rationale": "hold the dig",
+                    "movements": [{"n": 1, "story_job": "the walk out", "what_changes": "doubt"},
+                                  {"n": 2, "story_job": "the trials", "what_changes": "the record"}],
+                    "legitimate_withholding": "the exhumation", "human_stakes": "five families",
+                    "ending": "what the bones could not settle",
+                    "unresolved_uncertainty": "who struck first",
+                    "compressed_vs_full_scene": "the walk out is a full scene",
+                    "techniques_used": ["plant/payoff"]}, {}
+        raise AssertionError(f"unexpected angle-side schema: {sorted(props)}")
+    c.generate_structured.side_effect = answer
+    return c
+
+
+def _reviewer():
+    c = MagicMock()
+    c.generate_structured.return_value = ({"findings": []}, {})
+    return c
+
+
 def _judge():
     """Extraction + one verdict per claim, all supported with verifiable quotes."""
     c = MagicMock()
     def answer(prompt, schema, system, max_tokens):
         props = set(schema.get("properties", {}))
+        if "findings" in props:   # adversarial outline check / reviewers
+            return {"findings": []}, {}
         if "claims" in props:
             return {"claims": [{"claim": "He walked out of the mountains alone on April 16, 1874",
                                 "script_line": "He walked out of the mountains alone on April 16, 1874"}]}, {}
@@ -70,6 +161,22 @@ def _judge():
                 "quote": "walked out of the mountains alone on April 16, 1874"}, {}
     c.generate_structured.side_effect = answer
     return c
+
+
+def _seed_outline_and_registry(d):
+    """The minimum a Draft Packet needs when a test fast-forwards into drafting."""
+    rows = "\n".join(
+        f"| {n} | claim number {n} about the walk out | REALITY | CONFIRMED | SRC_1 | "
+        f"{'y' if n < 3 else 'n'} | state plainly | overstate it | — |" for n in range(1, 9))
+    (d / "04-sources-registry.md").write_text(
+        "| # | claim | class | status | source | LB | allowed wording | prohibited wording | anchor |\n"
+        "|---|---|---|---|---|---|---|---|---|\n" + rows + "\n")
+    (d / "outputs").mkdir(exist_ok=True)
+    (d / "outputs" / "outline.json").write_text(json.dumps({
+        "episode": d.name, "macro_shape": "investigation",
+        "movements": [_movement(1, [1, 2, 3, 4, 5]), _movement(2, [6, 7, 8])],
+        "coverage_summary": {"SOLID": 2, "PRECISION-RISK": 0, "THIN": 0},
+        "thin_movements": [], "liftable_prose": [], "registry_rows": 8}))
 
 
 @pytest.fixture
@@ -95,41 +202,63 @@ def test_full_state_machine_new_to_record(workspace, monkeypatch):
                         lambda *a, **k: [{"round": 1, "added": ["https://x"], "job_id": JOB}])
 
     harvest = json.loads((FIXTURES / "harvest.json").read_text())
+    angle_side = _angle_client()
     hooks = dict(
         docs_dir=FIXTURES, harvest=harvest, judgment_client=_judge(),
         writer_client=_writer(), editor_client=_editor(),
         reader_clients=[_reader(True), _reader(True), _reader(False)],
-        judge_client=_judge(),
+        judge_client=_judge(), reviewer_client=_reviewer(),
+        angle_client=angle_side, packaging_client=angle_side,
+        architecture_client=angle_side,
         search=lambda q, max_results=5: [{"url": "https://hist.example/p", "title": "t", "snippet": ""}],
         fetch=lambda u: ("Records show he walked out of the mountains alone on April 16, 1874, "
                          "and asked first for whiskey."),
     )
 
-    # NEW → stop at A
+    # NEW → research (D-V1-6: research precedes the angle) → handoff → the
+    # ANGLE options are laid out → stop at the ANGLE touchpoint.
     r = ep.create("The Colorado Cannibal", sources=["https://youtu.be/TlAXZVdAhIo"], offline=True)
     d = Path(r["path"])
     log = orchestrate.step(**hooks)
-    assert log[-1]["stop"]["detail"].startswith("Maz touchpoint A")
-
-    # decide A → research (once) → handoff → stop at B
-    decisions.decide_a(d, "tell it as it happened", "title: The Man Who Walked Out",
-                       "on camera + archival")
-    log = orchestrate.step(**hooks)
     assert research_calls == ["The Colorado Cannibal"], "one research run, ledger advanced"
-    assert ledger.read_rows(d)["3 brief"].complete
-    assert ledger.read_rows(d)["4 fact-check the brief"].complete
-    assert log[-1]["stop"]["detail"].startswith("Maz touchpoint B")
+    rows = ledger.read_rows(d)
+    assert rows["3 brief"].complete and rows["4 fact-check the brief"].complete
+    assert rows["4b briefing"].complete
+    assert log[-1]["stop"]["detail"].startswith("ANGLE —")
+    assert rows["1 angle"].status == "options ready"
 
-    # A rerun of continue must not repeat research or handoff.
+    options = json.loads((d / "outputs" / "angle-options.json").read_text())
+    assert options["chosen"] is None, "no agent chooses an angle"
+    assert len(options["alternatives"]) == 3
+    assert all(c["story_level"] for c in options["distinctness"]), "story-level, not detail-level"
+    assert "mainstream" not in (d / "01-angle-options.md").read_text().lower()
+
+    # A rerun of continue must not repeat research or the handoff.
     log = orchestrate.step(**hooks)
     assert research_calls == ["The Colorado Cannibal"]
-    assert log[-1]["stop"]["detail"].startswith("Maz touchpoint B")
+    assert log[-1]["stop"]["detail"].startswith("ANGLE —")
 
-    # decide B → outline → gate A internal → M1 → stop at C
+    # Maz chooses → packaging (written concepts) → format default → STORY touchpoint
+    decisions.decide_angle(d, choice="alt-1")
+    log = orchestrate.step(**hooks)
+    rows = ledger.read_rows(d)
+    assert rows["1 angle"].complete and rows["1b packaging"].complete
+    assert rows["2 feasibility + format"].complete
+    pkg_concepts = json.loads((d / "outputs" / "packaging.json").read_text())
+    assert len(pkg_concepts["titles"]) == 5 and len(pkg_concepts["thumbnails"]) == 3
+    assert json.loads((d / "outputs" / "angle-options.json").read_text())["chosen"]["kind"] == "alt-1"
+    assert log[-1]["stop"]["detail"].startswith("STORY —")
+
+    # decide B → architecture → dense outline → gate A internal → M1 → stop at C
     decisions.decide_b(d, notes="open at the agency door; hold the trials for movement 2")
     log = orchestrate.step(**hooks)
-    assert ledger.read_rows(d)["5 outline"].complete
-    assert ledger.read_rows(d)["6 grip gate A"].complete  # internal, no Maz
+    rows = ledger.read_rows(d)
+    assert rows["4c story architecture"].complete
+    assert rows["5 outline"].complete
+    assert rows["6 grip gate A"].complete  # internal, no Maz
+    outline = json.loads((d / "outputs" / "outline.json").read_text())
+    assert outline["coverage_summary"]["THIN"] == 0
+    assert all(m["resolved_rows"] for m in outline["movements"])
     stop = log[-1]["stop"]
     assert stop["reason"] == "touchpoint" and stop["detail"].startswith("C —")
 
@@ -175,10 +304,11 @@ def test_c_correction_path_regenerates_once_then_returns_to_the_ear(workspace, m
     from backend.lwm import decisions, ledger, orchestrate
     from backend.lwm import episode as ep
     d = Path(ep.create("Correction path", offline=True)["path"])
-    for s in ("1 angle + packaging", "2 feasibility + format", "3 brief",
-              "4 fact-check the brief", "4b briefing + structure session",
+    for s in ("1 angle", "1b packaging", "2 feasibility + format", "3 brief",
+              "4 fact-check the brief", "4b briefing", "4c story architecture",
               "5 outline", "6 grip gate A"):
         ledger.update_row(d, s, status="done", gate="—")
+    _seed_outline_and_registry(d)
     hooks = dict(writer_client=_writer())
     log = orchestrate.step(**hooks)          # drafts M1, stops at C
     assert log[-1]["stop"]["detail"].startswith("C —")
@@ -213,8 +343,8 @@ def test_adverse_path_material_blocker_correction_new_sha(workspace, monkeypatch
     from backend.lwm import episode as ep
 
     d = Path(ep.create("Adverse path", offline=True)["path"])
-    for s in ("1 angle + packaging", "2 feasibility + format", "3 brief",
-              "4 fact-check the brief", "4b briefing + structure session",
+    for s in ("1 angle", "1b packaging", "2 feasibility + format", "3 brief",
+              "4 fact-check the brief", "4b briefing", "4c story architecture",
               "5 outline", "6 grip gate A", "7 draft", "8 edit",
               "9 grip gate B", "9b pace edit"):
         ledger.update_row(d, s, status="done", gate="—")
