@@ -20,6 +20,11 @@ from backend.lwm import ledger
 
 STAGE = "1b packaging"
 
+# The concepts are generated; the CHOICE is Maz's and is real, persisted state.
+# Everything downstream that needs "what did we promise the viewer" reads it
+# through `promise()` so there is exactly one authoritative answer.
+TITLE_SOURCES = ("generated", "custom")
+
 _SCHEMA = {
     "type": "object",
     "properties": {
@@ -99,10 +104,12 @@ def build(episode: Path, client: Any = None) -> dict:
     if after != chosen:
         raise RuntimeError("packaging changed the chosen angle — refused (D-V1-8)")
 
-    ledger.update_row(episode, STAGE, status="done",
+    # Concepts ready is NOT done: the stage completes when Maz picks a title and
+    # a thumbnail. Nothing chooses for him.
+    ledger.update_row(episode, STAGE, status="concepts ready",
                       gate=f"packaging concepts: {len(pkg['titles'])} titles, "
                            f"{len(pkg['thumbnails'])} thumbnail concepts",
-                      notes="written concepts only; angle unchanged (D-V1-8)")
+                      notes="written concepts only; angle unchanged (D-V1-8); awaiting Maz's pick")
     return pkg
 
 
@@ -128,3 +135,64 @@ def render(p: dict) -> str:
     out += ["", "## Mismatch risk\n", p["mismatch_risk"], "",
             "_Packaging may sell the chosen story; it may not change it (D-V1-8)._"]
     return "\n".join(out) + "\n"
+
+
+def load(episode: Path) -> dict:
+    p = episode / "outputs" / "packaging.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def selection(episode: Path) -> dict | None:
+    """What Maz actually picked, or None while the stage is still open."""
+    return load(episode).get("chosen")
+
+
+def promise(episode: Path) -> str:
+    """THE authoritative packaging promise for everything downstream.
+
+    The chosen promise when a choice exists, otherwise the generated one so
+    stages that ran before the choice still behave. One reader, one answer —
+    Story Architecture, the dense outline and every Draft Packet use this, so a
+    title Maz picked cannot promise one thing while the story delivers another.
+    """
+    data = load(episode)
+    chosen = data.get("chosen") or {}
+    return chosen.get("promise") or data.get("viewer_promise", "")
+
+
+def choose(episode: Path, title: str, thumbnail: str,
+           title_source: str = "generated", thumbnail_source: str = "generated") -> dict:
+    """Record the creator's packaging choice. Never touches the chosen angle."""
+    from datetime import datetime
+
+    data = load(episode)
+    if not data:
+        raise RuntimeError("no packaging concepts exist yet for this episode")
+    title, thumbnail = (title or "").strip(), (thumbnail or "").strip()
+    if not title or not thumbnail:
+        raise ValueError("packaging needs a title AND a thumbnail concept")
+    for src in (title_source, thumbnail_source):
+        if src not in TITLE_SOURCES:
+            raise ValueError(f"unknown selection source {src!r}")
+
+    angle_before = data.get("angle")
+    data["chosen"] = {
+        "title": title,
+        "title_source": title_source,
+        "thumbnail": thumbnail,
+        "thumbnail_source": thumbnail_source,
+        "promise": data.get("viewer_promise", ""),
+        "chosen_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+    (episode / "outputs" / "packaging.json").write_text(
+        json.dumps(data, indent=1, ensure_ascii=False))
+
+    # Packaging may sell the chosen story; it may never change it (D-V1-8).
+    if load(episode).get("angle") != angle_before:
+        raise RuntimeError("the packaging selection changed the chosen angle — refused")
+
+    ledger.update_row(
+        episode, STAGE, status="chosen",
+        gate=f"packaging chosen: title ({title_source}) + thumbnail ({thumbnail_source})",
+        notes=f"title: {title[:90]} · thumbnail: {thumbnail[:70]}")
+    return data["chosen"]

@@ -88,6 +88,7 @@ _NEXT = {
     "1 angle": ("TOUCHPOINT ANGLE — Maz chooses the story: baseline, an alternative, "
                 "his previous idea, or his own (`lwm decide angle …`)", True),
     "1b packaging": ("build packaging concepts for the chosen angle (`lwm continue`)", False),
+    "12 record + booth diff": ("Maz records, then marks it recorded (`lwm decide recorded`)", True),
     "2 feasibility + format": ("format is the settled default (D-V1-13) — `lwm continue` records it", False),
     "4c story architecture": ("TOUCHPOINT STORY — Maz reads the Briefing; structure session "
                               "or explicit waiver (`lwm decide B …`)", True),
@@ -100,7 +101,6 @@ _NEXT = {
     "10 ear loop + locks": ("prepare the ONE final candidate; TOUCHPOINT D clears via `lwm decide D`", False),
     "10b script fact-check (D-SFC-1)": ("fact-check the LOCKED script (`lwm continue` / `lwm check-script`)", False),
     "11 production package": ("generate the production package (`lwm package`)", False),
-    "12 record + booth diff": ("Maz records; booth diff after", True),
     "13 assemble + final review": ("assemble per PRODUCTION-ASSEMBLY-PIPELINE; publish", True),
 }
 
@@ -170,6 +170,12 @@ def status(slug: str | None = None) -> dict:
                               "your previous idea, or your own"), True
         else:
             next_text, maz = "the system can lay out the angle options (`lwm continue`)", False
+    if stage == "1b packaging":
+        if row and row.status.startswith("concepts ready"):
+            next_text, maz = ("TOUCHPOINT PACKAGING — pick the title and thumbnail concept "
+                              "(`lwm decide packaging …`)"), True
+        else:
+            next_text, maz = "the system can work up titles and thumbnail concepts (`lwm continue`)", False
     if stage == "4c story architecture" and row and (
             row.status.startswith("structure decided") or row.status.startswith("structure waived")):
         next_text, maz = "the system can build the story architecture (`lwm continue`)", False

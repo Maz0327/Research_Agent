@@ -127,9 +127,18 @@ def step(slug: str | None = None, max_steps: int = 12, **hooks) -> list[dict]:
                 return _stop(log, {"stage": stage, "macro": macro}, "touchpoint",
                              "ANGLE — the story choice is yours (01-angle-options.md)", True)
             elif stage == "1b packaging":
+                row = rows.get("1b packaging")
+                if row and row.status.startswith("concepts ready"):
+                    return _stop(log, entry, "touchpoint",
+                                 "PACKAGING — pick the title and the thumbnail concept "
+                                 "(`lwm decide packaging --title … --thumbnail …`)", True)
                 r = packaging.build(episode, client=hooks.get("packaging_client"))
                 entry["did"] = (f"packaging: {len(r['titles'])} titles, "
                                 f"{len(r['thumbnails'])} thumbnail concepts (written only)")
+                log.append(entry)
+                return _stop(log, {"stage": stage, "macro": macro}, "touchpoint",
+                             "PACKAGING — the title and thumbnail are your pick "
+                             "(01b-packaging.md)", True)
             elif stage == "2 feasibility + format":
                 # D-V1-13: the default format is settled. It is recorded, not asked.
                 ledger.update_row(episode, "2 feasibility + format", status="decided",

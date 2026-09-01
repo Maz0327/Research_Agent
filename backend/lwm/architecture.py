@@ -129,8 +129,9 @@ def build(episode: Path, client: Any = None) -> dict:
     if not chosen:
         raise RuntimeError("story architecture runs after the angle is chosen")
 
-    pkg_path = episode / "outputs" / "packaging.json"
-    promise = json.loads(pkg_path.read_text()).get("viewer_promise", "") if pkg_path.exists() else ""
+    from backend.lwm import packaging as _packaging
+    promise = _packaging.promise(episode)          # the CHOSEN promise when one exists
+    chosen_pkg = _packaging.selection(episode)
 
     from backend.lwm import angle as _angle
     pack = _angle.evidence_pack(episode)
@@ -141,6 +142,8 @@ def build(episode: Path, client: Any = None) -> dict:
         json.dumps(chosen, ensure_ascii=False, indent=1),
         "",
         f"THE PACKAGING PROMISE THE STRUCTURE MUST PAY: {promise or '(packaging not run yet)'}",
+        (f"THE TITLE HE PICKED — the structure has to earn it: {chosen_pkg['title']}"
+         if chosen_pkg else ""),
         "",
         "THE CREATOR'S OWN STRUCTURE DECISIONS — LAW WHERE PRESENT",
         decisions_text or "(none recorded — he waived the session; use the material's own strongest order)",
@@ -166,6 +169,7 @@ def build(episode: Path, client: Any = None) -> dict:
         "episode": episode.name,
         "angle": chosen,
         "packaging_promise": promise,
+        "packaging_title": (chosen_pkg or {}).get("title", ""),
         "structure_session": "held" if decisions_text else "waived",
         "macro_shape": data.get("macro_shape", ""),
         "macro_shape_known": shape in MACRO_SHAPES,

@@ -97,8 +97,9 @@ def build(episode: Path, movement: int) -> dict:
 
     angle_path = episode / "outputs" / "angle-options.json"
     chosen = json.loads(angle_path.read_text()).get("chosen") if angle_path.exists() else None
-    pkg_path = episode / "outputs" / "packaging.json"
-    promise = json.loads(pkg_path.read_text()).get("viewer_promise", "") if pkg_path.exists() else ""
+    from backend.lwm import packaging as _packaging
+    promise = _packaging.promise(episode)          # the CHOSEN promise when one exists
+    packaging_title = (_packaging.selection(episode) or {}).get("title", "")
     arch_path = episode / "outputs" / "story-architecture.json"
     arch = json.loads(arch_path.read_text()) if arch_path.exists() else {}
     arch_movement = next((a for a in (arch.get("movements") or [])
@@ -124,6 +125,7 @@ def build(episode: Path, movement: int) -> dict:
                                   if m["coverage"] == "PRECISION-RISK" else []),
         "angle": chosen,
         "packaging_promise": promise,
+        "packaging_title": packaging_title,
         "architecture": {k: arch_movement.get(k) for k in
                          ("story_job", "audience_state_entering", "what_changes",
                           "scene_or_explanation", "evidence_placement", "setup_or_payoff",
@@ -175,7 +177,10 @@ def render_prompt(packet: dict, rules: str) -> str:
                 f"- the question it answers: {p['angle'].get('driving_question', '')}",
                 f"- what the viewer gets: {p['angle'].get('viewer_payoff', '')}", ""]
     if p.get("packaging_promise"):
-        out += [f"THE PROMISE THIS VIDEO MADE ITS VIEWER: {p['packaging_promise']}", ""]
+        out += [f"THE PROMISE THIS VIDEO MADE ITS VIEWER: {p['packaging_promise']}"]
+        if p.get("packaging_title"):
+            out.append(f"(it goes out titled: {p['packaging_title']})")
+        out.append("")
     if p.get("architecture"):
         out += ["THIS MOVEMENT'S JOB IN THE STRUCTURE"]
         out += [f"- {k.replace('_', ' ')}: {v}" for k, v in p["architecture"].items()]

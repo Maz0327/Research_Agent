@@ -109,6 +109,50 @@ def decide_a(episode: Path, angle: str, packaging: str, format_: str,
     return {"touchpoint": "A", "recorded": True}
 
 
+def decide_packaging(episode: Path, title: str = "", thumbnail: str = "",
+                     title_source: str = "generated",
+                     thumbnail_source: str = "generated") -> dict:
+    """The PACKAGING choice: one title and one thumbnail concept, his.
+
+    Both are required — a title with no thumbnail (or the reverse) is a
+    half-made promise, and the promise is what the story downstream has to pay.
+    The system never picks for him, and the chosen angle is not touched.
+    """
+    from backend.lwm import packaging as _packaging
+
+    chosen = _packaging.choose(episode, title=title, thumbnail=thumbnail,
+                               title_source=title_source, thumbnail_source=thumbnail_source)
+    _log(episode, "PACKAGING CHOSEN",
+         f"- title ({chosen['title_source']}): {chosen['title']}\n"
+         f"- thumbnail ({chosen['thumbnail_source']}): {chosen['thumbnail']}\n"
+         f"- promise the story must pay: {chosen['promise']}")
+    return {"touchpoint": "packaging", "chosen": chosen}
+
+
+def decide_recorded(episode: Path, notes: str = "") -> dict:
+    """Maz has recorded it. The smallest honest transition — nothing else.
+
+    The booth diff stays exactly where it was: a later comparison of what he
+    actually said against the locked script. This records that the recording
+    happened, and leaves that hook alone.
+    """
+    rows = ledger.read_rows(episode)
+    row = rows.get("12 record + booth diff")
+    if row and row.complete:
+        raise RuntimeError("this episode is already marked recorded")
+    if not decisions_locked_script(episode):
+        raise RuntimeError("nothing is locked to record yet — approve the final script first")
+    ledger.update_row(episode, "12 record + booth diff", status="recorded",
+                      gate="errors found: — (booth diff not run)",
+                      notes=(notes or "Maz recorded it; booth diff still available"))
+    _log(episode, "RECORDED", notes or "Maz marked the recording done.")
+    return {"touchpoint": "recorded", "recorded": True}
+
+
+def decisions_locked_script(episode: Path):
+    return locked_script(episode)
+
+
 def decide_b(episode: Path, notes: str = "", waive: bool = False) -> dict:
     """Touchpoint B (STORY): the structure session's decisions, or a waiver.
 

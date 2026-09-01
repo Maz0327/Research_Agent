@@ -77,7 +77,13 @@ def main(argv=None) -> int:
 
     p_dec = sub.add_parser("decide", parents=[common],
                            help="record a Maz decision (angle/B/C/D; A kept for older callers)")
-    p_dec.add_argument("touchpoint", choices=["angle", "A", "B", "C", "D"])
+    p_dec.add_argument("touchpoint", choices=["angle", "packaging", "recorded", "A", "B", "C", "D"])
+    p_dec.add_argument("--title", default="", help="packaging: the title you picked")
+    p_dec.add_argument("--thumbnail", default="", help="packaging: the thumbnail concept you picked")
+    p_dec.add_argument("--title-source", dest="title_source", default="generated",
+                       choices=["generated", "custom"])
+    p_dec.add_argument("--thumbnail-source", dest="thumbnail_source", default="generated",
+                       choices=["generated", "custom"])
     p_dec.add_argument("--angle", default="")
     p_dec.add_argument("--baseline", action="store_true", help="angle: take the baseline story")
     p_dec.add_argument("--alt", default="", help="angle: take alternative N")
@@ -159,6 +165,12 @@ def main(argv=None) -> int:
                       "custom" if args.custom else "")
             result = decisions.decide_angle(episode, choice=choice, custom=args.custom,
                                             kill=args.kill, why=args.why or args.angle)
+        elif args.touchpoint == "packaging":
+            result = decisions.decide_packaging(
+                episode, title=args.title, thumbnail=args.thumbnail,
+                title_source=args.title_source, thumbnail_source=args.thumbnail_source)
+        elif args.touchpoint == "recorded":
+            result = decisions.decide_recorded(episode, notes=args.notes)
         elif args.touchpoint == "A":
             result = decisions.decide_a(episode, args.angle, args.packaging,
                                         args.format_, kill=args.kill)

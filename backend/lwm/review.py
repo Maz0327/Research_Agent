@@ -87,8 +87,8 @@ def run(episode: Path, client: Any = None, draft_name: str = "07-draft.md") -> d
 
     angle_path = episode / "outputs" / "angle-options.json"
     chosen = json.loads(angle_path.read_text()).get("chosen") if angle_path.exists() else None
-    pkg_path = episode / "outputs" / "packaging.json"
-    promise = json.loads(pkg_path.read_text()).get("viewer_promise", "") if pkg_path.exists() else ""
+    from backend.lwm import packaging as _packaging
+    promise = _packaging.promise(episode)          # the CHOSEN promise when one exists
 
     context = {
         "fact-integrity": f"THE REGISTRY THE DRAFT WAS WRITTEN FROM\n{registry_block}\n\n",

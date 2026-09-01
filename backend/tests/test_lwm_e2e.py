@@ -238,15 +238,24 @@ def test_full_state_machine_new_to_record(workspace, monkeypatch):
     assert research_calls == ["The Colorado Cannibal"]
     assert log[-1]["stop"]["detail"].startswith("ANGLE —")
 
-    # Maz chooses → packaging (written concepts) → format default → STORY touchpoint
+    # Maz chooses the angle → packaging concepts are laid out → stop for HIS pick
     decisions.decide_angle(d, choice="alt-1")
     log = orchestrate.step(**hooks)
     rows = ledger.read_rows(d)
-    assert rows["1 angle"].complete and rows["1b packaging"].complete
-    assert rows["2 feasibility + format"].complete
+    assert rows["1 angle"].complete
+    assert rows["1b packaging"].status == "concepts ready", "the title is not chosen for him"
     pkg_concepts = json.loads((d / "outputs" / "packaging.json").read_text())
     assert len(pkg_concepts["titles"]) == 5 and len(pkg_concepts["thumbnails"]) == 3
+    assert pkg_concepts.get("chosen") is None
     assert json.loads((d / "outputs" / "angle-options.json").read_text())["chosen"]["kind"] == "alt-1"
+    assert log[-1]["stop"]["detail"].startswith("PACKAGING —")
+
+    # he picks a title and a thumbnail → format default → STORY touchpoint
+    decisions.decide_packaging(d, title=pkg_concepts["titles"][0]["title"],
+                               thumbnail=pkg_concepts["thumbnails"][0]["concept"])
+    log = orchestrate.step(**hooks)
+    rows = ledger.read_rows(d)
+    assert rows["1b packaging"].complete and rows["2 feasibility + format"].complete
     assert log[-1]["stop"]["detail"].startswith("STORY —")
 
     # decide B → architecture → dense outline → gate A internal → M1 → stop at C
@@ -295,6 +304,10 @@ def test_full_state_machine_new_to_record(workspace, monkeypatch):
     from backend.lwm import episode as ep2
     s = ep2.status(d.name)
     assert s["macro_state"] == "RECORDED"
+    # and he can say he has recorded it without leaving the creator surface
+    decisions.decide_recorded(d)
+    assert ledger.read_rows(d)["12 record + booth diff"].complete
+    assert ep2.status(d.name)["detailed_stage"] == "13 assemble + final review"
     assert s["final_script"]["sha"] == sha
     decision_log = (d / "DECISION-LOG.md").read_text()
     assert "lint" not in decision_log.lower(), "no reviewer flags in Maz's decision log"
