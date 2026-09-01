@@ -77,6 +77,22 @@ class TestStatus:
         assert s["maz_needed"] is False  # research is the system's move, not Maz's
         assert s["sources"][0]["type"] == "youtube"
 
+    def test_research_source_count_is_separate_from_intake(self, workspace):
+        """A creator who supplied nothing must not be told the research found nothing."""
+        import json
+        from backend.lwm import episode as ep
+        r = ep.create("Packer", offline=True)
+        d = Path(r["path"])
+        assert ep.status()["sources"] == []
+        assert ep.status()["research_sources"] is None      # no job yet
+        (d / "research").mkdir(exist_ok=True)
+        (d / "research" / "ra-job.json").write_text(json.dumps(
+            {"jobs": [{"job_id": "JOB-A", "status": "completed", "sources": 11}],
+             "current": "JOB-A"}))
+        s = ep.status()
+        assert s["sources"] == [], "intake is still empty — he supplied none"
+        assert s["research_sources"] == 11, "…but the research found eleven"
+
     def test_macro_state_tracks_ledger(self, workspace):
         from backend.lwm import episode as ep
         from backend.lwm import ledger

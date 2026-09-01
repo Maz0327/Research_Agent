@@ -169,6 +169,24 @@ def status(slug: str | None = None) -> dict:
     if stage == "10b script fact-check (D-SFC-1)" and row and row.status.startswith("material findings"):
         next_text, maz = "FINAL CHECK — needs your decision; correct via touchpoint D", True
 
+    # How many sources the RESEARCH found, distinct from how many the creator
+    # supplied. Packer supplied none and its research found eleven; a UI that
+    # shows only the intake count reads as "this episode has no sources", which
+    # is false and alarming. Derived from the job record already on disk — no
+    # model call, no research touched.
+    research_sources = None
+    job_file = ep / "research" / "ra-job.json"
+    if job_file.exists():
+        try:
+            import json as _json
+            jobs = _json.loads(job_file.read_text())
+            current = jobs.get("current")
+            for job in jobs.get("jobs", []):
+                if job.get("job_id") == current and job.get("sources"):
+                    research_sources = job["sources"]
+        except Exception:
+            research_sources = None
+
     from backend.lwm import decisions as _dec
     locked = _dec.locked_script(ep)
     blockers = [f"{s['id']}: {'; '.join(s['errors'])}" for s in data["sources"] if s.get("errors")]
@@ -188,6 +206,7 @@ def status(slug: str | None = None) -> dict:
                                     "ra_source_id", "errors", "preserved_path")}
             for s in data["sources"]
         ],
+        "research_sources": research_sources,
         "artifacts": artifacts,
         "final_script": ({"path": str(locked[0]), "sha": locked[1], "locked": True}
                          if locked else None),
