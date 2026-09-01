@@ -197,6 +197,10 @@ def edit_train(episode: Path, client: Any, reviewer_client: Any = None) -> dict:
     material = reviews.get("material") or []
     if material:
         tripwire = diagnose_upstream(episode, material, cycles)
+    else:
+        # The artifact is a signal, not a log: a later clean cycle must not
+        # leave a stale "stop writing" on disk for the dashboard to believe.
+        (episode / "outputs" / "tripwire.json").unlink(missing_ok=True)
 
     _write_edit_log(episode, log, cycles, lint_out, reviews, tripwire)
     (episode / "08-review-findings.md").write_text(_review.render(reviews, lint_out))

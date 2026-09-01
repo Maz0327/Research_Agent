@@ -123,7 +123,12 @@ def status(slug: str | None = None) -> dict:
                       ("angle_options", "01-angle-options.md"),
                       ("angle_options_json", "outputs/angle-options.json"),
                       ("packaging", "01b-packaging.md"),
+                      ("packaging_json", "outputs/packaging.json"),
                       ("architecture", "04c-story-architecture.md"),
+                      ("architecture_json", "outputs/story-architecture.json"),
+                      ("outline_json", "outputs/outline.json"),
+                      ("tripwire", "outputs/tripwire.json"),
+                      ("production_json", "editing/production-package.json"),
                       ("outline", "05-outline.md"), ("draft", "07-draft.md"),
                       ("review_findings", "08-review-findings.md"),
                       ("lint_findings", "outputs/lint-findings.json"),
@@ -143,7 +148,15 @@ def status(slug: str | None = None) -> dict:
     artifacts["ledger"] = str(ep / "STAGE-LEDGER.md")
     artifacts["manifest"] = str(manifest.manifest_path(ep)) if manifest.manifest_path(ep).exists() else None
 
-    next_text, maz = _NEXT.get(stage, ("—", False)) if stage else ("published — stage 14 harvest is internal", False)
+    next_text, maz = _NEXT.get(stage, ("—", False)) if stage else ("published", False)
+
+    # A named kill is a terminal state of its own (STATE-MAP), but the stage
+    # projection cannot express it: the row is simply never complete, so the
+    # episode would otherwise read as "still at the angle, press Continue"
+    # forever. Report it so a UI can stop offering to carry on.
+    killed_row = next((r for r in rows.values() if r.status.strip().upper() == "KILLED"), None)
+    killed = ({"stage": killed_row.stage, "when": killed_row.date, "why": killed_row.notes}
+              if killed_row else None)
 
     # Waiting-on-Maz states inside internal stages: C (M1 at the ear) and D
     # (candidate ready) flip maz_needed live, from the ledger, not from a map.
@@ -187,6 +200,11 @@ def status(slug: str | None = None) -> dict:
         except Exception:
             research_sources = None
 
+    # A kill wins over every per-stage next action computed above: there is
+    # nothing to continue.
+    if killed:
+        next_text, maz = "this video was killed", False
+
     from backend.lwm import decisions as _dec
     locked = _dec.locked_script(ep)
     blockers = [f"{s['id']}: {'; '.join(s['errors'])}" for s in data["sources"] if s.get("errors")]
@@ -207,6 +225,7 @@ def status(slug: str | None = None) -> dict:
             for s in data["sources"]
         ],
         "research_sources": research_sources,
+        "killed": killed,
         "artifacts": artifacts,
         "final_script": ({"path": str(locked[0]), "sha": locked[1], "locked": True}
                          if locked else None),
@@ -229,14 +248,15 @@ def list_all() -> list[dict]:
             s = status(d.name)
             rows.append({k: s[k] for k in ("episode", "topic", "macro_state",
                                             "detailed_stage", "next_action",
-                                            "maz_needed")} | {
+                                            "maz_needed", "research_sources", "killed")} | {
                 "active": d.name == active,
                 "sources": len(s["sources"]),
             })
         except Exception as e:
             rows.append({"episode": d.name, "topic": "", "macro_state": "UNKNOWN",
                          "detailed_stage": "", "next_action": f"unreadable: {e}",
-                         "maz_needed": False, "active": d.name == active, "sources": 0})
+                         "maz_needed": False, "research_sources": None, "killed": None,
+                         "active": d.name == active, "sources": 0})
     # Active first, then by number.
     rows.sort(key=lambda r: (not r["active"], r["episode"]))
     return rows
