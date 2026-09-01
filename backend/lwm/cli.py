@@ -61,6 +61,19 @@ def main(argv=None) -> int:
 
     sub.add_parser("research", parents=[common], help="run a Research Agent round now (internal op)")
 
+    p_dec = sub.add_parser("decide", parents=[common],
+                           help="record a Maz touchpoint decision (A/B/C/D)")
+    p_dec.add_argument("touchpoint", choices=["A", "B", "C", "D"])
+    p_dec.add_argument("--angle", default="")
+    p_dec.add_argument("--packaging", default="")
+    p_dec.add_argument("--format", dest="format_", default="")
+    p_dec.add_argument("--kill", action="store_true")
+    p_dec.add_argument("--notes", default="")
+    p_dec.add_argument("--waive", action="store_true")
+    p_dec.add_argument("--approve", action="store_true")
+    p_dec.add_argument("--correction", default="")
+    p_dec.add_argument("--corrections", default="")
+
     args = ap.parse_args(argv)
 
     if args.op == "new":
@@ -91,21 +104,39 @@ def main(argv=None) -> int:
 
         from backend.config import get_settings
         from backend.integrations.structured_client import get_structured_client
-        from backend.lwm import factcheck
+        from backend.lwm import decisions, factcheck
         episode = ep.resolve(args.episode)
-        script = Path(args.script) if args.script else episode / "07-draft.md"
+        locked = decisions.locked_script(episode)
+        script = Path(args.script) if args.script else (locked[0] if locked else episode / "07-draft.md")
         client = get_structured_client(get_settings().model_judge)
-        report = factcheck.run(script, episode, client)
+        report = factcheck.run(script, episode, client,
+                               lb_claims=factcheck.load_bearing_claims(episode))
         _print({k: report[k] for k in ("claims_checked", "counts", "material_findings", "blocks_recording")}, args.json)
     elif args.op == "package":
         from pathlib import Path
 
-        from backend.lwm import production
+        from backend.lwm import decisions, production
         episode = ep.resolve(args.episode)
-        script = Path(args.script) if args.script else episode / "07-draft.md"
+        locked = decisions.locked_script(episode)
+        script = Path(args.script) if args.script else (locked[0] if locked else episode / "07-draft.md")
         result = production.build(episode, script)
         _print({"beats": len(result["beats"]), "claims": len(result["claims_ledger"]),
                 "load_bearing": len(result["load_bearing"])}, args.json)
+    elif args.op == "decide":
+        from backend.lwm import decisions
+        episode = ep.resolve(args.episode)
+        if args.touchpoint == "A":
+            result = decisions.decide_a(episode, args.angle, args.packaging,
+                                        args.format_, kill=args.kill)
+        elif args.touchpoint == "B":
+            result = decisions.decide_b(episode, notes=args.notes, waive=args.waive)
+        elif args.touchpoint == "C":
+            result = decisions.decide_c(episode, approve=args.approve,
+                                        correction=args.correction)
+        else:
+            result = decisions.decide_d(episode, approve=args.approve,
+                                        corrections=args.corrections)
+        _print(result, args.json)
     elif args.op == "research":
         from backend.lwm import research
         episode = ep.resolve(args.episode)

@@ -90,14 +90,14 @@ class TestVerdicts:
                         _verdict_client([{"verdict": "REFUTED", "url": "https://history.example/packer",
                                           "quote": "the jury deliberated for three days"}]),
                         _search(), lambda url: PAGE_CONTRA)
-        assert f.verdict == "REFUTED" and f.material and f.quote_verified
+        assert f.verdict == "REFUTED" and f.quote_verified  # materiality is run()'s job
 
     def test_conflicting_and_insufficient(self):
         from backend.lwm.factcheck import check_claim
         f1 = check_claim(self._claim("x y z claim"),
                          _verdict_client([{"verdict": "CONFLICTING", "notes": "sources disagree"}]),
                          _search(), lambda url: PAGE_TRUE)
-        assert f1.verdict == "CONFLICTING" and f1.material
+        assert f1.verdict == "CONFLICTING"
         f2 = check_claim(self._claim("unfindable claim"),
                          _verdict_client([{"verdict": "NOT ENOUGH EVIDENCE"}]),
                          _search(), lambda url: PAGE_TRUE)

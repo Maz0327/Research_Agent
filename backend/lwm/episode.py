@@ -88,12 +88,12 @@ _NEXT = {
     "4b briefing + structure session": ("TOUCHPOINT B — Maz reads the Briefing; structure session or waiver", True),
     "5 outline": ("build the outline from the structure decisions (`lwm continue`)", False),
     "6 grip gate A": ("internal grip advisory on the outline (`lwm continue`)", False),
-    "7 draft": ("draft Movement 1 → TOUCHPOINT C (~700-word ear check)", False),
+    "7 draft": ("draft/advance movements — `lwm continue`; TOUCHPOINT C clears via `lwm decide C`", False),
     "8 edit": ("internal edit train: delta-scan, TIC pairs, lint (`lwm continue`)", False),
     "9 grip gate B": ("internal grip advisory on full prose (`lwm continue`)", False),
     "9b pace edit": ("internal pace edit (`lwm continue`)", False),
-    "10 ear loop + locks": ("TOUCHPOINT D prep — assemble the one candidate script", False),
-    "10b script fact-check (D-SFC-1)": ("run the final script fact-check (`lwm check-script`)", False),
+    "10 ear loop + locks": ("prepare the ONE final candidate; TOUCHPOINT D clears via `lwm decide D`", False),
+    "10b script fact-check (D-SFC-1)": ("fact-check the LOCKED script (`lwm continue` / `lwm check-script`)", False),
     "11 production package": ("generate the production package (`lwm package`)", False),
     "12 record + booth diff": ("Maz records; booth diff after", True),
     "13 assemble + final review": ("assemble per PRODUCTION-ASSEMBLY-PIPELINE; publish", True),
@@ -116,6 +116,7 @@ def status(slug: str | None = None) -> dict:
     artifacts = {}
     for key, name in [("briefing", "04b-briefing.md"), ("briefing_html", "04b-briefing.html"),
                       ("outline", "05-outline.md"), ("draft", "07-draft.md"),
+                      ("final_candidate", "10-final-candidate.md"),
                       ("fact_check", "10b-fact-check.md"),
                       ("production_package", "11-production-package.md"),
                       ("manifest", "SOURCE-MANIFEST.json"), ("ledger", "STAGE-LEDGER.md")]:
@@ -126,6 +127,17 @@ def status(slug: str | None = None) -> dict:
     artifacts["manifest"] = str(manifest.manifest_path(ep)) if manifest.manifest_path(ep).exists() else None
 
     next_text, maz = _NEXT.get(stage, ("—", False)) if stage else ("published — stage 14 harvest is internal", False)
+
+    # Waiting-on-Maz states inside internal stages: C (M1 at the ear) and D
+    # (candidate ready) flip maz_needed live, from the ledger, not from a map.
+    row = rows.get(stage) if stage else None
+    if stage == "7 draft" and row and row.status.startswith("M1 drafted"):
+        next_text, maz = "TOUCHPOINT C — Maz hears Movement 1; `lwm decide C --approve` / `--correction`", True
+    if stage == "10 ear loop + locks" and row and row.status.startswith("candidate ready"):
+        next_text, maz = "TOUCHPOINT D — approve the final candidate; `lwm decide D --approve` / `--corrections`", True
+
+    from backend.lwm import decisions as _dec
+    locked = _dec.locked_script(ep)
     blockers = [f"{s['id']}: {'; '.join(s['errors'])}" for s in data["sources"] if s.get("errors")]
 
     return {
@@ -144,5 +156,7 @@ def status(slug: str | None = None) -> dict:
             for s in data["sources"]
         ],
         "artifacts": artifacts,
+        "final_script": ({"path": str(locked[0]), "sha": locked[1], "locked": True}
+                         if locked else None),
         "blockers": blockers,
     }

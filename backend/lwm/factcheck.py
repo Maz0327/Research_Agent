@@ -160,6 +160,7 @@ class Finding:
     notes: str = ""
     quote_verified: bool = False
     material: bool = False
+    load_bearing: bool = False
     downgraded_from: str = ""
 
 
@@ -218,12 +219,34 @@ def check_claim(claim: dict, client: Any, search, fetch) -> Finding:
             f.downgraded_from, f.verdict = f.verdict, "NOT ENOUGH EVIDENCE"
             f.notes = (f.notes + " | negated claim vs affirming evidence — downgraded by code").strip(" |")
 
-    f.material = f.verdict in ("REFUTED", "CONFLICTING")
+    # Materiality is decided by the caller, which knows the load-bearing rows.
     return f
 
 
+def _matches_lb(claim: str, lb_claims: list[str]) -> bool:
+    """Deterministic LB matching: content-token containment against a
+    load-bearing registry claim. Code decides; no model in the loop."""
+    from backend.pipeline.text_similarity import statement_similarity
+    return any(statement_similarity(claim, lb) >= 0.5 for lb in lb_claims)
+
+
+def load_bearing_claims(episode: Path) -> list[str]:
+    """The registry's LB rows — the stage-4 context 10b materiality rests on."""
+    reg = episode / "04-sources-registry.md"
+    if not reg.exists():
+        return []
+    rows = []
+    for line in reg.read_text().splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.split("|")[1:-1]]
+        if len(cells) == 9 and cells[0] not in ("#", "---") and cells[5] == "y":
+            rows.append(cells[1])
+    return rows
+
+
 def run(script_path: Path, out_dir: Path, client: Any, search=None, fetch=None,
-        claims: list[dict] | None = None) -> dict:
+        claims: list[dict] | None = None, lb_claims: list[str] | None = None) -> dict:
     """The whole pass. Reads the script; never writes it.
 
     Returns the summary; writes `10b-fact-check.md` (for Maz: material findings
@@ -236,6 +259,16 @@ def run(script_path: Path, out_dir: Path, client: Any, search=None, fetch=None,
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         findings = list(pool.map(lambda c: check_claim(c, client, search, fetch), claims))
+
+    # Materiality (D-SFC policy): REFUTED and CONFLICTING block regardless.
+    # A LOAD-BEARING claim that cannot be verified blocks too — the video
+    # rests on it, so "not enough evidence" needs Maz's ruling, not a shrug.
+    # An unverifiable aside stays advisory: never Maz homework.
+    lb = lb_claims or []
+    for f in findings:
+        f.load_bearing = _matches_lb(f.claim, lb)
+        f.material = (f.verdict in ("REFUTED", "CONFLICTING")
+                      or (f.load_bearing and f.verdict == "NOT ENOUGH EVIDENCE"))
 
     counts = {v: sum(1 for f in findings if f.verdict == v) for v in VERDICTS}
     material = [f for f in findings if f.material]
@@ -258,18 +291,19 @@ def _render_md(report: dict) -> str:
         "# Final script fact-check (D-SFC-1)\n",
         f"{report['claims_checked']} claims checked · "
         + " · ".join(f"{v.lower()} {n}" for v, n in report["counts"].items()) + "\n",
-        ("**MATERIAL FINDINGS — need a ruling before recording:**"
+        ("**MATERIAL BLOCKERS — a ruling is needed before recording:**"
          if report["material_findings"] else
-         "**No material findings.** Nothing blocks recording."),
+         "**No material blockers.** Nothing blocks recording."),
         "",
     ]
     for f in report["findings"]:
         if f["material"]:
-            lines.append(f"- **{f['verdict']}** — {f['claim']}\n  - script: “{f['script_line'][:140]}”\n"
+            lb_tag = " · LOAD-BEARING" if f.get("load_bearing") else ""
+            lines.append(f"- **{f['verdict']}{lb_tag}** — {f['claim']}\n  - script: “{f['script_line'][:140]}”\n"
                          f"  - evidence: {f['url']} — “{f['quote'][:200]}”\n  - {f['notes']}")
     minor = [f for f in report["findings"] if not f["material"] and f["verdict"] != "SUPPORTED"]
     if minor:
-        lines.append(f"\n<details><summary>{len(minor)} unconfirmed (advisory — not homework)</summary>\n")
+        lines.append(f"\n<details><summary>{len(minor)} advisory unconfirmed (minor claims — not homework, no ruling needed)</summary>\n")
         lines += [f"- {f['claim'][:120]} — {f['verdict']}" for f in minor]
         lines.append("</details>")
     lines.append("\nThe checker never edits the script. Rulings are Maz's.")

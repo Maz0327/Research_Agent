@@ -137,12 +137,19 @@ SRC id used in the text.
         (stage / "04-sources-registry.md").write_text(registry.render(reg, job_id))
 
         # Everything succeeded — move into place, then the ledger, last.
+        # Directories MERGE rather than replace: the episode's research/ dir
+        # already holds ra-job.json (the job identity the state machine runs
+        # on), and replacing the dir once deleted it — which sent the next
+        # `continue` back to stage 4 with no job to hand off.
         for f in stage.iterdir():
             dest = episode / f.name
             if f.is_dir():
-                if dest.exists():
-                    shutil.rmtree(dest)
-                shutil.move(str(f), dest)
+                dest.mkdir(exist_ok=True)
+                for inner in f.iterdir():
+                    target = dest / inner.name
+                    if target.exists():
+                        target.unlink()
+                    shutil.move(str(inner), target)
             else:
                 shutil.move(str(f), dest)
     finally:
@@ -155,11 +162,14 @@ SRC id used in the text.
     today = str(date.today())
     ledger.update_row(episode, "3 brief", status="done", when=today,
                       notes=f"Research Agent job {job_id}: {len(doc_0.get('sources', []))} sources. Handoff via lwm.")
+    # Stage 4 COMPLETES only when the judgment pass ran; a mechanical-only
+    # registry leaves the stage open (visibly) so nothing downstream builds on
+    # judgment columns that were never filled.
     ledger.update_row(episode, "4 fact-check the brief",
-                      status="populated" if reg["judged"] else "mechanical only",
+                      status="done" if reg["judged"] else "mechanical only (judgment PENDING)",
                       when=today,
+                      gate=f"judgment pass: {'run' if reg['judged'] else 'PENDING'}",
                       notes=f"{len(reg['rows'])} rows from RA provenance; "
-                            f"judgment pass {'run' if reg['judged'] else 'PENDING'}; "
                             f"{reg['flagged']} row(s) flagged MISSING-SOURCE by code validation.")
     ledger.update_row(episode, "4b briefing + structure session", status="briefing ready", when=today,
                       gate="briefing ready: YES (04b .md/.html/.json via lwm handoff)",
