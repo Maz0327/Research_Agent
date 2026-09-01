@@ -98,9 +98,15 @@ def main(argv=None) -> int:
         from pathlib import Path
 
         from backend.lwm import handoff as h
+        from backend.lwm.routing import seat_client
         episode = ep.resolve(args.episode)
+        # Stage 4's judgment pass is part of the handoff contract, same as the
+        # orchestrator: the judge seat resolves through the locked routing and
+        # fails loudly if unreachable.
+        judgment, _m = seat_client("judge")
         result = h.run_handoff(episode, args.job_id,
-                               docs_dir=Path(args.docs_dir) if args.docs_dir else None)
+                               docs_dir=Path(args.docs_dir) if args.docs_dir else None,
+                               judgment_client=judgment)
         _print(result, args.json)
     elif args.op == "check-script":
         from pathlib import Path
