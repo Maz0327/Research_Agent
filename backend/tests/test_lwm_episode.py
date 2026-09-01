@@ -115,3 +115,24 @@ class TestContinueStops:
             ledger.update_row(d, stage, status="done")
         log = orchestrate.step()
         assert log[-1]["stop"]["detail"].startswith("Maz touchpoint B")
+
+
+class TestList:
+    def test_list_enumerates_with_active_first_and_derived_state(self, workspace):
+        from backend.lwm import episode as ep
+        ep.create("First video", offline=True)
+        ep.create("Second video", offline=True)
+        rows = ep.list_all()
+        assert [r["episode"] for r in rows][0] == "02-second-video"  # active first
+        assert rows[0]["active"] is True and rows[1]["active"] is False
+        assert all(r["macro_state"] == "TOPIC" for r in rows)
+
+    def test_list_survives_a_broken_episode(self, workspace):
+        from backend.lwm import episode as ep
+        from backend.lwm import paths
+        ep.create("Good one", offline=True)
+        bad = paths.episodes_dir() / "07-broken"
+        bad.mkdir()
+        rows = ep.list_all()
+        broken = next(r for r in rows if r["episode"] == "07-broken")
+        assert broken["macro_state"] == "UNKNOWN"

@@ -160,3 +160,31 @@ def status(slug: str | None = None) -> dict:
                          if locked else None),
         "blockers": blockers,
     }
+
+
+def list_all() -> list[dict]:
+    """Every episode's creator-facing state, derived from its own ledger.
+
+    Read-only; tolerant of scoped/legacy episodes whose ledgers are partial —
+    a row it cannot project honestly reports what it can and marks itself.
+    """
+    active = paths.read_active_episode()
+    rows = []
+    for d in sorted(paths.episodes_dir().iterdir()):
+        if not d.is_dir() or d.name.startswith("_"):
+            continue
+        try:
+            s = status(d.name)
+            rows.append({k: s[k] for k in ("episode", "topic", "macro_state",
+                                            "detailed_stage", "next_action",
+                                            "maz_needed")} | {
+                "active": d.name == active,
+                "sources": len(s["sources"]),
+            })
+        except Exception as e:
+            rows.append({"episode": d.name, "topic": "", "macro_state": "UNKNOWN",
+                         "detailed_stage": "", "next_action": f"unreadable: {e}",
+                         "maz_needed": False, "active": d.name == active, "sources": 0})
+    # Active first, then by number.
+    rows.sort(key=lambda r: (not r["active"], r["episode"]))
+    return rows

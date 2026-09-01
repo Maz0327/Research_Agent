@@ -46,6 +46,7 @@ def main(argv=None) -> int:
     p_add.add_argument("--offline", action="store_true")
 
     sub.add_parser("status", parents=[common], help="episode status (macro state, next action, sources, artifacts)")
+    sub.add_parser("list", parents=[common], help="all episodes with creator-facing state (read-only)")
     p_cont = sub.add_parser("continue", parents=[common], help="run internal work until the next Maz touchpoint")
     p_cont.add_argument("--max-steps", type=int, default=6)
 
@@ -85,6 +86,8 @@ def main(argv=None) -> int:
         _print({"episode": episode.name, "added": results}, args.json)
     elif args.op == "status":
         _print(ep.status(args.episode), args.json)
+    elif args.op == "list":
+        _print({"videos": ep.list_all()}, args.json)
     elif args.op == "continue":
         log = orchestrate.step(args.episode, max_steps=args.max_steps)
         _print({"log": log}, args.json)
