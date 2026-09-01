@@ -102,8 +102,9 @@ class TestDefect5Routing:
         """D-23 survives only where nothing later superseded it (routing audit 09-01)."""
         from backend.lwm.routing import seat_model
         monkeypatch.delenv("LWM_MODEL_JUDGE", raising=False)
+        monkeypatch.delenv("LWM_MODEL_EDITOR", raising=False)
         assert seat_model("writer") == "deepseek-v4-pro"       # D-23, unsuperseded
-        assert seat_model("editor") == "claude-sonnet-5"        # D-23, UNRESOLVED (dead provider)
+        assert seat_model("editor") == "gpt-5.6-luna"           # D-23b: Maz's V1 reseat (09-01)
         assert seat_model("judge") == "gpt-5.6-terra"           # D-028 supersedes D-23's kimi
         assert seat_model("reader") == "gpt-5.6-terra"          # no locked family → D-028 judge
 

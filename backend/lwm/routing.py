@@ -18,11 +18,11 @@ ROUTING PRECEDENCE (audited 2026-09-01 — do not resurrect D-23 wholesale):
 - WRITER: D-23's drafter (deepseek-v4-pro, Maz's ear across two topics,
   writer-model test 2026-08-15) has no later superseding decision. It stays.
   DashScope serves it and the key is present.
-- EDITOR: D-23 says claude-sonnet-5; the Anthropic API has been dead since
-  2026-08-30 and NO recorded decision reseats the editor. This is a genuine
-  unresolved conflict — the seat keeps its locked value and fails loudly,
-  and the fix is Maz's decision (fund Anthropic, enable the D-035
-  claude-code bridge, or reseat by decision), never a silent fallback.
+- EDITOR: MAZ'S V1 RESEAT (2026-09-01, D-23b) — gpt-5.6-luna. D-23's
+  claude-sonnet-5 is superseded for V1: the Anthropic path is dead, the RA
+  production system already reseated away from it, and Luna is the active,
+  reachable OpenAI prose seat. An operational reseat, not a bake-off and not
+  a claim Luna beats every possible editor; revisit at stage 14 harvest.
 """
 
 import os
@@ -32,8 +32,8 @@ from loguru import logger
 SEATS = {
     # seat: (env override, locked default, authority)
     "writer": ("LWM_MODEL_WRITER", "deepseek-v4-pro", "D-23 (unsuperseded)"),
-    "editor": ("LWM_MODEL_EDITOR", "claude-sonnet-5",
-               "D-23 (UNRESOLVED: provider dead since 08-30, no superseding decision)"),
+    "editor": ("LWM_MODEL_EDITOR", "gpt-5.6-luna",
+               "D-23b — Maz's V1 operational reseat 2026-09-01 (supersedes D-23's sonnet)"),
     # Judge-function seats (stage-4 judgment, 10b verdicts) follow D-028 via
     # the config's MODEL_JUDGE (default gpt-5.6-terra) so there is exactly one
     # judge authority in the system.
